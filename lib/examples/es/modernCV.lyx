@@ -1,0 +1,1679 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/es/
+\textclass moderncv
+\begin_preamble
+\PassOptionsToPackage{es-lcroman}{babel}
+\end_preamble
+\use_default_options false
+\maintain_unincluded_children false
+\language spanish
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command bibtex
+\index_command default
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize a4paper
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2.5cm
+\rightmargin 2.5cm
+\secnumdepth 0
+\tocdepth -1
+\paragraph_separation skip
+\defskip medskip
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style swiss
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+La clase moderncv ofrece muchas posibilidades de personalización; para más
+ información echa un vistazo a la documentación del paquete \SpecialChar LaTeX
+ 
+\series bold
+moderncv
+\series default
+:
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+https://ctan.org/tex-archive/macros/latex/contrib/moderncv/examples/template.tex
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout CVStyle
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+left
+\end_layout
+
+\end_inset
+
+Las opciones solo se pueden activar si está instalado moderncv 2.0
+\end_layout
+
+\end_inset
+
+casual
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+requerido, estilos posibles: 'casual' (predeterminado), 'classic', 'fancy'
+ ('fancy' requiere moderncv 2.0), 'oldstyle' y 'banking'
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Para poder usar opciones de estilo debe estar instalada al menos la versión
+ 2.0 de moderncv.
+ Se puede consultar la lista de opciones disponibles en:
+\begin_inset Newline newline
+\end_inset
+
+http://article.gmane.org/gmane.comp.tex.ctan.announce/11898
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout CVColor
+blue
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+requerido, colores posibles: 'blue' (predeterminado), 'orange', 'green',
+ 'red', 'purple', 'burgundy' ('burgundy' requiere moderncv 2.0), 'grey' y
+ 'black'
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout CVIcons
+awesome
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+opcional, debe insertarse después de 
+\family sans
+Estilo CV
+\family default
+; conjuntos de iconos posibles: 'awesome' (predeterminado para estilos 'casual'
+ y 'banking'), 'marvosym' (predeterminado para los otros estilos) y 'letters'
+ (predeterminado para estilo 'oldstyle')
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout CVColumnWidth
+3cm
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+opcional, anchura de columna con las fechas, por omisión '3cm'
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout PDF Page Mode
+UseOutlines
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+opcional, controla lo que se muestra en el PDF; 'UseNone' (solo el documento),
+ 'UseThumbs' (muestra miniaturas), 'UseOutlines' (muestra marcadores) o
+ 'FullScreen' (abre en pantalla completa).
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Otras sugerencias:
+\end_layout
+
+\begin_layout Itemize
+Para suprimir la numeración de páginas, marca la opción 
+\family sans
+Suprimir fecha por omisión en primera página
+\family default
+ en 
+\family sans
+Clase del documento
+\family default
+ de la configuración del documento
+\family sans
+.
+\end_layout
+
+\begin_layout Itemize
+Los márgenes laterales de página por omisión son de 3.5
+\begin_inset space \thinspace{}
+\end_inset
+
+cm.
+ Para modificarlos usa 
+\family sans
+Márgenes de página
+\family default
+ en la configuración del documento, como se ha hecho en este ejemplo.
+\end_layout
+
+\begin_layout Itemize
+Para usar, por ejemplo, tipos 
+\family sans
+palo seco
+\family default
+ en todo el CV, elige como 
+\family sans
+Familia predeterminada 
+\family default
+en la sección 
+\family sans
+Tipografías
+\family default
+ de la configuración del documento
+\family sans
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Name
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Nombre
+\end_layout
+
+\end_inset
+
+Ape Llido
+\end_layout
+
+\begin_layout Title
+Curriculum Vitae
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+opcional
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Las siguientes entradas de información personal son opcionales.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Address
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+C/ Micalle,
+\begin_inset space ~
+\end_inset
+
+17
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+03333
+\begin_inset space ~
+\end_inset
+
+Ciudad
+\end_layout
+
+\end_inset
+
+País
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+las líneas opcionales solo son relevantes para los estilos 
+\emph on
+classic
+\emph default
+ y 
+\emph on
+oldstyle
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Phone
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+mobile
+\end_layout
+
+\end_inset
+
++43(0)999 888
+\end_layout
+
+\begin_layout Phone
++43(0)999 9999
+\end_layout
+
+\begin_layout Phone
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+fax
+\end_layout
+
+\end_inset
+
++43(0)999 7777
+\end_layout
+
+\begin_layout Email
+napell@testman.xx
+\end_layout
+
+\begin_layout Homepage
+www.johndoe.com
+\end_layout
+
+\begin_layout Social
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+twitter
+\end_layout
+
+\end_inset
+
+nomape
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+por ahora, solo 
+\series bold
+twitter
+\series default
+, 
+\series bold
+linkedin
+\series default
+ o 
+\series bold
+github
+\series default
+ son nombres soportados
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Social
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+linkedin
+\end_layout
+
+\end_inset
+
+nomape
+\end_layout
+
+\begin_layout Social
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+github
+\end_layout
+
+\end_inset
+
+nomape
+\end_layout
+
+\begin_layout ExtraInfo
+www.lyx.org
+\end_layout
+
+\begin_layout Photo
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+
+64pt
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+
+0.4pt
+\end_layout
+
+\end_inset
+
+../CV-image
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Nombre del archivo de imagen.
+ El primer argumento es la dimensión de la altura de la foto, el segundo
+ el grosor del marco alrededor
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Quote
+«Solo se vive dos veces.» (cita opcional)
+\end_layout
+
+\begin_layout MakeCVtitle
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+imprime la parte de título; opcional
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+¡Deja vacías las entradas en verde!
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Títulos académicos
+\end_layout
+
+\begin_layout Entry
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+2003–2006
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Máster en Economía
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status collapsed
+
+\begin_layout Plain Layout
+Institución
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 4
+status collapsed
+
+\begin_layout Plain Layout
+Ciudad
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 5
+status collapsed
+
+\begin_layout Plain Layout
+País
+\end_layout
+
+\end_inset
+
+Descripción
+\end_layout
+
+\begin_layout Entry
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+2001–2003
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Licenciatura en Económicas
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status collapsed
+
+\begin_layout Plain Layout
+Institución
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 4
+status collapsed
+
+\begin_layout Plain Layout
+Ciudad
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 5
+status collapsed
+
+\begin_layout Plain Layout
+País
+\end_layout
+
+\end_inset
+
+Descripción
+\end_layout
+
+\begin_layout Section
+Tesis
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Título
+\end_layout
+
+\end_inset
+
+
+\emph on
+Título de la tesis
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace 0.5cm
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+añade espacio negativo o positivo a voluntad
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Supervisores
+\end_layout
+
+\end_inset
+
+Nombres de los supervisores
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Descripción
+\end_layout
+
+\end_inset
+
+
+\size small
+Texto descriptivo
+\end_layout
+
+\begin_layout Section
+Experiencia
+\end_layout
+
+\begin_layout Entry
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+2006–
+\begin_inset Newline newline
+\end_inset
+
+actualidad
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Mantenedor de proyectos Open Source
+\end_layout
+
+\end_inset
+
+Mantenedor de la documentación xxx
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Nota:
+\series default
+ Si usas los temas 
+\emph on
+banking
+\emph default
+ o 
+\emph on
+fancy
+\emph default
+, los saltos de línea en las entradas no están permitidos.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Entry
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+2005–2006
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Empleador
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status collapsed
+
+\begin_layout Plain Layout
+Nombre Corp.
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 4
+status collapsed
+
+\begin_layout Plain Layout
+Ciudad
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 5
+status collapsed
+
+\begin_layout Plain Layout
+País
+\end_layout
+
+\end_inset
+
+Descripción
+\end_layout
+
+\begin_layout Section
+Idiomas
+\end_layout
+
+\begin_layout ItemWithComment
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Español
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Materno
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout ItemWithComment
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Holandés
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Casi materno
+\end_layout
+
+\end_inset
+
+Grado en educación primaria en un colegio holandés
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Conocimientos en informática
+\end_layout
+
+\begin_layout DoubleItem
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+SO
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Linux, Unix, Windows
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status collapsed
+
+\begin_layout Plain Layout
+Administración
+\end_layout
+
+\end_inset
+
+Apache, Mailman
+\end_layout
+
+\begin_layout DoubleItem
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Programación
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+
+\shape smallcaps
+Java
+\shape default
+, C/C++
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status collapsed
+
+\begin_layout Plain Layout
+Interpretación
+\end_layout
+
+\end_inset
+
+PHP, Shell, Ruby
+\end_layout
+
+\begin_layout DoubleItem
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Científicos
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Matlab, AutoCAD, Abaqus
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status collapsed
+
+\begin_layout Plain Layout
+Tipografía
+\end_layout
+
+\end_inset
+
+\SpecialChar LaTeX
+, Con\SpecialChar TeX
+t, Scribus, QuarkXPress
+\end_layout
+
+\begin_layout DoubleItem
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Diseño
+\begin_inset space ~
+\end_inset
+
+web
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+XHTML, CSS, AJAX
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status collapsed
+
+\begin_layout Plain Layout
+Bases
+\begin_inset space ~
+\end_inset
+
+de
+\begin_inset space ~
+\end_inset
+
+datos
+\end_layout
+
+\end_inset
+
+MySQL, PostgreSQL
+\end_layout
+
+\begin_layout Section
+Aficiones
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Deportes de
+\begin_inset Newline newline
+\end_inset
+
+aventura
+\end_layout
+
+\end_inset
+
+Practico deportes como esquí, montañismo y submarinismo; he sido boy scout
+ durante cinco años.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace 0.3cm
+\end_inset
+
+
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Viajar
+\end_layout
+
+\end_inset
+
+Me gusta viajar por todo el mundo.
+\end_layout
+
+\begin_layout Section
+Sección con una lista
+\end_layout
+
+\begin_layout ListItem
+Ítem sencillo
+\end_layout
+
+\begin_layout ListItem
+Otro ítem sencillo
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+begin{itemize}
+\backslash
+item 
+\end_layout
+
+\end_inset
+
+Subítem.
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+end{itemize}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+renewcommand{
+\backslash
+listitemsymbol}{-~} 
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+opcional, cambia el símbolo para las listas
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout DoubleListItem
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Ítem 1
+\end_layout
+
+\end_inset
+
+Ítem 3
+\end_layout
+
+\begin_layout DoubleListItem
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Ítem 2
+\end_layout
+
+\end_inset
+
+Ítem 4, véase 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Jobs95"
+literal "true"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+renewcommand{
+\backslash
+listitemsymbol}{
+\backslash
+labelitemi~} 
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+opcional, retorna al símbolo predeterminado para las listas
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Subsección
+\end_layout
+
+\begin_layout ListItem
+Ítem en una subsección
+\end_layout
+
+\begin_layout Section
+Sección con columnas
+\end_layout
+
+\begin_layout Columns
+\begin_inset Flex Column
+status open
+
+\begin_layout Plain Layout
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+
+0.5
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+la anchura opcional es un número entre 0 y 1, especifica la fracción de
+ longitud de línea; si no se determina anchura se usa para la columna toda
+ la anchura disponible
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+encabezado 1
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+El contenido puede ser cualquier cosa
+\end_layout
+
+\begin_layout Plain Layout
+\noindent
+\begin_inset Tabular
+<lyxtabular version="3" rows="1" columns="1">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+incluso un cuadro
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Nota:
+\series default
+ no está permitido el alineamiento de párrafos, así que, p.
+\begin_inset space \thinspace{}
+\end_inset
+
+ej., no es posible centrar el cuadro
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Flex Column
+status open
+
+\begin_layout Plain Layout
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+encabezado 2
+\end_layout
+
+\end_inset
+
+segunda columna
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Sección con tu propio contenido
+\end_layout
+
+\begin_layout Standard
+Aquí va el contenido propio, en un entorno sin formato.
+ Aquí puedes usar, por ejemplo, ecuaciones matemáticas 
+\begin_inset Formula 
+\[
+E=mc^{2}
+\]
+
+\end_inset
+
+cuadros, figuras, etc.
+\end_layout
+
+\begin_layout EmptySection
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Crea una sección sin encabezado
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+¡Deja vacías las entradas en verde!
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Ahora
+\end_layout
+
+\end_inset
+
+Volvemos al formato moderncv, sin poner sección nueva.
+\end_layout
+
+\begin_layout Standard
+Puedes insertar entradas de referencias bibliográficas (entorno Bibliografía):
+\end_layout
+
+\begin_layout Standard
+\begin_inset Separator plain
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Para redefinir el texto del encabezado (p.
+\begin_inset space \thinspace{}
+\end_inset
+
+ej., 
+\begin_inset Quotes eld
+\end_inset
+
+Publicaciones
+\begin_inset Quotes erd
+\end_inset
+
+), elimina la marca de comentario (%):
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+%
+\backslash
+renewcommand{
+\backslash
+refname}{Publicaciones}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+renewcommand{
+\backslash
+bibliographyitemlabel}{[
+\backslash
+arabic{enumiv}]}
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+opcional, numera las entradas de bibliografía
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "latexguide"
+literal "true"
+
+\end_inset
+
+Helmut Kopka and Patrick W.
+ Daly: 
+\emph on
+A Guide to \SpecialChar LaTeX
+ Fourth Edition.
+
+\emph default
+ Addison-Wesley, 2003
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "latexbook"
+literal "true"
+
+\end_inset
+
+Leslie Lamport: 
+\emph on
+\SpecialChar LaTeX
+: A Document Preparation System.
+
+\emph default
+ Addison-Wesley, second edition, 1994
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+O una bibliografía Bib\SpecialChar TeX
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+btprint "btPrintAll"
+bibfiles "../biblioExample"
+options "plain"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage clearpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Recipient
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+Compañía, S.A.
+\end_layout
+
+\end_inset
+
+Departamento de contratación
+\begin_inset Newline newline
+\end_inset
+
+C/ Calle, 123
+\begin_inset Newline newline
+\end_inset
+
+Ciudad
+\end_layout
+
+\begin_layout Date
+1 de enero de 2014
+\end_layout
+
+\begin_layout Opening
+Estimado Sr.
+ o Sra,
+\end_layout
+
+\begin_layout Closing
+Atentamente,
+\end_layout
+
+\begin_layout Enclosing
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+Documento adjunto
+\end_layout
+
+\end_inset
+
+curriculum vitae
+\end_layout
+
+\begin_layout MakeLetterTitle
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+genera el título de la carta; debe ir detrás del 
+\emph on
+Cierre
+\family sans
+\emph default
+ y de los 
+\family default
+\emph on
+Adjuntos
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+¡Deja vacías las entradas en verde!
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+ Duis ullamcorper neque sit amet lectus facilisis sed luctus nisl iaculis.
+ Vivamus at neque arcu, sed tempor quam.
+ Curabitur pharetra tincidunt tincidunt.
+ Morbi volutpat feugiat mauris, quis tempor neque vehicula volutpat.
+ Duis tristique justo vel massa fermentum accumsan.
+ Mauris ante elit, feugiat vestibulum tempor eget, eleifend ac ipsum.
+ Donec scelerisque lobortis ipsum eu vestibulum.
+ Pellentesque vel massa at felis accumsan rhoncus.
+\end_layout
+
+\begin_layout Standard
+Suspendisse commodo, massa eu congue tincidunt, elit mauris pellentesque
+ orci, cursus tempor odio nisl euismod augue.
+ Aliquam adipiscing nibh ut odio sodales et pulvinar tortor laoreet.
+ Mauris a accumsan ligula.
+ Class aptent taciti sociosqu ad litora torquent per conubia nostra, per
+ inceptos himenaeos.
+ Suspendisse vulputate sem vehicula ipsum varius nec tempus dui dapibus.
+ Phasellus et est urna, ut auctor erat.
+ Sed tincidunt odio id odio aliquam mattis.
+ Donec sapien nulla, feugiat eget adipiscing sit amet, lacinia ut dolor.
+ Phasellus tincidunt, leo a fringilla consectetur, felis diam aliquam urna,
+ vitae aliquet lectus orci nec velit.
+ Vivamus dapibus varius blandit.
+\end_layout
+
+\begin_layout Standard
+Duis sit amet magna ante, at sodales diam.
+ Aenean consectetur porta risus et sagittis.
+ Ut interdum, enim varius pellentesque tincidunt, magna libero sodales tortor,
+ ut fermentum nunc metus a ante.
+ Vivamus odio leo, tincidunt eu luctus ut, sollicitudin sit amet metus.
+ Nunc sed orci lectus.
+ Ut sodales magna sed velit volutpat sit amet pulvinar diam venenatis.
+\end_layout
+
+\begin_layout Standard
+Albert Einstein descubrió esto 
+\begin_inset Formula $E=mc^{2}$
+\end_inset
+
+ en 1905.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+e=\lim_{n\to\infty}\left(1+\frac{1}{n}\right)^{n}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout MakeLetterClosing
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+¡Deja vacías las entradas en verde!
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

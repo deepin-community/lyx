@@ -1,0 +1,70 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_LDFLAGS_MAINT_PREPEND := -Wl,-z,defs
+export DEB_CXXFLAGS_MAINT_APPEND := -fPIC
+export QT_SELECT=qt5
+
+%:
+	dh $@ --with python3,tex --builddirectory
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		--disable-silent-rules \
+		--disable-rpath \
+		--enable-warnings \
+		--enable-nls \
+		--enable-qt5 \
+		--with-gnu-ld \
+		--without-aspell \
+		--without-hunspell \
+		--with-enchant \
+		--with-x \
+		--without-included-boost \
+		--without-included-mythes \
+
+override_dh_installchangelogs:
+	dh_installchangelogs -k NEWS
+
+override_dh_auto_install:
+	dh_auto_install --destdir=debian/lyx-common
+
+# move binaries to arch package
+	mkdir -p debian/lyx/usr/share
+	mv debian/lyx-common/usr/bin debian/lyx/usr/bin
+	mv debian/lyx-common/usr/share/man debian/lyx/usr/share/man
+
+# move desktop file and icons to general lyx directory
+	mkdir -p debian/lyx/usr/share
+	mv debian/lyx-common/usr/share/applications debian/lyx/usr/share
+	mv debian/lyx-common/usr/share/icons debian/lyx/usr/share
+
+# move fonts to font package
+	mkdir -p debian/fonts-lyx/usr/share/fonts/truetype
+	mv debian/lyx-common/usr/share/lyx/fonts \
+		debian/fonts-lyx/usr/share/fonts/truetype/lyx
+
+# move tex files to correct place
+	mkdir -p debian/lyx-common/usr/share/texmf/tex/latex
+	mv debian/lyx-common/usr/share/lyx/tex \
+		debian/lyx-common/usr/share/texmf/tex/latex/lyx
+
+# make sourced python scripts non-executable
+	chmod 644 debian/lyx-common/usr/share/lyx/scripts/*.py
+
+# handle font documentation
+	mkdir -p debian/fonts-lyx/usr/share/doc/fonts-lyx
+	mv debian/fonts-lyx/usr/share/fonts/truetype/lyx/ReadmeBaKoMa4LyX.txt \
+		debian/fonts-lyx/usr/share/doc/fonts-lyx/
+	rm debian/fonts-lyx/usr/share/fonts/truetype/lyx/BaKoMaFontLicense.txt
+
+override_dh_installdocs:
+	mkdir -p debian/lyx/usr/share/doc
+	ln -s lyx-common debian/lyx/usr/share/doc/lyx
+	dh_installdocs
+
+override_dh_python3:
+	dh_python3 /usr/share/lyx
+
+override_dh_installtex:
+	dh_installtex -plyx-common

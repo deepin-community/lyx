@@ -1,0 +1,277 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/it/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children false
+\language italian
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "palatino" "default"
+\font_sans "helvet" "default"
+\font_typewriter "courier" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 95 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\index Indice
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Benvenuti in \SpecialChar LyX
+!
+\end_layout
+
+\begin_layout Section*
+Le cose più importanti da sapere quando usate \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ è accompagnato da una eccellente documentazione — per favore, consultatela!
+ Iniziate da 
+\family sans
+Aiuto\SpecialChar menuseparator
+Introduzione
+\family default
+, il quale vi fornirà una breve introduzione alla documentazione.
+ Quindi imparate ad usare \SpecialChar LyX
+ mediante il documento 
+\family sans
+Aiuto\SpecialChar menuseparator
+Tutorial
+\family default
+.
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ è ciò che noi chiamiamo un 
+\begin_inset Quotes eld
+\end_inset
+
+processore di documenti.
+\begin_inset Quotes erd
+\end_inset
+
+ Per design, è differente dai consueti programmi di videoscrittura — in
+ modo da semplificare la stesura dei documenti.
+ In realtà si tratta di piccole differenze, quindi non vi spaventate.
+ La documentazione vi renderà tutto più chiaro.
+\end_layout
+
+\begin_layout Enumerate
+I documenti scritti con \SpecialChar LyX
+ sono notevoli! Scegliete da menu 
+\family sans
+Documento\SpecialChar menuseparator
+Mostra
+\begin_inset space ~
+\end_inset
+
+[PDF
+\begin_inset space ~
+\end_inset
+
+(pdflatex)]
+\family default
+ per constatrlo con i vostri occhi.
+\end_layout
+
+\begin_layout Enumerate
+Ebbene sì, \SpecialChar LyX
+ è in grado di realizzare (quasi) tutte le funzionalità del \SpecialChar LaTeX
+,
+ ed anche importare i file \SpecialChar LaTeX
+.
+ Gli utilizzatori esperti di \SpecialChar LaTeX
+ potrebbero scorrere velocemente la restante
+ parte del 
+\emph on
+Tutorial
+\emph default
+, soffermandosi sul capitolo 
+\begin_inset Quotes eld
+\end_inset
+
+\SpecialChar LyX
+ per gli Utilizzatori di \SpecialChar LaTeX
+.
+ (Per tutti gli altri: non preoccupatevi, non avete bisogno di conoscere
+ \SpecialChar LaTeX
+ per usare \SpecialChar LyX
+.) 
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ possiede un mucchio di caratteristiche per tutti coloro che leggono o scrivono
+ in una lingua diversa dall'Inglese.
+ In più, le funzioni attivabili mediante i tasti, la barra degli strumenti,
+ e molte altre caratteristiche sono fortemente configurabili (la maggior
+ parte editando il vostro file 
+\family typewriter
+lyxrc
+\family default
+).
+ Leggete 
+\family sans
+Aiuto\SpecialChar menuseparator
+Personalizzazione
+\family default
+ per ulteriori dettagli.
+\end_layout
+
+\begin_layout Enumerate
+La home page di \SpecialChar LyX
+ si trova all'indirizzo 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org
+\end_layout
+
+\end_inset
+
+.
+ Consultatela per informazioni su \SpecialChar LyX
+, per iscrivervi alle mailing list(s)
+ sul \SpecialChar LyX
+, per effettuare il Tour Grafico di \SpecialChar LyX
+: 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org/Walkthrough
+\end_layout
+
+\end_inset
+
+ e per altro ancora.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Nota per utenti Linux:
+\series default
+ Per evitare errori \SpecialChar LaTeX
+ occorre assicurarsi che siano installati i pacchetti
+ linguistici di 
+\family sans
+\SpecialChar TeX
+
+\begin_inset space ~
+\end_inset
+
+Live
+\family default
+ corrispondenti alle lingue usate in un documento.
+\begin_inset Newline newline
+\end_inset
+
+Ad esempio, nelle distribuzioni Linux 
+\family sans
+(K,X)Ubuntu
+\family default
+ e 
+\family sans
+Debian
+\family default
+ il nome del pacchetto per la lingua italiana è 
+\begin_inset Quotes eld
+\end_inset
+
+
+\family typewriter
+texlive-lang-italian
+\family default
+
+\begin_inset Quotes erd
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Dopo l'installazione di un pacchetto linguistico occorre riconfigurare \SpecialChar LyX
+
+ tramite il menu 
+\family sans
+Strumenti
+\family default
+\SpecialChar menuseparator
+
+\family sans
+Riconfigura
+\family default
+.
+\end_layout
+
+\end_body
+\end_document

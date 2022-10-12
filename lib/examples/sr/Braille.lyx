@@ -1,0 +1,736 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/sr/
+\textclass article
+\begin_preamble
+% color greyed-out notes blue
+\renewenvironment{lyxgreyedout}
+ {\textcolor{blue}\bgroup}{\egroup}
+\end_preamble
+\use_default_options false
+\begin_modules
+braille
+\end_modules
+\maintain_unincluded_children false
+\language serbian-latin
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref true
+\pdf_title "How to write Braille with LyX"
+\pdf_author "Uwe Stöhr"
+\pdf_bookmarks false
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder false
+\pdf_colorlinks true
+\pdf_backref false
+\pdf_pdfusetitle false
+\pdf_quoted_options "pdfstartview=XYZ"
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date true
+\justification true
+\use_refstyle 0
+\use_minted 0
+\index Indeks
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2.5cm
+\rightmargin 2.5cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation skip
+\defskip medskip
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Kako pisati Brajevo pismo u \SpecialChar LyX
+-u
+\end_layout
+
+\begin_layout Author
+Uwe Stöhr
+\end_layout
+
+\begin_layout Author
+Serbian translation: Zoran T.
+ Filipović
+\end_layout
+
+\begin_layout Standard
+Prvo opšta napomena: Brajeva azbuka koju kreirate sa \SpecialChar LaTeX
+-om nije kompletna!
+ Brajevo pismo može da ima 6 ili 8
+\begin_inset space \thinspace{}
+\end_inset
+
+tačkica, dok \SpecialChar LaTeX
+ (i stoga \SpecialChar LyX
+) podržava samo Brajevo pismo od 6
+\begin_inset space \thinspace{}
+\end_inset
+
+tačkica bez akcentovanih znakova.
+\end_layout
+
+\begin_layout Standard
+Za pisanje Brajevom azbukom sa \SpecialChar LyX
+-om, učitajte modul 
+\family sans
+Braille
+\family default
+ u dokumentu postavke pod 
+\family sans
+Modules
+\family default
+.
+ Sada izaberite okruženje 
+\family sans
+Braille
+\begin_inset space ~
+\end_inset
+
+(default)
+\family default
+ ili 
+\family sans
+Braille
+\begin_inset space ~
+\end_inset
+
+(textsize)
+\family default
+ iz \SpecialChar LyX
+ kompleta okruženja i pišite Vaš tekst.
+ Za druga Brajeva okruženja samo uključite/isključite neke osobine kao što
+ je opisano u nastavku; čuvajte ih praznim!
+\end_layout
+
+\begin_layout Standard
+Evo primera:
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset CommandInset line
+LatexCommand rule
+offset "0.5ex"
+width "100line%"
+height "1pt"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+latinicom:
+\end_layout
+
+\begin_layout Standard
+Ovo je primer recenice pisane u Brajevom pismu.
+\end_layout
+
+\begin_layout Standard
+Brajevo pismo sa slovima:
+\end_layout
+
+\begin_layout Braille (default)
+Ovo je primer recenice pisane u Brajevom pismu.
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset CommandInset line
+LatexCommand rule
+offset "0.5ex"
+width "100line%"
+height "1pt"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Možete videti da \SpecialChar LaTeX
+ nije u stanju da napiše reči sa crticom pisane na Brajevom
+ pismu, što treba da uradite ručno.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\begin_inset Note Greyedout
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Napomena:
+\series default
+ Samo Latinska slova, brojevi, znakovi interpukcije, zagrade se mogu štampati
+ u Brajevom pismu.
+ Specijalni karakteri kao što su 
+\begin_inset Quotes eld
+\end_inset
+
+@
+\begin_inset Quotes erd
+\end_inset
+
+, ili 
+\begin_inset Quotes eld
+\end_inset
+
+$
+\begin_inset Quotes erd
+\end_inset
+
+, akcentovani karakteri kao što su umlauti, kao i prelomi redova nisu podržani.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\begin_inset Note Greyedout
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Note:
+\series default
+ \SpecialChar LyX
+ i \SpecialChar LaTeX
+ vlastita imena 
+\begin_inset Quotes eld
+\end_inset
+
+\SpecialChar LaTeX
+
+\begin_inset Quotes erd
+\end_inset
+
+, 
+\begin_inset Quotes eld
+\end_inset
+
+\SpecialChar LaTeX2e
+
+\begin_inset Quotes erd
+\end_inset
+
+, 
+\begin_inset Quotes eld
+\end_inset
+
+\SpecialChar TeX
+
+\begin_inset Quotes erd
+\end_inset
+
+, and 
+\begin_inset Quotes eld
+\end_inset
+
+\SpecialChar LyX
+
+\begin_inset Quotes erd
+\end_inset
+
+ moraju da se ubace kao \SpecialChar TeX
+ kod, što je prikazano u sledećem primeru:
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset CommandInset line
+LatexCommand rule
+offset "0.5ex"
+width "100line%"
+height "1pt"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Latin: 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+LyX
+\end_layout
+
+\end_inset
+
+ is cool!
+\begin_inset Newline newline
+\end_inset
+
+Brajevo pismo:
+\end_layout
+
+\begin_layout Braille (default)
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+LyX
+\end_layout
+
+\end_inset
+
+ is cool!
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset CommandInset line
+LatexCommand rule
+offset "0.5ex"
+width "100line%"
+height "1pt"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Sledi pregled o različitim okruženjima u Brajevom pismu na primeru teksta
+ 
+\begin_inset Quotes eld
+\end_inset
+
+This is Braille.
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\family sans
+Braille
+\begin_inset space ~
+\end_inset
+
+(default)
+\family default
+:
+\end_layout
+
+\begin_layout Braille (default)
+This is Braille.
+\end_layout
+
+\begin_layout Standard
+
+\family sans
+Braille
+\begin_inset space ~
+\end_inset
+
+(textsize)
+\family default
+ - veličine da otprilike odgovara veličini teksta dokumenta:
+\end_layout
+
+\begin_layout Braille (textsize)
+This is Braille.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\family sans
+Braille
+\begin_inset space ~
+\end_inset
+
+(dots on)
+\family default
+ - male tačke se mogu prikazati na praznim mestima:
+\end_layout
+
+\begin_layout Braille (dots on)
+
+\end_layout
+
+\begin_layout Braille (textsize)
+This is Braille.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Tekst može biti odštampan u ogledaju tak da ste kasnije u stanju da izaberete
+ Brajevom ručno štampanje sa iglom ili drugi odgovarajući metod:
+\end_layout
+
+\begin_layout Standard
+Normalna:
+\end_layout
+
+\begin_layout Braille (default)
+This is Braille.
+\end_layout
+
+\begin_layout Standard
+
+\family sans
+Braille
+\begin_inset space ~
+\end_inset
+
+(mirror on)
+\family default
+:
+\end_layout
+
+\begin_layout Braille (mirror on)
+
+\end_layout
+
+\begin_layout Braille (default)
+This is Braille.
+\end_layout
+
+\begin_layout Braille (mirror off)
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Brajeva slova mogu alternativno biti kreirana pisanjem broja u Brajevom
+ kutiji.
+ Brajeva kutija je ubačena u meni
+\family sans
+ Insert\SpecialChar menuseparator
+Custom
+\begin_inset space ~
+\end_inset
+
+insets
+\family default
+.
+ Svaki broj u ovom polju uključuje odgovarajuće Brajevom tačku.
+ Na primer, vodi broj 
+\series bold
+6145
+\series default
+ na:
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Flex Braillebox
+status open
+
+\begin_layout Plain Layout
+6145
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Računar koji koristi Brajevo pismo sa 8
+\begin_inset space \thinspace{}
+\end_inset
+
+tačkica može biti uključen komandom
+\series bold
+ 
+\backslash
+brailleeightdotstrue
+\series default
+.
+ Međutim, dve dodatne tačke se samo štampaju kada se koristi Brajeva kutija.
+ Na primer, vodeći broj
+\series bold
+ 8175
+\series default
+ u Brajevoj kutiji je:
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+brailleeightdotstrue 
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset Flex Braillebox
+status open
+
+\begin_layout Plain Layout
+8175
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+brailleeightdotsfalse 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+Veličina podrazumevanog fonta Brajeve azbuke može da se promeniti dužinom
+ 
+\series bold
+
+\backslash
+brailleunit
+\series default
+.
+ Podrazumevana vrednost je 2.4
+\begin_inset space \thinspace{}
+\end_inset
+
+mm.
+ Da biste dobili primer dvostruke veličine Brajevog pisma koristite sledeću
+ komandu u \SpecialChar TeX
+ kodu u vašem dokumentu:
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+
+\backslash
+renewcommand{
+\backslash
+braillenormal}[1]
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset space ~
+\end_inset
+
+{
+\backslash
+setlength{
+\backslash
+brailleunit}{4.8mm}
+\backslash
+braille{#1}}
+\end_layout
+
+\begin_layout Standard
+Dupla veličina Brajevo pismo:
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+renewcommand{
+\backslash
+braillenormal}[1]
+\end_layout
+
+\begin_layout Plain Layout
+
+ {
+\backslash
+setlength{
+\backslash
+brailleunit}{4mm}
+\backslash
+braille{#1}}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Braille (default)
+This is Braille.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+renewcommand{
+\backslash
+braillenormal}[1]
+\end_layout
+
+\begin_layout Plain Layout
+
+ {
+\backslash
+setlength{
+\backslash
+brailleunit}{2mm}
+\backslash
+braille{#1}}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+Za više informacija o dimenziji Brajeve ćelije možete pogledi na
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset CommandInset href
+LatexCommand href
+name "http://www.tiresias.org/research/reports/braille_cell.htm"
+target "http://www.tiresias.org/research/reports/braille_cell.htm"
+literal "false"
+
+\end_inset
+
+.
+\end_layout
+
+\end_body
+\end_document

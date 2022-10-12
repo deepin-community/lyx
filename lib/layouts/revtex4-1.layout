@@ -1,0 +1,21 @@
+#% Do not delete the line below; configure depends on this
+#  \DeclareLaTeXClass[revtex4-1,natbib.sty,revsymb4-1.sty,textcase.sty,url.sty]{REVTeX (V. 4.1)}
+#  \DeclareCategory{Articles}
+# REVTeX 4.1 textclass definition file.
+# Based on official article.layout, revtex4.layout and stdclass.inc definition files,
+# and on the unofficial revtex4-1.layout by Manoj Rajagopalan, posted to the wiki.
+#
+# Author: Julien Rioux <jrioux@lyx.org> and Uwe Stöhr
+#
+# This layout is according to
+# https://journals.aps.org/files/revtex/auguide4-1.pdf
+
+# a note:
+#   - we provide natbib-internal according to LyX bug #5182
+# todo:
+#     - add support for \onlinecite{}
+
+
+Format 66
+
+Input revtex4-x.inc

@@ -1,0 +1,243 @@
+#% Do not delete the line below; configure depends on this      
+#  \DeclareLaTeXClass[jss,ae.sty,color.sty,fancyvrb.sty,hyperref.sty,natbib.sty,upquote.sty]{Journal of Statistical Software (JSS) version 2}
+#  \DeclareCategory{Articles}
+# Journal of Statistical Software (JSS) article textclass definition file
+# Author: Andreas Karlsson <andreas.karlsson@ltv.se>
+#         Phil Chalmers <rphilip.chalmers@gmail.com>
+#         Uwe Stöhr <uwestoehr@lyx.org>
+# License: GNU GPL version 2 or later
+# JSS LaTeX files can be downloaded from http://www.jstatsoft.org/downloads/JSSstyle.zip
+
+Format 66
+
+# Read the definitions from article.layout
+Input article.layout
+
+# The commented macro below is enough to prevent Sweave from loading
+# Sweave.sty. This is needed because jss.cls already provides
+# this package's functionality (see bug 7555).
+AddToPreamble
+    %\usepackage{Sweave}
+EndPreamble
+
+NoStyle "Right Address"
+
+Style Section
+	LabelString			\thesection.
+End
+
+Style Subsection
+	LabelString			\thesubsection.
+End
+
+Style Subsubsection
+	LabelType			No_Label
+	Font
+	  Shape				Italic
+	EndFont
+End
+
+Style Title
+	InPreamble			1
+	Font
+	  Size				Huge
+	EndFont
+End
+
+Style Author
+	InPreamble			1
+End
+
+Style Abstract
+	Category			FrontMatter
+	LatexName			Abstract
+	LatexType			Command
+	InTitle				1
+	InPreamble			1
+	Margin				Dynamic
+	LeftMargin			M
+	NextNoIndent		1
+	ParSkip				0.4
+	BottomSep			1.5
+	TopSep				1.5
+	ParSep				1.5
+	TopSep				0.8
+	BottomSep			0.8
+	AlignPossible		Block, Left, Right, Center
+	Labeltype			Centered
+	LabelString			"Abstract"
+	LabelFont
+	  Series			Bold
+	EndFont
+End
+
+Style Address
+	CopyStyle			Abstract
+	LatexName			Address
+	LabelType			Above
+	LabelString			"Affiliation:"
+	Margin				Static
+	LeftMargin			M
+	Labelsep			M
+	LabelFont
+	  Size				normal
+	EndFont
+End
+
+Style Keywords
+	Margin				Dynamic
+	LatexType			Command
+	LatexName			Keywords
+	Category			FrontMatter
+	InTitle				1
+	InPreamble			1
+	NextNoIndent		1
+	BottomSep			0.5
+	ParSkip				0.4
+	Align				Block
+	LabelSep			xx
+	LabelType			Static
+	LabelString			"Keywords:"
+	LabelFont
+	  Color				Green
+	  Series			Bold
+	EndFont
+End
+
+Style "Plain Keywords"
+	CopyStyle			Keywords
+	LatexName			Plainkeywords
+	LabelString			"Plain Keywords:"
+End
+
+Style "Plain Title"
+	CopyStyle			Keywords
+	LatexName			Plaintitle
+	LabelString			"Plain Title:"
+End
+
+Style "Short Title"
+	CopyStyle			Keywords
+	LatexName			Shorttitle
+	LabelString			"Short Title:"
+End
+
+Style "Plain Author"
+	CopyStyle			Keywords
+	LatexName			Plainauthor
+	LabelString			"Plain Author:"
+End
+
+InsetLayout "Flex:Pkg"
+	LyxType				custom
+	LabelString			pkg
+	LatexType			command
+	LatexName			pkg
+	Font
+	  Color				foreground
+	  Size				Small
+	  Family			Roman
+	  Shape				Up
+	  Series			Medium
+	  Misc				No_Emph
+	  Misc				No_Noun
+	  Misc				No_Bar
+	  Series			Bold
+	EndFont
+	LabelFont
+	  Color				latex
+	  Size				Small
+	EndFont
+	HTMLTag				pkg
+	ResetsFont			true
+	spellcheck			false
+End
+
+InsetLayout "Flex:Proglang"
+	CopyStyle			"Flex:Pkg"
+	LabelString			proglang
+	LatexName			proglang
+	Font
+	  Family			Typewriter
+	  Series			Medium
+	EndFont
+	LabelFont
+	  Color				latex
+	  Size				Small
+	EndFont
+	HTMLTag				proglang
+End
+
+InsetLayout "Flex:Code"
+	CopyStyle			"Flex:Proglang"
+	Spellcheck			0
+	LabelString			code
+	LatexName			code
+	HTMLTag				code
+End
+
+InsetLayout "Flex:E-mail"
+	CopyStyle			"Flex:URL"
+	LabelString			E-mail
+	LatexName			email
+	HTMLTag				email
+End
+
+InsetLayout "Flex:Code Chunk"
+	CopyStyle			"Flex:Pkg"
+	LatexType			Environment
+	LatexName			CodeChunk
+	Decoration			Classic
+	Spellcheck			0
+	ParbreakIsNewline	1
+	FreeSpacing			1
+	PassThru			1
+	KeepEmpty			1
+	LabelString			"Code Chunk"
+	Font
+	  Family			Typewriter
+	EndFont
+	LabelFont
+	  Color				Green
+	EndFont
+End
+
+Style "Code"
+	LatexName			Code
+	LabelString			"Code"
+	LatexType			Environment
+	LatexName			Code
+	Spellcheck			0
+	NextNoIndent		1
+	ParbreakIsNewline	1
+	FreeSpacing			1
+	PassThru			1
+	KeepEmpty			1
+	NewLine				0
+	TopSep				0
+	BottomSep			0
+	Align				Block
+	AlignPossible		Block
+	Labeltype			Above
+	Font
+	  Family			Typewriter
+	EndFont
+	LabelFont
+	  Series			Bold
+	  Color				Green
+	EndFont
+	HTMLTag				pre
+	HTMLItem			p
+End
+
+Style "Code Input"
+	CopyStyle			"Code"
+	LatexName			CodeInput
+	LabelString			"Code Input"
+End
+
+Style "Code Output"
+	CopyStyle			"Code"
+	LatexName			CodeOutput
+	LabelString			"Code Output"
+End

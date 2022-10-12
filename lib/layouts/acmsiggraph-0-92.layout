@@ -1,0 +1,352 @@
+#% Do not delete he line below; configure depends on this
+#  \DeclareLaTeXClass[acmsiggraph,comment.sty,lineno.sty]{ACM SIGGGRAPH 0.92 (obsolete)}
+#  \DeclareCategory{Obsolete}
+# ACM SIGGRAPH textclass definition file.
+# Author : Uwe Stöhr
+#
+# The required LaTeX class file "acmsiggraph.cls", a LaTex template
+# BibTeX style and template, and the documentation is available at
+# http://www.siggraph.org/learn/instructions-authors
+#
+# NOTE: As from Spring 2017, the class will not be usable to submit
+# a publication to ACM, it is OBSOLETE.
+# Please use instead the new acmart.cls class file, distributed with
+# TeXLive >= 2016
+#
+# Versions:
+#  siggraph 0.9:  initial layout
+#  siggraph 0.92: Removed styles "TOG project URL", "TOG video URL", 
+#	 "TOG data URL", and "TOG code URL". The corresponding 
+#	 LaTeX commands are no longer supported.
+
+Format 66
+
+Columns			1
+Sides			1
+SecNumDepth		3
+TocDepth		3
+DefaultStyle	Standard
+
+ClassOptions
+  FontSize		9|10|11|12
+End
+
+DefaultFont
+  Family		Roman
+  Series		Medium
+  Shape			Up
+  Size			Normal
+  Color			None
+EndFont
+
+
+Style Standard
+  Category		MainText
+  Margin  		Static
+  LatexType		Paragraph
+  LatexName		dummy
+  ParIndent		MM
+  ParSkip 		0.4
+  Align 		Block
+  AlignPossible	Block, Left, Right, Center
+  LabelType		No_Label
+End
+
+
+Input stdcounters.inc
+Input stdfloats.inc
+Input stdlists.inc
+Input stdsections.inc
+Input stdstarsections.inc
+
+# don't use the following styles
+NoStyle			Part
+NoCounter		part
+NoStyle			Part*
+NoStyle			Chapter
+NoCounter		chapter
+NoStyle			Chapter*
+NoStyle			Subparagraph
+NoCounter		subparagraph
+NoStyle			Subparagraph*
+
+
+Style "TOG online ID"
+	Margin			Dynamic
+	LatexType		Command
+	LatexName		TOGonlineid
+	Category		FrontMatter
+	InPreamble		1
+	ParSkip			0.4
+	BottomSep		0.5
+	Align			Left
+	LabelSep		xx
+	LabelType		Static
+	LabelString		"Online ID:"
+	LabelFont
+	  Color			Green
+	  Series		Bold
+	EndFont
+End
+
+
+Style "TOG volume"
+	CopyStyle		"TOG online ID"
+	LatexName		TOGvolume
+	LabelString		"Volume number:"
+End
+
+
+Style "TOG number"
+	CopyStyle		"TOG online ID"
+	LatexName		TOGnumber
+	LabelString		"Article number:"
+End
+
+
+Style "Set_copyright"
+	CopyStyle		"TOG online ID"
+	LatexName		setcopyright
+	LabelString		"Copyright type:"
+End
+
+
+Style "Copyright_year"
+	CopyStyle		"TOG online ID"
+	LatexName		copyrightyear
+	LabelString		"Year of copyright:"
+	Preamble
+	% Compatibility fix for acmsiggraph >= 0.93.
+	\@ifundefined{copyrightyear}{\let\copyrightyear\CopyrightYear}{}
+	EndPreamble
+End
+
+
+Style "Conference_info"
+	CopyStyle		"TOG online ID"
+	LatexName		conferenceinfo
+	LabelString		"Conference info:"
+	Argument 1
+		Mandatory	1
+		LabelString	"Name"
+		Tooltip		"Conference name"
+	EndArgument
+End
+
+
+Style "ISBN"
+	CopyStyle		"TOG online ID"
+	LatexName		isbn
+	LabelString		"ISBN:"
+End
+
+
+Style "DOI"
+	CopyStyle		"TOG online ID"
+	LatexName		doi
+	LabelString		"Article DOI:"
+End
+
+
+Style "TOG article DOI"
+	CopyStyle		"TOG online ID"
+	LatexName		TOGarticleDOI
+	LabelString		"Article DOI:"
+	ObsoletedBy		DOI
+End
+
+
+Input stdtitle.inc
+Input stdstruct.inc
+NoStyle			Date
+
+
+# modify the Title definition from stdtitle.inc
+Style Title
+	InTitle			0
+	InPreamble		1
+	Font
+	  Family		Sans
+	EndFont
+End
+
+
+# modify the Author definition from stdtitle.inc
+Style Author
+	InTitle			0
+	InPreamble		1
+End
+
+
+Style "PDF author"
+	CopyStyle		"TOG online ID"
+	LatexName		pdfauthor
+	LabelString		"PDF author:"
+End
+
+Style Keywords
+	CopyStyle		"TOG online ID"
+	LatexName		keywords
+	LabelType		Static
+	LabelString		"Keywords:"
+End
+
+
+Style "Keyword_list"
+	CopyStyle		"TOG online ID"
+	LatexName		keywordlist
+	InPreamble		0
+	KeepEmpty		1
+	LabelString		"Keyword list"
+End
+
+
+Style "Concept_list"
+	CopyStyle		"Keyword_list"
+	LatexName		conceptlist
+	LabelString		"Concept list"
+End
+
+
+Style "Print_copyright"
+	CopyStyle		"Keyword_list"
+	LatexName		printcopyright
+	LabelString		"Print copyright"
+End
+
+
+Style Teaser
+	Margin			Dynamic
+	LatexType		Command
+	LatexName		teaser
+	Category		FrontMatter
+	InTitle			1
+	ParSkip			0.4
+	BottomSep		0.5
+	Align			Left
+	LabelSep		xx
+	LabelType		Static
+	LabelString		"Teaser image:"
+	LabelFont
+	  Series		Bold
+	  Size			Normal
+	  Color			Green
+	EndFont
+End
+
+
+Style Abstract
+	Margin			Static
+	LatexType		Environment
+	LatexName		abstract
+	Category		FrontMatter
+	NextNoIndent	1
+	LeftMargin		MMM
+	RightMargin		MMM
+	ParIndent		MM
+	ItemSep			0
+	TopSep			0.7
+	BottomSep		0.7
+	ParSep			0
+	Align			Block
+	AlignPossible	Block
+	LabelType		Centered
+	LabelString		"Abstract"
+	LabelBottomSep	0.5
+	Font
+	  Size			Small
+	EndFont
+	LabelFont
+	  Series		Bold
+	  Size			Large
+	EndFont
+End
+
+
+Style "CR categories"
+	CopyStyle		Abstract
+	LatexName		CRcatlist
+	Margin			Dynamic
+	ParbreakIsNewline	1
+	LeftMargin		""
+	LabelSep		xx
+	LabelType		Static
+	LabelString		"CR Categories:"
+	LabelFont
+	  Series		Bold
+	  Size			Normal
+	EndFont
+End
+
+
+InsetLayout "Flex:CRcat"
+	LyxType			custom
+	LatexType		command
+	LatexName		CRcat
+	Decoration		classic
+	LabelString		"CR category"
+	Font
+	  Color			foreground
+	  Size			Small
+	  Family		Roman
+	  Shape			Up
+	  Series		Medium
+	  Misc			No_Emph
+	  Misc			No_Noun
+	  Misc			No_Bar
+	EndFont
+	LabelFont
+	  Color			green
+	  Size			Small
+	EndFont
+	Argument 1
+		Mandatory	1
+		LabelString	"CR-number"
+		Tooltip		"Number of the category"
+		PassThru	1
+	EndArgument
+	Argument 2
+		Mandatory	1
+		LabelString	"Subcategory"
+		Tooltip		"Subcategory"
+		PassThru	1
+	EndArgument
+	Argument 3
+		Mandatory	1
+		LabelString	"Third-level"
+		Tooltip		"Third-level of the category"
+		PassThru	1
+	EndArgument
+End
+
+
+InsetLayout "Flex:ShortCite"
+	CopyStyle		"Flex:CRcat"
+	ResetArgs		1
+	LatexName		shortcite
+	Decoration		Conglomerate
+	LabelString		"Short cite"
+End
+
+
+InsetLayout "Flex:Thanks"
+	CopyStyle		"Flex:ShortCite"
+	LatexName		thanks
+	Decoration		Classic
+	LabelString		"E-mail"
+	LabelFont
+	  Color			blue
+	EndFont
+End
+
+
+Style Acknowledgments
+	CopyStyle		Abstract
+	LatexName		acks
+	Category		BackMatter
+	InTitle			0
+	LabelBottomsep	0
+	LabelType		Above
+	LabelString		"Acknowledgments"
+End
+

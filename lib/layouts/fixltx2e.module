@@ -1,0 +1,15 @@
+#\DeclareLyXModule{Fix LaTeX}
+#DescriptionBegin
+#Loads the LaTeX package fixltx2e which contains some bug fixes for LaTeX.
+#Those fixes were not part of older LaTeX kernels because of backward compatibility.
+#If you use this module your typeset document may look different
+#with different LaTeX versions, depending on the respective version of fixltx2e.
+#NOTE: recent LaTeX kernels (as of 2015/01/01) include the functionality of
+#fixltx2e, so the fixltx2e module becomes obsolete with newer LaTeX distributions.
+#DescriptionEnd
+
+# Author : Georg Baum <baum@lyx.org>
+
+Format 66
+
+Requires fixltx2e

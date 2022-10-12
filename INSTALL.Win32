@@ -1,0 +1,182 @@
+Compiling LyX 2.3 for Win32 and creating Windows installer
+==========================================================
+
+It's recommended to compile LyX using Microsoft Visual C++ 2015 and CMake.
+
+
+Compiling with Microsoft Visual C++ (MSVC)
+===================================
+
+	The easiest way to install LyX with MSVC is to follow this Wiki page:
+	
+	http://wiki.lyx.org/Windows/Compilation
+	
+	If you find there any errors please write a mail to the lyx-devel mailing list.
+	
+----------------------------------------------------------------------------
+	
+	The following instructions assume the LyX source code is in C:\LyX\lyx-23
+	You can also use another directory if you prefer.
+
+1	Install MSVC 2015
+
+	If you don't have Visual C++ 2015 installed, get the free Community edition
+	from https://www.visualstudio.com/. Make sure that the following two
+	features are selected for installation:
+	- "Visual C++" from "Programming languages" (only the first option
+	  "Common Tools for Visual C++ 2015" is needed)
+	- "Tools and Windows SDKs" from "Windows 8.1 and Windows Phone 8.0/8.1 Tools"
+	The latter one requires Windows 8.1. If you use an older windows version
+	please install the "Windows Software Development Kit (SDK) für Windows 8.1"
+	from https://developer.microsoft.com/en-us/windows/downloads/windows-8-1-sdk.
+	This version requires at least Windows 7.
+	If the build complains later that it cannot find the file
+	C:\Microsoft.Cpp.Default.props then the SDK is not installed properly.
+
+2	Install Qt
+
+	Download the latest Qt for Open Source C++ development on Windows (VS2015)
+	from https://qt.io/download-open-source/
+	Qt 5.6.x is recommended, but 5.7.x or later versions should work as well.
+	If you want to build LyX as 32bit application, you need Qt x86.
+	If you want to build LyX as 64bit application, you need Qt x64.
+	Make sure that the bin subfolder of the Qt installation (e.g.
+	C:\Qt\Qt5.6.1\5.6\msvc2015\bin) is listed in the PATH environment variable.
+
+3	Install Python
+
+	Install the latest Python 2.x or 3.x version from
+	https://www.python.org/downloads/
+
+4	Install CMake
+
+	Install the latest CMake from http://www.cmake.org
+
+5	Download dependencies
+
+	Download the LyX for Windows build dependencies from
+	ftp.lyx.de/LyXWinInstaller/lyx-windows-deps-msvc2015.zip
+
+6	Configure
+
+	- Open the "Developer Command Prompt for VS2015" from the
+	  "Visual Studio 2015\Visual Studio Tools" subfolder of the start menu.
+	  Run the CMake GUI from the command window that was opened.
+ 	  Alternatively, you can create a .bat file that first contains the line
+	  call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
+	  and then calls the CMake GUI and use this .bat file to start CMake.
+	  This is for building a 32bit LyX, if you want to build a 64bit LyX replace
+	  'x86' by 'amd64'.
+	  The MSVC 2015 command prompt or vcvarsall.bat set some environment
+	  variables that are needed for CMake to find the compiler.
+
+	- Set the source code path to C:\LyX\lyx-23
+	  Set the build path to C:\LyX\lyx-23-build
+	  Click Configure and set the generator to "Visual Studio 14 2015" to
+	  build a 32bit LyX or "Visual Studio 14 2015 Win64" to build a 64bit LyX.
+
+	- Set LYX_USE_QT to QT5 and click Configure.
+
+	- Set GNUWIN32_DIR to the folder that contains the dependencies.
+	  (This alternative does currently not work:
+	   Enable LYX_DEPENDENCIES_DOWNLOAD and click Configure.
+	   Pre-compiled dependencies will automatically be downloaded.)
+
+	- Enable the LYX_INSTALL option and click Configure.
+
+	- Click Generate.
+
+7	Compile
+
+	A Microsoft Visual C++ solution should have been generated at
+	C:\LyX\lyx-23-build\lyx.sln
+	Compile the INSTALL project to get a LyX installation in
+	C:\LyX\lyx-23-build\LYX_INSTALLED.
+
+8	Copy dependencies
+
+	Copy
+	- C:\LyX\lyx-23-build\msvc2015-deps\lyx-windows-deps-msvc2015\bin
+	- C:\LyX\lyx-23-build\msvc2015-deps\lyx-windows-deps-msvc2015\imagemagick
+	- C:\LyX\lyx-23-build\msvc2015-deps\lyx-windows-deps-msvc2015\Python
+	- C:\LyX\lyx-23-build\msvc2015-deps\lyx-windows-deps-msvc2015\ghostscript
+	- C:\LyX\lyx-23-build\msvc2015-deps\lyx-windows-deps-msvc2015\Resources
+	to C:\LyX\lyx-23-build\LYX_INSTALLED
+
+	And copy from the Qt bin directory (see item 2 "Install Qt" above)
+	Qt5Core.dll
+	Qt5Gui.dll
+	Qt5Svg.dll
+	Qt5Widgets.dll
+	Qt5WinExtras.dll
+	Qt5Cored.dll (if compiling Debug version)
+	Qt5Guid.dll (if compiling Debug version)
+	Qt5Svgd.dll (if compiling Debug version)
+	Qt5Widgetsd.dll (if compiling Debug version)
+	Qt5WinExtrasd.dll (if compiling Debug version)
+	to C:\LyX\lyx-23-build\LYX_INSTALLED\bin
+
+9	Define path prefix
+
+	Add the following line to C:\LyX\lyx-23-build\LYX_INSTALLED\Resources\lyxrc.dist,
+	so LyX will find the bundled tools such as Python, ImageMagick
+	and Ghostscript:
+
+	\path_prefix "$LyXDir\bin;$LyXDir\Python;$LyXDir\imagemagick;$LyXDir\ghostscript"
+
+	You may also add the location of your LaTeX installation if it's not on the
+	system PATH, and the location of JabRef.
+
+10	Start LyX
+
+	C:\LyX\lyx-23-build\LYX_INSTALLED\bin\lyx.exe
+
+
+Creating the Installer
+======================
+
+	- Get NSIS from http://nsis.sourceforge.net
+	- In the LyX source directory, go to development\Win32\packaging\installer
+	- Follow the steps in the file Readme.txt
+
+
+Compiling with GCC with MinGW64 + MSYS2 Environment using autotools
+===================================================================
+1	Install MSYS2, MINGW64, Qt5+
+	https://wiki.qt.io/MSYS2
+2	Install bc (Bench calculater), which autotools uses for some reason to compile LyX
+	pacman -S bc
+3	Run the standard autotools install (Adapt paths and arguments accordingly)
+	./autogen.sh
+	 ./configure --without-x --enable-qt5 --disable-debug --enable-optimization --prefix=/mingw64
+	make
+	make install
+
+
+Cross-Compiling on unix with MXE using autotools
+=================================================
+1	Install MXE: http://mxe.cc
+	You can either install from sources, the generic .tar binaries or debian .deb packages.
+	Installing the following .deb packages will drag in all needed dependencies:
+		mxe-x86-64-w64-mingw32.shared-file
+		mxe-x86-64-w64-mingw32.shared-gcc
+		mxe-x86-64-w64-mingw32.shared-libiconv
+		mxe-x86-64-w64-mingw32.shared-qtimageformats
+		mxe-x86-64-w64-mingw32.shared-qtsvg
+		mxe-x86-64-w64-mingw32.shared-qtwinextras
+	Of course you can also use the static and/or 32bit versions.
+2	Run the standard autotools install (Adapt paths and arguments accordingly)
+	./autogen.sh
+	mkdir builddir-mingw
+	cd builddir-mingw
+	PATH="/usr/lib/mxe/usr/bin:$PATH" ../configure --host=x86-64-w64-mingw32.shared --with-qt-dir=/usr/lib/mxe/usr/x86_64-w64-mingw32.shared/qt5 --enable-qt5 --with-included-boost --with-included-hunspell --with-included-mythes --disable-debug --enable-optimization --prefix=/mingw64
+	PATH="/usr/lib/mxe/usr/bin:$PATH" make
+	PATH="/usr/lib/mxe/usr/bin:$PATH" DESTDIR=/tmp/lyxinstall make install
+	This uses the paths from the 64bit shared MXE version installed from .deb packages.
+3	If you want to run the resulting lyx.exe from the build directory using wine,
+	create symlinks for all needed .dlls:
+	cd builddir-mingw/src
+	ln -s /usr/lib/mxe/usr/x86_64-w64-mingw32.shared/bin/*.dll .
+	ln -s /usr/lib/mxe/usr/x86_64-w64-mingw32.shared/qt5/bin/*.dll .
+	wine64 lyx.exe
+

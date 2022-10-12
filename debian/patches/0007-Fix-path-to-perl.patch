@@ -1,0 +1,23 @@
+From: "Dr. Tobias Quathamer" <toddy@debian.org>
+Date: Sun, 1 Sep 2019 21:08:40 +0200
+Subject: Fix path to perl
+
+---
+ lib/scripts/prefTest.pl.in | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/lib/scripts/prefTest.pl.in b/lib/scripts/prefTest.pl.in
+index 4e0aab7..9708eb6 100755
+--- a/lib/scripts/prefTest.pl.in
++++ b/lib/scripts/prefTest.pl.in
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env perl
++#! /usr/bin/perl
+ # -*- mode: perl; -*-
+ 
+ use strict;
+@@ -77,4 +77,3 @@ if (@ctestpars) {
+ }
+ 
+ exit($res);
+-

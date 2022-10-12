@@ -1,0 +1,80 @@
+#! /usr/bin/env perl
+# -*- mode: perl; -*-
+
+use strict;
+use warnings;
+
+# Syntax: prefTest.pl [test|default] [<var1>=<Subst1> [<var2>=<Subst> ...]] [[ctest parameters]]
+# If the first parameter is "test"
+#       allow use of -shell-escape in converters and
+#       allow use of external programs
+# If the first parameter is "default"
+#       remove "-shell-escape" from converters and
+#       forbid use of external programs
+# Else
+#       allow use of -shell-escape in converters and
+#       do not change handling the use of external programs
+############################################################
+
+BEGIN  {
+  unshift(@INC, "@CMAKE_CURRENT_SOURCE_DIR@");
+}
+
+use prefTest;
+
+my $bindir = "@CMAKE_BINARY_DIR@";
+
+my $userdir = "$bindir/Testing/.lyx";
+
+my %allowedKeys = (
+  "use_converter_needauth_forbidden" => ["true", "false"],
+  "use_converter_needauth" => ["true", "false"],
+  "allow_geometry_session" => ["false"],
+    );
+
+my %Converter = ();
+
+chdir($bindir);
+
+# Parse Arguments for strings to substitute
+
+my %Subst = ();
+
+my @ctestpars = ();
+
+my $shell_escapes = 1;
+my $handle_argv = "";
+if (defined($ARGV[0]) && ($ARGV[0] =~ /^(test|default)$/)) {
+  $handle_argv = $1;
+  shift(@ARGV);
+}
+
+if ($handle_argv eq "test") {
+  @ctestpars = &getSubstitutes(\%allowedKeys, \%Subst,
+			       "allow_geometry_session=false",
+			       "use_converter_needauth_forbidden=false",
+			       "use_converter_needauth=false", @ARGV);
+}
+elsif ($handle_argv eq "default") {
+  $shell_escapes = 0;
+  @ctestpars = &getSubstitutes(\%allowedKeys, \%Subst,
+			       "allow_geometry_session=false",
+			       "use_converter_needauth_forbidden=true",
+			       "use_converter_needauth=true", @ARGV);
+}
+else {
+  @ctestpars = &getSubstitutes(\%allowedKeys, \%Subst,
+			       "allow_geometry_session=false", @ARGV);
+}
+
+&getConverters($userdir, \%Converter, $shell_escapes);
+
+&applyChanges($userdir, \%Subst, \%Converter, $shell_escapes);
+
+my $res = 0;
+if (@ctestpars) {
+  $res = system("ctest", @ctestpars);
+}
+
+exit($res);
+

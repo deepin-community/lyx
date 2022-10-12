@@ -1,0 +1,51 @@
+This file lists features that are supported by LyX but not yet converted (or
+not converted completely) by tex2lyx. Currently, (all?) features up to the
+current file format are listed. The table is organized in three columns:
+
+
+Format:        First file format that supports the feature. In some cases the
+               feature may habe been revised in later file formats.
+LaTeX feature: LaTeX package, command or environment
+LyX feature:   LyX inset or document setting
+
+
+Format LaTeX feature                        LyX feature
+224    external insets defined in           InsetExternal
+       lib/external_templates.
+       (- RasterImage clashes with InsetGraphics
+        - Dia and LilyPond are an \includegraphics and can therefore only be imported as image
+        - Chess diagram, PDF pages and Spreadsheet are supported)
+       (Xfig figure, Lilypond, Dia diagram can be supported by looking at the file extension)
+254    esint.sty                            \use_esint
+267    XeTeX                                utf8 encoding
+326    PDFLaTeX for external insets         InsetExternal
+329    master documents                     \master
+358    custom bibtex command                \bibtex_command
+       Maybe via the
+       % !BIB program = 
+       comment understood by some TeX editors
+358    custom makeindex command             \index_command
+364    branch file name suffix              \filename_suffix
+371    automatic mhchem loading             \use_mhchem
+390    forward/reverse search               \forward_search, \forward_macro
+399    automatic mathdots loading           \use_mathdots
+411    support for polyglossia              \language_package (the cases of no package, of babel and of custom package is supported)
+415    automatic undertilde loading         \use_package undertilde
+443    unicode-math.sty                     InsetMath*
+453    automatic stmaryrd loading           \use_package stmaryrd
+457    automatic stackrel loading           \use_package stackrel
+
+
+General
+
+* Use the language information provided by Language.cpp and the languages file (for babel/lyx/polyglossia name, quote style etc.)
+  instead of hardcoding this information in Preamble.cpp.
+
+* Store alias commands for characters in a file with
+  "lib/unicodesymbols"-format, e.g.
+
+    0x200b "\\dots" "" "" "" # HORIZONTAL ELLIPSIS
+    0x200b "\\ldots" "" "" "\\ldots" # HORIZONTAL ELLIPSIS
+    0x200b "\\textellipsis" "" "" "" # HORIZONTAL ELLIPSIS
+
+  Look up LaTeX->Unicode conversion in the combined files.

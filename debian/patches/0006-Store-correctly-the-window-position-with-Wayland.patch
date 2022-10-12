@@ -1,0 +1,128 @@
+From: "Dr. Tobias Quathamer" <toddy@debian.org>
+Date: Tue, 1 Dec 2020 10:53:44 +0100
+Subject: Store correctly the window position with Wayland
+
+To do this, hard-coded test for xcb had to be replaced with a call to
+platformName(). Since this method does not exist in Qt4, we emulate
+it.
+
+Note that Qt5 uses xcb bindings for X11 system, while Qt4 relies on
+older X11 bindings. We return platorm == "qt4x11" in this case.
+
+Fixes bug #11746.
+
+(cherry picked from commit 222a317dd243fb18f01bfa6e994902fee06ae3db)
+
+See https://www.lyx.org/trac/changeset/d418b6f4c8/lyxgit
+---
+ src/frontends/qt4/GuiApplication.cpp | 23 ++++++++++++++++++++++
+ src/frontends/qt4/GuiApplication.h   |  5 +++++
+ src/frontends/qt4/GuiView.cpp        | 38 ++++++++++++++++++------------------
+ 3 files changed, 47 insertions(+), 19 deletions(-)
+
+diff --git a/src/frontends/qt4/GuiApplication.cpp b/src/frontends/qt4/GuiApplication.cpp
+index 0094e9d..458e711 100644
+--- a/src/frontends/qt4/GuiApplication.cpp
++++ b/src/frontends/qt4/GuiApplication.cpp
+@@ -1111,6 +1111,29 @@ GuiApplication * theGuiApp()
+ }
+ 
+ 
++#if QT_VERSION < 0x050000
++// Emulate platformName() for Qt4
++
++// FIXME: when ditching this method, remove all tests
++//     platformName() == "qt4x11"
++// in the code
++QString GuiApplication::platformName() const
++{
++# if defined(Q_WS_X11)
++	// Note that this one does not really exist
++	return "qt4x11";
++# elif defined(Q_OS_MAC)
++	return "cocoa";
++# elif defined(Q_OS_WIN) || defined(Q_CYGWIN_WIN)
++	return "windows";
++# else
++	LYXERR0("Unknown platform!");
++	return "unknown";
++# endif
++}
++#endif
++
++
+ double GuiApplication::pixelRatio() const
+ {
+ #if QT_VERSION >= 0x050000
+diff --git a/src/frontends/qt4/GuiApplication.h b/src/frontends/qt4/GuiApplication.h
+index 970ae80..eb25bc1 100644
+--- a/src/frontends/qt4/GuiApplication.h
++++ b/src/frontends/qt4/GuiApplication.h
+@@ -154,6 +154,11 @@ public:
+ 	///
+ 	GuiView & view(int id) const;
+ 
++#if (QT_VERSION < 0x050000)
++	/// Emulate platformName() for Qt4
++	QString platformName() const;
++#endif
++
+ 	/// Current ratio between physical pixels and device-independent pixels
+ 	double pixelRatio() const;
+ 
+diff --git a/src/frontends/qt4/GuiView.cpp b/src/frontends/qt4/GuiView.cpp
+index 2a176be..8d73c02 100644
+--- a/src/frontends/qt4/GuiView.cpp
++++ b/src/frontends/qt4/GuiView.cpp
+@@ -750,12 +750,11 @@ void GuiView::saveLayout() const
+ 	settings.setValue("devel_mode", devel_mode_);
+ 	settings.beginGroup("views");
+ 	settings.beginGroup(QString::number(id_));
+-#if defined(Q_WS_X11) || defined(QPA_XCB)
+-	settings.setValue("pos", pos());
+-	settings.setValue("size", size());
+-#else
+-	settings.setValue("geometry", saveGeometry());
+-#endif
++	if (guiApp->platformName() == "qt4x11" || guiApp->platformName() == "xcb") {
++		settings.setValue("pos", pos());
++		settings.setValue("size", size());
++	} else
++		settings.setValue("geometry", saveGeometry());
+ 	settings.setValue("layout", saveState(0));
+ 	settings.setValue("icon_size", toqstr(d.iconSize(iconSize())));
+ }
+@@ -795,19 +794,20 @@ bool GuiView::restoreLayout()
+ 	//code below is skipped when when ~/.config/LyX is (re)created
+ 	setIconSize(d.iconSize(settings.value(icon_key).toString()));
+ 
+-#if defined(Q_WS_X11) || defined(QPA_XCB)
+-	QPoint pos = settings.value("pos", QPoint(50, 50)).toPoint();
+-	QSize size = settings.value("size", QSize(690, 510)).toSize();
+-	resize(size);
+-	move(pos);
+-#else
+-	// Work-around for bug #6034: the window ends up in an undetermined
+-	// state when trying to restore a maximized window when it is
+-	// already maximized.
+-	if (!(windowState() & Qt::WindowMaximized))
+-		if (!restoreGeometry(settings.value("geometry").toByteArray()))
+-			setGeometry(50, 50, 690, 510);
+-#endif
++	if (guiApp->platformName() == "qt4x11" || guiApp->platformName() == "xcb") {
++		QPoint pos = settings.value("pos", QPoint(50, 50)).toPoint();
++		QSize size = settings.value("size", QSize(690, 510)).toSize();
++		resize(size);
++		move(pos);
++	} else {
++		// Work-around for bug #6034: the window ends up in an undetermined
++		// state when trying to restore a maximized window when it is
++		// already maximized.
++		if (!(windowState() & Qt::WindowMaximized))
++			if (!restoreGeometry(settings.value("geometry").toByteArray()))
++				setGeometry(50, 50, 690, 510);
++	}
++
+ 	// Make sure layout is correctly oriented.
+ 	setLayoutDirection(qApp->layoutDirection());
+ 

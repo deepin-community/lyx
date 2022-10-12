@@ -1,0 +1,9 @@
+DISTCLEANFILES= *.orig *.rej *~ *.bak core
+
+MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
+
+AM_INSTALL_DATA_FLAGS = $(INSTALL) -m 644 -D
+
+AM_ETAGSFLAGS = --lang=c++
+
+LIBS =

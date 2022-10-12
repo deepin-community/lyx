@@ -1,0 +1,1972 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/fr/
+\textclass scrartcl
+\begin_preamble
+% if pdflatex is used
+\usepackage{ifpdf}
+\ifpdf
+
+% set fonts for nicer pdf view
+\IfFileExists{lmodern.sty}
+ {\usepackage{lmodern}}{}
+
+\fi % end if pdflatex is used
+
+% use this when you only need the document language captions in the list of figures/tables
+%\PassOptionsToPackage{list=off}{bicaption}
+
+% all this is only necessary if you want to have a different list of floats for each language
+\usepackage{newfloat}
+% Define a new floating environment type "figureGer"
+\DeclareFloatingEnvironment[fileext=lof2]{figureGer}
+[Abbildung][Abbildungsverzeichnis]
+% Define the new floating environment type "tableEng"
+\DeclareFloatingEnvironment[fileext=lot2]{tableGer}
+[Tabelle][Tabellenverzeichnis]
+% inform bicaption about the new float types
+\PassOptionsToPackage{listtype+=Ger}{bicaption}
+\end_preamble
+\options liststotoc
+\use_default_options true
+\begin_modules
+bicaption
+\end_modules
+\maintain_unincluded_children false
+\language french
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement h
+\paperfontsize 12
+\spacing single
+\use_hyperref true
+\pdf_bookmarks true
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder false
+\pdf_colorlinks true
+\pdf_backref false
+\pdf_pdfusetitle true
+\pdf_quoted_options "linkcolor=black, citecolor=black, urlcolor=blue, filecolor=blue, pdfpagelayout=OneColumn, pdfnewwindow=true, pdfstartview=XYZ, plainpages=false"
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date true
+\justification true
+\use_refstyle 1
+\use_minted 0
+\notefontcolor #0000ff
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation skip
+\defskip medskip
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style swiss
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Imprimer des légendes multilingues
+\end_layout
+
+\begin_layout Author
+Uwe Stöhr
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Traduction Jean-Pierre Chrétien, 
+\family typewriter
+<jeanpierre.chretien@free.fr>
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Historique des mises à jour
+\end_layout
+
+\begin_layout Plain Layout
+Traduction initiale, 24 février 2015
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset FloatList figure
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+Le module 
+\family sans
+Légendes
+\begin_inset space ~
+\end_inset
+
+multilingues
+\family default
+ permet d'imprimer les légendes en deux langues.
+ Il nécessite la paquetage \SpecialChar LaTeX
+ 
+\series bold
+bicaption
+\series default
+ qui fait partie du paquetage \SpecialChar LaTeX
+ 
+\series bold
+caption
+\series default
+.
+ De ce fait si 
+\series bold
+caption
+\series default
+ est installé, 
+\series bold
+bicaption
+\series default
+ devrait l'être aussi.
+\end_layout
+
+\begin_layout Standard
+La langue principale est celle du document, la langue secondaire doit être
+ précisée en utilisant le style 
+\family sans
+Mise
+\begin_inset space ~
+\end_inset
+
+en
+\begin_inset space ~
+\end_inset
+
+forme
+\begin_inset space ~
+\end_inset
+
+légende
+\family default
+.
+ Ce style a un argument optionnel pour définir la langue secondaire.
+ Pour positionner le réglage de toutes les légendes sur la langue principale,
+ utiliser 
+\series bold
+bi-first
+\series default
+ comme argument optionnel, sur la langue secondaire, utiliser 
+\series bold
+bi-second
+\series default
+, sur les deux langues utiliser 
+\series bold
+bi-both
+\series default
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Greyedout
+status collapsed
+
+\begin_layout Plain Layout
+
+\series bold
+Not
+\series default
+a: si aucun argument optionnel n'est utilisé avec 
+\family sans
+Mise
+\begin_inset space ~
+\end_inset
+
+en
+\begin_inset space ~
+\end_inset
+
+forme
+\begin_inset space ~
+\end_inset
+
+légende
+\family default
+, le réglage affectera toutes les légendes du document, pas seulement les
+ légendes multilingues.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Ce document est en français.
+ Pour positionner l’allemand comme langue secondaire, il faut utiliser la
+ commande
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+lang=ngerman
+\end_layout
+
+\begin_layout Standard
+dans un style 
+\family sans
+Mise
+\begin_inset space ~
+\end_inset
+
+en
+\begin_inset space ~
+\end_inset
+
+forme
+\begin_inset space ~
+\end_inset
+
+légende
+\family default
+.
+ Pour d'autres langues, remplacez 
+\series bold
+ngerman
+\series default
+ par le nom de votre langue en babel.
+ La liste des noms en babel est indiquée dans le tableau
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "tab:List-of-babel"
+
+\end_inset
+
+.
+ Les étiquettes de légende sont automatiquement traduites.
+\end_layout
+
+\begin_layout Standard
+Pour ajouter une légende multilingue à un flottant, presser la touche droite
+ de la souris sur la légende qui apparaît automatiquement à la création
+ d'un nouveau flottant et sélectionner 
+\family sans
+Légende
+\begin_inset space ~
+\end_inset
+
+(Double légende
+\family default
+) dans le menu contextuel.
+ Si aucune légende n'apparaît, il est possible d'insérer la légende multilingue
+ via 
+\family sans
+Insérer\SpecialChar menuseparator
+Légende\SpecialChar menuseparator
+Double légende
+\family default
+.
+ Le texte de la légende dans la langue du document doit être saisi dans
+ l'insert ouvert par 
+\family sans
+Insérer\SpecialChar menuseparator
+Texte dans la langue principale
+\family default
+.
+ Le texte de la légende dans la langue secondaire est inséré comme texte
+ normal de la légende.
+\end_layout
+
+\begin_layout Standard
+Les titres courts dans les deux langues (pour la liste des tableaux et de
+ figures) peuvent être insérés via 
+\family sans
+Insérer\SpecialChar menuseparator
+Titre court dans la langue principale
+\family default
+ et 
+\family sans
+Insérer\SpecialChar menuseparator
+Titre court dans la langue secondaire.
+\end_layout
+
+\begin_layout Standard
+La figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:example-figure"
+
+\end_inset
+
+ montre un exemple d'un flottant de figure muni d'une légende multilingue.
+\end_layout
+
+\begin_layout Caption setup
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+
+bi-second
+\end_layout
+
+\end_inset
+
+lang=ngerman
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+spécifie la seconde langue
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\noindent
+\align center
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 0
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+Une figure.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Bicaption
+
+\begin_layout Plain Layout
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+Titre court francophone
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Titre francophone
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status open
+
+\begin_layout Plain Layout
+Titre court germanophone
+\end_layout
+
+\end_inset
+
+Titre germanophone
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:example-figure"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Greyedout
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Not
+\series default
+a: les légendes multilingues ne fonctionnent pas pour les tableaux longs.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Personnalisation de la légende
+\end_layout
+
+\begin_layout Standard
+La mise en page des légendes peut être modifiée à l'aide du style 
+\family sans
+Mise en forme légende
+\family default
+.
+ Pour imprimer par exemple le texte de légende en italique sans empattements,
+ utiliser la commande
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+textfont={sf,it}
+\end_layout
+
+\begin_layout Standard
+et pour mettre l'étiquette en gras, utiliser
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+labelfont=bf
+\end_layout
+
+\begin_layout Standard
+Pour régler la police pour le texte et l'étiquette, utiliser la commande
+ 
+\series bold
+font=
+\series default
+.
+ Pour plus de détails sur les modifications possibles, voir la documentation
+ du paquetage \SpecialChar LaTeX
+ 
+\series bold
+caption
+\series default
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "caption"
+literal "true"
+
+\end_inset
+
+, les options du paquetage 
+\series bold
+bicaption
+\series default
+ étant les mêmes que celles de 
+\series bold
+caption
+\series default
+.
+\end_layout
+
+\begin_layout Standard
+La figure
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:example-figure-custom"
+
+\end_inset
+
+ montre un exemple d'une figure muni d'une légende multilingue personnalisée.
+\end_layout
+
+\begin_layout Caption setup
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Not
+\series default
+a: cette mise en forme n'a pas d'effet sur ce fichier comme décrit dans
+ le note de la section
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Float-List-Customization"
+
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+
+bi-both
+\end_layout
+
+\end_inset
+
+labelfont=bf, labelsep=newline
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+la police de l'étiquette doit être grasse, le séparateur d'étiquette doit
+ être un saut de ligne à la place d'un point.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Caption setup
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+
+bi-first
+\end_layout
+
+\end_inset
+
+labelfont=bf, labelsep=newline
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+l'étiquette dans la langue principale doit être en police grasse
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Caption setup
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+
+bi-second
+\end_layout
+
+\end_inset
+
+labelfont=bf, textfont={sf,it}, labelsep=newline
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+la légende dans la langue secondaire doit être italique sans empattements
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\noindent
+\align center
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 0
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "50col%"
+special "none"
+height "1in"
+height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
+status open
+
+\begin_layout Plain Layout
+A figure.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Bicaption
+
+\begin_layout Plain Layout
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Mise en forme de légende personnalisée
+\end_layout
+
+\end_inset
+
+
+\lang ngerman
+Angepasstes Beschriftungsformat
+\lang french
+
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:example-figure-custom"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Float-List-Customization"
+
+\end_inset
+
+Personnalisation des listes de flottants
+\end_layout
+
+\begin_layout Standard
+Implicitement, la liste des figures ou des tableaux affiche les deux langues.
+ Il est possible de supprimer la langue secondaire en ajoutant ceci au préambule
+ du document:
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+
+\backslash
+PassOptionsToPackage{list=off}{bicaption}
+\end_layout
+
+\begin_layout Standard
+Il est également possible d’obtenir deux listes séparées pour chacune des
+ deux langues, ce qui est le cas dans le présent document.
+ Pour ce faire, il faut ajouter ces lignes dans le préambule \SpecialChar LaTeX
+:
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+
+\backslash
+usepackage{newfloat}
+\begin_inset Newline newline
+\end_inset
+
+
+\backslash
+DeclareFloatingEnvironment[fileext=lof2]{figureGer}
+\begin_inset Newline newline
+\end_inset
+
+[Abbildung][Abbildungsverzeichnis]
+\begin_inset Newline newline
+\end_inset
+
+
+\backslash
+DeclareFloatingEnvironment[fileext=lot2]{tableGer}
+\begin_inset Newline newline
+\end_inset
+
+[Tabelle][Tabellenverzeichnis]
+\begin_inset Newline newline
+\end_inset
+
+ 
+\backslash
+PassOptionsToPackage{listtype+=Ger}{bicaption}
+\end_layout
+
+\begin_layout Standard
+Ceci définit deux nouveaux environnements de flottants dénommés 
+\emph on
+figureGer
+\emph default
+ and 
+\emph on
+tableGer
+\emph default
+.
+ Une liste pour 
+\emph on
+figureGer
+\emph default
+ peut être insérée via la commande
+\end_layout
+
+\begin_layout Standard
+
+\series bold
+
+\backslash
+listoffigureGeres
+\end_layout
+
+\begin_layout Standard
+en code \SpecialChar TeX
+.
+ Voici la liste des figures en allemand:
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+listoffigureGeres
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Greyedout
+status open
+
+\begin_layout Plain Layout
+
+\series bold
+Not
+\series default
+a: si vous utilisez cette fonctionnalité, l'option 
+\series bold
+bi-both
+\series default
+ du style 
+\family sans
+Mise en forme légende
+\family default
+ n'a plus aucun effet.
+ Il faut alors tout définir pour chaque langue explicitement en utilisant
+ les options 
+\series bold
+bi-first
+\series default
+ et 
+\series bold
+bi-second
+\series default
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Pour en savoir plus sur ce qui peut être fait avec le paquetage \SpecialChar LaTeX
+ 
+\series bold
+bicaption
+\series default
+, voir sa documentation 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "bicaption"
+literal "true"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage newpage
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="48" columns="2">
+<features booktabs="true" islongtable="true" headBottomDL="true" lastFootEmpty="true" longtabularalignment="center">
+<column alignment="center" valignment="top" width="0pt">
+<column alignment="center" valignment="middle" width="35col%">
+<row endfirsthead="true" caption="true">
+<cell multicolumn="1" alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "tab:List-of-babel"
+
+\end_inset
+
+Liste des noms babel
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+</cell>
+<cell multicolumn="2" alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row endfirsthead="true">
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+langue
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+nom(s) babel 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row endhead="true">
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+langue
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+nom(s) babel
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row endfoot="true">
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family sans
+\size small
+suite page suivante
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Afrikaans
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+afrikaans
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Basque
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+basque
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Breton
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+breton
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Bulgarian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+bulgarian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Catalan
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+catalan
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Croatian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+croatian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Czech
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+czech
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Danish
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+danish
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Dutch
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+dutch
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+English
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+english, american, australian, british, canadian, newzealand 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Esperanto
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+esperanto
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Estonian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+estonian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Finnish
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+finnish
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+French
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+french, canadien, acadian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Galician
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+galician
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Georgian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+georgian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+German
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ngerman, naustrian 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Greek
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+greek, polutonikogreek 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Hebrew
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+hebrew
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Hungarian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+magyar, hungarian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Icelandic
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+icelandic
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Indonesian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+bahasa
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Interlingua
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+interlingua
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Irish Gaelic
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+irish
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Italian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+italian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Latin
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+latin
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Lower Sorbian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+lowersorbian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Malay
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+bahasam
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+North Sami
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+samin
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Norwegian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+norsk, nynorsk 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Polish
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+polish
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Portuguese
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+portuguese, brazilian 
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Romanian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+romanian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Russian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+russian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Scottish Gaelic
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+scottish
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Serbian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+serbian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Slovakian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+slovak
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Slovenian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+slovene
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Spanish
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+spanish
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Swedish
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+swedish
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Turkish
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+turkish
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Ukrainian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ukrainian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Upper Sorbian
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+uppersorbian
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Welsh
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+welsh
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "bicaption"
+literal "true"
+
+\end_inset
+
+Documentation of the \SpecialChar LaTeX
+-package 
+\series bold
+
+\begin_inset CommandInset href
+LatexCommand href
+name "bicaption"
+target "ftp://tug.ctan.org/pub/tex-archive/macros/latex/contrib/caption/bicaption.pdf"
+literal "false"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "caption"
+literal "true"
+
+\end_inset
+
+Documentation of the \SpecialChar LaTeX
+-package 
+\series bold
+
+\begin_inset CommandInset href
+LatexCommand href
+name "caption"
+target "ftp://tug.ctan.org/pub/tex-archive/macros/latex/contrib/caption/caption-eng.pdf"
+literal "false"
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

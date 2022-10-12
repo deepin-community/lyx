@@ -1,0 +1,1099 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/es/
+\textclass europecv
+\begin_preamble
+% to handle the picture
+% only load the package of not already loaded
+\@ifundefined{rotatebox}{\usepackage{graphicx}}{}
+\end_preamble
+\options nologo
+\use_default_options false
+\maintain_unincluded_children false
+\language spanish
+\language_package default
+\inputencoding utf8x
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command bibtex
+\index_command default
+\paperfontsize 10
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2cm
+\topmargin 2cm
+\rightmargin 2cm
+\bottommargin 3cm
+\secnumdepth 1
+\tocdepth 1
+\paragraph_separation skip
+\defskip medskip
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style swiss
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Begin
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+¡Las entradas con etiqueta verde deben dejarse vacías!
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+La clase europecv ofrece muchas posibilidades de personalización; para detalles
+ consulta la documentación:
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+https://ctan.org/tex-archive/macros/latex/contrib/europecv/europecv.pdf
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout PersonalInfo
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Inserta los datos personales a continuación:
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Name
+Apellido Apellido, Nombre
+\end_layout
+
+\begin_layout FooterName
+Nombre Apellido Apellido
+\end_layout
+
+\begin_layout Nationality
+Española
+\end_layout
+
+\begin_layout Birthday
+día de mes de año
+\end_layout
+
+\begin_layout Address
+C/ Calle, nº
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+newline 
+\end_layout
+
+\end_inset
+
+D.P.
+ Ciudad
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+newline 
+\end_layout
+
+\end_inset
+
+Provincia
+\end_layout
+
+\begin_layout Email
+correo@correo.es
+\end_layout
+
+\begin_layout Telephone
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+número
+\end_layout
+
+\end_inset
+
+número
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+El nº de móvil es opcional
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Gender
+Mujer/Hombre
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Opcional
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Fax
+número
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Opcional
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout BeforePicture
+\begin_inset space \hspace*{}
+\length 6cm
+\end_inset
+
+
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Opcional, alineamiento y posición de la foto o el texto; en este caso la
+ imagen está 6
+\begin_inset space \thinspace{}
+\end_inset
+
+cm desplazada a la derecha
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Picture
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+
+height=3cm
+\end_layout
+
+\end_inset
+
+../CV-image
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+El nombre del archivo de imagen.
+ El tamaño opcional es en este caso la altura de la foto
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout AfterPicture
+\begin_inset Flex VerticalSpace
+status open
+
+\begin_layout Plain Layout
+-2cm
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Opcional, en este caso el contenido siguiente se desplaza 2
+\begin_inset space \thinspace{}
+\end_inset
+
+cm hacia la imagen
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Page
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+thepage
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Opcional, redefine lo que se imprime al pie, en este caso solo el número
+ de página
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Titulaciones
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+2003–2006
+\end_layout
+
+\end_inset
+
+Master en\SpecialChar ldots
+, Institución, Ciudad, Provincia, Descripción\SpecialChar ldots
+
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+2001–2003
+\end_layout
+
+\end_inset
+
+Licenciatura\SpecialChar ldots
+, Institución, Ciudad, Provincia, Descripción\SpecialChar ldots
+
+\end_layout
+
+\begin_layout Section
+Master, Tesis
+\end_layout
+
+\begin_layout BulletedItem
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Título
+\end_layout
+
+\end_inset
+
+
+\emph on
+Título de la tesis
+\end_layout
+
+\begin_layout BulletedItem
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Supervisores
+\end_layout
+
+\end_inset
+
+Nombres
+\end_layout
+
+\begin_layout BulletedItem
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Descripción
+\end_layout
+
+\end_inset
+
+
+\size small
+Texto dscriptivo
+\end_layout
+
+\begin_layout Section
+Experiencia
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+2006–actualidad
+\end_layout
+
+\end_inset
+
+Mantenedor de proyectos OpenSource
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+2005–2006
+\end_layout
+
+\end_inset
+
+Empresa, Ciudad, Provincia
+\end_layout
+
+\begin_layout Standard
+\begin_inset Newpage pagebreak
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Idiomas
+\end_layout
+
+\begin_layout MotherTongue
+\begin_inset Argument 1
+status open
+
+\begin_layout Plain Layout
+
+10pt
+\end_layout
+
+\end_inset
+
+Español
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+El parámetro opcional es el espacio vertical tras el ítem; se permiten valores
+ negativos.
+ Está disponible para toda clase de entradas.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout LangHeader
+(
+\begin_inset Formula $\star$
+\end_inset
+
+)
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Opcional, inserta la descripción del nivel de idioma y establece el símbolo
+ para la nota al pie.
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Language
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Alemán
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status collapsed
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvBTwo
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 4
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvCOne
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 5
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvATwo
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 6
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvATwo
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvBOne
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+La última info es el nivel estimado en expresión escrita.
+\end_layout
+
+\end_inset
+
+
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Los códigos del nivel de idiomas se encuentra en la documentación del paquete
+ europecv.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout LastLanguage
+\begin_inset Argument 2
+status collapsed
+
+\begin_layout Plain Layout
+Italiano
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 3
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvATwo
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 4
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvBOne
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 5
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvAOne
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 6
+status open
+
+\begin_layout Plain Layout
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvAOne
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+ecvAOne
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout LangFooter
+(
+\begin_inset Formula $\star$
+\end_inset
+
+)
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+El pie y el encabezado deberían ser el mismo carácter.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Informática
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+
+2.5ex
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+S.O.
+\end_layout
+
+\end_inset
+
+Linux, Unix, Windows
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Administración
+\end_layout
+
+\end_inset
+
+ Apache, Mailman
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Programación
+\end_layout
+
+\end_inset
+
+
+\shape smallcaps
+Java
+\shape default
+, C/C++ 
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Código
+\end_layout
+
+\end_inset
+
+ PHP, Shell, Ruby
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+
+2.5ex
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Ciencias
+\end_layout
+
+\end_inset
+
+Matlab, Abaqus
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Diseño gráfico
+\end_layout
+
+\end_inset
+
+ Autocad
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Tipografía
+\end_layout
+
+\end_inset
+
+ \SpecialChar LaTeX
+, Con\SpecialChar TeX
+t, Scribus, QuarkXPress
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Diseño web
+\end_layout
+
+\end_inset
+
+XHTML, CSS, AJAX, 
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Bases de datos
+\end_layout
+
+\end_inset
+
+ MySQL, PostgreSQL
+\end_layout
+
+\begin_layout Section
+Aficiones
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+
+2.5ex
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Deportes
+\end_layout
+
+\end_inset
+
+
+\size small
+ Me gusta practicar deportes como el esquí naútico, la escalada, el buceo
+ y he sido boy scout durante cinco años.
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+
+2.5ex
+\end_layout
+
+\end_inset
+
+
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Viajar
+\end_layout
+
+\end_inset
+
+
+\size small
+ Me gusta viajar por todo el mundo.
+\end_layout
+
+\begin_layout Section
+Publicaciones
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Referencias
+\end_layout
+
+\end_inset
+
+[1] Helmut Kopka and Patrick W.
+ Daly: 
+\emph on
+A Guide to \SpecialChar LaTeX
+ Fourth Edition.
+
+\emph default
+ Addison-Wesley, 2003
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+newline%
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+
+\backslash
+newline%
+\end_layout
+
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+[2] Leslie Lamport: 
+\emph on
+\SpecialChar LaTeX
+: A Document Preparation System.
+
+\emph default
+ Addison-Wesley, second edition, 1994
+\end_layout
+
+\begin_layout Section
+Publicaciones
+\end_layout
+
+\begin_layout Standard
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+También se pueden usar referencias Bib\SpecialChar TeX
+:
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Item
+\begin_inset Argument 2
+status open
+
+\begin_layout Plain Layout
+Referencias
+\end_layout
+
+\end_inset
+
+
+\begin_inset VSpace -1cm*
+\end_inset
+
+
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+btprint "btPrintAll"
+bibfiles "../biblioExample"
+options "plain"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout End
+
+\end_layout
+
+\end_body
+\end_document

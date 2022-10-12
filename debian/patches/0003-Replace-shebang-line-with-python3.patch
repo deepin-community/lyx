@@ -1,0 +1,100 @@
+From: "Dr. Tobias Quathamer" <toddy@debian.org>
+Date: Mon, 17 Sep 2018 14:08:49 +0200
+Subject: Replace shebang line with python3
+
+To find all affected files, the following
+two commands have been used:
+
+grep -r --files-with-matches "^#\!\s*/usr/bin.*python" src/ | xargs sed -i -e "1 s/^#\!.*python.*/#\!\/usr\/bin\/python3/"
+grep -r --files-with-matches "^#\!\s*/usr/bin.*python" lib/ | xargs sed -i -e "1 s/^#\!.*python.*/#\!\/usr\/bin\/python3/"
+---
+ lib/configure.py             | 2 +-
+ lib/lyx2lyx/lyx2lyx          | 2 +-
+ lib/lyx2lyx/profiling.py     | 2 +-
+ lib/scripts/gnuplot2pdf.py   | 2 +-
+ lib/scripts/listerrors       | 2 +-
+ lib/scripts/svg2pdftex.py    | 2 +-
+ lib/scripts/svg2pstex.py     | 2 +-
+ src/tex2lyx/test/runtests.py | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/lib/configure.py b/lib/configure.py
+index abc4d53..a4a761a 100644
+--- a/lib/configure.py
++++ b/lib/configure.py
+@@ -1,4 +1,4 @@
+-#! /usr/bin/python
++#!/usr/bin/python3
+ # -*- coding: utf-8 -*-
+ #
+ # file configure.py
+diff --git a/lib/lyx2lyx/lyx2lyx b/lib/lyx2lyx/lyx2lyx
+index 9d03830..88702c2 100755
+--- a/lib/lyx2lyx/lyx2lyx
++++ b/lib/lyx2lyx/lyx2lyx
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env python
++#!/usr/bin/python3
+ # -*- coding: utf-8 -*-
+ # Copyright (C) 2002-2011 The LyX Team
+ # Copyright (C) 2002-2007 José Matos <jamatos@lyx.org>
+diff --git a/lib/lyx2lyx/profiling.py b/lib/lyx2lyx/profiling.py
+index dd5cbee..3bf12de 100755
+--- a/lib/lyx2lyx/profiling.py
++++ b/lib/lyx2lyx/profiling.py
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env python
++#!/usr/bin/python3
+ # -*- coding: utf-8 -*-
+ # Copyright (C) 2004 José Matos <jamatos@lyx.org>
+ #
+diff --git a/lib/scripts/gnuplot2pdf.py b/lib/scripts/gnuplot2pdf.py
+index fb036b2..3989311 100755
+--- a/lib/scripts/gnuplot2pdf.py
++++ b/lib/scripts/gnuplot2pdf.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/python3
+ 
+ from subprocess import Popen, PIPE
+ from sys import argv, stderr, exit
+diff --git a/lib/scripts/listerrors b/lib/scripts/listerrors
+index 232e542..7d6995c 100755
+--- a/lib/scripts/listerrors
++++ b/lib/scripts/listerrors
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python3
+ 
+ # file listerrors
+ # This file is part of LyX, the document processor.
+diff --git a/lib/scripts/svg2pdftex.py b/lib/scripts/svg2pdftex.py
+index 2fe62df..74266e5 100644
+--- a/lib/scripts/svg2pdftex.py
++++ b/lib/scripts/svg2pdftex.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python3
+ # -*- coding: utf-8 -*-
+ 
+ # file svg2pdftex.py
+diff --git a/lib/scripts/svg2pstex.py b/lib/scripts/svg2pstex.py
+index 738ecf7..09d8ac7 100644
+--- a/lib/scripts/svg2pstex.py
++++ b/lib/scripts/svg2pstex.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/python3
+ # -*- coding: utf-8 -*-
+ 
+ # file svg2pstex.py
+diff --git a/src/tex2lyx/test/runtests.py b/src/tex2lyx/test/runtests.py
+index 7c82909..a1d99b5 100755
+--- a/src/tex2lyx/test/runtests.py
++++ b/src/tex2lyx/test/runtests.py
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env python
++#!/usr/bin/python3
+ # -*- coding: utf-8 -*-
+ 
+ # file src/tex2lyx/test/runtests.py

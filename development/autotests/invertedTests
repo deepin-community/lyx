@@ -1,0 +1,300 @@
+# Regular expressions for tests that are known to fail
+#
+# Patterns will be automatically enclosed with '^' and '$'.
+# Matching tests get the label "inverted"
+# or (if also matching a pattern in "suspendedTests") "suspended".
+# They get also the test-property 'WILL_FAIL', i.e.
+# they are reported as failing if the export works without error.
+# https://cmake.org/cmake/help/v3.0/prop_test/WILL_FAIL.html
+
+# ======================================================================
+Sublabel: todo
+# LyX bugs and problems with the sample documents that require attention
+# ======================================================================
+# * minor issues to explore and properly sort,
+# * easyfix issues,
+# * LyX bugs to report at trac (move pattern to section "lyxbugs" once done).
+
+# Error in Japanese document if LyX-logo is preceded by foreign language
+export/export/latex/ja_wrong_auto_encoding_(dvi|pdf(|3)).*
+
+# Missing characters with Unicode fonts
+# (the "hidden" replacement with FreeSerif does not help and results in bad
+# typography for mathematical content):
+# For details see the file "systemfonts-Math-missingchars.lyx"
+export/doc/(|de/|es/|fr/)Math.*systemF
+export/export/latex/systemfonts-Math-missingchars.*systemF
+
+# missing character: There is no ^^A in font [lmroman12-regular]
+# and all the line down to ^^Z and beyond...
+# XeTeX artifact? works with LuaTeX, explore:
+export/doc/(|de/|es/|fr/)EmbeddedObjects_pdf4_systemF
+
+# Changes in TeX Live 2014 (see git blame for info) fixed
+# IEEEtran-CompSoc_pdf4_systemF but not others.
+# TODO Investigate if others can be fixed?
+# * IEEEtran-Journal_pdf4_systemF compiles here (GM)
+# * All IEEEtran-TransMag.* exports fail here:
+#   missing commands \IEEEtitleabstractindextext, \IEEEdisplaynontitleabstractindextext
+#   -> adapt template and style (GM)
+export/templates/IEEEtran-(Journal|TransMag)_pdf4_systemF
+
+# Example for lib/scripts/listerrors
+# Requires noweb. Seems to be restricted to plain "latex".
+# Find out why and whether the script could be improved.
+export/examples/listerrors_(pdf[245]).*
+
+# Requires CJK.
+# Why does it fail with pdflatex and dvipdfm? CJK restriction? Workarounds?
+# (Also fails with Xe/LuaTeX and TeX-fonts -- as expected, see ignoredTests)
+export/examples/ko/splash_(dvi||pdf[23]?)
+
+# iconv fails, if a nomenclature inset contains an uncodable character
+export/export/latex/iconv-error-nomenclature_pdf2
+
+# input encoding tests
+# --------------------
+# Please test and correct!
+
+# Failing for unknown reason
+# Hebrew
+export/export/latex/unicodesymbols/001-4-latin_cp1255_pdf2
+export/export/latex/unicodesymbols/001-4-latin_cp862_pdf2
+export/export/latex/unicodesymbols/008-greek-and-coptic-with-textalpha_cp862_pdf2
+export/export/latex/unicodesymbols/008-greek-and-coptic_cp862_pdf2
+export/export/latex/unicodesymbols/070-72-general-punctuation-sub-super-currency_cp1255_pdf2
+export/export/latex/unicodesymbols/070-72-general-punctuation-sub-super-currency_cp862_pdf2
+export/export/latex/unicodesymbols/070-72-general-punctuation-sub-super-currency_iso8859-8_pdf2
+export/export/latex/unicodesymbols/074-76-letterlike-numberforms-arrows_cp862_pdf2
+# Arabic:
+export/export/latex/unicodesymbols/001-4-latin_cp1256_pdf2
+export/export/latex/unicodesymbols/001-4-latin_iso8859-6_pdf2
+export/export/latex/unicodesymbols/005-7-ipa-modifiers-combining_cp1256_pdf2
+export/export/latex/unicodesymbols/008-greek-and-coptic-with-textalpha_cp1256_pdf2
+export/export/latex/unicodesymbols/008-greek-and-coptic_cp1256_pdf2
+export/export/latex/unicodesymbols/069-greek-extended-textalpha_cp1256_pdf2
+export/export/latex/unicodesymbols/069-greek-extended_cp1256_pdf2
+export/export/latex/unicodesymbols/070-72-general-punctuation-sub-super-currency_cp1256_pdf2
+export/export/latex/unicodesymbols/074-76-letterlike-numberforms-arrows_cp1256_pdf2
+
+# CJK:
+# Unicode-blocks 008 and 009 work fine with utf8-cjk
+# everything else fails (special documentclass required?)
+export/export/latex/unicodesymbols/00[15].*_utf8-cjk_pdf2
+export/export/latex/unicodesymbols/0?[^0].*_utf8-cjk_pdf2
+export/export/latex/unicodesymbols/.*_euc-cn_pdf2
+export/export/latex/unicodesymbols/.*_gbk_pdf2
+export/export/latex/unicodesymbols/.*_jis_pdf2
+export/export/latex/unicodesymbols/.*_euc-kr_pdf2
+export/export/latex/unicodesymbols/.*_euc-tw_pdf2
+export/export/latex/unicodesymbols/.*_euc-jp_pdf2
+# pLaTeX
+export/export/latex/unicodesymbols/.*_euc-jp-platex_pdf2
+export/export/latex/unicodesymbols/.*_jis-platex_pdf2
+export/export/latex/unicodesymbols/.*_shift-jis-platex_pdf2
+export/export/latex/unicodesymbols/.*_utf8-platex_pdf2
+
+
+# Arabic
+# If we want to try to get it to work with pdfTeX:
+# - set all non-Arab text parts to a different language (e.g. English)
+# - define alternatives for hyperref (e.g. with textorpdfstring)
+#     for correct handling of hyperref.
+# see discussion here:
+# https://www.mail-archive.com/search?l=mid&q=20161114035123.s5lt4ib4x4obtptp%40steph
+export/doc/ar/(Intro|Shortcuts|Tutorial)_pdf4_texF
+# This simple example doc is meant to test Arabic export of pdf2
+export/export/latex/arabic_simple_(dvi3|pdf5)_(texF|systemF)
+export/export/latex/arabic_simple_pdf4_texF
+
+# Polyglossia + LuaTeX does not support Farsi yet. See:
+#     https://github.com/reutenauer/polyglossia/commit/ccb0e9e2c6411170ad779b05ff5076f1193cc323
+# Why does farsi fail with Babel?
+export/examples/fa/splash_(dvi|pdf).*
+
+# nonstandard tests failing for unknown reason:
+export/examples/aa_sample_(dvi3|pdf[45])_.*
+export/templates/obsolete/ACM-siggraph_pdf5_(texF|systemF)
+export/templates/IUCr-article_pdf4_systemF
+export/templates/RJournal_(dvi3|pdf[45])_systemF
+export/templates/aa_(dvi3|pdf[45])_.*
+export/templates/kluwer_.*_systemF
+
+
+# ================================================
+Sublabel: lyxbugs
+# LyX bugs with a Trac number.
+# ================================================
+
+#10355 xmllint detects failures
+export/doc/attic/eu_UserGuide_xhtml
+export/doc/(es|ja)/UserGuide_xhtml
+export/examples/spreadsheet_xhtml
+export/export/WrongDfnTagHandling_xhtml
+
+#10371 Compilation error if longest label marker in labeling style
+# contains underscores etc.
+export/export/latex/LongestLabelWithUnderscore.*
+
+#9871 LyX sends invalid Unicode to iconv when converting to ASCII
+# most probably due to BabelPreamble code (language specific headings for
+# theorems, problems , ... are written in the language's default encoding
+# if they contain non-ASCII characters)
+# Error 84 returned from iconv when converting from UCS-4LE to ascii:
+# Invalid or incomplete multibyte or wide character
+export/doc/(es|fr)/Additional_pdf4_texF
+export/doc/(de|es|fr)/EmbeddedObjects_pdf4_texF
+export/doc/es/Customization_pdf4_texF
+# see also the discussion at:
+# https://www.mail-archive.com/search?l=mid&q=20170228190738.cgs3tl3ny2bxiegk%40steph
+export/examples/es/linguistics_pdf4_texF
+
+
+#9637 textgreek and textcyr depend on font-encoding, not input encoding
+#6463 font encoding changes and combining accents
+# this leads to failure of ru/Intro with XeTeX (pdf4_texF)
+export/export/latex/ru-accent-ascii.*
+
+#9681 textgreek and textcyr also required for encodable characters
+# Greek fails with utf8 and utf8x,
+# Cyrillic fails with utf8 and cyrillic encodings:
+export/export/latex/unicodesymbols/008-greek-and-coptic_utf8x?_pdf2
+export/export/latex/unicodesymbols/009-cyrillic_(utf8|utf8x|cp855|cp866|cp1251|koi8-r|koi8-u|iso8859-5|pt154)_pdf2
+export/export/latex/unicodesymbols/069-greek-extended_utf8x?_pdf2
+export/export/latex/unicodesymbols/069-greek-extended-textalpha_utf8x_pdf2
+
+
+# ==============================================================
+Sublabel: ert
+# Export failures due to "raw" LaTeX use in ERT or preamble code
+# ==============================================================
+#
+# "Wontfix" if demonstrating correct use and OK in the default output format.
+
+# Non-ASCII in ERT, fails with inputenc==ASCII (e.g. XeTeX with tex-fonts)
+#   Could not find LaTeX command for character 'í' (code point 0xed)
+export/doc/(de|es)/Additional_pdf4_texF
+
+# inputencoding="utf8-plain" with Xe/LuaTeX: characters with
+# Unicode point > 256 lead to errors with 8-bit fonts
+# (We keep this option for power users setting Unicode fonts in the preamble
+# or document class file).
+export/export/latex/utf8-plain-with-tex-fonts_.*_texF
+
+
+# ================================================
+Sublabel: texissues
+# Export fails due to LaTeX limitations,
+# ================================================
+#
+# e.g. non-ASCII in verbatim or listings, incompatible packages, ...
+# "Wontfix" if documents demonstrate correct use in the default output format.
+
+# Non-ASCII char in verbatim environment.
+# Fails with ASCII (and hence also with XeTeX).
+export/doc/(|de/|es/|fr/)UserGuide_pdf4_texF
+
+# Hebrew docs do not currently work with LuaTeX (will be fixed in TeXLive-16)
+# TODO: set working system fonts in the lyx sources
+export/.*/he/.*(dvi3|pdf5).*
+
+# ... nor with XeTeX and 8-bit TeX fonts (due to missing ASCII replacements)
+export/.*/he/.*pdf4_texF
+
+# Babel-Russian uses UTF-8 for auto-strings if it detects Xe/LuaTeX.
+# This fails unless the inputencoding is set to utf-8, too.
+export/doc/ru/(Intro|Tutorial)_(dvi3|pdf[45])_texF
+export/examples/ru/(example_lyxified|splash)_(dvi3|pdf[45])_texF
+
+# Babel-Spanish uses  UTF-8 for auto-strings if it detects Xe/LuaTeX.
+# This leads to wrong output (see unreliableTests) and fails in some cases
+# unless the inputencoding is set to utf-8, too.
+# ! Undefined control sequence.
+# <argument> ...art {link}{\Hy@tocdestname }{\nonumberline Ã
+#                                                   ndice alfabÃ©tico}\hyper...
+export/doc/es/(UserGuide|Math|EmbeddedObjects)_(dvi3|pdf5)_texF
+
+# Gives the following error:
+# # ! Package hpstatement Error: H or P statement "H251"
+# # (hpstatement)                is not defined.
+# seems to be polyglossia-related (dvi3 worked with babel)
+export/examples/H-P-statements_.*_systemF
+
+# These files use packages that are not compatible with the newest LuaTeX. We
+# could potentially fix these by loading the luatex85 package early in the
+# LyX-generated preamble, but it seems it's better to wait until the packages
+# fix the root issue themselves.
+# xy package:
+.*(|fr/)xy(pic|figure).*pdf5.*
+
+# Problem with Check and Slovak Babel support.
+# (reported per mail to Petr Tesa\v{r}\'ik, 2016-09-06)
+# All exports using babel fail.
+# Without the Czech or Slovak text it compiles
+# No problem with inserted German (or other foreign language) text
+# No problem if the table is Slovak, too
+export/export/latex/TableErrorIfSlovakTextInserted_(dvi|pdf[23]?|.*_texF)
+
+# Polyglossia + LuaTeX issue
+# Reported upstream here:
+# https://github.com/reutenauer/polyglossia/issues/163
+# These tests were broken at 3374b854
+# See discussion here:
+# https://www.mail-archive.com/search?l=mid&q=1478004223.2367.5.camel%40lyx.org
+export/doc/(sk|nb)/Intro_(dvi3|pdf5)_systemF
+
+# fontspec errors with slides class:
+# LaTeX error: "kernel/command-already-defined"
+# Lines 2684 ... 2690 in fontspec-xetex.sty
+# Lines 2608 ... 2614 in fontspec-luatex.sty
+export/templates/slides_.*_systemF
+
+# Beamer: conflicts with some combinations of packages/settings/languages
+export/templates/ja_beamer-conference-ornate-20min_(pdf2|pdf[45]).*
+export/templates/es_beamer-conference-ornate-20min_pdf4_texF
+
+# issues with listsof, reported to the maintainer
+# https://www.mail-archive.com/search?l=mid&q=of84gj%24l6b%241%40blaine.gmane.org
+# LyX gives the following terminal message:
+#
+#    TextClass.cpp (1385): The layout does not provide a list command for
+#      the float `sidebar'. LyX will not be able to produce a float list.
+#
+check_load/templates/acmart
+
+# Arabic only works with XeTeX + system fonts (pdf4_systemF)
+export/examples/ar/splash_(dvi.*|pdf|pdf[^4].*)
+export/examples/ar/splash_pdf4_texF
+
+
+# ================================================
+Sublabel: externalissues
+# Export fails due to non-LaTeX external tool,
+# ================================================
+#
+# e.g. a bug or missing feature in ps2pdf
+
+# ps2pdf gives the following and exits with error:
+# Error: /invalidfileaccess in --file--
+# ps2pdf succeeds if the -dNOSAFER flag is used. For discussion, see:
+# https://www.mail-archive.com/search?l=mid&q=1506851183.3130.15.camel%40lyx.org
+export/examples/ja/lilypond_pdf
+
+
+# ======================================================================
+Sublabel: attic
+# Documents in the attic, kept for reference and format conversion test.
+# However, many problems here are "wontfix".
+# ======================================================================
+
+# Fails because of missing .png graphic files.
+# They were replaced by .svgz, but, as this file is in the attic, we do not
+# convert to new lyx format. Plain latex and xetex create output (ignoring
+# missing files) while (pdf|lua)latex exits with != 0
+#export/doc/attic/eu_UserGuide_pdf[25].*
+
+# Files in the attic with non-default output
+# (i.e. could be ERT, package incompatiblity, ...)
+export/doc/attic/it_(UserGuide_dvi3|UserGuide_pdf4)_systemF
+export/doc/attic/sk_UserGuide_pdf4_texF
+export/doc/attic/id_UserGuide_.*systemF

@@ -1,0 +1,34 @@
+#% Do not delete the line below; configure depends on this
+#  \DeclareLaTeXClass[scrartcl,beamerarticle.sty,keyval.sty,pgf.sty]{Beamer Article (KOMA-Script)}
+#  \DeclareCategory{Articles}
+# Author: Jürgen Spitzmüller <spitz@lyx.org>
+
+Format 66
+
+# Includes
+Input scrartcl.layout
+Input beamer.layout
+
+# override settings inherited from beamer.layout
+Provides amsmath  0
+Provides geometry 0
+Provides hyperref 0
+
+DefaultFont
+	Family                Roman
+	Series                Medium
+	Shape                 Up
+	Size                  Normal
+	Color                 None
+EndFont
+
+Preamble
+	\usepackage{beamerarticle,pgf}
+	% this default might be overridden by plain title style
+	\newcommand\makebeamertitle{\frame{\maketitle}}%
+	\AtBeginDocument{
+		\let\origtableofcontents=\tableofcontents
+		\def\tableofcontents{\@ifnextchar[{\origtableofcontents}{\gobbletableofcontents}}
+		\def\gobbletableofcontents#1{\origtableofcontents}
+	}
+EndPreamble

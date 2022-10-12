@@ -1,0 +1,141 @@
+
+#!/bin/sh
+#
+# Installed MinGW needed.
+# Ubuntu :
+#   sudo apt-get install g++-mingw-w64-i686
+#   sudo update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix
+#   sudo update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
+
+
+
+if [ -z $1 ]
+then
+    echo "Usage: xmingw <path to LyX sources>"
+    exit 1
+fi
+
+
+lyxsrcdir=$1
+builddir=$PWD
+
+# ---------------------------------------------------------
+# set 'versionname' to overwrite generated one based on 'ver'
+#
+ver=2.3
+date=`date --utc '+%Y.%m.%d-%H.%M'`
+if [ -z $versionname ]; then
+    versionname=LyX$ver-$date
+fi
+
+
+echo ---------------------------------------------------------
+echo ---------- Building $versionname
+echo ---------------------------------------------------------
+
+# ---------------------------------------------------------
+#
+# helper function to check return code
+#
+checkExitCode() {
+    exitcode=$?
+    if [ $exitcode -ne 0 ]; then
+        echo Command failed
+        exit 1
+    fi
+}
+
+dep=$lyxsrcdir/../lyx-dependencies
+mkdir -p $dep
+
+
+server=http://sourceforge.net/projects/kst/files/3rdparty
+
+if [ "$2" = "x64" ]; then
+    mingw=x86_64-w64-mingw32
+    win=win64
+    branch=LyX$ver-master-win64
+else
+    win=win32
+    mingw=i686-w64-mingw32
+    branch=LyX$ver-master-win32
+fi
+
+qtver=5.5.1
+qtver=Qt-$qtver-$mingw
+compiler=$mingw
+LTS=14.04
+
+echo Checking mingw installation ...
+$compiler-gcc -dumpversion
+checkExitCode
+
+
+# ---------------------------------------------------------
+#
+# download and unpack Qt
+#
+if [ ! -d $dep/$qtver ]; then
+    qttar=$qtver-Ubuntu64-$LTS$tarver.tar
+    wget $server/$qttar.xz
+    checkExitCode
+    xz -d $qttar.xz
+    cd $dep
+    tar xf $builddir/$qttar
+    checkExitCode
+    echo -e "[Paths]\nPrefix = $dep/$qtver" > $dep/$qtver/bin/qt.conf
+    cd $builddir
+fi
+export PATH=$dep/$qtver/bin:$PATH
+echo Checking Qt installation ...
+which qmake
+checkExitCode
+
+
+
+# ---------------------------------------------------------
+#
+# build LyX
+#
+
+mergefile=-DLYX_MERGE_FILES=1
+#pch=-DLYX_PCH=1
+
+cmake $lyxsrcdir \
+	-DCMAKE_VERBOSE_MAKEFILE=1 \
+    -DLYX_CPACK=1 \
+    -DLYX_PROGRAM_SUFFIX="" \
+    -DLYX_CONSOLE=FORCE \
+    -DLYX_XMINGW=$compiler \
+    -DLYX_USE_QT=QT5 \
+    -DLYX_QUIET=1 \
+    -DLYX_HUNSPELL=1 \
+    -DLYX_3RDPARTY_BUILD=1 \
+    $pch $mergefile
+
+checkExitCode
+
+
+processors=3
+lyxmake() {
+	make -j$processors $1
+	checkExitCode
+}
+
+
+lyxmake translations
+lyxmake doc
+lyxmake LyX 
+lyxmake tex2lyx
+
+make install
+checkExitCode
+
+
+# ---------------------------------------------------------
+#
+# deploy
+#
+make package
+checkExitCode
+

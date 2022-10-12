@@ -1,0 +1,38 @@
+From: "Dr. Tobias Quathamer" <toddy@debian.org>
+Date: Mon, 17 Sep 2018 14:16:24 +0200
+Subject: Use python3 internally in the C code as well
+
+---
+ src/support/os.cpp | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/support/os.cpp b/src/support/os.cpp
+index ec84ed1..579803c 100644
+--- a/src/support/os.cpp
++++ b/src/support/os.cpp
+@@ -65,10 +65,10 @@ int timeout_min()
+ string const python(bool reset)
+ {
+ 	// Check whether the first python in PATH is the right one.
+-	static string command = python23("python -tt");
++	static string command = python23("python3 -tt");
+ 	// FIXME THREAD
+ 	if (reset) {
+-		command = python23("python -tt");
++		command = python23("python3 -tt");
+ 	}
+ 
+ 	if (command.empty()) {
+@@ -91,10 +91,10 @@ string const python(bool reset)
+ 			}
+ 		}
+ 
+-		// Default to "python" if no usable binary was found.
++		// Default to "python3" if no usable binary was found.
+ 		if (command.empty()) {
+ 			lyxerr << "Warning: No python v2.x or 3.x binary found.\n";
+-			command = "python";
++			command = "python3";
+ 		}
+ 
+ 		// Add the -tt switch so that mixed tab/whitespace
