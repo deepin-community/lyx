@@ -1,3 +1,9 @@
+lyx (2.3.6.1-deepin1) unstable; urgency=medium
+
+  * Fix build failure on deepin RISC-V
+
+ -- Gui-Yue <yuemeng.gui@gmail.com>  Tue, 22 Nov 2022 14:32:09 +0000
+
 lyx (2.3.6-1) unstable; urgency=medium
 
   * New upstream version 2.3.6
