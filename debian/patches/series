@@ -4,3 +4,4 @@
 0004-Use-python3-internally-in-the-C-code-as-well.patch
 0007-Fix-path-to-perl.patch
 0006-Store-correctly-the-window-position-with-Wayland.patch
+fix-riscv-build-failure.patch
