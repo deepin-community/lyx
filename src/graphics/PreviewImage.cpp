@@ -19,6 +19,7 @@
 #include "PreviewLoader.h"
 
 #include "support/FileName.h"
+#include "support/lyxlib.h"
 
 
 using namespace std;
@@ -31,11 +32,11 @@ class PreviewImage::Impl {
 public:
 	///
 	Impl(PreviewImage & p, PreviewLoader & l,
-	     string const & s, FileName const & f, double af);
+	     docstring const & s, FileName const & f, double af);
 	///
 	~Impl();
 	///
-	Image const * image();
+	Image const * image() const;
 	///
 	void statusChanged();
 
@@ -46,14 +47,14 @@ public:
 	///
 	Loader iloader_;
 	///
-	string const snippet_;
+	docstring const snippet_;
 	///
 	double const ascent_frac_;
 };
 
 
 PreviewImage::PreviewImage(PreviewLoader & l,
-			   string const & s,
+			   docstring const & s,
 			   FileName const & f,
 			   double af)
 	: pimpl_(new Impl(*this, l, s, f, af))
@@ -66,7 +67,7 @@ PreviewImage::~PreviewImage()
 }
 
 
-string const & PreviewImage::snippet() const
+docstring const & PreviewImage::snippet() const
 {
 	return pimpl_->snippet_;
 }
@@ -85,7 +86,7 @@ Dimension PreviewImage::dim() const
 	if (!image)
 		return dim;
 
-	dim.asc = int(pimpl_->ascent_frac_ * double(image->height()) + 0.5);
+	dim.asc = support::iround(pimpl_->ascent_frac_ * double(image->height()));
 	dim.des = image->height() - dim.asc;
 	dim.wid = image->width();
 	return dim;
@@ -104,7 +105,7 @@ PreviewLoader & PreviewImage::previewLoader() const
 }
 
 
-PreviewImage::Impl::Impl(PreviewImage & p, PreviewLoader & l, string const & s,
+PreviewImage::Impl::Impl(PreviewImage & p, PreviewLoader & l, docstring const & s,
                          FileName const & bf, double af)
 	: parent_(p), ploader_(l), iloader_(l.buffer().fileName(), bf),
 	  snippet_(s), ascent_frac_(af)
@@ -125,7 +126,7 @@ PreviewImage::Impl::~Impl()
 }
 
 
-Image const * PreviewImage::Impl::image()
+Image const * PreviewImage::Impl::image() const
 {
 	if (iloader_.status() == WaitingToLoad)
 		iloader_.startLoading();

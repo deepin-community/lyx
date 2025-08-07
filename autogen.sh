@@ -6,44 +6,24 @@ AUTOMAKE="automake --add-missing --force-missing --copy --foreign"
 AUTOCONF="autoconf"
 
 # Discover what version of automake we are using.
-automake_version=`$AUTOMAKE --version 2>/dev/null | head -n 1`
+automake_version=$($AUTOMAKE --version 2>/dev/null | head -n 1)
 
-test "$automake_version" != "" && {
+if test "$automake_version" != ""; then
     echo "Using $automake_version"
-} || {
+else
     echo "LyX requires automake >= 1.14"
     exit 1
-}
-
-case $automake_version in
-    *' '1.1[456]*)
-	;;
-    *)
-	echo "This automake version is not supported by LyX."
-	echo "LyX only supports automake 1.14 through 1.16."
-	exit 1
-	;;
-esac
+fi
 
 # Discover what version of autoconf we are using.
-autoversion=`$AUTOCONF --version 2>/dev/null | head -n 1`
+autoversion=$($AUTOCONF --version 2>/dev/null | head -n 1)
 
-test "$autoversion" != "" && {
+if test "$autoversion" != ""; then
     echo "Using $autoversion"
-} || {
+else
     echo "LyX requires autoconf >= 2.65"
     exit 1
-}
-
-case $autoversion in
-    *' '2.6[5-9])
-	;;
-    *)
-	echo "This autoconf version is not supported by LyX."
-	echo "LyX only supports autoconf 2.65-2.69."
-	exit 1
-	;;
-esac
+fi
 
 # Delete old cache directories.
 # automake will stop if their contents was created by an earlier version.

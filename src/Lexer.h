@@ -24,8 +24,6 @@ namespace lyx {
 
 namespace support { class FileName; }
 
-class PushPopHelper;
-
 /** A helper structure to describe a keyword for the Lexer.
 	Usually used bundled in C style arrays and passed to the
 	Lexer using a LexerKeywordTable object.
@@ -140,14 +138,12 @@ public:
 	std::string const getString(bool trim = false) const;
 	///
 	docstring const getDocString(bool trim = false) const;
-	/** Get a long string, ended by the tag `endtag'.
-	    This string can span several lines. The first line
-	    serves as a template for how many spaces the lines
-	    are indented. This much white space is skipped from
-	    each following line. This mechanism does not work
-	    perfectly if you use tabs.
+	/** Get a long string, ended by the tag `endtoken'. This string
+	    can span several lines. The first line serves as a template
+	    for what sequence of tabs and spaces make up the indentation.
+	    This prefix is skipped from each following line.
 	*/
-	docstring getLongString(docstring const & endtag);
+	docstring getLongString(docstring const & endtoken);
 
 	/// Pushes a token list on a stack and replaces it with a new one.
 	template<int N> void pushTable(LexerKeyword (&table)[N])

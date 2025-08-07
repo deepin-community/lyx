@@ -15,11 +15,9 @@ man_MANS = tex2lyx.1
 
 bin_PROGRAMS = tex2lyx
 
-DEFAULT_INCLUDES =
-
 AM_CPPFLAGS += -I$(top_srcdir)/src/tex2lyx \
 	-I$(top_srcdir)/src -I$(top_builddir) -I$(top_builddir)/src \
-	$(BOOST_INCLUDES) $(ICONV_INCLUDES) $(ZLIB_INCLUDES)
+	$(BOOST_INCLUDES) $(ICONV_INCLUDES) $(ZLIB_INCLUDES) $(NOD_INCLUDES)
 
 TEST_FILES = \
 	test/runtests.cmake \
@@ -33,6 +31,7 @@ TEST_FILES = \
 	test/Dummy~Document.tex \
 	test/foo.eps \
 	test/foo.png \
+	test/listpreamble.tex \
 	test/test-insets.tex \
 	test/test-insets-basic.tex \
 	test/test.ltx \
@@ -56,6 +55,7 @@ TEST_RESULTS = \
 	test/CJKutf8.lyx.lyx \
 	test/DummyDocument.lyx.lyx \
 	test/Dummy~Document.lyx.lyx \
+	test/listpreamble.lyx.lyx \
 	test/test-insets.lyx.lyx \
 	test/test-insets-basic.lyx.lyx \
 	test/test.lyx.lyx \
@@ -102,8 +102,6 @@ LYX_OBJS = \
 	../Layout.o \
 	../LayoutFile.o \
 	../LayoutModuleList.o \
-	../Length.o \
-	../lengthcommon.o \
 	../Lexer.o \
 	../ModuleList.o \
 	../Spacing.o \
@@ -128,7 +126,7 @@ tex2lyx_SOURCES = \
 tex2lyx_LDADD = \
 	$(LYX_OBJS) \
 	$(top_builddir)/src/support/liblyxsupport.a \
-	$(LIBICONV) $(BOOST_LIBS) \
+	$(LIBICONV) \
 	$(QT_LIB) $(QT_LDFLAGS) \
 	@LIBS@ $(ICONV_LIBS) $(ZLIB_LIBS) $(LIBSHLWAPI) $(LIBPSAPI)
 

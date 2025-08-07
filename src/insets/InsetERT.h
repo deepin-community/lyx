@@ -26,61 +26,52 @@ namespace lyx {
   versions of this inset.
 */
 
-class Language;
-
-namespace support {
-	class TempFile;
-}
-
 class InsetERT : public InsetCollapsible {
 public:
 	///
 	InsetERT(Buffer *, CollapseStatus status = Open);
- 	///
-	InsetERT(InsetERT const &);
 	///
-	InsetERT & operator=(InsetERT const &);
+	InsetERT(InsetERT const & old);
 	///
 	static CollapseStatus string2params(std::string const &);
 	///
 	static std::string params2string(CollapseStatus);
+	/// Do NOT force inset into LTR environment if surroundings are RTL
+	/// even though insetlayout has (and should have) forceltr true
+	bool forceLTR(OutputParams const &) const override { return false; }
 
-	std::string contextMenuName() const
+	std::string contextMenuName() const override
 		{ return "context-ert"; }
 private:
 	///
-	InsetCode lyxCode() const { return ERT_CODE; }
+	InsetCode lyxCode() const override { return ERT_CODE; }
 	///
-	docstring layoutName() const { return from_ascii("ERT"); }
+	docstring layoutName() const override { return from_ascii("ERT"); }
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures &) const {}
-	/// should paragraph indendation be omitted in any case?
-	bool neverIndent() const { return true; }
+	void validate(LaTeXFeatures &) const override {}
+	/// should paragraph indentation be omitted in any case?
+	bool neverIndent() const override { return true; }
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const override;
  	///
-	bool editable() const;
+	Inset * clone() const override { return new InsetERT(*this); }
 	///
-	bool descendable(BufferView const &) const;
+	docstring const buttonLabel(BufferView const & bv) const override;
 	///
-	Inset * clone() const { return new InsetERT(*this); }
+	bool allowSpellCheck() const override { return false; }
 	///
-	docstring const buttonLabel(BufferView const & bv) const;
-	///
-	bool allowSpellCheck() const { return false; }
-	///
-	unique_ptr<support::TempFile> tempfile_;
+	bool insetAllowed(InsetCode code) const override { return code == QUOTE_CODE; }
 };
 
 

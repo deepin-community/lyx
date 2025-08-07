@@ -25,13 +25,17 @@ and generates a PHP web page.
 
 Invocation:
    postats.py lyx_version po_files > "pathToWebPages"/i18n.inc
+
+or simply
+   make i18n.inc
+to create stats only for allowed langauages in LINGUAS file
+(typically good for stable branch stats).
 """
 from __future__ import print_function
 
-# modify this when you change branch
-# Note that an empty lyx_branch variable (ie svn trunk)
-# will "do the right thing".
-lyx_branch=""
+# Modify this when you change branch (e.g. stats for stable branch).
+# Note that an empty lyx_branch variable will "do the right thing" for master.
+lyx_branch="2.4.x"
 # these po-files will be skipped:
 ommitted = ('en.po')
 
@@ -137,7 +141,7 @@ if __name__ == "__main__":
     print("""<?php
 // The current version
 $lyx_version = "%s";
-// The branch tag
+// The branch tag which will be used for git URL pointing to proper .po file
 $branch_tag = "%s";
 
 // The data itself

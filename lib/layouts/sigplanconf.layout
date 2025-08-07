@@ -17,7 +17,7 @@
 # ACM style files can be obtained at
 # http://www.acm.org/sigs/pubs/proceed/template.html
 
-Format 66
+Format 104
 
 Columns			1
 Sides			1
@@ -48,6 +48,7 @@ Style Standard
   Align 		Block
   AlignPossible 	Block, Left, Right, Center
   LabelType 		No_Label
+  DocBookTag        para
 End
 
 
@@ -88,7 +89,7 @@ Style Conference
 	LabelType	Static
 	LabelString	"Conference:"
 	LabelFont
-	  Color		Green
+	  Color		textlabel2
 	  Series	Bold
 	EndFont
 End
@@ -140,6 +141,8 @@ Style Subtitle
 	Font
 	  Size		Larger
 	EndFont
+	DocBookTag            subtitle
+	DocBookInInfo         maybe
 End
 
 
@@ -174,6 +177,11 @@ Style Author
 	  Family	Sans
 	  Size		Normal
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -189,6 +197,10 @@ Style Keywords
 	CopyStyle	Terms
 	LatexName	keywords
 	LabelString	"Keywords:"
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 
@@ -228,5 +240,9 @@ Style Acknowledgments
 	LabelBottomsep	0
 	LabelType	Above
 	LabelString	"Acknowledgments"
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
+	DocBookSection        true
 End
+
 

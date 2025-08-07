@@ -1,12 +1,13 @@
 #% Do not delete the line below; configure depends on this
-#\DeclareLyXModule{Named Theorems}
+#\DeclareLyXModule{Standard Theorems (Nameable)}
+#\DeclareCategory{Maths}
 #DescriptionBegin
 # Facilitates the use of named theorems. The name of the theorem
 # goes into the 'Additional Theorem Text' argument.
 #DescriptionEnd
 #Original Author: John Perry
 
-Format 66
+Format 104
 
 ProvideStyle Theorem*
 	Category              Reasoning

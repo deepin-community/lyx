@@ -28,6 +28,9 @@ namespace lyx {
 	 */
 	// FIXME: should be unsigned, but needs to be signed for a while to
 	// hold the special value -1 that is used somewhere
+	// Specifically, TexRow::getDocIteratorsFromEntries uses negative pos
+	// the way Python does: counting from the end. So maybe this should just
+	// be signed.
 	// Note that the signed property is also used in loops counting to zero.
 	typedef ptrdiff_t  pos_type;
 
@@ -41,6 +44,16 @@ namespace lyx {
 
 	/// a type for the nesting depth of a paragraph
 	typedef size_t     depth_type;
+
+	/// type for cell indices in inset
+	typedef size_t     idx_type;
+	/// type for row indices
+	typedef size_t     row_type;
+	/// type for col indices
+	typedef size_t     col_type;
+
+	/// type for cells and math insets
+	typedef void const * uid_type;
 
 // set this to '0' if you want to have really safe types
 #if 1
@@ -75,7 +88,7 @@ namespace lyx {
 		WHOLE_WORD_STRICT,
 		// the word around the cursor
 		WHOLE_WORD,
-		/// the word begining from the cursor position
+		/// the word beginning from the cursor position
 		PARTIAL_WORD,
 		/// the word around the cursor or before the cursor
 		PREVIOUS_WORD,

@@ -17,44 +17,42 @@
 
 namespace lyx {
 
-class latexkeys;
-
 /// Inset for end-of-line comments
 class InsetMathComment : public InsetMathNest {
 public:
 	///
-	InsetMathComment(Buffer * buf);
+	explicit InsetMathComment(Buffer * buf);
 	///
-	InsetMathComment(MathData const & ar);
+	explicit InsetMathComment(MathData const & ar);
 	///
-	explicit InsetMathComment(Buffer * buf, docstring const &);
+	InsetMathComment(Buffer * buf, docstring const &);
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	void metricsT(TextMetricsInfo const & mi, Dimension & dim) const;
+	void metricsT(TextMetricsInfo const & mi, Dimension & dim) const override;
 	///
-	void drawT(TextPainter & pi, int x, int y) const;
+	void drawT(TextPainter & pi, int x, int y) const override;
 
 	///
-	void write(WriteStream & os) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void maple(MapleStream &) const;
+	void maple(MapleStream &) const override;
 	///
-	void mathematica(MathematicaStream &) const {}
+	void mathematica(MathematicaStream &) const override {}
 	///
-	void octave(OctaveStream &) const {}
+	void octave(OctaveStream &) const override {}
 	///
-	void mathmlize(MathStream &) const;
+	void mathmlize(MathMLStream &) const override;
 	///
-	void htmlize(HtmlStream &) const;
+	void htmlize(HtmlStream &) const override;
 	///
-	void infoize(odocstream & os) const;
+	void infoize(odocstream & os) const override;
 	///
-	InsetCode lyxCode() const { return MATH_COMMENT_CODE; }
+	InsetCode lyxCode() const override { return MATH_COMMENT_CODE; }
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 };
 
 } // namespace lyx

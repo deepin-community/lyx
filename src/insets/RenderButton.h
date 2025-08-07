@@ -13,7 +13,6 @@
 #define RENDERBUTTON_H
 
 #include "RenderBase.h"
-#include "Box.h"
 #include "support/docstring.h"
 
 
@@ -25,30 +24,26 @@ class RenderButton : public RenderBase
 public:
 	RenderButton();
 
-	RenderBase * clone(Inset const *) const;
+	RenderBase * clone(Inset const *) const override;
 
 	/// compute the size of the object returned in dim
-	virtual void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	/// draw inset and update (xo, yo)-cache
-	virtual void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y, bool const darkmode = false) const override;
 
 	/// Provide the text for the button
-	void update(docstring const &, bool editable, bool inherit_font);
-
-	/// The "sensitive area" box, i.e., the button area
-	Box box() const { return button_box_; }
-	///
-	void setBox(Box b) { button_box_ = b; }
+	void update(docstring const &, bool editable,
+		    bool inherit, bool broken = false);
 
 	/// equivalent to dynamic_cast
-	virtual RenderButton * asButton() { return this; }
+	RenderButton * asButton() override { return this; }
 
 private:
 	/// The stored data.
 	docstring text_;
 	bool editable_;
+	bool broken_;
 	bool inherit_font_;
-	Box button_box_;
 };
 
 

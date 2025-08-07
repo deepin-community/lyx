@@ -7,13 +7,14 @@
 # feel free to contribute missing features!
 
 
-Format 66
+Format 104
 Columns            1
 Sides              2
 SecNumDepth        1
 TocDepth           1
 DefaultStyle       Standard
 PageStyle          Headings
+PageSize           letter
 Provides makeidx   1
 Provides framed    1
 Provides subscript 1
@@ -27,6 +28,7 @@ Provides SetSpace  1
 
 ClassOptions
 	FontSize             9|10|11|12|14|17
+	PageSize             a3|a4|a5|a6|b3|b4|b5|b6|executive|legal|letter
 	PageStyle            empty|plain|headings|myheadings|ruled|Ruled|companion
 	Other                oldfontcommands
 End
@@ -48,6 +50,7 @@ Style Standard
 			text-align: left;
 		}
 	EndHTMLStyle
+	DocBookTag            para
 End
 
 
@@ -81,6 +84,7 @@ Style Chapter
 		InsertCotext  1
 		Requires      1
 	EndArgument
+	TocLevel 0
 End
 
 
@@ -105,6 +109,7 @@ Style Section
 		InsertCotext  1
 		Requires      1
 	EndArgument
+	TocLevel 1
 End
 
 
@@ -120,6 +125,7 @@ Style Subsection
 		InsertCotext  1
 		Requires      1
 	EndArgument
+	TocLevel 2
 End
 
 
@@ -135,6 +141,7 @@ Style Subsubsection
 		InsertCotext  1
 		Requires      1
 	EndArgument
+	TocLevel 3
 End
 
 
@@ -150,6 +157,7 @@ Style Paragraph
 		InsertCotext  1
 		Requires      1
 	EndArgument
+	TocLevel 4
 End
 
 
@@ -165,6 +173,7 @@ Style Subparagraph
 		InsertCotext  1
 		Requires      1
 	EndArgument
+	TocLevel 5
 End
 
 
@@ -237,6 +246,7 @@ Style Poemtitle
 	Font
 	   Series             Bold
 	EndFont
+    HTMLTag               h2
 End
 
 
@@ -287,4 +297,52 @@ Style Legend
 	NextNoIndent        1
 	ParSkip             0.4
 	Align               Center
+End
+
+#
+# Endnotes (called "pagenotes" in memoir)
+#
+
+Counter endnotes
+	GuiName Endnotes
+    PrettyFormat "Endnote ##"
+End
+
+InsetLayout Flex:Endnote
+   LyXType     custom
+   LatexName   pagenote
+   LatexType   command
+   Counter     endnotes
+   Decoration  classic
+   Font
+     Size Small
+   EndFont
+   MultiPar    true
+   LabelString endnote
+   Preamble
+      \makepagenote
+   EndPreamble
+   LangPreamble
+     \providecommand{\notesname}{_(Notes[[Endnotes]])}
+   EndLangPreamble
+   BabelPreamble
+     \addto\captions$$lang{\renewcommand{\notesname}{_(Notes[[Endnotes]])}}
+   EndBabelPreamble
+End
+
+# We are only interested in the list
+Float
+   Type          pagenote
+   ListName      "Endnotes (all)"
+   IsPredefined  true
+   UsesFloatPkg  false
+   ListCommand   printpagenotes
+End
+
+Float
+   Type          pagenote*
+   ListName      "Endnotes (sectioned)"
+   IsPredefined  true
+   UsesFloatPkg  false
+   ListCommand   printpagenotes*
 End

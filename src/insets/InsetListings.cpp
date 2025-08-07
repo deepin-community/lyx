@@ -16,20 +16,19 @@
 #include "Buffer.h"
 #include "BufferView.h"
 #include "BufferParams.h"
-#include "Counters.h"
 #include "Cursor.h"
-#include "DispatchResult.h"
 #include "Encoding.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "InsetCaption.h"
+#include "InsetLabel.h"
+#include "InsetLayout.h"
 #include "Language.h"
 #include "LaTeXFeatures.h"
 #include "Lexer.h"
 #include "output_latex.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
-#include "OutputParams.h"
-#include "TextClass.h"
 #include "TexRow.h"
 #include "texstream.h"
 
@@ -42,8 +41,8 @@
 #include "frontends/alert.h"
 #include "frontends/Application.h"
 
-#include "support/regex.h"
-
+#include <cstring>
+#include <regex>
 #include <sstream>
 
 using namespace std;
@@ -66,9 +65,9 @@ InsetListings::~InsetListings()
 }
 
 
-Inset::DisplayType InsetListings::display() const
+int InsetListings::rowFlags() const
 {
-	return params().isInline() || params().isFloat() ? Inline : AlignLeft;
+	return params().isInline() || params().isFloat() ? Inline : Display | AlignLeft;
 }
 
 
@@ -120,21 +119,21 @@ void InsetListings::read(Lexer & lex)
 
 
 Encoding const * InsetListings::forcedEncoding(Encoding const * inner_enc,
-											   Encoding const * outer_enc) const
+					       Encoding const * outer_enc) const
 {
 	// The listings package cannot deal with multi-byte-encoded
-	// glyphs, except if full-unicode aware backends
-	// such as XeTeX or LuaTeX are used, and with pLaTeX.
+	// glyphs, except for Xe/LuaTeX (with non-TeX fonts) or pLaTeX.
 	// Minted can deal with all encodings.
 	if (buffer().params().use_minted
 		|| inner_enc->name() == "utf8-plain"
-		|| (buffer().params().encoding().package() == Encoding::japanese
-			&& inner_enc->package() == Encoding::japanese)
+		|| inner_enc->package() == Encoding::japanese
 		|| inner_enc->hasFixedWidth())
 		return 0;
 
 	// We try if there's a singlebyte encoding for the outer
 	// language; if not, fall back to latin1.
+	// Power-users can set inputenc to utf8-plain to bypass this workaround
+	// and provide alternatives in the user-preamble.
 	return (outer_enc->hasFixedWidth()) ?
 			outer_enc : encodings.fromLyXName("iso8859-1");
 }
@@ -150,7 +149,46 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 	static regex const reg1("(.*)(basicstyle=\\{)([^\\}]*)(\\\\ttfamily)([^\\}]*)(\\})(.*)");
 	static regex const reg2("(.*)(basicstyle=\\{)([^\\}]*)(\\\\rmfamily)([^\\}]*)(\\})(.*)");
 	static regex const reg3("(.*)(basicstyle=\\{)([^\\}]*)(\\\\sffamily)([^\\}]*)(\\})(.*)");
-	if (runparams.use_polyglossia && runparams.local_font->isRightToLeft()) {
+	static regex const reg4("(.*)(basicstyle=\\{)([^\\}]*)(\\\\(tiny|scriptsize|footnotesize|small|normalsize|large|Large))([^\\}]*)(\\})(.*)");
+	static regex const reg5("(.*)(fontfamily=)(tt|sf|rm)(.*)");
+	static regex const reg6("(.*)(fontsize=\\{)(\\\\(tiny|scriptsize|footnotesize|small|normalsize|large|Large))(\\})(.*)");
+	if (use_minted) {
+		// If params have been entered with "listings", and then the user switched to "minted",
+		// we have params that need to be translated.
+		// FIXME: We should use a backend-abstract syntax in listings params instead!
+		// Substitute fontstyle option
+		smatch sub;
+		if (regex_match(param_string, sub, reg1))
+			param_string = sub.str(1) + "fontfamily=tt," + sub.str(2) + sub.str(3)
+					+ sub.str(5) + sub.str(6) + sub.str(7);
+		if (regex_match(param_string, sub, reg2))
+			param_string = sub.str(1) + "fontfamily=rm," + sub.str(2) + sub.str(3)
+					+ sub.str(5) + sub.str(6) + sub.str(7);
+		if (regex_match(param_string, sub, reg3))
+			param_string = sub.str(1) + "fontfamily=sf," + sub.str(2) + sub.str(3)
+					+ sub.str(5) + sub.str(6) + sub.str(7);
+		// as well as fontsize option
+		if (regex_match(param_string, sub, reg4))
+			param_string = sub.str(1) + "fontsize={" + sub.str(4) + sub.str(3) + sub.str(7) + sub.str(8);
+	} else {
+		// And the same vice versa
+		// Substitute fontstyle option
+		smatch sub;
+		string basicstyle;
+		if (regex_match(param_string, sub, reg5)) {
+			basicstyle = "\\" + sub.str(3) + "family";
+			param_string = sub.str(1) + sub.str(4);
+		}
+		// as well as fontsize option
+		if (regex_match(param_string, sub, reg6)) {
+			basicstyle += sub.str(3);
+			param_string = sub.str(1) + sub.str(6);
+		}
+		if (!basicstyle.empty())
+			param_string = rtrim(param_string, ",") + ",basicstyle={" + basicstyle + "}";
+	}
+	if (runparams.use_polyglossia && runparams.local_font
+	    && runparams.local_font->isRightToLeft()) {
 		// We need to use the *latin switches (#11554)
 		smatch sub;
 		if (regex_match(param_string, sub, reg1))
@@ -211,15 +249,16 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 	Encoding const * const save_enc = runparams.encoding;
 
 	Encoding const * const outer_encoding =
-		(runparams.local_font != 0) ?
-			runparams.local_font->language()->encoding()
-			: buffer().params().language->encoding();
+		getLocalOrDefaultLang(runparams)->encoding();
 	Encoding const * fixedlstenc = forcedEncoding(runparams.encoding, outer_encoding);
 	if (fixedlstenc) {
 		// We need to switch to a singlebyte encoding, due to
 		// the restrictions of the listings package (see above).
 		// This needs to be consistent with
 		// LaTeXFeatures::getTClassI18nPreamble().
+		// We need to put this into a group in order to prevent encoding leaks
+		// (happens with cprotect).
+		os << "\\bgroup";
 		switchEncoding(os.os(), buffer().params(), runparams, *fixedlstenc, true);
 		runparams.encoding = fixedlstenc;
 		encoding_switched = true;
@@ -229,7 +268,7 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 				&& par->getInset(0)->lyxCode() == CAPTION_CODE;
 
 	while (par != end) {
-		pos_type siz = par->size();
+		pos_type const siz = par->size();
 		bool captionline = false;
 		for (pos_type i = 0; i < siz; ++i) {
 			if (i == 0 && par->isInset(i) && i + 1 == siz)
@@ -273,9 +312,11 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 			}
 		}
 		++par;
-		// for the inline case, if there are multiple paragraphs
+		// Add new line between paragraphs in displayed listings.
+		// Exception: merged paragraphs in change tracking mode.
+		// Also, for the inline case, if there are multiple paragraphs
 		// they are simply joined. Otherwise, expect latex errors.
-		if (par != end && !isInline && !captionline)
+		if (par != end && !isInline && !captionline && !par->parEndChange().deleted())
 			code += "\n";
 	}
 	if (isInline) {
@@ -327,7 +368,7 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 				os << '[' << float_placement << "]";
 		} else if (captionfirst && !caption.str.empty()) {
 			os << breakln << "\\lyxmintcaption[t]{"
-			   << move(caption) << "}\n";
+			   << std::move(caption) << "}\n";
 		}
 		os << breakln << "\\begin{minted}";
 		if (!param_string.empty())
@@ -336,11 +377,11 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 		   << code << breakln << "\\end{minted}\n";
 		if (isfloat) {
 			if (!caption.str.empty())
-				os << "\\caption{" << move(caption) << "}\n";
+				os << "\\caption{" << std::move(caption) << "}\n";
 			os << "\\end{listing}\n";
 		} else if (!captionfirst && !caption.str.empty()) {
 			os << breakln << "\\lyxmintcaption[b]{"
-			   << move(caption) << "}";
+			   << std::move(caption) << "}";
 		}
 	} else {
 		OutputParams rp = runparams;
@@ -354,7 +395,7 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 				os << safebreakln;
 			os << "[";
 			if (!caption.str.empty()) {
-				os << "caption={" << move(caption) << '}';
+				os << "caption={" << std::move(caption) << '}';
 				if (!param_string.empty())
 					os << ',';
 			}
@@ -363,9 +404,15 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 		os << code << breakln << "\\end{lstlisting}\n";
 	}
 
-	if (encoding_switched){
+	if (encoding_switched) {
 		// Switch back
-		switchEncoding(os.os(), buffer().params(), runparams, *save_enc, true);
+		switchEncoding(os.os(), buffer().params(),
+			       runparams, *save_enc, true, true);
+		if (!isInline)
+			// Go out of vertical mode. Otherwise \egroup
+			// causes a paragraph break (#12821)
+			os << "\\leavevmode";
+		os << "\\egroup" << breakln;
 		runparams.encoding = save_enc;
 	}
 
@@ -390,50 +437,114 @@ void InsetListings::latex(otexstream & os, OutputParams const & runparams) const
 }
 
 
-docstring InsetListings::xhtml(XHTMLStream & os, OutputParams const & rp) const
+docstring InsetListings::xhtml(XMLStream & os, OutputParams const & rp) const
 {
-	odocstringstream ods;
-	XHTMLStream out(ods);
-
 	bool const isInline = params().isInline();
-	if (isInline)
-		out << html::CompTag("br");
-	else {
-		out << html::StartTag("div", "class='float-listings'");
+	if (!isInline) {
+		os << xml::StartTag("div", "class='float-listings'");
 		docstring caption = getCaptionHTML(rp);
 		if (!caption.empty())
-			out << html::StartTag("div", "class='listings-caption'")
-			    << XHTMLStream::ESCAPE_NONE
-			    << caption << html::EndTag("div");
+			os << xml::StartTag("div", "class='listings-caption'")
+			   << XMLStream::ESCAPE_NONE
+			   << caption << xml::EndTag("div");
 	}
 
-	InsetLayout const & il = getLayout();
-	string const & tag = il.htmltag();
-	string attr = "class ='listings";
+	string const & tag = getLayout().htmltag();
+	string attr = "class='listings";
 	string const lang = params().getParamValue("language");
 	if (!lang.empty())
 		attr += " " + lang;
 	attr += "'";
-	out << html::StartTag(tag, attr);
+	os << xml::StartTag(tag, attr);
 	OutputParams newrp = rp;
 	newrp.html_disable_captions = true;
 	// We don't want to convert dashes here. That's the only conversion we
 	// do for XHTML, so this is safe.
 	newrp.pass_thru = true;
-	docstring def = InsetText::insetAsXHTML(out, newrp, InsetText::JustText);
-	out << html::EndTag(tag);
+	docstring def = InsetText::insetAsXHTML(os, newrp, InsetText::JustText);
+	os << xml::EndTag(tag);
 
-	if (isInline) {
-		out << html::CompTag("br");
-		// escaping will already have been done
-		os << XHTMLStream::ESCAPE_NONE << ods.str();
-	} else {
-		out << html::EndTag("div");
-		// In this case, this needs to be deferred, but we'll put it
-		// before anything the text itself deferred.
-		def = ods.str() + '\n' + def;
+	if (!isInline) {
+		if (!def.empty()) {
+			os << '\n' << def;
+		}
+		os << xml::EndTag("div");
 	}
-	return def;
+	return {};
+}
+
+
+void InsetListings::docbook(XMLStream & xs, OutputParams const & rp) const
+{
+	InsetLayout const & il = getLayout();
+	bool isInline = params().isInline();
+
+	if (!isInline && !xs.isLastTagCR())
+		xs << xml::CR();
+
+	// In case of caption, the code must be wrapped, for instance in a figure. Also detect if there is a label.
+	// http://www.sagehill.net/docbookxsl/ProgramListings.html
+	// TODO: parts of this code could be merged with InsetFloat and findLabelInParagraph.
+	InsetCaption const * caption = getCaptionInset();
+	if (caption) {
+		InsetLabel const * label = getLabelInset();
+
+		// Ensure that the label will not be output a second time as an anchor.
+		OutputParams rpNoLabel = rp;
+		if (label)
+			rpNoLabel.docbook_anchors_to_ignore.emplace(label->screenLabel());
+
+		// Prepare the right set of attributes, including the label.
+		docstring attr = from_ascii("type='listing'");
+		if (label)
+			attr += " xml:id=\"" + xml::cleanID(label->screenLabel()) + "\"";
+
+		// Finally, generate the wrapper (including the label).
+		xs << xml::StartTag("figure", attr);
+		xs << xml::CR();
+		xs << xml::StartTag("title");
+		xs << XMLStream::ESCAPE_NONE << getCaptionDocBook(rpNoLabel);
+		xs << xml::EndTag("title");
+		xs << xml::CR();
+	}
+
+	// Forge the attributes.
+	std::string attrs;
+	if (!il.docbookattr().empty())
+		attrs += " role=\"" + il.docbookattr() + "\"";
+	std::string const lang = params().getParamValue("language");
+	if (!lang.empty())
+		attrs += " language=\"" + lang + "\"";
+
+	// Determine the tag to use. Use the layout-defined value if outside a paragraph.
+	std::string tag = il.docbooktag();
+	if (isInline)
+		tag = "code";
+
+	// Start the listing.
+	xs << xml::StartTag(tag, attrs);
+	xs.startDivision(false);
+
+	// Deal with the content of the listing.
+	OutputParams newrp = rp;
+	newrp.pass_thru = true;
+	newrp.docbook_make_pars = false;
+	newrp.par_begin = 0;
+	newrp.par_end = text().paragraphs().size();
+	newrp.docbook_in_listing = true;
+
+	docbookParagraphs(text(), buffer(), xs, newrp);
+
+	// Done with the listing.
+	xs.endDivision();
+	xs << xml::EndTag(tag);
+	if (!isInline)
+		xs << xml::CR();
+
+	if (caption) {
+		xs << xml::EndTag("figure");
+		xs << xml::CR();
+	}
 }
 
 
@@ -489,10 +600,10 @@ bool InsetListings::getStatus(Cursor & cur, FuncRequest const & cmd,
 docstring const InsetListings::buttonLabel(BufferView const & bv) const
 {
 	// FIXME UNICODE
-	if (decoration() == InsetLayout::CLASSIC)
-		return isOpen(bv) ? _("Listing") : getNewLabel(_("Listing"));
-	else
-		return getNewLabel(_("Listing"));
+	docstring const locked = tempfile_ ? docstring(1, 0x1F512) : docstring();
+	if (decoration() == InsetDecoration::CLASSIC)
+		return locked + (isOpen(bv) ? _("Listing") : getNewLabel(_("Listing")));
+	return locked + getNewLabel(_("Listing"));
 }
 
 
@@ -555,12 +666,15 @@ TexString InsetListings::getCaption(OutputParams const & runparams) const
 	// NOTE that } is not allowed in blah2.
 	regex const reg("(.*)\\\\label\\{(.*?)\\}(.*)");
 	string const new_cap("$1$3},label={$2");
+	// Remove potential \protect'ion of \label.
+	docstring capstr = subst(cap.str, from_ascii("\\protect\\label"),
+				 from_ascii("\\label"));
 	// TexString validity: the substitution preserves the number of newlines.
 	// Moreover we assume that $2 does not contain newlines, so that the texrow
 	// information remains accurate.
 	// Replace '\n' with an improbable character from Private Use Area-A
 	// and then return to '\n' after the regex replacement.
-	docstring const capstr = subst(cap.str, char_type('\n'), 0xffffd);
+	capstr = subst(capstr, char_type('\n'), 0xffffd);
 	cap.str = subst(from_utf8(regex_replace(to_utf8(capstr), reg, new_cap)),
 			0xffffd, char_type('\n'));
 	return cap;

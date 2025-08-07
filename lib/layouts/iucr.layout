@@ -5,13 +5,13 @@
 # Author: Uwe Stöhr (uwestoehr@web.de)
 # IUCr LaTeX files can be downloaded from ftp://ftp.iucr.org/templates/latex/
 
-Format 66
+Format 104
 
 Columns				1
 Sides				1
 SecNumDepth			3
 TocDepth			3
-DefaultStyle		Standard
+DefaultStyle			Standard
 
 ClassOptions
 	FontSize		10
@@ -25,8 +25,9 @@ Style Standard
 	ParIndent		MM
 	ParSkip			0.4
 	Align			Block
-	AlignPossible	Block, Left, Right, Center
+	AlignPossible		Block, Left, Right, Center
 	LabelType		No_Label
+	DocBookTag      para
 End
 
 Input stdtitle.inc
@@ -44,24 +45,27 @@ NoStyle Author
 NoStyle Bibliography
 
 Style Section
-	LabelString			\thesection.
+	LabelString		\thesection.
 	LabelStringAppendix	\thesection
-	Align				Center
+	Align			Center
+	TocLevel 1
 End
 
 Style Subsection
-	LabelString			\thesubsection.
+	LabelString		\thesubsection.
 	Font
-	  Shape				Italic
-	  Size				Normal
+	  Shape			Italic
+	  Size			Normal
 	EndFont
+	TocLevel 2
 End
 
 Style Subsubsection
-	LabelString			\thesubsubsection.
+	LabelString		\thesubsubsection.
 	Font
-	  Shape				Italic
+	  Shape			Italic
 	EndFont
+	TocLevel 3
 End
 
 Style "Short Title"
@@ -70,6 +74,7 @@ Style "Short Title"
 	Font
 	  Size			Small
 	EndFont
+	DocBookTag      titleabbrev
 End
 
 InsetLayout "Flex:City"
@@ -89,7 +94,7 @@ InsetLayout "Flex:City"
 	  Misc			No_Bar
 	EndFont
 	LabelFont
-	  Color			green
+	  Color			textlabel2
 	  Size			Small
 	EndFont
 End
@@ -112,33 +117,43 @@ Style "Main Author"
 	LatexName		cauthor
 	Category		FrontMatter
 	InTitle			1
-	NextNoIndent	1
+	NextNoIndent		1
 	Argument 1
-	  LabelString	"Affiliation Key"
+	  LabelString		"Affiliation Key"
 	  Tooltip		"Affiliation key of the author"
+	  # DocBookTag    othername
 	EndArgument
 	Argument 2
 	  Mandatory		1
-	  LabelString	"Forename"
+	  LabelString		"Forename"
 	  Tooltip		"Forename"
+	  # DocBookTag    firstname
 	EndArgument
 	Argument 3
 	  Mandatory		1
-	  LabelString	"Surname"
+	  LabelString		"Surname"
 	  Tooltip		"Surname"
+	  # DocBookTag    surname
 	EndArgument
 	Argument 4
 	  Mandatory		1
-	  LabelString	"Email"
+	  LabelString		"Email"
 	  Tooltip		"Email"
 	  Font
 	    Shape		Italic
 	  EndFont
+	  # DocBookTag    email
 	EndArgument
 	BottomSep		0.5
 	ParSkip			0.4
 	Align			Center
 	LabelType		No_Label
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
+	# TODO: a lot of information is available, but the email would be output in the <personname> tag, and that does not make sense. The two first arguments should be grouped in <personname>, the rest must live outside <personname>.
 End
 
 Style "Co Author"
@@ -147,12 +162,12 @@ Style "Co Author"
 	LabelString		"Co-author"
 	ResetArgs		1
 	Argument 1
-	  LabelString	"Affiliation Key"
+	  LabelString		"Affiliation Key"
 	  Tooltip		"Affiliation key of the co-author"
 	EndArgument
 	Argument 2
 	  Mandatory		1
-	  LabelString	"Forename"
+	  LabelString		"Forename"
 	  Tooltip		"Forename"
 	EndArgument
 End
@@ -168,8 +183,11 @@ Style "Short Author"
 	LabelSep		xx
 	LabelFont
 	  Series		Bold
-	  Color			Green
+	  Color			textlabel2
 	EndFont
+	DocBookInInfo   always
+	DocBookTag      authorinitials
+	DocBookWrapperTag     NONE
 End
 
 Style Affiliation
@@ -178,7 +196,7 @@ Style Affiliation
 	Category		FrontMatter
 	LabelString		"Affiliation:"
 	Argument 1
-	  LabelString	"Affiliation Key"
+	  LabelString		"Affiliation Key"
 	  Tooltip		"Affiliation key"
 	EndArgument
 	Font
@@ -186,7 +204,7 @@ Style Affiliation
 	EndFont
 	LabelFont
 	  Series		Bold
-	  Color			Green
+	  Color			textlabel2
 	  Shape			Up
 	EndFont
 End
@@ -195,6 +213,10 @@ Style Keyword
 	CopyStyle		"Short Author"
 	LatexName		keyword
 	LabelString		"Keyword:"
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 Style Vita
@@ -208,7 +230,7 @@ Style "PDB reference"
 	LatexName		PDBreference
 	LabelString		"PDB reference:"
 	Argument 1
-	  LabelString	"Name"
+	  LabelString		"Name"
 	  Tooltip		"Optional name"
 	EndArgument
 End
@@ -222,18 +244,21 @@ End
 Style Synopsis
   CopyStyle			Abstract
   LatexName			synopsis
-  LabelString		"Synopsis"
+  LabelString			"Synopsis"
   Align				Left
-  AlignPossible		Left
+  AlignPossible			Left
+  DocBookAttr       role='synopsis'
 End
 
-Style Acknowledgements
+Style Acknowledgments
   CopyStyle			"Short Author"
   LatexName			ack
   InTitle			0
-  LabelString		"Acknowledgements:"
+  LabelString			"Acknowledgments:"
   Category			BackMatter
   TopSep			0.7
+  DocBookTag            	para
+  DocBookWrapperTag     	acknowledgements
 End
 
 Style References
@@ -241,21 +266,33 @@ Style References
   Category			BackMatter
   LatexType			Item_Environment
   LatexName			references
-  ItemCommand		reference
+  ItemCommand			reference
   LabelType			Centered
-  LabelString		"References"
+  LabelString			"References"
   LabelFont
    Size larger
    Series bold
   EndFont
-  ParagraphGroup	1
-  NextNoIndent		1
+  ParagraphGroup		1
+  NextNoIndent			1
   TopSep			0.7
   BottomSep			0.7
+  Argument listpreamble:1
+    LabelString    		"List preamble"
+    MenuString			"List Preamble"
+    Tooltip			"LaTeX code to be inserted before the first item"
+    PassThru			1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
   Argument item:1
-    LabelString		"Reference"
-    Mandatory		1
-    AutoInsert		1
+    LabelString			"Reference"
+    Mandatory			1
+    AutoInsert			1
+	DocBookTag          bibliomixed
   EndArgument
   Align				Left
+  DocBookTag        bibliography
 End

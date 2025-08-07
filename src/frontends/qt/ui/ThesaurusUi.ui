@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ThesaurusUi</class>
+ <widget class="QDialog" name="ThesaurusUi">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>313</width>
+    <height>414</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string/>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <layout class="QGridLayout" name="gridLayout" columnstretch="0,1,1,0">
+   <item row="0" column="0">
+    <widget class="QLabel" name="languageLA">
+     <property name="text">
+      <string>&amp;Language:</string>
+     </property>
+     <property name="buddy">
+      <cstring>languageCO</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1" colspan="3">
+    <widget class="QComboBox" name="languageCO">
+     <property name="toolTip">
+      <string>Language of the thesaurus</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="entryLA">
+     <property name="toolTip">
+      <string>Index entry</string>
+     </property>
+     <property name="text">
+      <string>&amp;Keyword:</string>
+     </property>
+     <property name="buddy">
+      <cstring>entryCO</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="3">
+    <widget class="QPushButton" name="lookupPB">
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="text">
+      <string>L&amp;ookup</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="selectionLA">
+     <property name="toolTip">
+      <string>The selected entry</string>
+     </property>
+     <property name="text">
+      <string>Sele&amp;ction:</string>
+     </property>
+     <property name="buddy">
+      <cstring>replaceED</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1" colspan="2">
+    <widget class="QLineEdit" name="replaceED">
+     <property name="toolTip">
+      <string>The selected entry</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="3">
+    <widget class="QPushButton" name="replacePB">
+     <property name="toolTip">
+      <string>Replace the entry with the selection</string>
+     </property>
+     <property name="text">
+      <string>&amp;Replace</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0" colspan="4">
+    <widget class="QTreeWidget" name="meaningsTV">
+     <property name="toolTip">
+      <string>Click to select a proposal, double click to look it up.</string>
+     </property>
+     <column>
+      <property name="text">
+       <string notr="true">1</string>
+      </property>
+     </column>
+    </widget>
+   </item>
+   <item row="4" column="2" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Close</set>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1" colspan="2">
+    <widget class="QComboBox" name="entryCO">
+     <property name="toolTip">
+      <string>Word to look up</string>
+     </property>
+     <property name="editable">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>languageCO</tabstop>
+  <tabstop>entryCO</tabstop>
+  <tabstop>lookupPB</tabstop>
+  <tabstop>replaceED</tabstop>
+  <tabstop>replacePB</tabstop>
+  <tabstop>meaningsTV</tabstop>
+ </tabstops>
+ <includes>
+  <include location="local">qt_i18n.h</include>
+ </includes>
+ <resources/>
+ <connections/>
+</ui>

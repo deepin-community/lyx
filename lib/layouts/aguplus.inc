@@ -6,7 +6,7 @@
 # ftp://ftp.agu.org/journals/latex/journals
 
 
-Format 66
+Format 104
 Input stdclass.inc
 
 SecNumDepth             4
@@ -95,7 +95,7 @@ Style Left_Header
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -222,15 +222,17 @@ InsetLayout Caption:Table
 			margin: 1ex;
 		}
 	EndHTMLStyle
-	HTMLAttr "class='float-caption float-caption-table'"
+	HTMLClass   "float-caption float-caption-table"
 End
 
 
 Counter plate
+	GuiName Plate
 	Within                none
 End
 
 
 Counter planotable
+	GuiName "Plano Table"
 	Within                none
 End

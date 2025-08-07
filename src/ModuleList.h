@@ -4,7 +4,7 @@
  * This file is part of LyX, the document processor.
  * Licence details can be found in the file COPYING.
  *
- * \author Richard Heck
+ * \author Richard Kimberly Heck
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -18,7 +18,7 @@
 namespace lyx {
 
 /**
- *  This class represents a particular LyX "module", which is a like a layout
+ *  This class represents a particular LyX "module", which is like a layout
  *  file, except that it does not stand alone. In that sense, it is more like
  *  a LaTeX package, where a layout file corresponds to a LaTeX class. Or, in
  *  LyX's own terms, a module is more like an included file that can be used
@@ -31,12 +31,12 @@ namespace lyx {
  *  The requires and excludes are given in comments within the module file,
  *  which must begin roughly so:
  *   #\DeclareLyXModule{Theorems (By Section)}
+ *   #\DeclateCategory{Theorems}
  *   #DescriptionBegin
  *   #Numbers theorems and the like by section.
  *   #DescriptionEnd
  *   #Requires: theorems-std | theorems-ams
  *   #Excludes: theorems-chap
- *   #Category: theorems
  *  The description is used in the gui to give information to the user. The
  *  Requires, Excludes, and Category lines are read by the configuration script
  *  and written to a file lyxmodules.lst in the user configuration directory.
@@ -52,9 +52,9 @@ public:
 	LyXModule(std::string const & name, std::string const & id,
 	          std::string const & description,
 	          std::vector<std::string> const & packagelist,
-	          std::vector<std::string> const & requires,
+			  std::vector<std::string> const & required,
 	          std::vector<std::string> const & excludes,
-	          std::string const & catgy);
+		  std::string const & catgy, bool const local);
 	/// whether the required packages are available
 	bool isAvailable() const;
 	/// the missing prerequisites, if any
@@ -78,6 +78,8 @@ public:
 		{ return excluded_modules_; }
 	///
 	std::string category() const { return category_; }
+	/// Is this a local module (from the user directory)?
+	bool isLocal() const { return local_; }
 	/// \return true if the module is compatible with this one, i.e.,
 	/// it does not exclude us and we do not exclude it.
 	/// this will also return true if modname is unknown and we do not
@@ -109,6 +111,8 @@ private:
 	mutable bool checked_;
 	///
 	mutable bool available_;
+	///
+	mutable bool local_;
 	///
 	mutable std::vector<std::string> prerequisites_;
 };
@@ -149,7 +153,7 @@ public:
 	void addLayoutModule(std::string const &, std::string const &,
 		std::string const &, std::vector<std::string> const &,
 		std::vector<std::string> const &, std::vector<std::string> const &,
-		std::string const &);
+		std::string const &, bool const);
 	///
 	std::vector<LyXModule> modlist_;
 };

@@ -21,9 +21,8 @@
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "LaTeXFeatures.h"
-#include "Length.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
 #include "texstream.h"
 #include "Text.h"
@@ -34,6 +33,7 @@
 #include "support/debug.h"
 #include "support/docstream.h"
 #include "support/gettext.h"
+#include "support/Length.h"
 #include "support/lstrings.h"
 
 #include <cstdlib>
@@ -112,7 +112,7 @@ void InsetLine::metrics(MetricsInfo & mi, Dimension & dim) const
 	int const max_width = mi.base.textwidth;
 
 	Length const width(to_ascii(getParam("width")));
-	dim.wid = width.inPixels(mi.base);
+	dim.wid = mi.base.inPixels(width);
 
 	// assure that the line inset is not outside of the window
 	// check that it doesn't exceed the outer boundary
@@ -124,11 +124,11 @@ void InsetLine::metrics(MetricsInfo & mi, Dimension & dim) const
 	dim.wid = max(minw, abs(dim.wid));
 
 	Length height = Length(to_ascii(getParam("height")));
-	height_ = height.inPixels(mi.base);
+	height_ = mi.base.inPixels(height);
 
 	// get the length of the parameters in pixels
 	Length offset = Length(to_ascii(getParam("offset")));
-	offset_ = offset.inPixels(mi.base);
+	offset_ = mi.base.inPixels(offset);
 
 	dim.asc = max(fm.maxAscent(), offset_ + height_);
 	dim.des = max(fm.maxDescent(), - offset_);
@@ -140,16 +140,10 @@ void InsetLine::draw(PainterInfo & pi, int x, int y) const
 	Dimension const dim = dimension(*pi.base.bv);
 
 	// get the surrounding text color
-	Color Line_color = pi.base.font.realColor();
+	Color line_color = pi.base.font.realColor();
 
 	// the offset is a vertical one
-	// the horizontal dimension must be corrected with the heigth because
-	// of left and right border of the painted line for big heigth.
-	pi.pain.line(x + height_/2 + 1,
-		     y - offset_ - height_/2,
-		     x + dim.wid - height_/2 - 2,
-		     y - offset_ - height_/2,
-		     Line_color, Painter::line_solid, height_);
+	pi.pain.fillRectangle(x, y - offset_ - height_, dim.wid, height_, line_color);
 }
 
 
@@ -183,16 +177,15 @@ int InsetLine::plaintext(odocstringstream & os,
 }
 
 
-int InsetLine::docbook(odocstream & os, OutputParams const &) const
+void InsetLine::docbook(XMLStream & xs, OutputParams const &) const
 {
-	os << '\n';
-	return 0;
+	xs << xml::CR();
 }
 
 
-docstring InsetLine::xhtml(XHTMLStream & xs, OutputParams const &) const
+docstring InsetLine::xhtml(XMLStream & xs, OutputParams const &) const
 {
-	xs << html::CompTag("hr") << html::CR();
+	xs << xml::CompTag("hr") << xml::CR();
 	return docstring();
 }
 

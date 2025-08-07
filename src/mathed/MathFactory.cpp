@@ -43,6 +43,7 @@
 #include "InsetMathSubstack.h"
 #include "InsetMathSymbol.h"
 #include "InsetMathTabular.h"
+#include "InsetMathTextsize.h"
 #include "InsetMathUnderset.h"
 #include "InsetMathUnknown.h"
 #include "InsetMathHull.h"
@@ -71,8 +72,8 @@
 #include "Buffer.h"
 #include "BufferParams.h"
 #include "Encoding.h"
+#include "FontInfo.h"
 #include "LyX.h" // use_gui
-#include "OutputParams.h"
 
 #include <iomanip>
 
@@ -155,6 +156,7 @@ void initSymbols()
 	bool skip = false;
 	while (getline(fs, line)) {
 		int charid     = 0;
+		int dsp_charid = 0;
 		int fallbackid = 0;
 		if (line.empty() || line[0] == '#')
 			continue;
@@ -189,20 +191,20 @@ void initSymbols()
 			// \def\macroname{definition} extra xmlname requires
 			istringstream is(line);
 			string macro;
-			string requires;
+			string required;
 			string extra;
 			string xmlname;
 			bool hidden = false;
-			is >> setw(65536) >> macro >> requires;
+			is >> setw(65536) >> macro >> required;
 			if ((is >> xmlname)) {
-				extra = requires;
-				if (!(is >> requires))
-					requires = "";
+				extra = required;
+				if (!(is >> required))
+					required = "";
 			} else
 				xmlname = "";
 			MacroTable::iterator it = MacroTable::globalMacros().insert(
-					0, from_utf8(macro));
-			if (!extra.empty() || !xmlname.empty() || !requires.empty()) {
+					nullptr, from_utf8(macro));
+			if (!extra.empty() || !xmlname.empty() || !required.empty()) {
 				MathWordList::iterator wit = theMathWordList.find(it->first);
 				if (wit != theMathWordList.end())
 					LYXERR(Debug::MATHED, "readSymbols: inset "
@@ -213,11 +215,11 @@ void initSymbols()
 					tmp.name = it->first;
 					tmp.extra = from_utf8(extra);
 					tmp.xmlname = from_utf8(xmlname);
-					if (requires == "hiddensymbol") {
-						requires = "";
+					if (required == "hiddensymbol") {
+						required = "";
 						tmp.hidden = hidden = true;
 					} else
-						tmp.requires = requires;
+						tmp.required = required;
 					theMathWordList[it->first] = tmp;
 					wit = theMathWordList.find(it->first);
 					it->second.setSymbol(&(wit->second));
@@ -226,11 +228,11 @@ void initSymbols()
 			// If you change the following output, please adjust
 			// development/tools/generate_symbols_images.py.
 			LYXERR(Debug::MATHED, "read symbol '" << to_utf8(it->first)
-				<< "  inset: macro"
-				<< "  draw: 0"
-				<< "  extra: " << extra
-				<< "  xml: " << xmlname
-				<< "  requires: " << requires
+			    << "  inset: macro"
+			    << "  draw: 0"
+			    << "  extra: " << extra
+			    << "  xml: " << xmlname
+				<< "  requires: " << required
 				<< "  hidden: " << hidden << '\'');
 			continue;
 		}
@@ -240,18 +242,21 @@ void initSymbols()
 		docstring help;
 		is >> tmp.name >> help;
 		tmp.inset = to_ascii(help);
-		if (isFontName(tmp.inset))
-			is >> charid >> fallbackid >> tmp.extra >> tmp.xmlname;
-		else
+		if (isFontName(tmp.inset)) {
+			is >> help >> fallbackid >> tmp.extra >> tmp.xmlname;
+			docstring cid, dsp_cid;
+			idocstringstream is2(subst(help, '|', ' '));
+			is2 >> charid >> dsp_charid;
+		} else
 			is >> tmp.extra;
 		// requires is optional
 		if (is) {
 			if ((is >> help)) {
 				// backward compatibility
 				if (help == "esintoramsmath")
-					tmp.requires = "esint|amsmath";
+					tmp.required = "esint|amsmath";
 				else
-					tmp.requires = to_ascii(help);
+					tmp.required = to_ascii(help);
 			}
 		} else {
 			LYXERR(Debug::MATHED, "skipping line '" << line << "'\n"
@@ -265,15 +270,15 @@ void initSymbols()
 			// create fallbacks if necessary
 
 			// store requirements as long as we can
-			if (tmp.requires.empty()) {
+			if (tmp.required.empty()) {
 				if (tmp.inset == "msa" || tmp.inset == "msb")
-					tmp.requires = "amssymb";
+					tmp.required = "amssymb";
 				else if (tmp.inset == "wasy")
-					tmp.requires = "wasysym";
+					tmp.required = "wasysym";
 				else if (tmp.inset == "mathscr")
-					tmp.requires = "mathrsfs";
+					tmp.required = "mathrsfs";
 				else if (tmp.inset == "mathds")
-					tmp.requires = "dsfont";
+					tmp.required = "dsfont";
 			}
 
 			// symbol font is not available sometimes
@@ -286,6 +291,10 @@ void initSymbols()
 			} else if (isMathFontAvailable(tmp.inset) && canBeDisplayed(charid)) {
 				LYXERR(Debug::MATHED, "symbol available for " << to_utf8(tmp.name));
 				tmp.draw.push_back(char_type(charid));
+				if (dsp_charid && canBeDisplayed(dsp_charid)) {
+					LYXERR(Debug::MATHED, "large symbol available for " << to_utf8(tmp.name));
+					tmp.dsp_draw.push_back(char_type(dsp_charid));
+				}
 			} else if (fallbackid && isMathFontAvailable(symbol_font) &&
 			           canBeDisplayed(fallbackid)) {
 				if (tmp.inset == "cmex")
@@ -309,9 +318,9 @@ void initSymbols()
 					      << " used for " << to_utf8(tmp.name));
 		}
 
-		if (tmp.requires == "hiddensymbol")
+		if (tmp.required == "hiddensymbol")
 		{
-			tmp.requires = "";
+			tmp.required = "";
 			tmp.hidden = true;
 		}
 
@@ -328,7 +337,7 @@ void initSymbols()
 			<< "  draw: " << int(tmp.draw.empty() ? 0 : tmp.draw[0])
 			<< "  extra: " << to_utf8(tmp.extra)
 			<< "  xml: " << to_utf8(tmp.xmlname)
-			<< "  requires: " << tmp.requires
+			<< "  requires: " << tmp.required
 			<< "  hidden: " << tmp.hidden << '\'');
 	}
 	string tmp = "cmm";
@@ -368,7 +377,7 @@ void initMath()
 }
 
 
-bool ensureMath(WriteStream & os, bool needs_mathmode, bool macro,
+bool ensureMath(TeXMathStream & os, bool needs_mathmode, bool macro,
                 bool textmode_macro)
 {
 	bool brace = os.pendingBrace();
@@ -408,8 +417,8 @@ bool ensureMath(WriteStream & os, bool needs_mathmode, bool macro,
 }
 
 
-int ensureMode(WriteStream & os, InsetMath::mode_type mode,
-		bool locked, bool ascii)
+int ensureMode(TeXMathStream & os, InsetMath::mode_type mode,
+               bool locked, bool ascii)
 {
 	bool textmode = mode == InsetMath::TEXT_MODE;
 	if (os.latex() && textmode && os.pendingBrace()) {
@@ -432,9 +441,9 @@ latexkeys const * in_word_set(docstring const & str)
 {
 	MathWordList::iterator it = theMathWordList.find(str);
 	if (it == theMathWordList.end())
-		return 0;
+		return nullptr;
 	if (it->second.inset == "macro")
-		return 0;
+		return nullptr;
 	return &(it->second);
 }
 
@@ -465,11 +474,11 @@ MathAtom createInsetMath(docstring const & s, Buffer * buf)
 		if (inset == "decoration")
 			return MathAtom(new InsetMathDecoration(buf, l));
 		if (inset == "space")
-			return MathAtom(new InsetMathSpace(to_ascii(l->name), ""));
+			return MathAtom(new InsetMathSpace(buf, to_ascii(l->name), ""));
 		if (inset == "class")
 			return MathAtom(new InsetMathClass(buf, string_to_class(s)));
 		if (inset == "dots")
-			return MathAtom(new InsetMathDots(l));
+			return MathAtom(new InsetMathDots(buf, l));
 		if (inset == "mbox")
 			return MathAtom(new InsetMathBox(buf, l->name));
 //		if (inset == "fbox")
@@ -480,6 +489,8 @@ MathAtom createInsetMath(docstring const & s, Buffer * buf)
 			return MathAtom(new InsetMathFont(buf, l));
 		if (inset == "oldfont")
 			return MathAtom(new InsetMathFontOld(buf, l));
+		if (inset == "textsize")
+			return MathAtom(new InsetMathTextsize(buf, l));
 		if (inset == "matrix")
 			return MathAtom(new InsetMathAMSArray(buf, s));
 		if (inset == "split")
@@ -487,15 +498,15 @@ MathAtom createInsetMath(docstring const & s, Buffer * buf)
 		if (inset == "big")
 			// we can't create a InsetMathBig, since the argument
 			// is missing.
-			return MathAtom(new InsetMathUnknown(s));
-		return MathAtom(new InsetMathSymbol(l));
+			return MathAtom(new InsetMathUnknown(buf, s));
+		return MathAtom(new InsetMathSymbol(buf, l));
 	}
 
 	if (s.size() == 2 && s[0] == '#' && s[1] >= '1' && s[1] <= '9')
-		return MathAtom(new InsetMathMacroArgument(s[1] - '0'));
+		return MathAtom(new InsetMathMacroArgument(buf, s[1] - '0'));
 	if (s.size() == 3 && s[0] == '\\' && s[1] == '#'
 			&& s[2] >= '1' && s[2] <= '9')
-		return MathAtom(new InsetMathMacroArgument(s[2] - '0'));
+		return MathAtom(new InsetMathMacroArgument(buf, s[2] - '0'));
 	if (s == "boxed")
 		return MathAtom(new InsetMathBoxed(buf));
 	if (s == "fbox")
@@ -612,6 +623,8 @@ MathAtom createInsetMath(docstring const & s, Buffer * buf)
 		return MathAtom(new InsetMathFrac(buf, InsetMathFrac::CFRACLEFT));
 	if (s == "cfracright")
 		return MathAtom(new InsetMathFrac(buf, InsetMathFrac::CFRACRIGHT));
+	if (s == "case") // TODO: only if class is aastex(6|62)
+		return MathAtom(new InsetMathFrac(buf, InsetMathFrac::AASTEX_CASE));
 	//if (s == "infer")
 	//	return MathAtom(new MathInferInset);
 	if (s == "atop")
@@ -667,9 +680,9 @@ MathAtom createInsetMath(docstring const & s, Buffer * buf)
 	if (s == "sidesetn")
 		return MathAtom(new InsetMathSideset(buf, false, false));
 	if (isSpecialChar(s))
-		return MathAtom(new InsetMathSpecialChar(s));
+		return MathAtom(new InsetMathSpecialChar(buf, s));
 	if (s == " ")
-		return MathAtom(new InsetMathSpace(" ", ""));
+		return MathAtom(new InsetMathSpace(buf, " ", ""));
 	if (s == "regexp")
 		return MathAtom(new InsetMathHull(buf, hullRegexp));
 
@@ -690,7 +703,7 @@ bool createInsetMath_fromDialogStr(docstring const & str, MathData & ar)
 		InsetCommand::string2params(to_utf8(str), icp);
 		Encoding const * const utf8 = encodings.fromLyXName("utf8");
 		OutputParams op(utf8);
-		mathed_parse_cell(ar, icp.getCommand(op));
+		mathed_parse_cell(ar, icp.getCommand(op, false, true));
 	} else if (name == "mathspace") {
 		InsetSpaceParams isp(true);
 		InsetSpace::string2params(to_utf8(str), isp);

@@ -10,13 +10,16 @@
 #	BabelName          <babelname>
 #	PolyglossiaName    <polyglossianame>
 #	PolyglossiaOpts    "<language-specific options>"
-#	Encoding           <encoding>
-#	FontEncoding       <font encoding>
+#	XindyName          <xindyname>
+#	ActiveChars        <activated characters>
 #	QuoteStyle         <british|danish|english|french|frenchin|
-#                           german|polish|russian|swedish|swedishg|swiss|plain>
+#                           german|polish|russian|swedish|swedishg|swiss|hebrew|plain>
+#     	DateFormats        "<long>|<medium>|<short>"
+#	Encoding           <encoding>
+#	FontEncoding       <font encoding|font encoding|...>
 #	InternalEncoding   <true|false>
 #	RTL                <true|false>
-#	AsBabelOptions     <true|false>
+#	WordWrap	   <true|false>
 #	LangCode           <language_code>
 #	LangVariety        <language_variety>
 #	PreBabelPreamble
@@ -26,6 +29,7 @@
 #	  <extra latex code inserted after babel>
 #	EndPostBabelPreamble
 #	Requires           <requirement>
+#	Provides           <babel language feature>
 # End
 #
 #
@@ -53,6 +57,8 @@
 #   - french:	  <<text>>		``text''	(outward guillemets -- 66_99)
 #   - frenchin:   <<text>>		<<text>>	(French Imprimerie Nationale style)
 #   - german:	  ,,text``		,text`		(99/66 -- 9/6)
+#   - hebrew:	  ''text,,		'text,		(99/99 -- 9/9)
+#   - hungarian:  ,,text''		>>text<<	(99/99 -- double inward guillemets)
 #   - polish:	  ,,text''		,text'		(99/99 -- 9/9)
 #   - russian:    <<text>>		,,text``       	(outward guillemets -- 99/66)
 #   - swedish:	  ''text''		'text'		(99_99 -- 9_9)
@@ -62,23 +68,46 @@
 #   Note that the option names have been selected (rather arbitrarily)
 #   because the respective styles are common in the respective countries.
 #   Of course this does not imply any fixed relation to those countries.
+# * DateFormats lists the localized conventions for three date forms:
+#   - Long: December 1, 2018
+#   - Medium: Dec 1, 2018
+#   - Short: 1/12/2018
+#   These are separated by | and use the QDate syntax:
+#   * d	the day as number without a leading zero (1 to 31)
+#   * dd	the day as number with a leading zero (01 to 31)
+#   * ddd	the abbreviated localized day name (e.g. 'Mon' to 'Sun')
+#   * dddd	the long localized day name (e.g. 'Monday' to 'Sunday')
+#   * M	the month as number without a leading zero (1 to 12)
+#   * MM	the month as number with a leading zero (01 to 12)
+#   * MMM	the abbreviated localized month name (e.g. 'Jan' to 'Dec')
+#   * MMMM	the long localized month name (e.g. 'January' to 'December')
+#   * yy	the year as two digit number (00 to 99)
+#   * yyyy	the year as four digit number
 # * Encoding is the default encoding used with TeX fonts.
 #   It is only used if Document > Settings > Language > Encoding
-#   is set to "Language Default" and "use non-TeX fonts" is FALSE.
+#   is set to "Language Default" or "Language Default (no inputenc)"
+#   and "use non-TeX fonts" is FALSE.
 #   Encoding "inherit" means: keep encoding of the context (used by
 #   latex_language).
+# * FontEncoding is a bar-separated list of font encodings.
+#   The first value is the required font encoding for correct hyphenation with
+#   8-bit TeX (http://www.hyphenation.org). Eventually following values may be
+#   used if the selected font is unavailable in FontEncoding. They provide all
+#   letters used in the language, but some only as "surrogate pairs" with
+#   possible problems for hyphenation and drag-and-drop from the generated
+#   documents. Default: "ASCII".
+#   * "FontEncoding ASCII" means: "works with any standard text encoding
+#     (T<n>) as well as OT1".
+#   * "FontEncoding none" tells LyX that fontenc should not be loaded with
+#     this language.
 # * InternalEncoding is used to tell LyX that babel internally sets a
 #   non-standard font encoding (such as hebrew to LHE or greek to LGR).
-#   If True, LyX cares for characters/macros that do not exist in
+#   If True, LyX takes care for characters/macros that do not exist in
 #   some font encodings ("<", ">", "|" and straight quote).
 #   It is not required for standard encodings like T2A. See bug #5091.
-# * "FontEncoding none" tells LyX that fontenc should not be loaded with this
-#   language.
-# * AsBabelOptions advices LyX to pass the languages locally to babel, not
-#   globally to the class. Some languages (basically those not directly
-#   supported by babel) need this.
-#   FIXME: in this case, we might still need to pass the other languages
-#          globally, for the use of other packages (such as varioref).
+# * WordWrap is only used for on-screen display: when is is true (the default), rows are broken
+#   at word boundary; otherwise, they can be ended at arbitrary position. This
+#   setting is useful for CJK languages.
 # * LangCode is also used for spellchecking and thesaurus, where the
 #   dictionaries are named accordingly. Thus, check this when introducing/
 #   changing language codes (especially aspell, thesaurus).
@@ -91,6 +120,14 @@
 #   pre-1998 and post-1998 spelling). The aspell dictionaries are named
 #   language[_REGION][-variety].multi, e.g. de-alt.multi for "German (old
 #   spelling)" (see http://aspell.net/man-html/Dictionary-Naming.html)
+# * Provides lists features that are provided by specific Babel languages,
+#   but are available globally if this language is used (not only for this
+#   language. Examples are \textgreek (Greek) and \textcyrillic (Russian).
+# * ActiveChars provides a string of the characters that are made active
+#   by the language. We record particularly those characters that have to
+#   be de-activated in some contexts (such as - or =).
+# * XindyName holds the value to the (te)xindy -L option. We only give it
+#   if a corresponding language module exists.
 #
 ##########################################################################
 
@@ -116,21 +153,35 @@ End
 # Real languages
 #
 
-# not yet supported by polyglossia
 Language afrikaans
 	GuiName          "Afrikaans"
 	BabelName        afrikaans
+	PolyglossiaName  afrikaans
 	QuoteStyle       polish
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "dd MMMM yyyy|dd MMM yyyy|yyyy/MM/dd"
 	LangCode         af_ZA
 End
 
+# FontEncoding: no hyphenation, but uses Ç/ç und Ë/ë
 Language albanian
 	GuiName          "Albanian"
 	BabelName        albanian
+	# babel-albanian (albanian.ldf) (re-)defines the functions
+	# \sh \ch \th \cth \arsh \arch \arth \arcth \tg \ctg \arctg
+	# as math operators. This clashes with \th == letter thorn
+	# in font encoding T1
+	PostBabelPreamble
+	  % fix albanian: restore \th as LATIN LETTER THORN
+	  \@ifl@aded{def}{t1enc}{\DeclareTextSymbol{\th}{T1}{254}}{}
+	EndPostBabelPreamble
 	PolyglossiaName  albanian
+	XindyName        albanian
 	QuoteStyle       swiss
 	Encoding         iso8859-2
+	FontEncoding     T1|OT1
+	DateFormats      "dd MMMM yyyy|dd MMM yyyy|dd/MM/yyyy"
 	LangCode         sq_AL
 End
 
@@ -139,8 +190,11 @@ Language american
 	BabelName        american
 	PolyglossiaName  english
 	PolyglossiaOpts  "variant=american"
+	XindyName        english
 	QuoteStyle       english
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
+	DateFormats      "MMMM dd, yyyy|MMM dd, yyyy|M/d/yyyy"
 	LangCode         en_US
 End
 
@@ -149,24 +203,28 @@ Language amharic
 	GuiName          "Amharic"
 	PolyglossiaName  amharic
 	Encoding         utf8
+	DateFormats      "dd MMMM yyyy|dd MMM yyyy|dd/MM/yyyy"
 	LangCode         am_ET
 End
 
 # In Babel, this is supported since v. 1.8a of babel-greek (2013-12-03)
 # We introduce it with LyX 2.2 to give the support time to settle.
 Language ancientgreek
-	GuiName           "Greek (ancient)"
-	BabelName         greek
+	GuiName          "Greek (ancient)"
+	BabelName        greek
 	PostBabelPreamble
 	\languageattribute{greek}{ancient}
 	EndPostBabelPreamble
-	PolyglossiaName   greek
-	PolyglossiaOpts   "variant=ancient"
-	QuoteStyle        french
-	Encoding          iso8859-7
-	InternalEncoding  true
-	FontEncoding      LGR
-	LangCode          grc_GR
+	PolyglossiaName  greek
+	PolyglossiaOpts  "variant=ancient"
+	XindyName        greek
+	QuoteStyle       french
+	Encoding         iso8859-7
+	InternalEncoding true
+	FontEncoding     LGR
+	DateFormats      "dd MMMM yyyy|dd MMM yyyy|dd/MM/yyyy"
+	LangCode         grc_GR
+	Provides         textgreek
 End
 
 # FIXME: dummy babel language for arabic_arabtex to be able
@@ -177,6 +235,7 @@ Language arabic_arabtex
 	BabelName        arabtex
 	QuoteStyle       french
 	Encoding         cp1256
+	DateFormats      "d MMMM، yyyy|dd/MM/yyyy|d/M/yyyy"
 	RTL              true
 	LangCode         ar_SA
 End
@@ -189,8 +248,30 @@ Language arabic_arabi
 	QuoteStyle       french
 	Encoding         cp1256
 	FontEncoding     LAE
+	DateFormats      "d MMMM، yyyy|dd/MM/yyyy|d/M/yyyy"
 	RTL              true
-	AsBabelOptions   true
+	PostBabelPreamble
+	  \@ifundefined{if@rl}{}{
+		  % arabic + hyperref redefines \noboundary as local textcommand
+		  \let\orig@noboundary\noboundary
+		  \DeclareTextCommandDefault{\noboundary}{\orig@noboundary}
+		  % work around too simple test for article-like classes in arabicore.sty
+		  \@ifundefined{chapter}{
+		    \def\thesection{\protect\if@rl\protect\I{\number\c@section}%
+		      \protect\else\protect\textLR{\number\c@section}%
+		      \protect\fi}
+		    \def\thesubsection{\protect\if@rl\protect\I{\number\c@subsection.\number\c@section}%
+		      \protect\else\protect\textLR{\number\c@section.\number\c@subsection}%
+		      \protect\fi}
+		    \def\thetable{\protect\if@rl\protect\I{\number\c@table}%
+		      \protect\else\protect\textLR{\number\c@table}%
+		      \protect\fi}
+		    \def\thefigure{\protect\if@rl\protect\I{\number\c@figure}%
+		      \protect\else\protect\textLR{\number\c@figure}%
+		      \protect\fi}
+		  }{}
+	  }
+	EndPostBabelPreamble
 	LangCode         ar_SA
 End
 
@@ -200,6 +281,7 @@ Language armenian
 	PolyglossiaName  armenian
 	QuoteStyle       swiss
 	Encoding         utf8
+	DateFormats      "d MMMM، yyyy|d MMM، yyyy|d/M/yyyy"
 	LangCode         hy_AM
 End
 
@@ -209,43 +291,68 @@ Language asturian
 	PolyglossiaName  asturian
 	QuoteStyle       french
 	Encoding         iso8859-15
+	DateFormats      "d 'de' MMMM 'de' yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         ast_ES
 End
+
 
 Language australian
 	GuiName          "English (Australia)"
 	BabelName        australian
 	PolyglossiaName  english
 	PolyglossiaOpts  "variant=australian"
+	XindyName        english
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	QuoteStyle       english
 	LangCode         en_AU
 End
 
 # In polyglossia, this is supported since release 1.33.4 (May 2014)
-# We introduce it with LyX 2.2 to give the support time to settle.
 # Due to the variety, we use no country code.
 Language austrian
 	GuiName          "German (Austria, old spelling)"
 	BabelName        austrian
 	PolyglossiaName  german
 	PolyglossiaOpts  "variant=austrian,spelling=old,babelshorthands=true"
+	XindyName        german-duden
 	QuoteStyle       german
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "dd. MMMM yyyy|dd. MMM yyyy|dd.MM.yyyy"
 	LangCode         de
 	LangVariety      alt
 End
 
 # In polyglossia, this is supported since release 1.33.4 (May 2014)
-# We introduce it with LyX 2.2 to give the support time to settle.
 Language naustrian
 	GuiName          "German (Austria)"
 	BabelName        naustrian
 	PolyglossiaName  german
 	PolyglossiaOpts  "variant=austrian,spelling=new,babelshorthands=true"
+	XindyName        german-duden
 	QuoteStyle       german
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "dd. MMMM yyyy|dd. MMM yyyy|dd.MM.yyyy"
 	LangCode         de_AT
+End
+
+Language azerbaijani
+	GuiName          "Azerbaijani"
+	BabelName        azerbaijani
+	QuoteStyle       russian
+	Encoding         iso8859-9
+	FontEncoding	 T2A,T1
+	DateFormats      "d MMMM yyyy|dd.MMM.yyyy|dd.MM.yyyy"
+	LangCode         az_AZ
+	Requires         textschwa
+        # use \cyrschwa in T1, allow hyphenation in remainder of word
+	PostBabelPreamble
+          \DeclareTextCommand{\textschwa}{T1}{\cyrschwa\bbl@allowhyphens}
+          \DeclareTextCommand{\textSchwa}{T1}{\CYRSCHWA\bbl@allowhyphens}
+	EndPostBabelPreamble
 End
 
 Language bahasa
@@ -255,6 +362,8 @@ Language bahasa
 	PolyglossiaName  bahasai
 	QuoteStyle       english
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         id_ID
 End
 
@@ -264,6 +373,7 @@ Language bahasam
 	PolyglossiaName  bahasam
 	QuoteStyle       english
 	Encoding         iso8859-15
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         ms_MY
 End
 
@@ -274,28 +384,47 @@ Language basque
 	PolyglossiaName  basque
 	QuoteStyle       swiss
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "yyyy MMMM dd|yyyy MMM dd|yyyy/MM/dd"
 	LangCode         eu_ES
 	PostBabelPreamble
 	\addto\extrasbasque{\bbl@deactivate{~}}
 	EndPostBabelPreamble
 End
 
-# not yet supported by polyglossia
+# Up to 2018-08-25 (babel-belarusian 1.4), the babel option is "belarusianb"
+# but the language name "belarusian" (without trailing "b").
 Language belarusian
 	GuiName          "Belarusian"
 	BabelName        belarusian
+	PolyglossiaName  belarusian
+	XindyName        belarusian
 	QuoteStyle       french
 	Encoding         cp1251
+	FontEncoding	 T2A
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|d.M.yyyy"
 	LangCode         be_BY
-	AsBabelOptions   true
 End
 
-# not yet supported by polyglossia
+# supported by polyglossia but not babel:
+Language bengali
+	GuiName          "Bengali"
+ 	PolyglossiaName  bengali
+	QuoteStyle       english
+	Encoding         utf8
+	LangCode	 be_IN
+End
+
+
+# The (rarely used) Cyrillic script is not supported (try serbian).
 Language bosnian
 	GuiName          "Bosnian"
 	BabelName        bosnian
+	PolyglossiaName  bosnian
 	QuoteStyle       polish
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|yyyy-MM-dd"
 	LangCode         bs_BA
 End
 
@@ -304,17 +433,23 @@ Language brazilian
 	HasGuiSupport    true
 	BabelName        brazil
 	PolyglossiaName  brazil
+	XindyName        portuguese
 	QuoteStyle       english
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d 'de' MMMM 'de' yyyy|d 'de' MMM 'de' yyyy|dd/MM/yyyy"
 	LangCode         pt_BR
 End
 
+# FontEncoding: # ? no hyphenation, but uses ñ
 Language breton
 	GuiName          "Breton"
 	BabelName        breton
 	PolyglossiaName  breton
 	QuoteStyle       french
 	Encoding         iso8859-15
+	#FontEncoding    T1
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|yyyy-MM-dd"
 	LangCode         br_FR
 End
 
@@ -323,8 +458,11 @@ Language british
 	BabelName        british
 	PolyglossiaName  english
 	PolyglossiaOpts  "variant=british"
+	XindyName        english
 	QuoteStyle       british
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         en_GB
 End
 
@@ -333,33 +471,39 @@ Language bulgarian
 	HasGuiSupport    true
 	BabelName        bulgarian
 	PolyglossiaName  bulgarian
+	XindyName        bulgarian
 	QuoteStyle       german
 	Encoding         cp1251
 	FontEncoding     T2A
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|yyyy-M-d"
 	LangCode         bg_BG
+	Provides         textcyrillic
 End
 
-# not yet supported by polyglossia
 Language canadian
 	GuiName          "English (Canada)"
 	BabelName        canadian
-#	PolyglossiaName  english
-#	PolyglossiaOpts  "variant=canadian"
+	PolyglossiaName  english
+	PolyglossiaOpts  "variant=canadian"
+	XindyName        english
 	QuoteStyle       english
 	Encoding         iso8859-15
+	FontEncoding     ASCII
+	DateFormats      "MMMM d, yyyy|d MMM yyyy|yyyy-MM-dd"
 	LangCode         en_CA
 End
 
-# not yet supported by polyglossia
-# Note: If polyglossia support gets implemented, french needs
-#       PolyglossiaOpts  "variant=french"
 Language canadien
 	GuiName          "French (Canada)"
 	BabelName        acadian
-#	PolyglossiaName  french
-#	PolyglossiaOpts  "variant=canadien"
+	PolyglossiaName  french
+	PolyglossiaOpts  "variant=canadian"
+	ActiveChars      ;!?:
+	XindyName        french
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|yyyy-MM-dd"
 	LangCode         fr_CA
 End
 
@@ -371,6 +515,8 @@ Language catalan
 	PolyglossiaOpts  "babelshorthands=true"
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d / MMMM / yyyy|d / MMM / yyyy|dd/MM/yyyy"
 	LangCode         ca_ES
 End
 
@@ -380,7 +526,9 @@ Language chinese-simplified
 	HasGuiSupport    true
 	Encoding         euc-cn
 	QuoteStyle       english
+	WordWrap         false
 	LangCode         zh_CN
+	DateFormats      "yyyy年M月d日|yyyy-M-d|yy-M-d"
 	Requires         CJK
 End
 
@@ -390,11 +538,26 @@ Language chinese-traditional
 	HasGuiSupport    true
 	QuoteStyle       cjk
 	Encoding         utf8-cjk
+	WordWrap         false
 	LangCode         zh_TW
+	DateFormats      "yyyy年M月d日|yyyy年M月d日|yy年M月d日"
 	Requires         CJK
 End
 
+# supported by polyglossia but not LyX:
+Language churchslavonic
+	GuiName         "Church Slavonic"
+ 	PolyglossiaName  churchslavonic
+	QuoteStyle       swiss
+	Encoding         utf8
+	FontEncoding     T2A
+	DateFormats      "d MMMM yyyy 'л'.|d MMM yyyy 'л'.|dd.MM.yyyy"
+	LangCode         cu
+	Provides         textcyrillic
+End
+
 # not supported by babel
+# FIXME DateFormats
 Language coptic
 	GuiName          "Coptic"
 	PolyglossiaName  coptic
@@ -406,8 +569,11 @@ Language croatian
 	GuiName          "Croatian"
 	BabelName        croatian
 	PolyglossiaName  croatian
+	XindyName        croatian
 	QuoteStyle       polish
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy.|d. MMM. yyyy.|dd.MM.yyyy."
 	LangCode         hr_HR
 End
 
@@ -416,8 +582,12 @@ Language czech
 	HasGuiSupport    true
 	BabelName        czech
 	PolyglossiaName  czech
+	XindyName        czech
 	QuoteStyle       german
+	ActiveChars      -
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM. yyyy|d.M.yyyy"
 	LangCode         cs_CZ
 End
 
@@ -426,8 +596,11 @@ Language danish
 	HasGuiSupport    true
 	BabelName        danish
 	PolyglossiaName  danish
+	XindyName        danish
 	QuoteStyle       danish
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|dd/MM/yyyy"
 	LangCode         da_DK
 End
 
@@ -436,6 +609,7 @@ Language divehi
 	GuiName          "Divehi (Maldivian)"
 	PolyglossiaName  divehi
 	Encoding         utf8
+	DateFormats      "yyyy MMMM dd|yyyy MMM dd|dd/MM/yyyy"
 	LangCode         dv_MV
 End
 
@@ -445,8 +619,11 @@ Language dutch
 	BabelName        dutch
 	PolyglossiaName  dutch
 	PolyglossiaOpts  "babelshorthands=true"
+	XindyName        dutch
 	QuoteStyle       polish
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|d-M-yyyy"
 	LangCode         nl_NL
 End
 
@@ -456,19 +633,25 @@ Language english
 	BabelName        english
 	PolyglossiaName  english
 	PolyglossiaOpts  "variant=american"
+	XindyName        english
 	QuoteStyle       english
+	DateFormats      "MMMM dd, yyyy|MMM dd, yyyy|M/d/yyyy"
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
 	LangCode         en_US
 End
 
 # Esperanto has no country code because it is an auxiliary language.
-# We therefore the name of its hunspell dictionary.
+# We therefore use the name of its hunspell dictionary.
 Language esperanto
 	GuiName          "Esperanto"
 	BabelName        esperanto
 	PolyglossiaName  esperanto
+	XindyName        esperanto
 	QuoteStyle       english
 	Encoding         iso8859-3
+	FontEncoding	 IL3|T1|OT1
+	DateFormats      "'la' d 'de' MMMM yyyy|'la' d 'de' MMM yyyy|MM/dd/yyyy"
 	LangCode         eo_EO
 End
 
@@ -476,8 +659,11 @@ Language estonian
 	GuiName          "Estonian"
 	BabelName        estonian
 	PolyglossiaName  estonian
+	XindyName        estonian
 	QuoteStyle       german
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd.MM.yyyy"
 	LangCode         et_EE
 	PostBabelPreamble
 	\addto\extrasestonian{\bbl@deactivate{~}}
@@ -490,8 +676,10 @@ Language farsi
 	GuiName          "Farsi"
 	BabelName        farsi
 	PolyglossiaName  farsi
+	XindyName        persian
 	Encoding         utf8
-	FontEncoding     LFE
+	FontEncoding     LAE,LFE
+	DateFormats      "d MMMM yyyy|d MMM yyyy|yyyy/M/d"
 	RTL              true
 	LangCode         fa_IR
 	QuoteStyle       english
@@ -506,26 +694,26 @@ Language finnish
 	HasGuiSupport    true
 	BabelName        finnish
 	PolyglossiaName  finnish
+	XindyName        finnish
 	QuoteStyle       swedish
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|d.M.yyyy"
 	LangCode         fi_FI
 End
 
-# We redefine \og and \fg (guillemets) for older french language definitions
 Language french
 	GuiName          "French"
 	HasGuiSupport    true
 	BabelName        french
+	ActiveChars      ;!?:
 	PolyglossiaName  french
+	XindyName        french
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         fr_FR
-	PostBabelPreamble
-	\addto\extrasfrench{%
-	   \providecommand{\og}{\leavevmode\flqq~}%
-	   \providecommand{\fg}{\ifdim\lastskip>\z@\unskip\fi~\frqq}%
-	}
-	EndPostBabelPreamble
 End
 
 Language friulan
@@ -535,6 +723,8 @@ Language friulan
 	PolyglossiaName  friulan
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d 'di' MMMM 'dal' yyyy|d 'di' MMM 'dal' yyyy|dd/MM/yyyy"
 	LangCode         fur_IT
 End
 
@@ -545,15 +735,20 @@ Language galician
 	PolyglossiaName  galician
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d 'de' MMMM 'de' yyyy|d 'de' MMM 'de' yyyy|dd/MM/yyyy"
 	LangCode         gl_ES
 	PostBabelPreamble
 	\addto\shorthandsgalician{\galiciandeactivate{~}}
 	EndPostBabelPreamble
 End
 
+# FIXME DateFormats
 Language georgian
 	GuiName          "Georgian"
 	BabelName        georgian
+	PolyglossiaName  georgian
+	XindyName        georgian
 	QuoteStyle       german
 	Encoding         utf8
 	FontEncoding     T8M
@@ -566,8 +761,11 @@ Language german
 	BabelName        german
 	PolyglossiaName  german
 	PolyglossiaOpts  "variant=german,spelling=old,babelshorthands=true"
+	XindyName        german-duden
 	QuoteStyle       german
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "dd. MMMM yyyy|dd. MMM yyyy|dd.MM.yyyy"
 	LangCode         de
 	LangVariety      alt
 End
@@ -578,8 +776,11 @@ Language ngerman
 	BabelName        ngerman
 	PolyglossiaName  german
 	PolyglossiaOpts  "variant=german,spelling=new,babelshorthands=true"
+	XindyName        german-duden
 	QuoteStyle       german
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "dd. MMMM yyyy|dd. MMM yyyy|dd.MM.yyyy"
 	LangCode         de_DE
 End
 
@@ -592,8 +793,11 @@ Language german-ch
 	BabelName        nswissgerman
 	PolyglossiaName  german
 	PolyglossiaOpts  "variant=swiss,spelling=new,babelshorthands=true"
+	XindyName        german-duden
 	QuoteStyle       swiss
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "dd. MMMM yyyy|dd. MMM yyyy|dd.MM.yyyy"
 	LangCode         de_CH
 End
 
@@ -605,49 +809,59 @@ Language german-ch-old
  	BabelName        swissgerman
  	PolyglossiaName  german
  	PolyglossiaOpts  "variant=swiss,spelling=old,babelshorthands=true"
+	XindyName        german-duden
  	QuoteStyle       swiss
  	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "dd. MMMM yyyy|dd. MMM yyyy|dd.MM.yyyy"
  	LangCode         de_CH
 End
 
 Language greek
-	GuiName           "Greek"
-	HasGuiSupport     true
-	BabelName         greek
-	PolyglossiaName   greek
-	PolyglossiaOpts   "variant=monotonic"
-	QuoteStyle        french
-	Encoding          iso8859-7
-	InternalEncoding  true
-	FontEncoding      LGR
-	LangCode          el_GR
+	GuiName          "Greek"
+	HasGuiSupport    true
+	BabelName        greek
+	PolyglossiaName  greek
+	PolyglossiaOpts  "variant=monotonic"
+	XindyName        greek
+	QuoteStyle       french
+	Encoding         iso8859-7
+	InternalEncoding true
+	FontEncoding     LGR
+	DateFormats      "dd MMMM yyyy|dd MMM yyyy|dd/MM/yyyy"
+	LangCode         el_GR
+	Provides         textgreek
 End
 
 Language polutonikogreek
-	GuiName           "Greek (polytonic)"
-	BabelName         polutonikogreek
-	PolyglossiaName   greek
-	PolyglossiaOpts   "variant=polytonic"
-	QuoteStyle        french
-	Encoding          iso8859-7
-	InternalEncoding  true
-	FontEncoding      LGR
-	LangCode          el_GR
+	GuiName          "Greek (polytonic)"
+	BabelName        polutonikogreek
+	PolyglossiaName  greek
+	PolyglossiaOpts  "variant=polytonic"
+	XindyName        greek
+	QuoteStyle       french
+	Encoding         iso8859-7
+	InternalEncoding true
+	FontEncoding     LGR
+	DateFormats      "dd MMMM yyyy|dd MMM yyyy|dd/MM/yyyy"
+	LangCode         el_GR
+	Provides         textgreek
 End
 
 Language hebrew
-	GuiName           "Hebrew"
-	HasGuiSupport     true
-	BabelName         hebrew
-	PolyglossiaName   hebrew
-	Encoding          cp1255
-	QuoteStyle        english
-	InternalEncoding  true
-# Hebrew babel loads the font encodings
-# itself in the appropriate order
-#	FontEncoding      LHE
-	RTL               true
-	LangCode          he_IL
+	GuiName          "Hebrew"
+	HasGuiSupport    true
+	BabelName        hebrew
+	PolyglossiaName  hebrew
+	XindyName        hebrew
+	Encoding         cp1255
+	QuoteStyle       hebrew
+	InternalEncoding true
+	# babel-hebrew expects the encoding for *other* languages last:
+	FontEncoding    HE8,T1|LHE,T1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
+	RTL              true
+	LangCode         he_IL
 End
 
 # not supported by babel
@@ -655,6 +869,7 @@ Language hindi
 	GuiName          "Hindi"
 	PolyglossiaName  hindi
 	Encoding         utf8
+	DateFormats      "dd MMMM yyyy|dd MMM yyyy|dd-MM-yyyy"
 	LangCode         hi_IN
 End
 
@@ -670,24 +885,30 @@ End
 #       QuoteStyle      polish
 #End
 
+# FontEncoding: OT1 misses ð and Þ
 Language icelandic
 	GuiName          "Icelandic"
 	BabelName        icelandic
 	PolyglossiaName  icelandic
+	XindyName        icelandic
 	QuoteStyle       german
 	Encoding         iso8859-15
+	FontEncoding	 T1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|dd.MM.yyyy"
 	LangCode         is_IS
 End
 
 # Interlingua has no official country code because it is an auxiliary
-# language. We therefore the name of its hunspell dictionary.
+# language. We use the name of its hunspell dictionary.
 Language interlingua
 	GuiName          "Interlingua"
 	HasGuiSupport    true
 	BabelName        interlingua
 	PolyglossiaName  interlingua
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
 	LangCode         ia_IA
+	DateFormats      "'le' d 'de' MMMM yyyy|'le' d 'de' MMM yyyy|yyyy-mm-dd"
 	QuoteStyle       english
 End
 
@@ -697,6 +918,8 @@ Language irish
 	PolyglossiaName  irish
 	QuoteStyle       english
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|dd/MM/yyyy"
 	LangCode         ga_IE
 End
 
@@ -705,26 +928,26 @@ Language italian
 	HasGuiSupport    true
 	BabelName        italian
 	PolyglossiaName  italian
+	XindyName        italian
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
+	DateFormats      "dd MMMM yyyy|dd/MMM/yyyy|dd/MM/yyyy"
 	LangCode         it_IT
 End
 
-# japanese must be loaded locally with babel options,
-# not globally via class options
-# http://www.lyx.org/trac/ticket/4597#c4
-# Since japanese does not load fontenc, we set
-# InternalEncoding to true.
+# Since 2016-12-18, babel-japanese works with non-TeX fonts (Xe/LuaTeX), too
+# (use with "Japanese (bxjs)" or standard document classes)
 Language japanese
 	GuiName          "Japanese"
 	HasGuiSupport    true
 	BabelName        japanese
 	Encoding         jis-platex
+	WordWrap         false
 	LangCode         ja_JP
-	AsBabelOptions   true
 	Requires         japanese
-	InternalEncoding true
-	FontEncoding     None
+	FontEncoding     ASCII
+	DateFormats      "yyyy年M月d日|yyyy/MM/dd|yy/MM/dd"
 	QuoteStyle       cjk
 End
 
@@ -732,6 +955,8 @@ End
 Language japanese-cjk
 	GuiName         "Japanese (CJK)"
 	Encoding        euc-jp
+	DateFormats     "yyyy年M月d日|yyyy/MM/dd|yy/MM/dd"
+	WordWrap        false
 	LangCode        ja_JP
 	Requires        CJK
 	QuoteStyle      cjk
@@ -742,19 +967,18 @@ Language kannada
 	GuiName          "Kannada"
 	PolyglossiaName  kannada
 	Encoding         utf8
+	DateFormats      "dd MMMM yyyy|dd MMMM yyyy|dd-MM-yyyy"
 	LangCode         kn_IN
 End
 
 # not yet supported by polyglossia
 # not supported by babel
 Language kazakh
-	GuiName         "Kazakh"
-	Encoding        ascii
-	LangCode        kk_KZ
-	PostBabelPreamble
-	\input{t2aenc.def}
-	\AtBeginDocument{\fontencoding{T2A}\selectfont}
-	EndPostBabelPreamble
+	GuiName          "Kazakh"
+	Encoding         ascii
+	# FontEncoding   T2A # not set (no Babel support)
+	DateFormats      "dd MMMM yyyy|dd MMMM yyyy|yyyy-dd-MM"
+	LangCode         kk_KZ
 End
 
 # not supported by babel
@@ -762,24 +986,41 @@ Language khmer
 	GuiName          "Khmer"
 	PolyglossiaName  khmer
 	Encoding         utf8
+	DateFormats      "d MMMM yyyy|d MMMM yyyy|dd/MM/yyyy"
 	LangCode         km_KH
 End
 
 Language korean
 	GuiName         "Korean"
+	PolyglossiaName korean
+	XindyName       korean
 	Encoding        euc-kr
 	QuoteStyle      cjkangle
+	DateFormats     "yyyy년 M월 d일|yyyy. M. d.|yy. M. d."
+	WordWrap        false
 	LangCode        ko_KR
 	Requires        CJK
 End
 
-# not yet supported by polyglossia
+# Language korean-kotex
+# 	GuiName         "Korean (koTeX)"
+# 	Encoding        utf8
+# 	QuoteStyle      cjkangle
+# 	DateFormats     "yyyy년 M월 d일|yyyy. M. d.|yy. M. d."
+# 	LangCode        ko_KR
+# 	Requires        kotex
+# End
+
 Language kurmanji
-	GuiName          "Kurmanji"
+	GuiName          "Kurdish (Kurmanji)"
 	BabelName        kurmanji
+	PolyglossiaName  kurdish
+	XindyName        kurdish-bedirxan
+	PolyglossiaOpts  "variant=kurmanji"
 	Encoding         utf8
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. M. yyyy|yyyy-MM-dd"
 	LangCode         kmr
-	AsBabelOptions   true
 End
 
 # not supported by babel
@@ -787,51 +1028,82 @@ Language lao
 	GuiName          "Lao"
 	PolyglossiaName  lao
 	Encoding         utf8
+	DateFormats      "dd MMMM yyyy|dd MMMM yyyy|dd/MM/yyyy"
 	LangCode         lo_LA
 End
 
 # There is no country code for Latin because it is a dead language.
 # We therefore the name of its hunspell dictionary.
+# FIXME DateFormats
 Language latin
 	GuiName          "Latin"
 	BabelName        latin
 	PolyglossiaName  latin
+	XindyName        latin
+	ActiveChars      ^=
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
 	LangCode         la_LA
 End
 
 # latvian must be loaded locally with babel options,
 # not globally via class options
+# FontEncoding: L7x required for hyphenation but not set by Babel
 Language latvian
 	GuiName          "Latvian"
 	BabelName        latvian
 	PolyglossiaName  latvian
+	XindyName        latvian
 	QuoteStyle       german
 	Encoding         iso8859-4
-#	FontEncoding     L7x # (required for hyphenation but not set by babel)
+	FontEncoding     L7x|T1|OT1
+	DateFormats      "yyyy. 'gada' d. MMMM|yyyy. 'gada' d. MMM|dd.MM.yyyy"
 	LangCode         lv_LV
-	AsBabelOptions   true
 End
 
-# lithuanian must be loaded locally with babel options,
-# not globally via class options
+# FontEncoding: L7x required for hyphenation but no longer set by Babel
+# (since 2017-12-06)
 Language lithuanian
 	GuiName          "Lithuanian"
 	BabelName        lithuanian
 	PolyglossiaName  lithuanian
+	XindyName        lithuanian
 	QuoteStyle       german
 	Encoding         iso8859-13
 	FontEncoding     L7x
+	# L7x defines \copyright as TextSymbol which leads to an endless loop
+	# when it is used in other font encodings.
+	PostBabelPreamble
+	  \@ifl@aded{def}{l7xenc}{
+	    % restore corrupted \coyright definition
+	    \DeclareRobustCommand{\copyright}{%
+	      \ifmmode{\nfss@text{\textcopyright}}\else\textcopyright\fi
+	    }
+	    % Switch to L7x and back
+	    \addto\extraslithuanian{
+	      \let\bbl@lithuanian@cfencoding\cf@encoding
+	      \fontencoding{L7x}\selectfont
+	      \def\encodingdefault{L7x}
+	    }
+	    \addto\noextraslithuanian{
+	      \def\encodingdefault{\bbl@lithuanian@cfencoding}
+	      \fontencoding{\encodingdefault}\selectfont
+	    }  
+	  }{}
+	EndPostBabelPreamble
+	DateFormats      "yyyy 'm.' MMMM d 'd.'|yyyy 'm.' MMMM d 'd.'|yyyy-MM-dd"
 	LangCode         lt_LT
-	AsBabelOptions   true
 End
 
 Language lowersorbian
 	GuiName          "Lower Sorbian"
 	BabelName        lowersorbian
 	PolyglossiaName  lsorbian
+	XindyName        lower-sorbian
 	QuoteStyle       german
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd.MM.yyyy"
 	LangCode         dsb_DE
 End
 
@@ -840,19 +1112,35 @@ Language magyar
 	HasGuiSupport    true
 	BabelName        magyar
 	PolyglossiaName  magyar
-	QuoteStyle       polish
+	XindyName        hungarian
+	QuoteStyle       hungarian
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "yyyy. MMMM d.|yyyy. MMM d.|yyyy.MM.dd."
 	LangCode         hu_HU
 End
 
-# not yet supported by polyglossia
 Language macedonian
 	GuiName          "Macedonian"
 	BabelName        macedonian
+	PolyglossiaName  macedonian
+	XindyName        macedonian
 	QuoteStyle       german
 	Encoding         cp1251
 	FontEncoding     T2A
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|d.M.yyyy"
 	LangCode         mk_MK
+	Provides         textcyrillic
+End
+
+# not supported by babel
+Language malayalam
+	GuiName          "Malayalam"
+	PolyglossiaName  malayalam
+	Encoding         utf8
+	QuoteStyle       english
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|dd-MM-yyyy"
+	LangCode         ml_IN
 End
 
 # not supported by babel
@@ -860,19 +1148,22 @@ Language marathi
 	GuiName          "Marathi"
 	PolyglossiaName  marathi
 	Encoding         utf8
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|dd-MM-yyyy"
 	LangCode         mr_IN
 End
 
 # mongolian must be loaded locally with babel options,
 # not globally via class options
-# not yet supported by polyglossia
 Language mongolian
 	GuiName          "Mongolian"
 	BabelName        mongolian
+	PolyglossiaName  mongolian
+	XindyName        mongolian
 	Encoding         utf8
 	FontEncoding     T2A
+	DateFormats      "yyyy оны M сарын d|d-M-yyyy|dd-MM-yyyy"
 	LangCode         mn_MN
-	AsBabelOptions   true
+	Provides         textcyrillic
 End
 
 Language newzealand
@@ -880,8 +1171,11 @@ Language newzealand
 	BabelName        newzealand
 	PolyglossiaName  english
 	PolyglossiaOpts  "variant=newzealand"
+	XindyName        english
 	QuoteStyle       english
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         en_NZ
 End
 
@@ -890,18 +1184,40 @@ Language norsk
 	HasGuiSupport    true
 	BabelName        norsk
 	PolyglossiaName  norsk
+	XindyName        norwegian
 	QuoteStyle       swiss
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|dd./MM./yyyy"
 	LangCode         nb_NO
 End
+
+# supported by polyglossia but not LyX:
+# Language nko
+# 	GuiName		 "N’Ko"
+# 	PolyglossiaName	 nko
+# 	QuoteStyle       swiss
+# 	Encoding         utf8
+#       FIXME: DateFormats      "d MMMM، yyyy|dd/MM/yyyy|d/M/yyyy"
+#       gloss-nko.ldf says:
+#	In n'ko, this is an example of date :
+#	  ߂߀߁߃ ߞߏ߲ߞߏߜߍ ߕߟߋ߬ ߁߈ (RTL)
+#	  ( 18 February 2013 )
+#       The word "ߕߟߋ߬" is mandatory between month name and day number.
+# 	RTL              true
+# 	LangCode	 nqo
+# End
 
 Language nynorsk
 	GuiName          "Norwegian (Nynorsk)"
 	HasGuiSupport    true
 	BabelName        nynorsk
 	PolyglossiaName  nynorsk
+	XindyName        norwegian
 	QuoteStyle       swiss
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|dd.MM.yyyy"
 	LangCode         nn_NO
 End
 
@@ -911,22 +1227,23 @@ Language occitan
 	PolyglossiaName  occitan
 	QuoteStyle       french
 	Encoding         utf8
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         oc_FR
 End
 
 # Currently not supported (file format change!)
 # Russian orthography from the Petrine orthographic reforms of
 # 1708 to the 1917 orthographic reform
-# Note: If this is enabled, russian needs to get
-#       PolyglossiaOpts  "spelling=modern"
-# Language oldrussian
-# 	GuiName          "Russian (Petrine orthography)"
-# 	PolyglossiaName  russian
-# 	PolyglossiaOpts  "spelling=old"
-# 	LangCode         ru_petr1708
-#       QuoteStyle       russian
-# End
+Language oldrussian
+	GuiName          "Russian (Petrine orthography)"
+	PolyglossiaName  russian
+	PolyglossiaOpts  "spelling=old"
+	XindyName        russian
+	QuoteStyle       russian
+	LangCode         ru_petr1708
+End
 
+# FIXME DateFormats
 Language piedmontese
 	GuiName          "Piedmontese"
 	HasGuiSupport    true
@@ -934,17 +1251,21 @@ Language piedmontese
 	PolyglossiaName  piedmontese
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
 	LangCode         pms_IT
 End
 
+# FontEncoding: QX required for hyphenation but not set by babel
 Language polish
 	GuiName          "Polish"
 	HasGuiSupport    true
 	BabelName        polish
 	PolyglossiaName  polish
+	XindyName        polish
 	QuoteStyle       polish
 	Encoding         iso8859-2
-#	FontEncoding     QX # (required for hyphenation but not set by babel)
+	FontEncoding     QX|T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|yyyy-MM-dd"
 	LangCode         pl_PL
 End
 
@@ -953,8 +1274,11 @@ Language portuguese
 	HasGuiSupport    true
 	BabelName        portuges
 	PolyglossiaName  portuges
+	XindyName        portuguese
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d 'de' MMMM 'de' yyyy|d 'de' MMM 'de' yyyy|yyyy/MM/dd"
 	LangCode         pt_PT
 End
 
@@ -963,8 +1287,11 @@ Language romanian
 	HasGuiSupport    true
 	BabelName        romanian
 	PolyglossiaName  romanian
+	XindyName        romanian
 	QuoteStyle       polish
 	Encoding         iso8859-16
+	FontEncoding	 T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd.MM.yyyy"
 	LangCode         ro_RO
 End
 
@@ -975,6 +1302,8 @@ Language romansh
 	PolyglossiaName  romansh
 	QuoteStyle       german
 	Encoding         iso8859-15
+	FontEncoding	 ASCII
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd.MM.yyyy"
 	LangCode         rm_CH
 End
 
@@ -983,17 +1312,24 @@ Language russian
 	HasGuiSupport    true
 	BabelName        russian
 	PolyglossiaName  russian
+	PolyglossiaOpts  "spelling=modern"
+	XindyName        russian
 	QuoteStyle       russian
 	Encoding         koi8-r
 	FontEncoding     T2A
+	DateFormats      "d MMMM yyyy 'г'.|d MMM yyyy 'г'.|dd.MM.yyyy"
 	LangCode         ru_RU
+	Provides         textcyrillic
 End
 
+# FontEncoding: no hyphenation, but diacritics
 Language samin
 	GuiName          "North Sami"
 	BabelName        samin
 	PolyglossiaName  samin
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "MMMM d. 'b'. yyyy|MMM d. 'b'. yyyy|d.M.yyyy"
 	LangCode         se_NO
 End
 
@@ -1002,42 +1338,55 @@ Language sanskrit
 	GuiName          "Sanskrit"
 	PolyglossiaName  sanskrit
 	Encoding         utf8
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|dd-MM-yyyy"
 	LangCode         sa_IN
 End
 
+# Gaidhlig (Scottish Gaelic)
+# FontEncoding: no hyphenation, grave accent (à, è, ì, ò, ù)
 Language scottish
 	GuiName          "Scottish"
 	BabelName        scottish
 	PolyglossiaName  scottish
 	QuoteStyle       english
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         gd_GB
 End
 
-# Note: script option is uppercase, even if the polyglossia
-#       manual states otherwise.
+# Serbian with Cyrillic script.
+# Up to Version 3.0 (2019-01-12), input encoding and
+# font encoding were set document-wide to "utf8x" and "T2A" respectively
+# by "babel-serbianc", overriding LyX settings and leading to errors
+# in mulit-lingual documents.
 Language serbian
 	GuiName          "Serbian"
 	HasGuiSupport    true
 	BabelName        serbianc
 	PolyglossiaName  serbian
 	PolyglossiaOpts  "script=Cyrillic"
+	XindyName        serbian
+	# Note: script option is uppercase, even if the polyglossia
+	#       manual states otherwise.
 	QuoteStyle       polish
 	Encoding         utf8
 	FontEncoding     T2A
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|dd.MM.yyyy"
 	LangCode         sr_RS
-	AsBabelOptions   true
 End
 
-# Note: script option is uppercase, even if the polyglossia
-#       manual states otherwise.
+# We use croatian for Latin Serbian index ordering
 Language serbian-latin
 	GuiName          "Serbian (Latin)"
 	BabelName        serbian
 	PolyglossiaName  serbian
 	PolyglossiaOpts  "script=Latin"
+	XindyName        croatian
 	QuoteStyle       polish
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|dd.MM.yyyy"
 	LangCode         sr_RS-Latin
 End
 
@@ -1046,8 +1395,12 @@ Language slovak
 	HasGuiSupport    true
 	BabelName        slovak
 	PolyglossiaName  slovak
+	XindyName        slovak-large
 	QuoteStyle       german
+	ActiveChars      -^
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "d. MMMM yyyy|d. MMM yyyy|d.M.yyyy"
 	LangCode         sk_SK
 End
 
@@ -1055,8 +1408,11 @@ Language slovene
 	GuiName          "Slovene"
 	BabelName        slovene
 	PolyglossiaName  slovenian
+	XindyName        slovenian
 	QuoteStyle       german
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "dd. MMMM yyyy|d. MMM yyyy|d.M.yyyy"
 	LangCode         sl_SI
 End
 
@@ -1065,11 +1421,15 @@ Language spanish
 	HasGuiSupport    true
 	BabelName        spanish
 	PolyglossiaName  spanish
+	XindyName        spanish-modern
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d 'de' MMMM 'de' yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         es_ES
 	PostBabelPreamble
 	\addto\shorthandsspanish{\spanishdeactivate{~<>}}
+	\deactivatequoting
 	EndPostBabelPreamble
 End
 
@@ -1078,11 +1438,15 @@ Language spanish-mexico
 	GuiName          "Spanish (Mexico)"
 	BabelName        spanish
 	PolyglossiaName  spanish
+	XindyName        spanish-modern
 	QuoteStyle       french
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d 'de' MMMM 'de' yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         es_MX
 	PostBabelPreamble
 	\addto\shorthandsspanish{\spanishdeactivate{~<>.}}
+	\deactivatequoting
 	EndPostBabelPreamble
 End
 
@@ -1091,8 +1455,11 @@ Language swedish
 	HasGuiSupport    true
 	BabelName        swedish
 	PolyglossiaName  swedish
+	XindyName        swedish
 	QuoteStyle       swedish
 	Encoding         iso8859-15
+	FontEncoding	 T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|yyyy-MM-dd"
 	LangCode         sv_SE
 End
 
@@ -1102,6 +1469,7 @@ Language syriac
 	PolyglossiaName  syriac
 	Encoding         utf8
 	RTL              true
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         syr_SY
 End
 
@@ -1110,6 +1478,7 @@ Language tamil
 	GuiName          "Tamil"
 	PolyglossiaName  tamil
 	Encoding         utf8
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|dd-MM-yyyy"
 	LangCode         ta_IN
 End
 
@@ -1118,8 +1487,11 @@ Language telugu
 	GuiName          "Telugu"
 	PolyglossiaName  telugu
 	Encoding         utf8
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|dd-MM-yyyy"
 	LangCode         te_IN
 End
+
+# There is an alternative support with CJK package and Babel name "thaicjk".
 
 Language thai
 	GuiName          "Thai"
@@ -1127,14 +1499,44 @@ Language thai
 	PolyglossiaName  thai
 	QuoteStyle       english
 	Encoding         tis620-0
-#	FontEncoding     LTH
+	FontEncoding     LTH
+	DateFormats      "dd MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
 	LangCode         th_TH
+	# The first workaround requires loading inputenc after babel
+	# (cf. BufferParams.cpp):
 	PostBabelPreamble
-	\usepackage{thswitch}
+	  % Restore catcodes changed by thai.ldf (active characters required for inputenc)
+	  \@tempcnta=161%
+	  \@whilenum\@tempcnta<252\do{%
+	    \catcode\@tempcnta=13
+	    \advance\@tempcnta\@ne
+	  }%
+	  % Restore \coyright definition corrupted by lthenc.def
+	  \DeclareRobustCommand{\copyright}{%
+	    \ifmmode{\nfss@text{\textcopyright}}\else\textcopyright\fi}
+	  \DeclareTextSymbol{\textcopyright}{LTH}{8}
+	  %
+          % set up Thai fonts as substitue for the default families
+	  % The 'substitutefont' package is obsolete now, since commands
+	  % from the LaTeX kernel can be used instead. See here:
+	  %   https://ctan.org/pkg/substitutefont
+	  %   https://www.latex-project.org/news/latex2e-news/ltnews31.pdf
+	  \providecommand\IfFormatAtLeastTF{\@ifl@t@r\fmtversion}
+	  \IfFormatAtLeastTF{2020/02/01}{%
+	    \DeclareFontFamilySubstitution{LTH}{\rmdefault}{norasi}
+	    \DeclareFontFamilySubstitution{LTH}{\sfdefault}{garuda}
+	    \DeclareFontFamilySubstitution{LTH}{\ttdefault}{ttypist}
+	  }{%
+	    \usepackage{substitutefont}
+	    \substitutefont{LTH}{\rmdefault}{norasi}
+	    \substitutefont{LTH}{\sfdefault}{garuda}
+	    \substitutefont{LTH}{\ttdefault}{ttypist}
+	  }
 	EndPostBabelPreamble
 End
 
 # not supported by babel
+#FIXME DateFormats
 Language tibetan
 	GuiName          "Tibetan"
 	PolyglossiaName  tibetan
@@ -1147,9 +1549,13 @@ Language turkish
 	HasGuiSupport    true
 	BabelName        turkish
 	PolyglossiaName  turkish
+	XindyName        turkish
 	QuoteStyle       english
+	ActiveChars      =
 	Encoding         iso8859-9
+	FontEncoding	 T1|OT1
 	LangCode         tr_TR
+	DateFormats      "d MMMM yyyy|dd.MMM.yyyy|dd.MM.yyyy"
 End
 
 # turkmen must be loaded locally with babel options,
@@ -1160,8 +1566,9 @@ Language turkmen
 	PolyglossiaName  turkmen
 	QuoteStyle       swiss
 	Encoding         utf8
+	FontEncoding	 T1|OT1
+	DateFormats      "yyyy ý. MMMM d|dd.MM.yyyy ý.|dd.MM.yy ý."
 	LangCode         tk_TM
-	AsBabelOptions   true
 End
 
 Language ukrainian
@@ -1169,18 +1576,24 @@ Language ukrainian
 	HasGuiSupport    true
 	BabelName        ukrainian
 	PolyglossiaName  ukrainian
+	XindyName        ukrainian
 	QuoteStyle       russian
 	Encoding         koi8-u
 	FontEncoding     T2A
+	DateFormats      "dd MMMM yyyy|d MM yyyy|dd.MM.yyyy"
 	LangCode         uk_UA
+	Provides         textcyrillic
 End
 
 Language uppersorbian
 	GuiName          "Upper Sorbian"
 	BabelName        uppersorbian
 	PolyglossiaName  usorbian
+	XindyName        upper-sorbian
 	QuoteStyle       german
 	Encoding         iso8859-2
+	FontEncoding	 T1|OT1
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd.MM.yyyy"
 	LangCode         hsb_DE
 End
 
@@ -1189,6 +1602,7 @@ Language urdu
 	GuiName          "Urdu"
 	PolyglossiaName  urdu
 	Encoding         utf8
+	DateFormats      "d MMMM, yyyy|d MMM yyyy|dd/MM/yyyy"
 	RTL              true
 	LangCode         ur_PK
 End
@@ -1197,8 +1611,11 @@ Language vietnamese
 	GuiName          "Vietnamese"
 	BabelName        vietnamese
 	PolyglossiaName  vietnamese
+	XindyName        vietnamese
 	QuoteStyle       english
 	Encoding         utf8
+	DateFormats      "dd 'tháng' MMMM yyyy|dd-MM-yyyy|dd/MM/yyyy"
+	FontEncoding	 T5
 	LangCode         vi_VN
 End
 
@@ -1208,5 +1625,7 @@ Language welsh
 	PolyglossiaName  welsh
 	QuoteStyle       british
 	Encoding         iso8859-15
+	DateFormats      "d MMMM yyyy|d MMM yyyy|dd/MM/yyyy"
+	FontEncoding	 T1|OT1
 	LangCode         cy_GB
 End

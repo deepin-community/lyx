@@ -1,13 +1,14 @@
 #\DeclareLyXModule[datetime.sty,fmtcount.sty]{PDF Comments}
+#\DeclareCategory{Annotation & Revision}
 #DescriptionBegin
 #Provides various kinds of annotations for the PDF output. The module uses
-#the pdfcomment package. Please consult the LyX example file PDF-comment.lyx
+#the pdfcomment package. Please consult Help > Specific Manuals > PDF comments
 #and the package documentation for details.
 #DescriptionEnd
 # Author: Juergen Spitzmueller <spitz@lyx.org>
 #         Uwe Stöhr <uwestoehr@lyx.org>
 
-Format 66
+Format 104
 
 #
 # helper commands
@@ -32,7 +33,7 @@ Style Define_Avatar
 	EndArgument
 	PassThru		1
 	LabelFont
-	  Color			green
+	  Color			textlabel2
 	  Series		Bold
 	EndFont
 	Requires		pdfcomment
@@ -74,7 +75,7 @@ InsetLayout "Flex:PDF-Comment-Setup"
 	LabelString		"PDF (Setup)"
 	LatexName		pdfcommentsetup
 	LabelFont
-	  Color			magenta
+	  Color			textlabel3
 	  Size			Small
 	EndFont
 	MultiPar		false
@@ -97,10 +98,11 @@ InsetLayout "Flex:PDF-Annotation"
 	LabelString		PDF
 	LatexName		pdfcomment
 	LabelFont
-	  Color			magenta
+	  Color			textlabel3
 	  Size			Small
 	EndFont
 	MultiPar		false
+	NewlineCmd		textCR
 	Argument 1
 	  MenuString		"PDFComment Options"
 	  LabelString		"Opts"
@@ -114,7 +116,7 @@ InsetLayout "Flex:PDF-Margin"
 	LabelString		"PDF (Margin)"
 	LatexName		pdfmargincomment
 	LabelFont
-	  Color			green
+	  Color			textlabel2
 	  Size			Small
 	EndFont
 End
@@ -123,10 +125,13 @@ InsetLayout "Flex:PDF-Markup"
 	CopyStyle		"Flex:PDF-Margin"
 	LabelString		"PDF (Markup)"
 	LatexName		pdfmarkupcomment
+	NeedMBoxProtect		1
+	NewlineCmd		""
 	Argument post:1
 	  LabelString		"Comment"
 	  Mandatory		1
 	  ToolTip		"Insert the comment to the marked-up text here"
+	  NewlineCmd		textCR
 	EndArgument
 End
 
@@ -134,24 +139,28 @@ InsetLayout "Flex:PDF-Freetext"
 	CopyStyle		"Flex:PDF-Margin"
 	LabelString		"PDF (Freetext)"
 	LatexName		pdffreetextcomment
+	NewlineCmd		""
 End
 
 InsetLayout "Flex:PDF-Square"
 	CopyStyle		"Flex:PDF-Margin"
 	LabelString		"PDF (Square)"
 	LatexName		pdfsquarecomment
+	NewlineCmd		""
 End
 
 InsetLayout "Flex:PDF-Circle"
 	CopyStyle		"Flex:PDF-Margin"
 	LabelString		"PDF (Circle)"
 	LatexName		pdfcirclecomment
+	NewlineCmd		""
 End
 
 InsetLayout "Flex:PDF-Line"
 	CopyStyle		"Flex:PDF-Margin"
 	LabelString		"PDF (Line)"
 	LatexName		pdflinecomment
+	NewlineCmd		""
 End
 
 InsetLayout "Flex:PDF-Sideline"
@@ -160,10 +169,12 @@ InsetLayout "Flex:PDF-Sideline"
 	LatexType		environment
 	LatexName		pdfsidelinecomment
 	MultiPar		true
+	NewlineCmd		""
 	Argument 2
 	  LabelString		"Comment"
 	  Mandatory		1
 	  ToolTip		"Insert the comment here"
+	  NewlineCmd		textCR
 	EndArgument
 End
 
@@ -172,7 +183,7 @@ InsetLayout "Flex:PDF-Reply"
 	LabelString		"PDF (Reply)"
 	LatexName		pdfreply
 	LabelFont
-	  Color			blue
+	  Color			textlabel1
 	  Size			Small
 	EndFont
 End
@@ -181,8 +192,10 @@ InsetLayout "Flex:PDF-Tooltip"
 	CopyStyle		"Flex:PDF-Markup"
 	LabelString		"PDF (Tooltip)"
 	LatexName		pdftooltip
+	NeedMBoxProtect		0
+	NewlineCmd		""
 	LabelFont
-	  Color			red
+	  Color			textlabel3
 	  Size			Small
 	EndFont
 	Argument post:1

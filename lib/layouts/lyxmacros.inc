@@ -8,7 +8,7 @@
 # be removed later.
 
 
-Format 66
+Format 104
 Style LyX-Code
 	Category              MainText
 	Margin                Static
@@ -38,6 +38,9 @@ Style LyX-Code
 	Font
 	  Family              Typewriter
 	EndFont
+	DocBookTag            programlisting
+    DocBookTagType        paragraph
+	DocBookAttr			  language='lyx'
 End
 
 
@@ -59,6 +62,8 @@ Style Address
 			\noindent\par}
 		}
 	EndPreamble
+	DocBookTag            address
+	DocBookTagType        paragraph
 End
 
 
@@ -80,4 +85,7 @@ Style Right_Address
 			\par}
 		}
 	EndPreamble
+	DocBookTag            address
+	DocBookTagType        paragraph
+	DocBookAttr           role='right-address'
 End

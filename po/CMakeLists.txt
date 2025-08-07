@@ -49,7 +49,6 @@ macro(add_gettext_python  _par _dir)
     endif()
     ADD_CUSTOM_COMMAND(
       OUTPUT "${_dst}"
-      PRE_BUILD
       COMMAND  ${CMAKE_COMMAND}
 	"-DTOP_SRC_DIR=${TOP_SRC_DIR}"
 	"-DDestFile=${_dst}"
@@ -58,7 +57,7 @@ macro(add_gettext_python  _par _dir)
 	"-DSources=${_src_files}"
         "-DLYX_PY_POLIB=${LYX_PY_POLIB}"
 	-P "${TOP_SRC_DIR}/po/CreateLayoutTranslations.cmake"
-      DEPENDS ${_sources} ${_src_files} "${TOP_SRC_DIR}/lib/layouttranslations"
+      DEPENDS ${_sources} ${_src_files} "${TOP_SRC_DIR}/lib/layouttranslations" "${TOP_SRC_DIR}/po/lyx_pot.py"
       COMMENT "${LYX_PYTHON_EXECUTABLE} ${TOP_SRC_DIR}/po/lyx_pot.py -b ${TOP_SRC_DIR} -o  ${_dst} -t ${_par1} --src_file=${_src_files}"
       )
     ADD_CUSTOM_TARGET(layouttranslations1 DEPENDS "${_dst}")
@@ -71,10 +70,9 @@ macro(add_gettext_python  _par _dir)
   else()
     ADD_CUSTOM_COMMAND(
       OUTPUT "${_dst}"
-      PRE_BUILD
       COMMAND ${LYX_PYTHON_EXECUTABLE}
       ARGS "${TOP_SRC_DIR}/po/lyx_pot.py" -b "${TOP_SRC_DIR}" -o "${_dst}" -t ${_par1} "--src_file=${_src_files}"
-      DEPENDS ${_sources} ${_src_files}
+      DEPENDS ${_sources} ${_src_files} "${TOP_SRC_DIR}/po/lyx_pot.py"
       COMMENT "${LYX_PYTHON_EXECUTABLE} ${TOP_SRC_DIR}/po/lyx_pot.py -b ${TOP_SRC_DIR} -o  ${_dst} -t ${_par1} --src_file=${_src_files}"
       )
     LIST(APPEND _py_sources "${_dst}")
@@ -86,16 +84,27 @@ endmacro(add_gettext_python)
 SET_SOURCE_FILES_PROPERTIES("${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.cat.pot" GENERATED)
 SET_SOURCE_FILES_PROPERTIES("${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.fmt.pot" GENERATED)
 SET_SOURCE_FILES_PROPERTIES("${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot" GENERATED)
+if (UNIX)
+  # create symbolic links for external lokalizations programs
+  # to be able to find the referenced sources if used on
+  # built po-files
+  foreach (_dir lib src)
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} -E create_symlink "${TOP_SRC_DIR}/${_dir}" "${CMAKE_CURRENT_BINARY_DIR}/${_dir}")
+  endforeach()
+endif()
 
-add_gettext_python(qt4 src/frontends/qt4/ui *.ui)
-add_gettext_python(layouts lib layouts/*.layout layouts/*.inc layouts/*.module citeengines/*.citeengine)
+add_gettext_python(layouttranslations lib layouts/*.layout layouts/*.inc layouts/*.module citeengines/*.citeengine)
 add_gettext_python(languages lib languages)
+add_gettext_python(layouts lib layouts/*.layout layouts/*.inc layouts/*.module citeengines/*.citeengine)
 add_gettext_python(latexfonts lib latexfonts)
 add_gettext_python(encodings lib encodings)
 add_gettext_python(ui lib/ui *.ui *.inc)
 add_gettext_python(external lib/xtemplates *.xtemplate)
 add_gettext_python(formats lib configure.py)
-add_gettext_python(layouttranslations lib layouts/*.layout layouts/*.inc layouts/*.module citeengines/*.citeengine)
+add_gettext_python(tabletemplates lib tabletemplates/*.lyx)
+add_gettext_python(qt src/frontends/qt/ui *.ui)
+add_gettext_python(examples_templates lib examples/[a-zA-Z]* templates/[a-zA-Z]*)
 
 ADD_CUSTOM_COMMAND(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.cat.pot"
@@ -134,20 +143,37 @@ execute_process(
   COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/POTFILES.in.tmp" "${CMAKE_CURRENT_BINARY_DIR}/POTFILES.in"
   )
 
-ADD_CUSTOM_COMMAND(
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.fmt.pot" "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot"
-    COMMAND ${GETTEXT_XGETTEXT_EXECUTABLE}
-      --from-code=UTF-8
-      --default-domain=${_lyxname} --directory=${TOP_SRC_DIR}
-      --add-comments=TRANSLATORS:
-      --language=C++ --join-existing --keyword=_ --keyword=N_ --keyword=B_ --keyword=qt_
-      --files-from=${CMAKE_CURRENT_BINARY_DIR}/POTFILES.in
-      --copyright-holder="LyX Developers" --msgid-bugs-address=lyx-devel@lists.lyx.org
-      -o "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot"
-    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.fmt.pot" ${_potfiles_dep}
-    )
+if (GETTEXT_MSGCAT_EXECUTABLE)
+  ADD_CUSTOM_COMMAND(
+	OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot"
+	COMMAND ${GETTEXT_XGETTEXT_EXECUTABLE}
+	--from-code=UTF-8
+	--default-domain=${_lyxname} --directory=${TOP_SRC_DIR}
+	--add-comments=TRANSLATORS:
+	--language=C++ --keyword=_ --keyword=N_ --keyword=B_ --keyword=qt_
+	--files-from=${CMAKE_CURRENT_BINARY_DIR}/POTFILES.in
+	--copyright-holder="LyX Developers" --msgid-bugs-address=lyx-devel@lists.lyx.org
+	-o "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.src.pot"
+	COMMAND ${GETTEXT_MSGCAT_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.src.pot" "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.fmt.pot" -o "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot"
+	DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.fmt.pot" ${_potfiles_dep}
+  )
 
+else()
+  ADD_CUSTOM_COMMAND(
+	OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot"
+	COMMAND ${CMAKE_COMMAD} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.fmt.pot" "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot"
+	COMMAND ${GETTEXT_XGETTEXT_EXECUTABLE}
+	--from-code=UTF-8
+	--default-domain=${_lyxname} --directory=${TOP_SRC_DIR}
+	--add-comments=TRANSLATORS:
+	--language=C++ --join-existing --keyword=_ --keyword=N_ --keyword=B_ --keyword=qt_
+	--files-from=${CMAKE_CURRENT_BINARY_DIR}/POTFILES.in
+	--copyright-holder="LyX Developers" --msgid-bugs-address=lyx-devel@lists.lyx.org
+	-o "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.pot"
+	DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${_lyxname}.fmt.pot" ${_potfiles_dep}
+  )
+
+endif()
 #
 # We have to copy the po-files first,
 # otherwise they would be modified (inside the macro GETTEXT_CREATE_TRANSLATIONS())
@@ -243,4 +269,6 @@ ADD_CUSTOM_TARGET(update-gmo DEPENDS ${LYX_UPDATED_GMO_FILES})
 ADD_CUSTOM_TARGET(update-po DEPENDS ${LYX_UPDATED_PO_FILES} ${LYX_UPDATED_GMO_FILES})
 set_target_properties(update-po update-gmo PROPERTIES FOLDER "i18n")
 add_dependencies(update-po translations)
+add_dependencies(update-gmo translations)
+add_dependencies(update-gmo update-po)
 

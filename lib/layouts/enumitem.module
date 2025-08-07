@@ -1,11 +1,12 @@
 #\DeclareLyXModule[enumitem.sty]{Customisable Lists (enumitem)}
+#\DeclareCategory{List Enhancements}
 #DescriptionBegin
 # Controls the layout of enumerate, itemize, description, and list/labeling.
 # See section Customized Lists of the User's Guide for a detailed description.
 #DescriptionEnd
 #Excludes: paralist
 
-# Author: Günter Milde <milde@users.berlios.de>
+# Author: Günter Milde <milde@lyx.org>
 # 
 # 2008-12-04 first published version.
 # 2009-02-02 use name Labeling for "LyX-List/Labeling" list type,
@@ -13,7 +14,7 @@
 #	     both KOMA and non-KOMA document classes.
 # 2011-01-12 bugfix: set elabeling label font to \normalfont.
 
-Format 66
+Format 104
 
 # The package enumitem provides user control over the layout of the three
 # basic list environments: enumerate, itemize and description. It supersedes

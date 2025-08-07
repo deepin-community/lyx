@@ -45,13 +45,21 @@ static docstring convertDelimToLatexName(docstring const & name)
 
 InsetMathDelim::InsetMathDelim(Buffer * buf, docstring const & l,
 		docstring const & r)
-	: InsetMathNest(buf, 1), left_(l), right_(r), dw_(0)
+	: InsetMathNest(buf, 1), left_(l), right_(r), dw_(0), is_extracted_(false)
 {}
 
 
 InsetMathDelim::InsetMathDelim(Buffer * buf, docstring const & l, docstring const & r,
 	MathData const & ar)
-	: InsetMathNest(buf, 1), left_(l), right_(r), dw_(0)
+	: InsetMathNest(buf, 1), left_(l), right_(r), dw_(0), is_extracted_(false)
+{
+	cell(0) = ar;
+}
+
+
+InsetMathDelim::InsetMathDelim(Buffer * buf, docstring const & l, docstring const & r,
+                               MathData const & ar, bool const is_extracted)
+		: InsetMathNest(buf, 1), left_(l), right_(r), dw_(0), is_extracted_(is_extracted)
 {
 	cell(0) = ar;
 }
@@ -74,7 +82,7 @@ void InsetMathDelim::validate(LaTeXFeatures & features) const
 }
 
 
-void InsetMathDelim::write(WriteStream & os) const
+void InsetMathDelim::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	os << "\\left" << convertDelimToLatexName(left_) << cell(0)
@@ -170,7 +178,7 @@ void InsetMathDelim::mathematica(MathematicaStream & os) const
 {
 	if (isAbs()) {
 		if (cell(0).size() == 1 && cell(0).front()->asMatrixInset())
-			os << "Det" << cell(0) << ']';
+			os << "Det[" << cell(0) << ']';
 		else
 			os << "Abs[" << cell(0) << ']';
 	}
@@ -179,15 +187,23 @@ void InsetMathDelim::mathematica(MathematicaStream & os) const
 }
 
 
-void InsetMathDelim::mathmlize(MathStream & os) const
+void InsetMathDelim::mathmlize(MathMLStream & ms) const
 {
-	os << "<mo form='prefix' fence='true' stretchy='true' symmetric='true'>"
-	   << convertDelimToXMLEscape(left_)
-	   << "</mo>\n"
-	   << cell(0)
-	   << "\n<mo form='postfix' fence='true' stretchy='true' symmetric='true'>"
-	   << convertDelimToXMLEscape(right_)
-	   << "</mo>\n";
+	// Ignore the delimiter if: it is empty or only a space (one character).
+	const std::string attr = is_extracted_ ? "stretchy='false'" : "";
+	if (!left_.empty() && ((left_.size() == 1 && left_[0] != ' ') || left_.size() > 1)) {
+	    ms << MTag("mrow")
+	       << MTagInline("mo", attr)
+	       << convertDelimToXMLEscape(left_)
+	       << ETagInline("mo");
+	}
+	ms << cell(0);
+	if (!right_.empty() && ((right_.size() == 1 && right_[0] != ' ') || right_.size() > 1)) {
+	    ms << MTagInline("mo", attr)
+	       << convertDelimToXMLEscape(right_)
+	       << ETagInline("mo")
+	       << ETag("mrow");
+	}
 }
 
 

@@ -14,25 +14,21 @@
 
 #include "InsetRef.h"
 
-#include "buffer_funcs.h"
 #include "Buffer.h"
 #include "BufferParams.h"
-#include "BufferView.h"
+#include "Cursor.h"
 #include "CutAndPaste.h"
-#include "DispatchResult.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
-#include "InsetIterator.h"
 #include "Language.h"
 #include "LyX.h"
-#include "output_xhtml.h"
 #include "ParIterator.h"
-#include "sgml.h"
+#include "xml.h"
+#include "texstream.h"
 #include "Text.h"
 #include "TextClass.h"
 #include "TocBackend.h"
 
-#include "mathed/InsetMathHull.h"
 #include "mathed/InsetMathRef.h"
 
 #include "frontends/alert.h"
@@ -40,7 +36,6 @@
 #include "support/convert.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
-#include "support/lyxalgo.h"
 
 using namespace std;
 using namespace lyx::support;
@@ -82,10 +77,11 @@ void InsetLabel::uniqueLabel(docstring & label) const
 }
 
 
-void InsetLabel::updateLabel(docstring const & new_label)
+void InsetLabel::updateLabel(docstring const & new_label, bool const active)
 {
 	docstring label = new_label;
-	uniqueLabel(label);
+	if (active)
+		uniqueLabel(label);
 	setParam("name", label);
 }
 
@@ -103,27 +99,42 @@ void InsetLabel::updateLabelAndRefs(docstring const & new_label,
 	UndoGroupHelper ugh(&buffer());
 	if (cursor)
 		cursor->recordUndo();
-	setParam("name", label);
-	updateReferences(old_label, label);
+	bool const changes = buffer().masterParams().track_changes;
+	if (changes) {
+		// With change tracking, we insert a new label and
+		// delete the old one
+		InsetCommandParams p(LABEL_CODE, "label");
+		p["name"] = label;
+		string const data = InsetCommand::params2string(p);
+		lyx::dispatch(FuncRequest(LFUN_INSET_INSERT, data));
+		lyx::dispatch(FuncRequest(LFUN_CHAR_DELETE_FORWARD));
+	} else
+		setParam("name", label);
+	updateReferences(old_label, label, changes);
 }
 
 
 void InsetLabel::updateReferences(docstring const & old_label,
-		docstring const & new_label)
+		docstring const & new_label, bool const changes)
 {
-	UndoGroupHelper ugh;
-	Buffer::References const & refs = buffer().references(old_label);
-	Buffer::References::const_iterator it = refs.begin();
-	Buffer::References::const_iterator end = refs.end();
-	for (; it != end; ++it) {
-		ugh.resetBuffer(it->second.buffer());
-		it->second.buffer()->undo().recordUndo(CursorData(it->second));
-		if (it->first->lyxCode() == MATH_REF_CODE) {
-			InsetMathRef * mi = it->first->asInsetMath()->asRefInset();
-			mi->changeTarget(new_label);
-		} else {
-			InsetCommand * ref = it->first->asInsetCommand();
-			ref->setParam("reference", new_label);
+	UndoGroupHelper ugh(nullptr);
+	if (changes) {
+		// With change tracking, we insert a new ref and
+		// delete the old one
+		lyx::dispatch(FuncRequest(LFUN_MASTER_BUFFER_FORALL,
+					  "inset-forall Ref inset-modify ref changetarget "
+					  + old_label + " " + new_label));
+	} else {
+		for (auto const & p: buffer().references(old_label)) {
+			ugh.resetBuffer(p.second.buffer());
+			CursorData(p.second).recordUndo();
+			if (p.first->lyxCode() == MATH_REF_CODE) {
+				InsetMathRef * mi = p.first->asInsetMath()->asRefInset();
+				mi->changeTarget(new_label);
+			} else {
+				InsetCommand * ref = p.first->asInsetCommand();
+				ref->setParam("reference", new_label);
+			}
 		}
 	}
 }
@@ -145,18 +156,20 @@ docstring InsetLabel::screenLabel() const
 }
 
 
-void InsetLabel::updateBuffer(ParIterator const & par, UpdateType utype)
+void InsetLabel::updateBuffer(ParIterator const & it, UpdateType, bool const /*deleted*/)
 {
 	docstring const & label = getParam("name");
 
-	// Check if this one is deleted (ct)
-	Paragraph const & para = par.paragraph();
-	bool active = !para.isDeleted(par.pos());
-	// If not, check whether we are in a deleted inset
+	// Check if this one is active (i.e., neither deleted with change-tracking
+	// nor in an inset that does not produce output, such as notes or inactive branches)
+	Paragraph const & para = it.paragraph();
+	bool active = !para.isDeleted(it.pos()) && para.inInset().producesOutput();
+	// If not, check whether we are in a deleted/non-outputting inset
 	if (active) {
-		for (size_type sl = 0 ; sl < par.depth() ; ++sl) {
-			Paragraph const & outer_par = par[sl].paragraph();
-			if (outer_par.isDeleted(par[sl].pos())) {
+		for (size_type sl = 0 ; sl < it.depth() ; ++sl) {
+			Paragraph const & outer_par = it[sl].paragraph();
+			if (outer_par.isDeleted(it[sl].pos())
+			    || !outer_par.inInset().producesOutput()) {
 				active = false;
 				break;
 			}
@@ -171,34 +184,51 @@ void InsetLabel::updateBuffer(ParIterator const & par, UpdateType utype)
 	buffer().setInsetLabel(label, this, active);
 	screen_label_ = label;
 
-	if (utype == OutputUpdate) {
-		// save info on the active counter
-		Counters const & cnts =
-			buffer().masterBuffer()->params().documentClass().counters();
-		active_counter_ = cnts.currentCounter();
-		Language const * lang = par->getParLanguage(buffer().params());
-		if (lang && !active_counter_.empty()) {
+	// save info on the active counter
+	Counters & cnts =
+		buffer().masterBuffer()->params().documentClass().counters();
+	active_counter_ = cnts.currentCounter();
+	Language const * lang = it->getParLanguage(buffer().params());
+	if (lang && !active_counter_.empty()) {
+		if (active_counter_ != from_ascii("equation")) {
 			counter_value_ = cnts.theCounter(active_counter_, lang->code());
 			pretty_counter_ = cnts.prettyCounter(active_counter_, lang->code());
+			docstring prex;
+			split(label, prex, ':');
+			if (prex == label) {
+				// No prefix found
+				formatted_counter_ = pretty_counter_;
+			} else
+				formatted_counter_ = cnts.formattedCounter(active_counter_, prex, lang->code());
 		} else {
+			// For equations, the counter value and pretty counter
+			// value will be set by the parent InsetMathHull.
 			counter_value_ = from_ascii("#");
-			pretty_counter_ = from_ascii("#");
+			pretty_counter_ = from_ascii("");
+			formatted_counter_ = from_ascii("");
 		}
+	} else {
+		counter_value_ = from_ascii("#");
+		pretty_counter_ = from_ascii("#");
+		formatted_counter_ = from_ascii("#");
 	}
 }
 
 
 void InsetLabel::addToToc(DocIterator const & cpit, bool output_active,
-						  UpdateType, TocBackend & backend) const
+			  UpdateType, TocBackend & backend) const
 {
 	docstring const & label = getParam("name");
+
 	// inactive labels get a cross mark
 	if (buffer().insetLabel(label, true) != this)
 		output_active = false;
 
-	// We put both  active and inactive labels to the outliner
+	// We put both active and inactive labels to the outliner
 	shared_ptr<Toc> toc = backend.toc("label");
-	toc->push_back(TocItem(cpit, 0, screen_label_, output_active));
+	TocItem toc_item = TocItem(cpit, 0, screen_label_, output_active);
+	toc_item.prettyStr(formatted_counter_);
+	toc->push_back(toc_item);
 	// The refs get assigned only to the active label. If no active one exists,
 	// assign the (BROKEN) refs to the first inactive one.
 	if (buffer().insetLabel(label, true) == this || !buffer().activeLabel(label)) {
@@ -211,7 +241,7 @@ void InsetLabel::addToToc(DocIterator const & cpit, bool output_active,
 			else
 				toc->push_back(TocItem(ref_pit, 1,
 						static_cast<InsetRef *>(p.first)->getTOCString(),
-						output_active));
+						static_cast<InsetRef *>(p.first)->outputActive()));
 		}
 	}
 }
@@ -293,6 +323,39 @@ void InsetLabel::doDispatch(Cursor & cur, FuncRequest & cmd)
 }
 
 
+void InsetLabel::latex(otexstream & os, OutputParams const & runparams_in) const
+{
+	OutputParams runparams = runparams_in;
+	docstring command = getCommand(runparams);
+	docstring const label = getParam("name");
+	if (buffer().params().output_changes
+	    && buffer().activeLabel(label)
+	    && buffer().insetLabel(label, true) != this) {
+		// this is a deleted label and we have a non-deleted with the same id
+		// rename it for output to prevent wrong references
+		docstring newlabel = label;
+		int i = 1;
+		while (buffer().insetLabel(newlabel)) {
+			newlabel = label + "-DELETED-" + convert<docstring>(i);
+			++i;
+		}
+		command = subst(command, label, newlabel);
+	}
+	// In macros with moving arguments, such as \section,
+	// we store the label and output it after the macro (#2154)
+	if (runparams_in.postpone_fragile_stuff)
+		runparams_in.post_macro += command;
+	else {
+		// protect label in \thanks notes (#9404)
+		if (runparams.moving_arg
+		    && runparams.intitle
+		    && runparams.inFootnote)
+			os << "\\protect";
+		os << command;
+	}
+}
+
+
 int InsetLabel::plaintext(odocstringstream & os,
         OutputParams const &, size_t) const
 {
@@ -302,24 +365,30 @@ int InsetLabel::plaintext(odocstringstream & os,
 }
 
 
-int InsetLabel::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetLabel::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	os << "<!-- anchor id=\""
-	   << sgml::cleanID(buffer(), runparams, getParam("name"))
-	   << "\" -->";
-	return 0;
+	// Output an anchor only if it has not been processed before.
+	docstring id = getParam("name");
+	docstring cleaned_id = xml::cleanID(id);
+	if (runparams.docbook_anchors_to_ignore.find(id) == runparams.docbook_anchors_to_ignore.end() &&
+	        runparams.docbook_anchors_to_ignore.find(cleaned_id) == runparams.docbook_anchors_to_ignore.end()) {
+		docstring attr = from_utf8("xml:id=\"") + cleaned_id + from_utf8("\"");
+		xs << xml::CompTag("anchor", to_utf8(attr));
+	}
 }
 
 
-docstring InsetLabel::xhtml(XHTMLStream & xs, OutputParams const &) const
+docstring InsetLabel::xhtml(XMLStream & xs, OutputParams const &) const
 {
+	// Print the label as an HTML anchor, so that an external link can point to this equation.
+	// (URL: FILE.html#EQ-ID.)
 	// FIXME XHTML
 	// Unfortunately, the name attribute has been deprecated, so we have to use
 	// id here to get the document to validate as XHTML 1.1. This will cause a
 	// problem with some browsers, though, I'm sure. (Guess which!) So we will
 	// have to figure out what to do about this later.
-	docstring const attr = "id=\"" + html::cleanAttr(getParam("name")) + '"';
-	xs << html::CompTag("a", to_utf8(attr));
+	docstring const attr = "id=\"" + xml::cleanAttr(getParam("name")) + '"';
+	xs << xml::CompTag("a", to_utf8(attr));
 	return docstring();
 }
 

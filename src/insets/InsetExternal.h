@@ -94,7 +94,7 @@ class InsetExternal : public Inset
 	// complicated to implement it consistently with the copy constructor
 	InsetExternal & operator=(InsetExternal const &);
 public:
-	InsetExternal(Buffer *);
+	explicit InsetExternal(Buffer *);
 	///
 	~InsetExternal();
 	///
@@ -110,64 +110,75 @@ public:
 	/// Update not loaded previews
 	void updatePreview() const;
 	/// \returns the number of rows (\n's) of generated code.
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	///
-	bool setMouseHover(BufferView const * bv, bool mouse_hover) const;
+	bool setMouseHover(BufferView const * bv, bool mouse_hover) const override;
 	///
-	bool clickable(BufferView const &, int, int) const { return true; }
+	bool clickable(BufferView const &, int, int) const override { return true; }
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
-private:
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	InsetExternal(InsetExternal const &);
+	InsetCode lyxCode() const override { return EXTERNAL_CODE; }
 	///
-	InsetCode lyxCode() const { return EXTERNAL_CODE; }
+	bool hasSettings() const override { return true; }
+
 	///
-	bool hasSettings() const { return true; }
+	int topOffset(BufferView const *) const override { return 0; }
 	///
-	void metrics(MetricsInfo &, Dimension &) const;
+	int bottomOffset(BufferView const *) const override { return 0; }
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	int leftOffset(BufferView const *) const override { return 0; }
 	///
-	void write(std::ostream &) const;
+	int rightOffset(BufferView const *) const override { return 0; }
+
 	///
-	void read(Lexer & lex);
+	void metrics(MetricsInfo &, Dimension &) const override;
+	///
+	void draw(PainterInfo & pi, int x, int y) const override;
+	///
+	void write(std::ostream &) const override;
+	///
+	void read(Lexer & lex) override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void generateXML(XMLStream &, OutputParams const &, std::string const &) const;
+	///
+	void docbook(XMLStream &, OutputParams const &) const override;
 	/// For now, this does nothing. Someone who knows about this
 	/// should see what needs doing for XHTML output.
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	/// Update needed features for this inset.
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	void addPreview(DocIterator const &, graphics::PreviewLoader &) const;
+	void addPreview(DocIterator const &, graphics::PreviewLoader &) const override;
 	///
-	bool showInsetDialog(BufferView * bv) const;
+	bool showInsetDialog(BufferView * bv) const override;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	Inset * clone() const { return new InsetExternal(*this); }
-	/** This method is connected to the graphics loader, so we are
-	 *  informed when the image has been loaded.
-	 */
-	void statusChanged() const;
+	Inset * clone() const override { return new InsetExternal(*this); }
 	/** Slot receiving a signal that the external file has changed
 	 *  and the preview should be regenerated.
 	 */
 	void fileChanged() const;
+
+private:
+	///
+	InsetExternal(InsetExternal const &);
+
 	/// Is this inset using (instant or graphics) preview?
 	bool isPreviewed() const;
 	/// Do we have the right renderer (button, graphic or monitored preview)?
 	bool isRendererValid() const;
-
+	///
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	/// The current params
 	InsetExternalParams params_;
 	/// The thing that actually draws the image on LyX's screen.

@@ -26,31 +26,41 @@ public:
 	///
 	explicit InsetMathDecoration(Buffer * buf, latexkeys const * key);
 	///
-	mode_type currentMode() const;
+	InsetMathDecoration * asDecorationInset() override { return this; }
 	///
-	void draw(PainterInfo &, int x, int y) const;
+	InsetMathDecoration const * asDecorationInset() const override { return this; }
 	///
-	void write(WriteStream & os) const;
+	mode_type currentMode() const override;
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void draw(PainterInfo &, int x, int y) const override;
 	///
-	void normalize(NormalStream & os) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void infoize(odocstream & os) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	MathClass mathClass() const;
+	void normalize(NormalStream & os) const override;
 	///
-	bool isScriptable() const;
+	void infoize(odocstream & os) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	MathClass mathClass() const override;
+	/// The default limits value in \c display style
+	Limits defaultLimits(bool display) const override;
+	/// whether the inset has limit-like sub/superscript
+	Limits limits() const override { return limits_; }
+	/// sets types of sub/superscripts
+	void limits(Limits lim) override { limits_ = lim; }
 	///
-	InsetCode lyxCode() const { return MATH_DECORATION_CODE; }
+	void validate(LaTeXFeatures & features) const override;
 	///
-	void mathmlize(MathStream &) const;
+	InsetCode lyxCode() const override { return MATH_DECORATION_CODE; }
 	///
-	void htmlize(HtmlStream &) const;
+	docstring name() const override;
+	///
+	void mathmlize(MathMLStream &) const override;
+	///
+	void htmlize(HtmlStream &) const override;
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 	///
 	bool upper() const;
 	///
@@ -60,12 +70,17 @@ private:
 
 	///
 	latexkeys const * key_;
+	///
+	Limits limits_ = AUTO_LIMITS;
+	// FIXME: this should depend on BufferView
 	/// height cache of deco
-	mutable int dh_;
+	mutable int dh_ = 0;
 	/// vertical offset cache of deco
-	mutable int dy_;
+	mutable int dy_ = 0;
 	/// width for non-wide deco
-	mutable int dw_;
+	mutable int dw_ = 0;
+	/// mode of the containing inset
+	mutable mode_type outer_mode_;
 };
 
 } // namespace lyx

@@ -28,7 +28,7 @@ test_big_endian(WORDS_BIGENDIAN)
 set(Include_Defines)
 foreach(_h_file aspell.h aspell/aspell.h limits.h locale.h
 	stdlib.h sys/stat.h sys/time.h sys/types.h sys/utime.h
-	sys/socket.h unistd.h inttypes.h utime.h string.h argz.h)
+	sys/socket.h unistd.h inttypes.h utime.h string.h argz.h xcb/xcb.h)
 	string(REGEX REPLACE "[/\\.]" "_" _hf ${_h_file})
 	string(TOUPPER ${_hf} _HF)
 	check_include_files(${_h_file} HAVE_${_HF})
@@ -68,7 +68,7 @@ check_type_size(intmax_t HAVE_INTMAX_T)
 macro_bool_to_01(HAVE_UINTMAX_T HAVE_STDINT_H_WITH_UINTMAX)
 
 check_type_size("long double"  HAVE_LONG_DOUBLE)
-check_type_size("long long"  HAVE_LONG_LONG)
+check_type_size("long long"  HAVE_LONG_LONG_INT)
 check_type_size(wchar_t HAVE_WCHAR_T)
 check_type_size(wint_t  HAVE_WINT_T)
 
@@ -77,7 +77,7 @@ if(HUNSPELL_FOUND)
   set(HunspellTestFile "${CMAKE_BINARY_DIR}/hunspelltest.cpp")
   file(WRITE "${HunspellTestFile}"
   "
-  #include <hunspell/hunspell.hxx>
+  #include <hunspell.hxx>
 
   int main()
   {
@@ -88,18 +88,32 @@ if(HUNSPELL_FOUND)
   "
   )
 
+# The trick with faking the link command (see the else block) does not work
+# with XCode (350a9daf).
+if(APPLE OR LYX_EXTERNAL_HUNSPELL)
   try_compile(HAVE_HUNSPELL_CXXABI
     "${CMAKE_BINARY_DIR}"
     "${HunspellTestFile}"
     CMAKE_FLAGS
       "-DINCLUDE_DIRECTORIES:STRING=${HUNSPELL_INCLUDE_DIR}"
-      "-DCMAKE_CXX_LINK_EXECUTABLE='${CMAKE_COMMAD} echo not linking now...'"
-  OUTPUT_VARIABLE  LOG2)
+    LINK_LIBRARIES ${HUNSPELL_LIBRARY}
+    OUTPUT_VARIABLE  LOG2)
+else()
+  try_compile(HAVE_HUNSPELL_CXXABI
+    "${CMAKE_BINARY_DIR}"
+    "${HunspellTestFile}"
+    CMAKE_FLAGS
+      "-DINCLUDE_DIRECTORIES:STRING=${HUNSPELL_INCLUDE_DIR}"
+      # At this point, ../lib/libhunspell.a has not been built so we
+      # cannot complete the linking.
+      "-DCMAKE_CXX_LINK_EXECUTABLE='${CMAKE_COMMAD} echo dummy (fake) link command since libhunspell.a not built yet.'"
+    OUTPUT_VARIABLE  LOG2)
+endif()
 
   message(STATUS "HAVE_HUNSPELL_CXXABI = ${HAVE_HUNSPELL_CXXABI}")
   #message(STATUS "LOG2 = ${LOG2}")
-  if(LYX_EXTERNAL_HUNSPELL AND LYX_STDLIB_DEBUG AND HAVE_HUNSPELL_CXXABI)
-    message(WARNING "Compiling LyX with stdlib-debug and system hunspell libraries may lead to crashes. Consider using -DLYX_STDLIB_DEBUG=OFF or -DLYX_EXTERNAL_HUNSPELL=OFF.")
+  if(LYX_EXTERNAL_HUNSPELL AND (LYX_STDLIB_DEBUG OR LYX_DEBUG_GLIBC OR LYX_DEBUG_GLIBC_PEDANTIC) AND HAVE_HUNSPELL_CXXABI)
+    message(FATAL_ERROR "Compiling LyX with stdlib-debug and system hunspell libraries may lead to crashes. Consider using '-DLYX_STDLIB_DEBUG=OFF -DLYX_DEBUG_GLIBC=OFF -DLYX_DEBUG_GLIBC_PEDANTIC=OFF' or -DLYX_EXTERNAL_HUNSPELL=OFF.")
   endif()
 endif()
 
@@ -153,7 +167,10 @@ check_cxx_source_compiles(
 	"
 SIZEOF_LONG_LONG_GREATER_THAN_SIZEOF_LONG)
 
-check_cxx_source_compiles(
+if(LYX_DISABLE_CALLSTACK_PRINTING)
+  set(LYX_CALLSTACK_PRINTING OFF CACHE BOOL "Print callstack when crashing")
+else()
+  check_cxx_source_compiles(
 	"
 	#include <execinfo.h>
 	#include <cxxabi.h>
@@ -165,7 +182,8 @@ check_cxx_source_compiles(
 		abi::__cxa_demangle(\"abcd\", 0, 0, &status);
 	}
 	"
-LYX_CALLSTACK_PRINTING)
+  LYX_CALLSTACK_PRINTING)
+endif()
 
 # Check whether STL is libstdc++
 check_cxx_source_compiles(
@@ -257,52 +275,52 @@ else()
   endif()
 endif()
 
-set(QPA_XCB)
 set(HAVE_QT5_X11_EXTRAS)
-if(LYX_USE_QT MATCHES "QT5")
-
-  set(CMAKE_REQUIRED_INCLUDES ${Qt5Core_INCLUDE_DIRS})
+set(HAVE_QT6_X11_EXTRAS)
+if (LYX_USE_QT MATCHES "QT5|QT6")
+  if (LYX_USE_QT MATCHES "QT5")
+    set(QtVal Qt5)
+  else()
+    set(QtVal Qt6)
+  endif()
+  set(CMAKE_REQUIRED_INCLUDES ${${QtVal}Core_INCLUDE_DIRS})
   set(CMAKE_REQUIRED_FLAGS)
-  #message(STATUS "Qt5Core_INCLUDE_DIRS = ${Qt5Core_INCLUDE_DIRS}")
+  #message(STATUS "${QtVal}Core_INCLUDE_DIRS = ${${QtVal}Core_INCLUDE_DIRS}")
   check_include_file_cxx(QtGui/qtgui-config.h HAVE_QTGUI_CONFIG_H)
   if (HAVE_QTGUI_CONFIG_H)
-    set(lyx_qt5_config "QtGui/qtgui-config.h")
+    set(lyx_qt_config "QtGui/qtgui-config.h")
   else()
-    set(lyx_qt5_config "QtCore/qconfig.h")
+    set(lyx_qt_config "QtCore/qconfig.h")
   endif()
   if(WIN32)
-    set(QT_USES_X11 CACHE "Win32 compiled without X11" 0)
+    set(QT_USES_X11 OFF CACHE BOOL "Win32 compiled without X11")
     # The try_run for minngw would not work here anyway
   else()
     check_cxx_source_runs(
-        "
-        #include <${lyx_qt5_config}>
-        #include <string>
-        using namespace std;
-        string a(QT_QPA_DEFAULT_PLATFORM_NAME);
-        int main(int argc, char **argv)
-        {
-        if (a.compare(\"xcb\") == 0)
-        return(0);
-        else
-        return 1;
-        }
-        "
-        QT_USES_X11)
+      "
+      #include <${lyx_qt_config}>
+      #include <string>
+      using namespace std;
+      string a(QT_QPA_DEFAULT_PLATFORM_NAME);
+      int main(int argc, char **argv)
+      {
+	if (a.compare(\"xcb\") == 0)
+	  return(0);
+	else
+	  return 1;
+      }
+      "
+      QT_USES_X11)
   endif()
 
-  if(QT_USES_X11)
-    set(QPA_XCB ${QT_USES_X11})
-  endif()
-
-  if (Qt5X11Extras_FOUND)
-    get_target_property(_x11extra_prop Qt5::X11Extras IMPORTED_CONFIGURATIONS)
-    get_target_property(_x11extra_link_libraries Qt5::X11Extras IMPORTED_LOCATION_${_x11extra_prop})
+  if (${QtVal}X11Extras_FOUND)
+    get_target_property(_x11extra_prop ${QtVal}::X11Extras IMPORTED_CONFIGURATIONS)
+    get_target_property(_x11extra_link_libraries ${QtVal}::X11Extras IMPORTED_LOCATION_${_x11extra_prop})
     set(CMAKE_REQUIRED_LIBRARIES ${_x11extra_link_libraries})
-    set(CMAKE_REQUIRED_INCLUDES ${Qt5X11Extras_INCLUDE_DIRS})
-    set(CMAKE_REQUIRED_FLAGS "${Qt5X11Extras_EXECUTABLE_COMPILE_FLAGS} -fPIC -DQT_NO_VERSION_TAGGING")
+    set(CMAKE_REQUIRED_INCLUDES ${${QtVal}X11Extras_INCLUDE_DIRS})
+    set(CMAKE_REQUIRED_FLAGS "${${QtVal}X11Extras_EXECUTABLE_COMPILE_FLAGS} -fPIC -DQT_NO_VERSION_TAGGING")
     #message(STATUS "CMAKE_REQUIRED_LIBRARIES = ${_x11extra_link_libraries}")
-    #message(STATUS "CMAKE_REQUIRED_INCLUDES = ${Qt5X11Extras_INCLUDE_DIRS}")
+    #message(STATUS "CMAKE_REQUIRED_INCLUDES = ${${QtVal}X11Extras_INCLUDE_DIRS}")
     #message(STATUS "CMAKE_REQUIRED_FLAGS = ${CMAKE_REQUIRED_FLAGS}")
     check_cxx_source_compiles(
             "
@@ -313,30 +331,18 @@ if(LYX_USE_QT MATCHES "QT5")
             }
             "
       QT_HAS_X11_EXTRAS)
-    set(HAVE_QT5_X11_EXTRAS ${QT_HAS_X11_EXTRAS})
-    set(LYX_QT5_X11_EXTRAS_LIBRARY ${_x11extra_link_libraries})
+    string(TOUPPER ${QtVal} QTVAL)
+    set(HAVE_${QTVAL}_X11_EXTRAS ${QT_HAS_X11_EXTRAS})
+    set(LYX_${QTVAL}_X11_EXTRAS_LIBRARY ${_x11extra_link_libraries})
   endif()
-  if (Qt5WinExtras_FOUND)
-    get_target_property(_winextra_prop Qt5::WinExtras IMPORTED_CONFIGURATIONS)
+  if (${QtVal}WinExtras_FOUND)
+    get_target_property(_winextra_prop ${QtVal}::WinExtras IMPORTED_CONFIGURATIONS)
     string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
-    get_target_property(_winextra_link_libraries Qt5::WinExtras IMPORTED_LOCATION_${BUILD_TYPE})
+    get_target_property(_winextra_link_libraries ${QtVal}::WinExtras IMPORTED_LOCATION_${BUILD_TYPE})
     set(CMAKE_REQUIRED_LIBRARIES ${_winextra_link_libraries})
-    set(CMAKE_REQUIRED_INCLUDES ${Qt5WinExtras_INCLUDE_DIRS})
-    set(CMAKE_REQUIRED_FLAGS ${Qt5WinExtras_EXECUTABLE_COMPILE_FLAGS})
+    set(CMAKE_REQUIRED_INCLUDES ${${QtVal}WinExtras_INCLUDE_DIRS})
+    set(CMAKE_REQUIRED_FLAGS ${${QtVal}WinExtras_EXECUTABLE_COMPILE_FLAGS})
   endif()
-elseif(LYX_USE_QT MATCHES "QT4")
-  set(CMAKE_REQUIRED_LIBRARIES ${QT_QTGUI_LIBRARY})
-  set(CMAKE_REQUIRED_INCLUDES ${QT_INCLUDES})
-  check_cxx_source_compiles(
-          "
-          #include <QtGui/QX11Info>
-          int main()
-          {
-            QX11Info *qxi = new QX11Info;
-            qxi->~QX11Info();
-          }
-          "
-  QT_USES_X11)
 else()
   message(FATAL_ERROR "Check for QT_USES_X11: Not handled LYX_USE_QT (= ${LYX_USE_QT})")
 endif()

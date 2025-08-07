@@ -27,22 +27,38 @@ public:
 	///
 	InsetMathClass(Buffer * buf, MathClass);
 	///
-	docstring name() const;
+	docstring name() const override;
 	///
-	MathClass mathClass() const { return math_class_; }
+	MathClass mathClass() const override { return math_class_; }
+	/// The default limits value in \c display style
+	Limits defaultLimits(bool display) const override;
+	/// whether the inset has limit-like sub/superscript
+	Limits limits() const override { return limits_; }
+	/// sets types of sub/superscripts
+	void limits(Limits lim) override { limits_ = lim; }
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	void infoize(odocstream & os) const;
+	void write(TeXMathStream & os) const override;
 	///
-	InsetCode lyxCode() const { return MATH_CLASS_CODE; }
+	void mathmlize(MathMLStream & ms) const override;
+	///
+	void infoize(odocstream & os) const override;
+	///
+	InsetCode lyxCode() const override { return MATH_CLASS_CODE; }
+	///
+	InsetMathClass * asClassInset() { return this; }
+	///
+	InsetMathClass const * asClassInset() const override { return this; }
 
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 	///
 	MathClass math_class_;
+	///
+	Limits limits_ = AUTO_LIMITS;
 };
 
 

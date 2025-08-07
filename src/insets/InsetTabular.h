@@ -24,8 +24,12 @@
 #ifndef INSET_TABULAR_H
 #define INSET_TABULAR_H
 
+#include "BufferParams.h"
+#include "Changes.h"
 #include "InsetText.h"
-#include "Length.h"
+
+#include "support/Length.h"
+#include "support/types.h"
 
 #include <climits>
 #include <iosfwd>
@@ -43,8 +47,7 @@ class CursorSlice;
 class FuncStatus;
 class Lexer;
 class OutputParams;
-class Paragraph;
-class XHTMLStream;
+class XMLStream;
 
 
 ///
@@ -52,34 +55,58 @@ class InsetTableCell : public InsetText
 {
 public:
 	///
-	InsetTableCell(Buffer * buf);
+	explicit InsetTableCell(Buffer * buf);
+	/// We need this since generation of the default is deprecated
+	/// (since we declare the assignment constuctor below).
+	InsetTableCell(InsetTableCell const & in) = default;
 	///
-	InsetCode lyxCode() const { return CELL_CODE; }
+	InsetCode lyxCode() const override { return CELL_CODE; }
 	///
-	Inset * clone() const { return new InsetTableCell(*this); }
+	docstring layoutName() const override { return from_ascii("Tabular:Cell"); }
+	///
+	Inset * clone() const override { return new InsetTableCell(*this); }
 	///
 	bool getStatus(Cursor & cur, FuncRequest const & cmd,
-		FuncStatus & status) const;
+		FuncStatus & status) const override;
 	///
 	void toggleFixedWidth(bool fw) { isFixedWidth = fw; }
 	///
-	void setContentAlignment(LyXAlignment al) {contentAlign = al; }
+	void toggleVarWidth(bool vw) { isVarwidth = vw; }
+	///
+	void toggleMultiCol(bool m) { isMultiColumn = m; }
+	///
+	void toggleMultiRow(bool m) { isMultiRow = m; }
+	///
+	void toggleCaptionRow(bool m) { isCaptionRow = m; }
+	///
+	void setContentAlignment(LyXAlignment al) { contentAlign = al; }
 	/// writes the contents of the cell as a string, optionally
 	/// descending into insets
 	docstring asString(bool intoInsets = true);
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
+	///
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
+	///
+	void metrics(MetricsInfo &, Dimension &) const override;
+	/// Can the cell contain several paragraphs?
+	bool allowMultiPar() const override { return !isMultiRow && (!isMultiColumn || isFixedWidth); }
+	///
+	bool canPaintChange(BufferView const &) const override { return false; }
+	/// This assures we never output \maketitle in table cells
+	bool isInTitle() const override { return true; }
 private:
-	/// unimplemented
-	InsetTableCell();
-	/// unimplemented
-	void operator=(InsetTableCell const &);
+	///
+	InsetTableCell() = delete;
+	///
+	void operator=(InsetTableCell const &) = delete;
 	// FIXME
-	// This boolean is supposed to track whether the cell has had its
-	// width explicitly set. We need to know this to determine whether
+	// These booleans are supposed to track whether the cell has had its
+	// width explicitly set and whether it is part of a multicolumn, respectively.
+	// We need to know this to determine whether
 	// layout changes and paragraph customization are allowed---that is,
 	// we need it in forcePlainLayout() and allowParagraphCustomization().
 	// Unfortunately, that information is not readily available in
@@ -99,32 +126,34 @@ private:
 	// iterating, since this information is needed quite often, and so may
 	// be quite slow.
 	// So, well, if someone can do better, please do!
-	// --rgh
+	// --rkh
 	///
 	bool isFixedWidth;
-	// FIXME: Here the thoughts from the comment above also apply.
+	///
+	bool isVarwidth;
+	///
+	bool isMultiColumn;
+	///
+	bool isMultiRow;
+	// FIXME: For the next two items the thoughts from the comment above also apply.
+	///
+	bool isCaptionRow;
 	///
 	LyXAlignment contentAlign;
-	/// should paragraph indendation be omitted in any case?
-	bool neverIndent() const { return true; }
+	/// should paragraph indentation be omitted in any case?
+	bool neverIndent() const override { return true; }
 	///
-	LyXAlignment contentAlignment() const { return contentAlign; }
+	LyXAlignment contentAlignment() const override { return contentAlign; }
 	///
-	virtual bool usePlainLayout() const { return true; }
+	bool usePlainLayout() const override { return true; }
 	///
-	virtual bool forcePlainLayout(idx_type = 0) const;
+	bool allowParagraphCustomization(idx_type = 0) const override;
 	///
-	virtual bool allowParagraphCustomization(idx_type = 0) const;
-	///
-	virtual bool forceLocalFontSwitch() const;
+	bool forceLocalFontSwitch() const override;
 	/// Is the width forced to some value?
-	bool hasFixedWidth() const { return isFixedWidth; }
-	/// Can the cell contain several paragraphs?
-	/** FIXME this is wrong for multirows, that are limited to one
-	 * paragraph. However, we cannot test for this (see the big
-	 * comment above).
-	 */
-	bool allowMultiPar() const { return isFixedWidth; }
+	bool hasFixedWidth() const override { return isFixedWidth; }
+	///
+	bool insetAllowed(InsetCode code) const override;
 };
 
 
@@ -172,6 +201,22 @@ public:
 		///FIXME: remove
 		TOGGLE_LINE_RIGHT,
 		///
+		SET_LTRIM_TOP,
+		///
+		SET_RTRIM_TOP,
+		///
+		SET_LTRIM_BOTTOM,
+		///
+		SET_RTRIM_BOTTOM,
+		///
+		TOGGLE_LTRIM_TOP,
+		///
+		TOGGLE_RTRIM_TOP,
+		///
+		TOGGLE_LTRIM_BOTTOM,
+		///
+		TOGGLE_RTRIM_BOTTOM,
+		///
 		ALIGN_LEFT,
 		///
 		ALIGN_RIGHT,
@@ -216,6 +261,8 @@ public:
 		///
 		SET_ALL_LINES,
 		///
+		RESET_FORMAL_DEFAULT,
+		///
 		UNSET_ALL_LINES,
 		///
 		TOGGLE_LONGTABULAR,
@@ -227,6 +274,8 @@ public:
 		SET_PWIDTH,
 		///
 		SET_MPWIDTH,
+		///
+		TOGGLE_VARWIDTH_COLUMN,
 		///
 		SET_ROTATE_TABULAR,
 		///
@@ -298,6 +347,12 @@ public:
 		SET_TABULAR_WIDTH,
 		///
 		SET_INNER_LINES,
+		///
+		TOGGLE_INNER_LINES,
+		///
+		TOGGLE_BORDER_LINES,
+		///
+		TOGGLE_ALL_LINES,
 		///
 		LAST_ACTION
 	};
@@ -385,12 +440,6 @@ public:
 		bool empty;
 	};
 
-	/// type for row numbers
-	typedef size_t row_type;
-	/// type for column numbers
-	typedef size_t col_type;
-	/// type for cell indices
-	typedef size_t idx_type;
 	/// index indicating an invalid position
 	static const idx_type npos = static_cast<idx_type>(-1);
 
@@ -409,6 +458,22 @@ public:
 	/// If \p ignore_bt is true, we return the state as if booktabs was
 	/// not used
 	bool rightLine(idx_type cell, bool const ignore_bt = false) const;
+	/// Returns true if there is an outside border around the selection
+	bool outsideBorders(row_type sel_row_start, row_type sel_row_end,
+						col_type sel_col_start, col_type sel_col_end) const;
+	/// Returns true if there are inside lines in the selection
+	bool innerBorders(row_type sel_row_start, row_type sel_row_end,
+					  col_type sel_col_start, col_type sel_col_end) const;
+	/// Sets the grid lines in the selection
+	/// if \p setLinesInnerOnly is true, outside borders are excluded
+	/// if \p setLines is true the lines are set otherwise they are unset
+	void setLines(row_type const sel_row_start, row_type const sel_row_end,
+				  col_type const sel_col_start, col_type const sel_col_end,
+				  bool setLinesInnerOnly, bool setLines);
+	/// Returns whether the top line is trimmed left and/or right
+	std::pair<bool, bool> topLineTrim(idx_type const cell) const;
+	/// Returns whether the bottom line is trimmed left and/or right
+	std::pair<bool, bool> bottomLineTrim(idx_type const cell) const;
 
 	/// return space occupied by the second horizontal line and
 	/// interline space above row \p row in pixels
@@ -442,6 +507,18 @@ public:
 	///
 	void setBottomLine(idx_type cell, bool line);
 	///
+	void setTopLineLTrim(idx_type cell, bool val);
+	///
+	void setBottomLineLTrim(idx_type cell, bool val);
+	///
+	void setTopLineRTrim(idx_type cell, bool val);
+	///
+	void setBottomLineRTrim(idx_type cell, bool val);
+	///
+	void setTopLineTrim(idx_type cell, std::pair<bool, bool>);
+	///
+	void setBottomLineTrim(idx_type cell, std::pair<bool, bool>);
+	///
 	void setLeftLine(idx_type cell, bool line);
 	///
 	void setRightLine(idx_type cell, bool line);
@@ -468,6 +545,8 @@ public:
 	///
 	bool setMColumnPWidth(Cursor &, idx_type, Length const &);
 	///
+	bool toggleVarwidth(idx_type, bool const);
+	///
 	bool setMROffset(Cursor &, idx_type, Length const &);
 	///
 	void setAlignSpecial(idx_type cell, docstring const & special,
@@ -492,27 +571,33 @@ public:
 	///
 	void appendRow(row_type row);
 	///
-	void deleteRow(row_type row);
+	void deleteRow(row_type row, bool const force = false);
 	///
 	void copyRow(row_type row);
 	///
 	void insertRow(row_type row, bool copy);
 	///
-	void moveColumn(col_type col, ColDirection direction);
+	void moveColumn(col_type col_start, col_type col_end,
+			ColDirection direction);
 	///
-	void moveRow(row_type row, RowDirection direction);
+	void moveRow(row_type row_start, row_type row_end,
+		     RowDirection direction);
 	///
 	void appendColumn(col_type column);
 	///
-	void deleteColumn(col_type column);
+	void deleteColumn(col_type column, bool const force = false);
 	///
 	void copyColumn(col_type column);
 	///
 	void insertColumn(col_type column, bool copy);
 	///
-	idx_type getFirstCellInRow(row_type row) const;
+	idx_type getFirstCellInRow(row_type row, bool const ct = false) const;
 	///
-	idx_type getLastCellInRow(row_type row) const;
+	idx_type getLastCellInRow(row_type row, bool const ct = false) const;
+	///
+	idx_type getFirstRow(bool const ct = false) const;
+	///
+	idx_type getLastRow(bool const ct = false) const;
 	///
 	idx_type numberOfCellsInRow(row_type row) const;
 	///
@@ -521,10 +606,10 @@ public:
 	void read(Lexer &);
 	///
 	void latex(otexstream &, OutputParams const &) const;
+	/// serialise the table in DocBook, according to buffer parameters
+	void docbook(XMLStream &, OutputParams const &) const;
 	///
-	int docbook(odocstream & os, OutputParams const &) const;
-	///
-	docstring xhtml(XHTMLStream & os, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const;
 	///
 	void plaintext(odocstringstream &,
 		       OutputParams const & runparams, int const depth,
@@ -534,7 +619,11 @@ public:
 	///
 	bool hasMultiColumn(col_type cell) const;
 	///
-	idx_type setMultiColumn(idx_type cell, idx_type number,
+	bool hasVarwidthColumn() const;
+	///
+	bool isVTypeColumn(col_type cell) const;
+	///
+	idx_type setMultiColumn(Cursor & cur, idx_type cell, idx_type number,
 			     bool const right_border);
 	///
 	void unsetMultiColumn(idx_type cell);
@@ -547,7 +636,7 @@ public:
 	///
 	bool hasMultiRow(row_type r) const;
 	///
-	idx_type setMultiRow(idx_type cell, idx_type number,
+	idx_type setMultiRow(Cursor & cur, idx_type cell, idx_type number,
 			     bool const bottom_border,
 			     LyXAlignment const halign);
 	///
@@ -595,7 +684,7 @@ public:
 	///
 	bool getLTNewPage(row_type row) const;
 	///
-	idx_type setLTCaption(row_type row, bool what);
+	idx_type setLTCaption(Cursor & cur, row_type row, bool what);
 	///
 	bool ltCaption(row_type row) const;
 	///
@@ -619,7 +708,7 @@ public:
 	/// can return different things. this is because cellIndex(r,c)
 	/// returns the VISIBLE cell at r,c, which may be the same as the
 	/// cell at the previous row or column, if we're dealing with some
-	/// multirow or multicell.
+	/// multirow or multicolumn.
 	std::shared_ptr<InsetTableCell> cellInset(idx_type cell);
 	std::shared_ptr<InsetTableCell> cellInset(row_type row, col_type column);
 	InsetTableCell const * cellInset(idx_type cell) const;
@@ -641,7 +730,7 @@ public:
 	class CellData {
 	public:
 		///
-		CellData(Buffer *);
+		explicit CellData(Buffer *);
 		///
 		CellData(CellData const &);
 		///
@@ -674,6 +763,14 @@ public:
 		bool left_line;
 		///
 		bool right_line;
+		///
+		bool top_line_rtrimmed;
+		///
+		bool top_line_ltrimmed;
+		///
+		bool bottom_line_rtrimmed;
+		///
+		bool bottom_line_ltrimmed;
 		///
 		BoxType usebox;
 		///
@@ -728,6 +825,8 @@ public:
 		bool newpage;
 		/// caption
 		bool caption;
+		///
+		Change change;
 	};
 	///
 	typedef std::vector<RowData> row_vector;
@@ -749,10 +848,32 @@ public:
 		docstring align_special;
 		///
 		docstring decimal_point;
+		///
+		bool varwidth;
+		///
+		Change change;
 	};
 	///
 	typedef std::vector<ColumnData> column_vector;
 
+private:
+	// Determines the style of borders, per row.
+	class XmlRowWiseBorders {
+	public:
+		// Whether to draw double bottom line.
+		bool completeBorder = true;
+
+		// Whether to draw booktabs' thicker lines.
+		bool completeBorderAbove = true;
+		bool completeBorderBelow = true;
+
+		// Size of the borders.
+		double borderBottomWidth = 1.0;
+		double borderBottomWidthComplete = 3.0;
+		double borderTopWidth = 1.0;
+	};
+
+public:
 	///
 	idx_type numberofcells;
 	///
@@ -796,52 +917,20 @@ public:
 	///
 	bool setFixedWidth(row_type r, col_type c);
 	/// return true of update is needed
-	bool updateColumnWidths();
+	bool updateColumnWidths(MetricsInfo & mi);
 	///
 	idx_type columnSpan(idx_type cell) const;
 	///
 	idx_type rowSpan(idx_type cell) const;
 	///
-	BoxType useParbox(idx_type cell) const;
+	BoxType useBox(idx_type cell) const;
 	///
-	// helper function for Latex
-	///
-	void TeXTopHLine(otexstream &, row_type row, std::string const & lang,
-			 std::list<col_type>) const;
-	///
-	void TeXBottomHLine(otexstream &, row_type row, std::string const & lang,
-			    std::list<col_type>) const;
-	///
-	void TeXCellPreamble(otexstream &, idx_type cell, bool & ismulticol, bool & ismultirow,
-			     bool const bidi) const;
-	///
-	void TeXCellPostamble(otexstream &, idx_type cell, bool ismulticol, bool ismultirow) const;
-	///
-	void TeXLongtableHeaderFooter(otexstream &, OutputParams const &, std::list<col_type>) const;
+	bool hasNewlines(idx_type cell) const;
 	///
 	bool isValidRow(row_type const row) const;
 	///
-	void TeXRow(otexstream &, row_type const row,
-		    OutputParams const &, std::list<col_type>) const;
-	///
-	// helper functions for plain text
-	///
-	bool plaintextTopHLine(odocstringstream &, row_type row,
-			       std::vector<unsigned int> const &) const;
-	///
-	bool plaintextBottomHLine(odocstringstream &, row_type row,
-				  std::vector<unsigned int> const &) const;
-	///
-	void plaintextPrintCell(odocstringstream &,
-				OutputParams const &,
-				idx_type cell, row_type row, col_type column,
-				std::vector<unsigned int> const &,
-				bool onlydata, size_t max_length) const;
-	/// auxiliary function for docbook
-	int docbookRow(odocstream & os, row_type, OutputParams const &) const;
-	///
-	docstring xhtmlRow(XHTMLStream & xs, row_type, OutputParams const &,
-	                   bool header = false) const;
+	void TeXRow(otexstream &, row_type const row, OutputParams const &,
+	            std::list<col_type> const &, std::list<col_type> const &) const;
 
 	/// change associated Buffer
 	void setBuffer(Buffer & buffer);
@@ -852,6 +941,66 @@ public:
 
 private:
 	Buffer * buffer_;
+
+	///
+	// helper function for DocBook
+	///
+	/// Determines whether the tabular item should be generated as DocBook or XHTML.
+	enum class XmlOutputFormat : bool {
+		XHTML = true,
+		DOCBOOK = false
+	};
+
+	/// Transforms the vertical alignment of the given cell as prebaked CSS (for HTML tables in HTML output).
+	std::string getHAlignAsXmlAttribute(idx_type cell) const;
+	/// Transforms the vertical alignment of the given cell as a prebaked XML attribute (for CALS or HTML tables in DocBook).
+	std::string getHAlignAsCssAttribute(idx_type cell) const;
+	/// Transforms the vertical alignment of the given cell as prebaked CSS (for HTML tables in HTML output).
+	std::string getVAlignAsCssAttribute(idx_type cell) const;
+	/// Transforms the vertical alignment of the given cell as a prebaked XML attribute (for CALS or HTML tables in DocBook).
+	std::string getVAlignAsXmlAttribute(idx_type cell) const;
+
+	/// Helpers for XML tables (XHTML or DocBook).
+	docstring xmlRow(XMLStream & xs, row_type row, OutputParams const &,
+	                 bool header, XmlOutputFormat output_format,
+	                 BufferParams::TableOutput docbook_table_output = BufferParams::TableOutput::HTMLTable) const;
+	void xmlHeader(XMLStream & xs, OutputParams const &, XmlOutputFormat output_format) const;
+	void xmlFooter(XMLStream & xs, OutputParams const &, XmlOutputFormat output_format) const;
+	void xmlBody(XMLStream & xs, OutputParams const &, XmlOutputFormat output_format) const;
+	XmlRowWiseBorders computeXmlBorders(row_type row) const;
+	std::vector<std::string> computeCssStylePerCell(row_type row, col_type col, idx_type cell) const;
+
+	///
+	// helper functions for plain text
+	///
+	bool plaintextTopHLine(odocstringstream &, row_type row,
+	                       std::vector<unsigned int> const &) const;
+	///
+	bool plaintextBottomHLine(odocstringstream &, row_type row,
+	                          std::vector<unsigned int> const &) const;
+	///
+	void plaintextPrintCell(odocstringstream &,
+	                        OutputParams const &,
+	                        idx_type cell, row_type row, col_type column,
+	                        std::vector<unsigned int> const &,
+	                        bool onlydata, size_t max_length) const;
+
+	///
+	// helper function for LaTeX
+	///
+	void TeXTopHLine(otexstream &, row_type row, std::list<col_type> const &,
+	                 std::list<col_type> const &) const;
+	///
+	void TeXBottomHLine(otexstream &, row_type row, std::list<col_type> const &,
+	                    std::list<col_type> const &) const;
+	///
+	void TeXCellPreamble(otexstream &, idx_type cell, bool & ismulticol, bool & ismultirow,
+	                     bool const bidi) const;
+	///
+	void TeXCellPostamble(otexstream &, idx_type cell, bool ismulticol, bool ismultirow) const;
+	///
+	void TeXLongtableHeaderFooter(otexstream &, OutputParams const &, std::list<col_type> const &,
+	                              std::list<col_type> const &) const;
 
 }; // Tabular
 
@@ -865,147 +1014,148 @@ public:
 	///
 	~InsetTabular();
 	///
-	void setBuffer(Buffer & buffer);
+	void setBuffer(Buffer & buffer) override;
 
 	///
 	static void string2params(std::string const &, InsetTabular &);
 	///
 	static std::string params2string(InsetTabular const &);
 	///
-	void read(Lexer &);
+	void read(Lexer &) override;
 	///
-	void write(std::ostream &) const;
+	void write(std::ostream &) const override;
 	///
-	void metrics(MetricsInfo &, Dimension &) const;
+	void metrics(MetricsInfo &, Dimension &) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	void drawSelection(PainterInfo & pi, int x, int y) const;
+	void drawSelection(PainterInfo & pi, int x, int y) const override;
 	///
-	void drawBackground(PainterInfo & pi, int x, int y) const;
+	void drawBackground(PainterInfo & pi, int x, int y) const override;
 	///
-	bool editable() const { return true; }
+	bool editable() const override { return true; }
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	///
-	bool insetAllowed(InsetCode code) const;
+	bool insetAllowed(InsetCode code) const override;
 	///
-	bool allowSpellCheck() const { return true; }
+	bool allowSpellCheck() const override { return true; }
 	///
-	bool canTrackChanges() const { return true; }
+	bool canTrackChanges() const override { return true; }
 	///
-	bool canPaintChange(BufferView const &) const { return true; }
-	/** returns false if, when outputing LaTeX, font changes should
-	    be closed before generating this inset. This is needed for
-	    insets that may contain several paragraphs */
-	bool inheritFont() const { return false; }
+	bool canPaintChange(BufferView const &) const override { return true; }
 	///
-	bool allowsCaptionVariation(std::string const &) const;
+	bool allowMultiPar() const override;
+	///
+	bool allowsCaptionVariation(std::string const &) const override;
 	//
-	bool isTable() const { return true; }
+	bool isTable() const override { return true; }
 	///
-	DisplayType display() const;
+	int rowFlags() const override;
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	InsetCode lyxCode() const { return TABULAR_CODE; }
+	InsetCode lyxCode() const override { return TABULAR_CODE; }
 	///
-	std::string contextMenu(BufferView const &, int, int) const;
+	std::string contextMenu(BufferView const &, int, int) const override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	/// get offset of this cursor slice relative to our upper left corner
 	void cursorPos(BufferView const & bv, CursorSlice const & sl,
-		bool boundary, int & x, int & y) const;
+		bool boundary, int & x, int & y) const override;
 	/// Executes a space-separated sequence of tabular-features requests
 	void tabularFeatures(Cursor & cur, std::string const & what);
 	/// Change a single tabular feature; does not handle undo.
 	void tabularFeatures(Cursor & cur, Tabular::Feature feature,
 			     std::string const & val = std::string());
 	/// number of cells
-	size_t nargs() const { return tabular.numberofcells; }
+	size_t nargs() const override { return tabular.numberofcells; }
 	///
 	std::shared_ptr<InsetTableCell const> cell(idx_type) const;
 	///
 	std::shared_ptr<InsetTableCell> cell(idx_type);
 	///
-	Text * getText(int) const;
+	Text * getText(int) const override;
 
+	/// does the inset contain changes ?
+	bool isChanged() const override;
 	/// set the change for the entire inset
-	void setChange(Change const & change);
+	void setChange(Change const & change) override;
 	/// accept the changes within the inset
-	void acceptChanges();
+	void acceptChanges() override;
 	/// reject the changes within the inset
-	void rejectChanges();
+	void rejectChanges() override;
 
 	// this should return true if we have a "normal" cell, otherwise false.
 	// "normal" means without width set!
 	/// should all paragraphs be output with "Standard" layout?
-	virtual bool allowParagraphCustomization(idx_type cell = 0) const;
-	///
-	virtual bool forcePlainLayout(idx_type cell = 0) const;
+	bool allowParagraphCustomization(idx_type cell = 0) const override;
 	///
 	void addPreview(DocIterator const & inset_pos,
-		graphics::PreviewLoader &) const;
+		graphics::PreviewLoader &) const override;
 
 	/// lock cell with given index
-	void edit(Cursor & cur, bool front, EntryDirection entry_from);
+	void edit(Cursor & cur, bool front, EntryDirection entry_from) override;
 	/// get table row from x coordinate
 	int rowFromY(Cursor & cur, int y) const;
 	/// get table column from y coordinate
 	int columnFromX(Cursor & cur, int x) const;
 	///
-	Inset * editXY(Cursor & cur, int x, int y);
+	Inset * editXY(Cursor & cur, int x, int y) override;
 	/// can we go further down on mouse click?
-	bool descendable(BufferView const &) const { return true; }
+	bool descendable(BufferView const &) const override { return true; }
 	/// Update the counters of this inset and of its contents
-	void updateBuffer(ParIterator const &, UpdateType);
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false) override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 
 	///
-	bool completionSupported(Cursor const &) const;
+	bool completionSupported(Cursor const &) const override;
 	///
-	bool inlineCompletionSupported(Cursor const & cur) const;
+	bool inlineCompletionSupported(Cursor const & cur) const override;
 	///
-	bool automaticInlineCompletion() const;
+	bool automaticInlineCompletion() const override;
 	///
-	bool automaticPopupCompletion() const;
+	bool automaticPopupCompletion() const override;
 	///
-	bool showCompletionCursor() const;
+	bool showCompletionCursor() const override;
 	///
-	CompletionList const * createCompletionList(Cursor const & cur) const;
+	CompletionList const * createCompletionList(Cursor const & cur) const override;
 	///
-	docstring completionPrefix(Cursor const & cur) const;
+	docstring completionPrefix(Cursor const & cur) const override;
 	///
-	bool insertCompletion(Cursor & cur, docstring const & s, bool finished);
+	bool insertCompletion(Cursor & cur, docstring const & s, bool /*finished*/) override;
 	///
-	void completionPosAndDim(Cursor const &, int & x, int & y, Dimension & dim) const;
+	void completionPosAndDim(Cursor const &, int & x, int & y, Dimension & dim) const override;
 	///
-	virtual bool usePlainLayout() const { return true; }
+	bool usePlainLayout() const override { return true; }
 	///
-	docstring layoutName() const { return from_ascii("Tabular"); }
+	docstring layoutName() const override { return from_ascii("Tabular"); }
 
 
 	///
-	InsetTabular * asInsetTabular() { return this; }
+	InsetTabular * asInsetTabular() override { return this; }
 	///
-	InsetTabular const * asInsetTabular() const { return this; }
+	InsetTabular const * asInsetTabular() const override { return this; }
 	///
 	bool isRightToLeft(Cursor & cur) const;
 	/// writes the cells between stidx and enidx as a string, optionally
 	/// descending into the insets
 	docstring asString(idx_type stidx, idx_type enidx, bool intoInsets = true);
-
+	///
+	ParagraphList asParList(idx_type stidx, idx_type enidx);
+	///
+	bool confirmDeletion() const override { return true; }
 	/// Returns whether the cell in the specified row and column is selected.
 	bool isCellSelected(Cursor & cur, row_type row, col_type col) const;
 	///
@@ -1019,21 +1169,21 @@ private:
 	///
 	InsetTabular(InsetTabular const &);
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
 	bool getFeatureStatus(Cursor & cur, std::string const & s,
 	                 std::string const & argument, FuncStatus & status) const;
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const override;
 	///
-	Inset * clone() const { return new InsetTabular(*this); }
+	Inset * clone() const override { return new InsetTabular(*this); }
 
 	///
 	bool hitSelectRow(BufferView const & bv, int x) const;
 	///
 	bool hitSelectColumn(BufferView const & bv, int y) const;
 	/// Returns true if coordinates are on row/column selection zones
-	bool clickable(BufferView const &, int x, int y) const;
+	bool clickable(BufferView const &, int x, int y) const override;
 
 	///
 	void drawCellLines(PainterInfo &, int x, int y, row_type row,

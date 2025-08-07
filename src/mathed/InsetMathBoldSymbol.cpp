@@ -90,7 +90,7 @@ void InsetMathBoldSymbol::validate(LaTeXFeatures & features) const
 }
 
 
-void InsetMathBoldSymbol::write(WriteStream & os) const
+void InsetMathBoldSymbol::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	switch (kind_) {
@@ -107,9 +107,11 @@ void InsetMathBoldSymbol::write(WriteStream & os) const
 }
 
 
-void InsetMathBoldSymbol::mathmlize(MathStream & os) const
+void InsetMathBoldSymbol::mathmlize(MathMLStream & ms) const
 {
-	os << "<mstyle mathvariant='bold'>" << cell(0) << "</mstyle>";
+	ms << MTagInline("mstyle", "mathvariant='bold'")
+	   << cell(0)
+	   << ETagInline("mstyle");
 }
 
 

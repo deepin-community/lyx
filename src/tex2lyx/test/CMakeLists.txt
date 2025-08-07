@@ -16,10 +16,12 @@ set(_tex_tests test.ltx
                box-color-size-space-align.tex
                CJK.tex
                CJKutf8.tex
+               listpreamble.tex
+               tabular-x-test.tex
                test-insets-basic.tex
                test-insets.tex
                test-memoir.tex
-	       test-minted.tex
+               test-minted.tex
                test-modules.tex
                test-refstyle-theorems.tex
                test-scr.tex
@@ -44,7 +46,7 @@ foreach(_fl ${_tex_tests})
       -DWORKDIR=${CMAKE_CURRENT_BINARY_DIR}
       -DTESTFILE=${fl}
       -P ${TOP_SRC_DIR}/src/tex2lyx/test/runtests.cmake)
-  set_tests_properties(tex2lyx/roundtrip/${_fl} PROPERTIES RESOURCE_LOCK "runtests.lock" LABELS "roundtrip")
+  set_tests_properties(tex2lyx/roundtrip/${_fl} PROPERTIES RESOURCE_LOCK "runtests.lock" LABELS "roundtrip:tex2lyx")
   add_test(NAME tex2lyx/cmplyx/${_fl}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMAND ${CMAKE_COMMAND}
@@ -58,7 +60,7 @@ foreach(_fl ${_tex_tests})
       -DWORKDIR=${CMAKE_CURRENT_BINARY_DIR}
       -DTESTFILE=${fl}
       -P ${TOP_SRC_DIR}/src/tex2lyx/test/runtests.cmake)
-  set_tests_properties(tex2lyx/cmplyx/${_fl} PROPERTIES RESOURCE_LOCK "runtests.lock" LABELS "cmplyx")
+  set_tests_properties(tex2lyx/cmplyx/${_fl} PROPERTIES RESOURCE_LOCK "runtests.lock" LABELS "cmplyx:tex2lyx")
 endforeach()
 
 add_dependencies(lyx_run_tests ${_tex2lyx} ${_lyx})
@@ -101,5 +103,5 @@ add_custom_command(
   DEPENDS Tex2lyxFilesUpdated
 )
 
-add_custom_target(cleanupdatetex2lyxtests DEPENDS UpdateFilesRemoved)
+add_custom_target(cleanupdatetex2lyxtests DEPENDS UpdateFilesRemoved updatetex2lyxtests)
 set_target_properties(cleanupdatetex2lyxtests PROPERTIES FOLDER "tests/tex2lyx")

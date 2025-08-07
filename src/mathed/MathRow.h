@@ -12,10 +12,10 @@
 #ifndef MATH_ROW_H
 #define MATH_ROW_H
 
-#include "InsetMath.h"
 #include "MathClass.h"
 
 #include "ColorCode.h"
+#include "Dimension.h"
 
 #include "support/docstring.h"
 
@@ -24,12 +24,12 @@
 namespace lyx {
 
 class BufferView;
-class Dimension;
+class InsetMath;
+class MathData;
 class MetricsInfo;
 class PainterInfo;
 
-class InsetMath;
-class MathData;
+enum class marker_type : int;
 
 /*
  * While for editing purpose it is important that macros are counted
@@ -50,6 +50,8 @@ public:
 		BOX, // an empty box
 		BEGIN, // an inset and/or a math array begins here
 		END, // an inset and/or a math array ends here
+		BEGIN_SEL, // the selection begins here
+		END_SEL, // the selection ends here
 		DUMMY // a dummy element (used before or after row)
 	};
 
@@ -65,10 +67,10 @@ public:
 		MathClass mclass;
 		/// the spacing around the element
 		int before, after;
-		/// count wether the current mathdata is nested in macro(s)
+		/// count whether the current mathdata is nested in macro(s)
 		int macro_nesting;
 		/// Marker type
-		InsetMath::marker_type marker;
+		marker_type marker;
 
 		/// When type is INSET
 		/// the math inset (also for BEGIN and END)
@@ -86,7 +88,9 @@ public:
 	};
 
 	///
-	MathRow() {};
+	MathRow() {}
+	///
+	MathRow(Dimension const & dim) : caret_dim(dim) {}
 	///
 	typedef std::vector<Element> Elements;
 	///
@@ -110,13 +114,17 @@ public:
 	// compute the spacings.
 	MathRow(MetricsInfo & mi, MathData const * ar);
 
-	// this returns true if the caret is here
-	bool metrics(MetricsInfo & mi, Dimension & dim);
+	//
+	void metrics(MetricsInfo & mi, Dimension & dim);
 	//
 	void draw(PainterInfo & pi, int const x, int const y) const;
 
 	/// superscript kerning
 	int kerning(BufferView const *) const;
+
+	/// useful when the caret visits this cell
+	Dimension caret_dim;
+
 
 private:
 	// Index of the first inset element before position i

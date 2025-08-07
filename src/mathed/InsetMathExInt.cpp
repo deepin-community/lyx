@@ -15,7 +15,6 @@
 #include "LaTeXFeatures.h"
 #include "MathData.h"
 #include "MathStream.h"
-#include "MathStream.h"
 #include "InsetMathSymbol.h"
 
 #include "support/debug.h"
@@ -124,37 +123,40 @@ void InsetMathExInt::mathematica(MathematicaStream & os) const
 }
 
 
-void InsetMathExInt::mathmlize(MathStream & os) const
+void InsetMathExInt::mathmlize(MathMLStream & ms) const
 {
 	// At the moment, we are not extracting sums and the like for MathML.
 	// If we should decide to do so later, then we'll need to re-merge
 	// r32566 and r32568.
 	// So right now this only handles integrals.
-	InsetMathSymbol sym(symbol_);
+	InsetMathSymbol sym(buffer_, symbol_);
 	bool const lower = !cell(2).empty();
 	bool const upper = !cell(3).empty();
 	if (lower && upper)
-		os << MTag("msubsup");
+		ms << MTag("msubsup");
 	else if (lower)
-		os << MTag("msub");
+		ms << MTag("msub");
 	else if (upper)
-		os << MTag("msup");
-	os << MTag("mrow");
-	sym.mathmlize(os);
-	os << ETag("mrow");
+		ms << MTag("msup");
+	ms << MTag("mrow");
+	sym.mathmlize(ms);
+	ms << ETag("mrow");
 	if (lower)
-		os << MTag("mrow") << cell(2) << ETag("mrow");
+		ms << cell(2);
 	if (upper)
-		os << MTag("mrow") << cell(3) << ETag("mrow");
+		ms << cell(3);
 	if (lower && upper)
-		os << ETag("msubsup");
+		ms << ETag("msubsup");
 	else if (lower)
-		os << ETag("msub");
+		ms << ETag("msub");
 	else if (upper)
-		os << ETag("msup");
-	os << cell(0) << "<mo> &InvisibleTimes; </mo>"
-	   << MTag("mrow") << "<mo> &DifferentialD; </mo>"
-	   << cell(1) << ETag("mrow");
+		ms << ETag("msup");
+	ms << cell(0)
+	   << MTagInline("mo") << "&#8290;" << ETagInline("mo") // &InvisibleTimes;
+	   << MTag("mrow")
+	   << MTagInline("mo") << "&#8518;" << ETagInline("mo") // &DifferentialD;
+	   << cell(1)
+	   << ETag("mrow");
 }
 
 
@@ -162,7 +164,7 @@ void InsetMathExInt::htmlize(HtmlStream & os) const
 {
 	// At the moment, we are not extracting sums and the like for HTML.
 	// So right now this only handles integrals.
-	InsetMathSymbol sym(symbol_);
+	InsetMathSymbol sym(buffer_, symbol_);
 	bool const lower = !cell(2).empty();
 	bool const upper = !cell(3).empty();
 
@@ -184,7 +186,7 @@ void InsetMathExInt::htmlize(HtmlStream & os) const
 }
 
 
-void InsetMathExInt::write(WriteStream &) const
+void InsetMathExInt::write(TeXMathStream &) const
 {
 	LYXERR0("should not happen");
 }

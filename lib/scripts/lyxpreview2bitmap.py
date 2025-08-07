@@ -79,6 +79,8 @@ from __future__ import print_function
 
 import getopt, glob, os, re, shutil, sys, tempfile
 
+import lyxpreview_tools
+
 from legacy_lyxpreview2ppm import extract_resolution, legacy_conversion_step1
 
 from lyxpreview_tools import bibtex_commands, check_latex_log, copyfileobj, \
@@ -118,7 +120,7 @@ def extract_metrics_info(dvipng_stdout):
     # "\[[0-9]+" can match two kinds of numbers: page numbers from dvipng
     # and glyph numbers from mktexpk. The glyph numbers always match
     # "\[[0-9]+\]" while the page number never is followed by "\]". Thus:
-    page_re = re.compile("\[([0-9]+)[^]]");
+    page_re = re.compile(r"\[([0-9]+)[^]]");
     metrics_re = re.compile("depth=(-?[0-9]+) height=(-?[0-9]+)")
 
     success = 0
@@ -195,7 +197,7 @@ def fix_latex_file(latex_file, pdf_output):
 
 
 def convert_to_ppm_format(pngtopnm, basename):
-    png_file_re = re.compile("\.png$")
+    png_file_re = re.compile(r"\.png$")
 
     for png_file in glob.glob("%s*.png" % basename):
         ppm_file = png_file_re.sub(".ppm", png_file)
@@ -343,7 +345,6 @@ def main(argv):
         elif opt == "--bg":
             bg_color = val
         elif opt in ("-d", "--debug"):
-            import lyxpreview_tools
             lyxpreview_tools.debug = True
         elif opt == "--dpi":
             try:
@@ -361,7 +362,6 @@ def main(argv):
         elif opt in ("--png", "--ppm"):
             output_format = opt[2:]
         elif opt in ("-v", "--verbose"):
-            import lyxpreview_tools
             lyxpreview_tools.verbose = True
 
     # Determine input file
@@ -372,20 +372,27 @@ def main(argv):
     input_path = args[0]
     dir, latex_file = os.path.split(input_path)
 
-    # Echo the settings
-    progress("Running Python %s" % str(sys.version_info[:3]))
-    progress("Starting %s..." % script_name)
-    progress("Output format: %s" % output_format)
-    progress("Foreground color: %s" % fg_color)
-    progress("Background color: %s" % bg_color)
-    progress("Resolution (dpi): %s" % dpi)
-    progress("File to process: %s" % input_path)
-
     # Check for the input file
     if not os.path.exists(input_path):
         error('File "%s" not found.' % input_path)
     if len(dir) != 0:
         os.chdir(dir)
+
+    if lyxpreview_tools.verbose:
+        f_out = open('verbose.txt', 'a')
+        sys.stdout = f_out
+        sys.stderr = f_out
+
+    # Echo the settings
+    progress("Running Python %s" % str(sys.version_info[:3]))
+    progress("Starting %s..." % script_name)
+    if os.name == "nt":
+        progress("Use win32_modules: %d" % lyxpreview_tools.use_win32_modules)
+    progress("Output format: %s" % output_format)
+    progress("Foreground color: %s" % fg_color)
+    progress("Background color: %s" % bg_color)
+    progress("Resolution (dpi): %s" % dpi)
+    progress("File to process: %s" % input_path)
 
     # For python > 2 convert strings to bytes
     if not PY2:
@@ -405,7 +412,11 @@ def main(argv):
     bibtex = find_exe(bibtex or bibtex_commands)
     if lilypond:
         lilypond_book = find_exe_or_terminate(lilypond_book or
-            ["lilypond-book --safe"])
+            ["lilypond-book"])
+        if lilypond_book and latex == "latex":
+            # with lilypond, we default to pdflatex rather than latex
+            # as we do not want to deal with eps conversion (see #13103)
+            latex = "pdflatex"
 
     # These flavors of latex are known to produce pdf output
     pdf_output = latex in pdflatex_commands
@@ -426,6 +437,10 @@ def main(argv):
         if pdf_output:
             lilypond_book += " --pdf"
         lilypond_book += " --latex-program=%s" % latex.split()[0]
+        if pdf_output:
+            lilypond_book += " --lily-output-dir=ly-pdf"
+        else:
+            lilypond_book += " --lily-output-dir=ly-eps"
 
         # Make a copy of the latex file
         lytex_file = latex_file_re.sub(".lytex", latex_file)

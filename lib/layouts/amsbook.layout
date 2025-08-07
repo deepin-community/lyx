@@ -1,5 +1,5 @@
 #% Do not delete the line below; configure depends on this
-#  \DeclareLaTeXClass{American Mathematical Society (AMS) Book}
+#  \DeclareLaTeXClass{American Mathematical Society (AMS)}
 #  \DeclareCategory{Books}
 # AMS-Article textclass definition file. Taken from initial LyX source code
 # and from the Article textclass definition file, following the AMS sample
@@ -8,15 +8,16 @@
 # Probably broken by Jean-Marc Lasgouttes <Jean-Marc.Lasgouttes@inria.fr>
 # modified and modularized by Emmanuel GUREGHIAN <gureghia@boston.bertin.fr>
 # Tinkered with Sep. '07 by Paul Rubin <rubin@msu.edu>
-# Modularized Jan '08 by Richard Heck <rgheck@brown.edu>
+# Modularized Jan '08 by Richard Kimberly Heck <rikiheck@lyx.org>
 # Moved "number within sections" to modules Aug '09 (Paul Rubin <rubin@msu.edu>)
 
 
-Format 66
+Format 104
 
 Columns                 1
 Sides                   2
 PageStyle               Headers
+DocBookRoot             book
 
 Provides amsmath         1
 Provides makeidx         1
@@ -39,6 +40,7 @@ Style Standard
 	Align          Block
 	AlignPossible  Block, Left, Right, Center
 	LabelType      No_Label
+	DocBookTag     para
 End
 
 
@@ -151,7 +153,7 @@ Style Chapter_Exercises
 	ParSep                0.3
 	Align                 Block
 	AlignPossible         Block, Left
-	LabelType             Static
+	LabelType             Itemize
 	LabelFont
 	  Shape               Up
 	  Series              Bold
@@ -160,4 +162,16 @@ Style Chapter_Exercises
 	  \newenvironment{lyxxcb}{\begin{xcb}{Exercises}\begin{enumerate}}
 	                     {\end{enumerate}\end{xcb}}
 	EndPreamble
+	Argument listpreamble:1
+	  LabelString    "List preamble"
+	  MenuString     "List Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
+	DocBookTag       para
+	DocBookAttr      role='chapter-exercises'
 End

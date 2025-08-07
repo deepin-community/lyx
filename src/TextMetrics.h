@@ -21,58 +21,82 @@
 
 #include "support/types.h"
 
+#include <map>
+
 namespace lyx {
 
 class BufferView;
 class Cursor;
 class CursorSlice;
-class DocIterator;
 class MetricsInfo;
 class Text;
 
 /// A map from a Text to the map of paragraphs metrics
 class TextMetrics
 {
+	/// noncopyable
+	TextMetrics(TextMetrics const &);
+	void operator=(TextMetrics const &);
 public:
 	/// Default constructor (only here for STL containers).
-	TextMetrics() : bv_(0), text_(0), max_width_(0) {}
+	TextMetrics() : bv_(0), text_(0), max_width_(0), tight_(false) {}
 	/// The only useful constructor.
 	TextMetrics(BufferView *, Text *);
 
 	///
 	bool contains(pit_type pit) const;
 	///
-	ParagraphMetrics const & parMetrics(pit_type) const;
+	void forget(pit_type pit);
 	///
 	std::pair<pit_type, ParagraphMetrics const *> first() const;
 	///
 	std::pair<pit_type, ParagraphMetrics const *> last() const;
+	/// is this row the last in the text?
+	bool isLastRow(Row const & row) const;
+	/// is this row the first in the text?
+	bool isFirstRow(Row const & row) const;
+	///
+	void setRowChanged(pit_type pit, pos_type pos);
 
 	///
-	Dimension const & dimension() const { return dim_; }
+	Dimension const & dim() const { return dim_; }
 	///
 	Point const & origin() const { return origin_; }
 
-
-	/// compute text metrics.
-	bool metrics(MetricsInfo & mi, Dimension & dim, int min_width = 0);
+	///
+	ParagraphMetrics const & parMetrics(pit_type) const;
+	///
+	ParagraphMetrics & parMetrics(pit_type);
 
 	///
 	void newParMetricsDown();
 	///
 	void newParMetricsUp();
 
+	/// Update metrics up to \c bv_height. Only usable for main text (for now).
+	void updateMetrics(pit_type const anchor_pit, int const anchor_ypos,
+                       int const bv_height);
+
+	/// compute text metrics.
+	bool metrics(MetricsInfo const & mi, Dimension & dim, int min_width = 0);
+
 	/// The "nodraw" drawing stage for one single paragraph: set the
-	/// positions of the insets contained this paragraph in metrics
+	/// positions of the insets contained in this paragraph in metrics
 	/// cache. Related to BufferView::updatePosCache.
 	void updatePosCache(pit_type pit) const;
 
-	/// Gets the fully instantiated font at a given position in a paragraph
+	/// Gets the fully instantiated font at a given position in a paragraph.
 	/// Basically the same routine as Paragraph::getFont() in Paragraph.cpp.
 	/// The difference is that this one is used for displaying, and thus we
 	/// are allowed to make cosmetic improvements. For instance make footnotes
 	/// smaller. (Asger)
 	Font displayFont(pit_type pit, pos_type pos) const;
+
+	/// Gets the fully instantiated label font of a paragraph.
+	/// Basically the same routine as displayFont, but specialized for
+	/// a layout font.
+	Font labelDisplayFont(pit_type pit) const;
+
 
 	/// There are currently two font mechanisms in LyX:
 	/// 1. The font attributes in a lyxtext, and
@@ -86,17 +110,15 @@ public:
 	/// is this position in the paragraph right-to-left?
 	bool isRTL(CursorSlice const & sl, bool boundary) const;
 	/// is between pos-1 and pos an RTL<->LTR boundary?
-	bool isRTLBoundary(pit_type pit,
-	  pos_type pos) const;
+	bool isRTLBoundary(pit_type pit, pos_type pos) const;
 	/// would be a RTL<->LTR boundary between pos and the given font?
-	bool isRTLBoundary(pit_type pit,
-	  pos_type pos, Font const & font) const;
+	bool isRTLBoundary(pit_type pit, pos_type pos, Font const & font) const;
 
 
 	/// Rebreaks the given paragraph.
 	/// \retval true if a full screen redraw is needed.
 	/// \retval false if a single paragraph redraw is enough.
-	bool redoParagraph(pit_type const pit);
+	bool redoParagraph(pit_type const pit, bool align_rows = true);
 	/// Clear cache of paragraph metrics
 	void clear() { par_metrics_.clear(); }
 	/// Is cache of paragraph metrics empty ?
@@ -111,6 +133,17 @@ public:
 	/// current text height.
 	int height() const { return dim_.height(); }
 
+	/**
+	 * Returns the left beginning of a row starting at \c pos.
+	 * This information cannot be taken from the layout object, because
+	 * in LaTeX the beginning of the text fits in some cases
+	 * (for example sections) exactly the label-width.
+	 */
+	int leftMargin(pit_type pit, pos_type pos) const;
+	/// Return the left beginning of a row which is not the first one.
+	/// This is the left margin when there is no indentation.
+	int leftMargin(pit_type pit) const;
+
 	///
 	int rightMargin(ParagraphMetrics const & pm) const;
 	int rightMargin(pit_type const pit) const;
@@ -124,31 +157,19 @@ private:
 	///
 	ParagraphMetrics & parMetrics(pit_type, bool redo_paragraph);
 
-	/**
-	 * Returns the left beginning of the text.
-	 * This information cannot be taken from the layout object, because
-	 * in LaTeX the beginning of the text fits in some cases
-	 * (for example sections) exactly the label-width.
-	 */
-	int leftMargin(pit_type pit, pos_type pos) const;
-	int leftMargin(pit_type pit) const;
-
 	/// the minimum space a manual label needs on the screen in pixels
 	int labelFill(Row const & row) const;
 
-	/// FIXME??
-	int labelEnd(pit_type const pit) const;
+	// Turn paragraph oh index \c pit into a single row
+	Row tokenizeParagraph(pit_type pit) const;
 
-	/// sets row.end to the pos value *after* which a row should break.
-	/// for example, the pos after which isNewLine(pos) == true
-	/// \return true when another row is required (after a newline)
-	bool breakRow(Row & row, int right_margin) const;
+	// Break the row produced by tokenizeParagraph() into a list of rows.
+	RowList breakParagraph(Row const & row) const;
 
-	// Expand the alignment of row \param row in paragraph \param par
+	// Expands the alignment of row \param row in paragraph \param par
 	LyXAlignment getAlign(Paragraph const & par, Row const & row) const;
-	/** this calculates the specified parameters. needed when setting
-	 * the cursor and when creating a visible row */
-	void computeRowMetrics(Row & row, int width) const;
+	/// Aligns properly the row contents (computes spaces and fills)
+	void setRowAlignment(Row & row, int width) const;
 
 	/// Set the height of the row (without space above/below paragraph)
 	void setRowHeight(Row & row) const;
@@ -158,7 +179,7 @@ private:
 	int parBottomSpacing(pit_type pit) const;
 
 	// Helper function for the other checkInsetHit method.
-	InsetList::InsetTable * checkInsetHit(pit_type pit, int x, int y);
+	InsetList::Element * checkInsetHit(pit_type pit, int x, int y);
 
 
 // Temporary public:
@@ -209,9 +230,9 @@ public:
 	void setCursorFromCoordinates(Cursor & cur, int x, int y);
 
 	///
-	int cursorX(CursorSlice const & cursor, bool boundary) const;
+	int cursorX(CursorSlice const & sl, bool boundary) const;
 	///
-	int cursorY(CursorSlice const & cursor, bool boundary) const;
+	int cursorY(CursorSlice const & sl, bool boundary) const;
 
 	///
 	bool cursorHome(Cursor & cur);
@@ -219,11 +240,6 @@ public:
 	bool cursorEnd(Cursor & cur);
 	///
 	void deleteLineForward(Cursor & cur);
-
-	/// is this row the last in the text?
-	bool isLastRow(Row const & row) const;
-	/// is this row the first in the text?
-	bool isFirstRow(Row const & row) const;
 
 	/// Returns an inset if inset was hit, or 0 if not.
 	/// \warning This method is not recursive! It will return the
@@ -236,7 +252,6 @@ public:
 		Dimension & dim) const;
 
 private:
-	friend class BufferView;
 
 	/// The BufferView owner.
 	BufferView * bv_;
@@ -251,6 +266,8 @@ private:
 	mutable ParMetricsCache par_metrics_;
 	Dimension dim_;
 	int max_width_;
+	/// if true, do not expand insets to max width artificially
+	bool tight_;
 	mutable Point origin_;
 
 // temporary public:

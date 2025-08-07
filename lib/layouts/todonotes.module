@@ -1,4 +1,5 @@
 #\DeclareLyXModule[todonotes.sty]{TODO Notes}
+#\DeclareCategory{Annotation & Revision}
 #DescriptionBegin
 #Provides custom insets to insert TODO items in your document
 #(using the todonotes package). In order to generate a 'List of TODOs',
@@ -9,7 +10,7 @@
 # Authors: Stephen <stephen4mailinglists@googlemail.com>
 #          Jürgen Spitzmüller <spitz@lyx.org>
 
-Format 66
+Format 104
 
 OutlinerName todonotes "TODO"
 
@@ -61,7 +62,7 @@ InsetLayout Flex:TODO_Note_(Margin)
 	Decoration	classic
 	BgColor		orange
 	Font
-	    Color	black
+	    Color	foreground
 	    Family	Typewriter
 	EndFont
 	LabelFont

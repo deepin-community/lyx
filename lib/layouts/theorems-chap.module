@@ -1,4 +1,5 @@
-#\DeclareLyXModule{Theorems (Numbered by Chapter)}
+#\DeclareLyXModule{Standard Theorems (Numbered by Chapter)}
+#\DeclareCategory{Maths}
 #DescriptionBegin
 #Numbers theorems and the like by chapter (i.e., the counter is reset at
 #each chapter start). Use this module only with document classes that provide a chapter
@@ -6,14 +7,30 @@
 #DescriptionEnd
 #Requires: theorems-std | theorems-ams
 #Excludes: theorems-sec
-#Category: theorems
 
-# Author: Richard Heck <rgheck@comcast.net>
+# Author: Richard Kimberly Heck <rikiheck@lyx.org>
 
-Format 66
+Format 104
 
 Counter theorem
-	Within         chapter
+	GuiName Theorem
+	Within chapter
+	LaTeXName thm
+	RefFormat thm "Theorem \thechapter.\arabic{theorem}"
+	RefFormat cor "Corollary \thechapter.\arabic{theorem}"
+	RefFormat lem "Lemma \thechapter.\arabic{theorem}"
+	RefFormat prop "Proposition \thechapter.\arabic{theorem}"
+	RefFormat conj "Conjecture \thechapter.\arabic{theorem}"
+	RefFormat def "Definition \thechapter.\arabic{theorem}"
+	RefFormat exa "Example \thechapter.\arabic{theorem}"
+	RefFormat prob "Problem \thechapter.\arabic{theorem}"
+	RefFormat exer "Exercise \thechapter.\arabic{theorem}"
+	RefFormat solu "Solution \thechapter.\arabic{theorem}"
+	RefFormat rem "Remark \thechapter.\arabic{theorem}"
+	RefFormat claim "Claim \thechapter.\arabic{theorem}"
+	RefFormat fact "Fact \thechapter.\arabic{theorem}"
+	RefFormat cri "Criterion \thechapter.\arabic{theorem}"
+	RefFormat alg "Algorithm \thechapter.\arabic{theorem}"
 End
 
 Style Theorem

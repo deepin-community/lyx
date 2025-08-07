@@ -45,14 +45,14 @@ public:
 	/// Return true if preview is enabled in mathed (from LyXRC::preview)
 	static bool previewMath();
 
-	RenderPreview(Inset const *);
+	explicit RenderPreview(Inset const *);
 	RenderPreview(RenderPreview const &, Inset const *);
-	RenderBase * clone(Inset const *) const;
+	RenderBase * clone(Inset const *) const override;
 
 	/// Compute the size of the object, returned in dim
-	void metrics(MetricsInfo &, Dimension & dim) const;
+	void metrics(MetricsInfo &, Dimension & dim) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y, bool const darkmode = false) const override;
 
 	/** Find the PreviewLoader and add a LaTeX snippet to it.
 	 *  Do not start the loading process.
@@ -86,7 +86,7 @@ public:
 	getPreviewImage(Buffer const & buffer) const;
 
 	/// equivalent to dynamic_cast
-	virtual RenderPreview * asPreview() { return this; }
+	RenderPreview * asPreview() override { return this; }
 
 private:
 	/// Not implemented.
@@ -96,12 +96,12 @@ private:
 	void imageReady(graphics::PreviewImage const &);
 
 	/// The thing that we're trying to generate a preview of.
-	std::string snippet_;
+	docstring snippet_;
 
 	/** Store the connection to the preview loader so that we connect
 	 *  only once.
 	 */
-	signals2::scoped_connection ploader_connection_;
+	scoped_connection ploader_connection_;
 
 	/// Inform the core that the inset has changed.
 	Inset const * parent_;
@@ -110,9 +110,9 @@ private:
 
 class RenderMonitoredPreview : public RenderPreview {
 public:
-	RenderMonitoredPreview(Inset const *);
+	explicit RenderMonitoredPreview(Inset const *);
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y, bool const darkmode = false) const override;
 	///
 	void setAbsFile(support::FileName const & file);
 	///
@@ -122,12 +122,12 @@ public:
 
 	/// Connect and you'll be informed when the file changes.
 	/// Do not forget to track objects used by the slot.
-	typedef signals2::signal<void()> sig;
+	typedef signal<void()> sig;
 	typedef sig::slot_type slot;
-	signals2::connection connect(slot const & slot);
+	connection connect(slot const & slot);
 
 	/// equivalent to dynamic_cast
-	virtual RenderMonitoredPreview * asMonitoredPreview() { return this; }
+	RenderMonitoredPreview * asMonitoredPreview() override { return this; }
 
 private:
 	/// This signal is emitted if the file is modified

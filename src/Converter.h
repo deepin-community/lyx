@@ -13,9 +13,9 @@
 #define CONVERTER_H
 
 #include "Graph.h"
-#include "OutputParams.h"
 #include "support/trivstring.h"
 
+#include <memory>
 #include <vector>
 #include <set>
 #include <string>
@@ -27,11 +27,23 @@ namespace support { class FileName; }
 
 class Buffer;
 class ErrorList;
+class ExportData;
 class Format;
 class Formats;
+class OutputParams;
+
+enum class Flavor : int;
+
+class ConversionException : public std::exception {
+public:
+	ConversionException() {}
+	virtual ~ConversionException() noexcept {}
+	const char * what() const noexcept override
+		{ return "Exception caught in conversion routine!"; }
+};
+
 
 typedef std::vector<Format const *> FormatList;
-
 
 ///
 class Converter {
@@ -48,7 +60,7 @@ public:
 	///
 	std::string const command() const { return command_; }
 	///
-	void setCommand(std::string const & command) { command_ = command; }
+	void setCommand(std::string const & command);
 	///
 	std::string const flags() const { return flags_; }
 	///
@@ -66,7 +78,7 @@ public:
 	///
 	std::string const latex_flavor() const { return latex_flavor_; }
 	///
-	bool xml() const { return xml_; }
+	bool docbook() const { return docbook_; }
 	///
 	bool need_aux() const { return need_aux_; }
 	/// Return whether or not the needauth option is set for this converter
@@ -81,6 +93,8 @@ public:
 	std::string const parselog() const { return parselog_; }
 	///
 	std::string const hyperref_driver() const { return href_driver_; }
+	///
+	std::string const need_renamed_copies_from() const { return need_renamed_copies_from_; }
 
 private:
 	///
@@ -100,8 +114,8 @@ private:
 	bool latex_;
 	/// The latex derivate
 	trivstring latex_flavor_;
-	/// The converter is xml
-	bool xml_;
+	/// The converter is DocBook
+	bool docbook_;
 	/// This converter needs the .aux files
 	bool need_aux_;
 	/// we need a "nice" file from the backend, c.f. OutputParams.nice.
@@ -118,6 +132,8 @@ private:
 	trivstring parselog_;
 	/// The hyperref driver
 	trivstring href_driver_;
+	/// Needs renamed file copies from an intermediate format
+	trivstring need_renamed_copies_from_;
 };
 
 
@@ -128,6 +144,12 @@ public:
 	typedef std::vector<Converter> ConverterList;
 	///
 	typedef ConverterList::const_iterator const_iterator;
+	/// Return values for converter runs
+	enum RetVal {
+		SUCCESS = 0,
+		FAILURE = 1,
+		KILLED  = 1000
+	};
 
 	///
 	Converter const & get(int i) const { return converterlist_[i]; }
@@ -161,10 +183,10 @@ public:
 	///
 	Graph::EdgePath getPath(std::string const & from, std::string const & to);
 	///
-	OutputParams::FLAVOR getFlavor(Graph::EdgePath const & path,
-				       Buffer const * buffer = 0);
+	Flavor getFlavor(Graph::EdgePath const & path,
+					   Buffer const * buffer = nullptr) const;
 	///
-	std::string getHyperrefDriver(Graph::EdgePath const & path);
+	std::string getHyperrefDriver(Graph::EdgePath const & path) const;
 	/// Flags for converting files
 	enum ConversionFlags {
 		/// No special flags
@@ -175,17 +197,18 @@ public:
 		try_cache = 1 << 1
 	};
 	///
-	bool convert(Buffer const * buffer,
+	RetVal convert(Buffer const * buffer,
 		     support::FileName const & from_file, support::FileName const & to_file,
 		     support::FileName const & orig_from,
 		     std::string const & from_format, std::string const & to_format,
-		     ErrorList & errorList, int conversionflags = none);
+		     ErrorList & errorList, int conversionflags = none, bool includeall = false,
+		     std::shared_ptr<ExportData> exportdata = nullptr);
 	///
 	void update(Formats const & formats);
 	///
 	void updateLast(Formats const & formats);
 	///
-	bool formatIsUsed(std::string const & format);
+	bool formatIsUsed(std::string const & format) const;
 	///
 	const_iterator begin() const { return converterlist_.begin(); }
 	///
@@ -216,7 +239,7 @@ private:
 	bool scanLog(Buffer const & buffer, std::string const & command,
 		     support::FileName const & filename, ErrorList & errorList);
 	///
-	bool runLaTeX(Buffer const & buffer, std::string const & command,
+	RetVal runLaTeX(Buffer const & buffer, std::string const & command,
 		      OutputParams const &, ErrorList & errorList);
 	///
 	ConverterList converterlist_;

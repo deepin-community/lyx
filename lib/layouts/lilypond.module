@@ -1,13 +1,15 @@
-#\DeclareLyXModule[lilypond-book->latex]{LilyPond Book}
+#\DeclareLyXModule[lilypond-book->latex]{LilyPond Music Notation}
+#\DeclareCategory{Leisure, Sports & Music}
 #DescriptionBegin
 #This module adds an inset to enter LilyPond code directly into LyX.
-#It will be processed in the output. See the lilypond.lyx example file.
+#It will be processed in the output.
+#For details, see Help > Specific Manuals > LilyPond.
 #DescriptionEnd
 #Excludes: sweave
 
 # Author: Julien Rioux <jrioux@lyx.org>
 
-Format 66
+Format 104
 OutputFormat           lilypond-book
 
 InsetLayout "Flex:LilyPond"
@@ -38,11 +40,17 @@ InsetLayout "Flex:LilyPond"
 	  Tooltip             "A comma-separated option list (see the LilyPond documentation for available options)."
 	  Decoration          Conglomerate
 	  Font
-	    Color             black
+	    Color             foreground
 	    Family            typewriter
 	  EndFont
 	  LabelFont
-	    Color             black
+	    Color             foreground
 	  EndFont
+      DocBookTag          IGNORE
 	EndArgument
+    DocBookNotInPara      true
+    DocBookWrapperTag     mediaobject
+    DocBookTag            textobject
+    DocBookInnerTag       programlisting
+    DocBookInnerAttr      "language='lilypond' role='fragment verbatim staffsize=16 ragged-right relative=2'"
 End

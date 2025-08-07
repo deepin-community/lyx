@@ -8,16 +8,17 @@
 #  Class and style files and templates are found at:
 #       http://wiki.lyx.org/Examples/Springer
 #
-Format 66
+Format 104
 Input svcommon.inc
 
 TocDepth                2
+DocBookRoot		        book
 
 ClassOptions
 	FontSize	10
 End
 
-NoStyle Acknowledgements
+NoStyle Acknowledgments
 NoStyle Institute
 
 Style Abstract
@@ -25,59 +26,73 @@ Style Abstract
 End
 
 Counter theorem
-  Within	chapter
+	GuiName Theorem
+	Within	chapter
 End
 
 Counter definition
-  Within	chapter
+	GuiName Definition
+	Within	chapter
 End
 
 Counter remark
-  Within	chapter
+	GuiName Remark
+	Within	chapter
 End
 
 Counter corollary
-  Within	chapter
+	GuiName Corollary
+	Within	chapter
 End
 
 Counter lemma
-  Within	chapter
+	GuiName Lemma
+	Within	chapter
 End
 
 Counter proposition
-  Within	chapter
+	GuiName Proposition
+	Within	chapter
 End
 
 Counter claim
-  Within	chapter
+	GuiName Claim
+	Within	chapter
 End
 
 Counter conjecture
-  Within	chapter
+	GuiName Conjecture
+	Within	chapter
 End
 
 Counter question
-  Within	chapter
+	GuiName Question
+	Within	chapter
 End
 
 Counter example
-  Within	chapter
+	GuiName Example
+	Within	chapter
 End
 
 Counter exercise
-  Within	chapter
+	GuiName Exercise
+	Within	chapter
 End
 
 Counter case
-  Within	chapter
+	GuiName Case
+	Within	chapter
 End
 
 Counter property
-  Within	chapter
+	GuiName Property
+	Within	chapter
 End
 
 Counter note
-  Within	chapter
+	GuiName Note
+	Within	chapter
 End
 
 Style Claim

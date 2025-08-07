@@ -64,7 +64,7 @@ void InsetGraphicsParams::init()
 {
 	filename.erase();
 	lyxscale = 100;			// lyx scaling in percentage
-	display = true;         // may be overriden by display mode in preferences
+	display = true;         // may be overridden by display mode in preferences
 	scale = string("100");			// output scaling in percentage
 	width = Length();
 	height = Length();
@@ -74,33 +74,35 @@ void InsetGraphicsParams::init()
 
 	bbox = graphics::BoundingBox();	// bounding box
 	clip = false;			// clip image
+	darkModeSensitive = false;	// dark mode dependency
 
-	rotateAngle = "0";		// angle of rotation in degrees
+	rotateAngle = string("0");	// angle of rotation in degrees
 	rotateOrigin.erase();		// Origin of rotation
 	special.erase();		// additional userdefined stuff
 	groupId.clear();
 }
 
 
-void InsetGraphicsParams::copy(InsetGraphicsParams const & igp)
+void InsetGraphicsParams::copy(InsetGraphicsParams const & params)
 {
-	filename = igp.filename;
-	lyxscale = igp.lyxscale;
-	display = igp.display;
-	scale = igp.scale;
-	width = igp.width;
-	height = igp.height;
-	keepAspectRatio = igp.keepAspectRatio;
-	draft = igp.draft;
-	scaleBeforeRotation = igp.scaleBeforeRotation;
+	filename = params.filename;
+	lyxscale = params.lyxscale;
+	display = params.display;
+	scale = params.scale;
+	width = params.width;
+	height = params.height;
+	keepAspectRatio = params.keepAspectRatio;
+	draft = params.draft;
+	scaleBeforeRotation = params.scaleBeforeRotation;
 
-	bbox = igp.bbox;
-	clip = igp.clip;
+	bbox = params.bbox;
+	clip = params.clip;
+	darkModeSensitive = params.darkModeSensitive;
 
-	rotateAngle = igp.rotateAngle;
-	rotateOrigin = igp.rotateOrigin;
-	special = igp.special;
-	groupId = igp.groupId;
+	rotateAngle = params.rotateAngle;
+	rotateOrigin = params.rotateOrigin;
+	special = params.special;
+	groupId = params.groupId;
 }
 
 
@@ -119,6 +121,7 @@ bool operator==(InsetGraphicsParams const & left,
 
 	    left.bbox == right.bbox &&
 	    left.clip == right.clip &&
+	    left.darkModeSensitive == right.darkModeSensitive &&
 
 	    left.rotateAngle == right.rotateAngle &&
 	    left.rotateOrigin == right.rotateOrigin &&
@@ -143,6 +146,8 @@ void InsetGraphicsParams::Write(ostream & os, Buffer const & buffer) const
 		os << "\tlyxscale " << lyxscale << '\n';
 	if (!display)
 		os << "\tdisplay false\n";
+	if (darkModeSensitive)
+		os << "\tdarkModeSensitive\n";
 	if (!scale.empty() && !float_equal(convert<double>(scale), 0.0, 0.05)) {
 		if (!float_equal(convert<double>(scale), 100.0, 0.05))
 			os << "\tscale " << scale << '\n';
@@ -192,6 +197,8 @@ bool InsetGraphicsParams::Read(Lexer & lex, string const & token,
 	} else if (token == "display") {
 		lex.next();
 		display = lex.getString() != "false";
+	} else if (token == "darkModeSensitive") {
+		darkModeSensitive = true;
 	} else if (token == "scale") {
 		lex.next();
 		scale = lex.getString();
@@ -288,10 +295,8 @@ graphics::Params InsetGraphicsParams::as_grfxParams() const
 		}
 
 		// Paranoia check.
-		int const width  = pars.bb.xr.inBP() - pars.bb.xl.inBP();
-		int const height = pars.bb.yt.inBP() - pars.bb.yb.inBP();
-
-		if (width  < 0 || height < 0) {
+		if (pars.bb.xr.inBP() < pars.bb.xl.inBP()
+		    || pars.bb.yt.inBP() < pars.bb.yb.inBP()) {
 			pars.bb.xl = Length();
 			pars.bb.xr = Length();
 			pars.bb.yb = Length();

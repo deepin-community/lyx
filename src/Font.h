@@ -33,7 +33,7 @@ class Font {
 
 public:
 	///
-	explicit Font(FontInfo = sane_font, Language const * l = 0);
+	explicit Font(FontInfo = sane_font, Language const * l = nullptr);
 
 	///
 	FontInfo & fontInfo() { return bits_; }
@@ -72,10 +72,12 @@ public:
 	    to this font. Returns number of chars written. Base is the
 	    font state active now.
 	*/
-	int latexWriteStartChanges(odocstream &, BufferParams const & bparams,
+	int latexWriteStartChanges(otexstream &, BufferParams const & bparams,
 				   OutputParams const & runparams,
 				   Font const & base,
-				   Font const & prev) const;
+				   Font const & prev,
+				   bool non_inherit_inset = false,
+				   bool needs_cprotection = false) const;
 
 	/** Writes the tail of the LaTeX needed to change to this font.
 	    Returns number of chars written. Base is the font state we want
@@ -86,11 +88,11 @@ public:
 				 Font const & base,
 				 Font const & next,
 				 bool & needPar,
-				 bool const & closeLanguage = true) const;
+				 bool closeLanguage = true) const;
 
 
 	/// Build GUI description of font state
-	docstring const stateText(BufferParams * params) const;
+	docstring const stateText(BufferParams * params = nullptr, bool const terse = false) const;
 
 	///
 	void validate(LaTeXFeatures & features) const;
@@ -117,6 +119,9 @@ private:
 	mutable bool open_encoding_;
 };
 
+///
+std::ostream & operator<<(std::ostream & os, FontInfo const & f);
+
 
 ///
 inline
@@ -131,11 +136,6 @@ bool operator!=(Font const & font1, Font const & font2)
 {
 	return !(font1 == font2);
 }
-
-/** Returns the current freefont, encoded as a std::string to be passed to the
- *  frontends. Implemented in Text3.cpp.
- */
-std::string const freefont2string();
 
 } // namespace lyx
 

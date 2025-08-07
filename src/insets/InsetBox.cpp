@@ -26,6 +26,7 @@
 #include "LaTeXFeatures.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
 #include "TexRow.h"
 #include "texstream.h"
@@ -33,6 +34,7 @@
 
 #include "support/debug.h"
 #include "support/docstream.h"
+#include "support/FileName.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
 #include "support/Translator.h"
@@ -163,7 +165,7 @@ void InsetBox::setButtonLabel()
 
 	// set the frame color for the inset if the type is Boxed
 	if (btype == Boxed)
-		setFrameColor(lcolor.getFromLaTeXName(params_.framecolor));
+		setFrameColor(lcolor.getFromLaTeXName(getFrameColor(true)));
 	else
 		setFrameColor(Color_collapsibleframe);
 }
@@ -182,15 +184,15 @@ bool InsetBox::allowMultiPar() const
 }
 
 
-void InsetBox::metrics(MetricsInfo & m, Dimension & dim) const
+void InsetBox::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	// back up textwidth.
-	int textwidth_backup = m.base.textwidth;
+	int textwidth_backup = mi.base.textwidth;
 	if (hasFixedWidth())
-		m.base.textwidth = params_.width.inPixels(m.base);
-	InsetCollapsible::metrics(m, dim);
-	// retore textwidth.
-	m.base.textwidth = textwidth_backup;
+		mi.base.textwidth = mi.base.inPixels(params_.width);
+	InsetCollapsible::metrics(mi, dim);
+	// restore textwidth.
+	mi.base.textwidth = textwidth_backup;
 }
 
 
@@ -201,6 +203,17 @@ bool InsetBox::forcePlainLayout(idx_type) const
 }
 
 
+bool InsetBox::needsCProtection(bool const maintext, bool const fragile) const
+{
+	// We need to cprotect boxes that use minipages as inner box
+	// in fragile context
+	if (fragile && params_.inner_box && !params_.use_parbox && !params_.use_makebox)
+		return true;
+
+	return InsetText::needsCProtection(maintext, fragile);
+}
+
+
 ColorCode InsetBox::backgroundColor(PainterInfo const &) const
 {
 	// we only support background color for 3 types
@@ -208,11 +221,10 @@ ColorCode InsetBox::backgroundColor(PainterInfo const &) const
 		return getLayout().bgcolor();
 
 	if (params_.type == "Shaded") {
-		// FIXME: This hardcoded color is a hack!
-		if (buffer().params().boxbgcolor == lyx::rgbFromHexName("#ff0000"))
+		if (!buffer().params().isboxbgcolor)
 			return getLayout().bgcolor();
 
-		ColorCode c = lcolor.getFromLyXName("boxbgcolor");
+		ColorCode c = lcolor.getFromLyXName("boxbgcolor@" + buffer().fileName().absFileName());
 		if (c == Color_none)
 			return getLayout().bgcolor();
 		return c;
@@ -270,7 +282,7 @@ void InsetBox::doDispatch(Cursor & cur, FuncRequest & cmd)
 		cur.recordUndoInset(this);
 		if (change_type) {
 			params_.type = cmd.getArg(1);
-			// set a makebox if there is no inner box but Frameless was exectued
+			// set a makebox if there is no inner box but Frameless was executed
 			// otherwise the result would be a non existent box (no inner AND outer box)
 			// (this was LyX bug 8712)
 			if (params_.type == "Frameless" && !params_.inner_box) {
@@ -338,11 +350,13 @@ void InsetBox::latex(otexstream & os, OutputParams const & runparams) const
 	string separation_string = params_.separation.asLatexString();
 	string shadowsize_string = params_.shadowsize.asLatexString();
 	bool stdwidth = false;
+	string const cprotect = hasCProtectContent(runparams.moving_arg) ? "\\cprotect" : string();
 	// Colored boxes in RTL need to be wrapped into \beginL...\endL
 	string maybeBeginL;
 	string maybeEndL;
 	bool needEndL = false;
-	if (!runparams.isFullUnicode() && runparams.local_font->isRightToLeft()) {
+	if (!runparams.isFullUnicode()
+	    && runparams.local_font && runparams.local_font->isRightToLeft()) {
 		maybeBeginL = "\\beginL";
 		maybeEndL = "\\endL";
 	}
@@ -392,6 +406,7 @@ void InsetBox::latex(otexstream & os, OutputParams const & runparams) const
 	if (stdwidth && !(buffer().params().paragraph_separation))
 		os << "\\noindent";
 
+	bool needendgroup = false;
 	switch (btype) {
 	case Frameless:
 		break;
@@ -415,9 +430,11 @@ void InsetBox::latex(otexstream & os, OutputParams const & runparams) const
 		if (separation_string != defaultSep && thickness_string == defaultThick)
 			os << "{\\fboxsep " << from_ascii(separation_string);
 		if (!params_.inner_box && !width_string.empty()) {
-			if (params_.framecolor != "black" || params_.backgroundcolor != "none") {
-				os << maybeBeginL << "\\fcolorbox{" << params_.framecolor << "}{" << params_.backgroundcolor << "}{";
-				os << "\\makebox";
+			if (useFColorBox()) {
+				os << maybeBeginL
+				   << "\\fcolorbox{" << getFrameColor()
+				   << "}{" << getBackgroundColor()
+				   << "}{" << "\\makebox";
 				needEndL = !maybeBeginL.empty();
 			} else
 				os << "\\framebox";
@@ -434,11 +451,19 @@ void InsetBox::latex(otexstream & os, OutputParams const & runparams) const
 			if (params_.hor_pos != 'c')
 				os << "[" << params_.hor_pos << "]";
 		} else {
-			if (params_.framecolor != "black" || params_.backgroundcolor != "none") {
-				os << maybeBeginL << "\\fcolorbox{" << params_.framecolor << "}{" << params_.backgroundcolor << "}";
+			if (useFColorBox()) {
+				os << maybeBeginL
+				   << "\\fcolorbox{" << getFrameColor()
+				   << "}{" << getBackgroundColor() << "}";
 				needEndL = !maybeBeginL.empty();
-			} else 
-				os << "\\fbox";
+			} else {
+				if (!cprotect.empty() && contains(runparams.active_chars, '^')) {
+					// cprotect relies on ^ being on catcode 7
+					os << "\\begingroup\\catcode`\\^=7";
+					needendgroup = true;
+				}
+				os << cprotect << "\\fbox";
+			}
 		}
 		os << "{";
 		break;
@@ -595,11 +620,12 @@ void InsetBox::latex(otexstream & os, OutputParams const & runparams) const
 		break;
 	case Boxed:
 		os << "}";
-		if (!params_.inner_box && !width_string.empty()
-			&& (params_.framecolor != "black" || params_.backgroundcolor != "none"))
+		if (!params_.inner_box && !width_string.empty() && useFColorBox())
 			os << "}";
-		if (separation_string != defaultSep	|| thickness_string != defaultThick)
+		if (separation_string != defaultSep || thickness_string != defaultThick)
 			os << "}";
+		if (needendgroup)
+			os << "\\endgroup";
 		break;
 	case ovalbox:
 		os << "}";
@@ -694,13 +720,61 @@ int InsetBox::plaintext(odocstringstream & os,
 }
 
 
-int InsetBox::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetBox::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	return InsetText::docbook(os, runparams);
+	// There really should be a wrapper tag for this layout.
+	bool hasBoxTag = !getLayout().docbookwrappertag().empty();
+	if (!hasBoxTag)
+		LYXERR0("Assertion failed: box layout " + getLayout().name() + " missing DocBookWrapperTag.");
+
+	// Avoid nesting boxes in DocBook, it's not allowed. Only make the check for <sidebar> to avoid destroying
+	// tags if this is not the wrapper tag for this layout (unlikely).
+	bool isAlreadyInBox = hasBoxTag && xs.isTagOpen(xml::StartTag(getLayout().docbookwrappertag()));
+
+	bool outputBoxTag = hasBoxTag && !isAlreadyInBox;
+
+	// Generate the box tag (typically, <sidebar>).
+	if (outputBoxTag) {
+		if (!xs.isLastTagCR())
+			xs << xml::CR();
+
+		xs << xml::StartTag(getLayout().docbookwrappertag(), getLayout().docbookwrapperattr());
+		xs << xml::CR();
+	}
+
+	// If the box starts with a sectioning item, use as box title.
+	auto current_par = paragraphs().begin();
+	if (current_par->layout().category() == from_utf8("Sectioning")) {
+		// Only generate the first paragraph.
+		current_par = makeAny(text(), buffer(), xs, runparams, paragraphs().begin());
+	}
+
+	// Don't call InsetText::docbook, as this would generate all paragraphs in the inset, not the ones we are
+	// interested in. The best solution would be to call docbookParagraphs with an updated OutputParams object to only
+	// generate paragraphs after the title, but it leads to strange crashes, as if text().paragraphs() then returns
+	// a smaller set of paragrphs.
+	// Elements in the box must keep their paragraphs.
+	auto rp = runparams;
+	rp.docbook_in_par = false;
+	rp.docbook_force_pars = true;
+
+	xs.startDivision(false);
+	while (current_par != paragraphs().end())
+		current_par = makeAny(text(), buffer(), xs, rp, current_par);
+	xs.endDivision();
+
+	// Close the box.
+	if (outputBoxTag) {
+		if (!xs.isLastTagCR())
+			xs << xml::CR();
+
+		xs << xml::EndTag(getLayout().docbookwrappertag());
+		xs << xml::CR();
+	}
 }
 
 
-docstring InsetBox::xhtml(XHTMLStream & xs, OutputParams const & runparams) const
+docstring InsetBox::xhtml(XMLStream & xs, OutputParams const & runparams) const
 {
 	// construct attributes
 	string attrs = "class='" + params_.type + "'";
@@ -716,10 +790,10 @@ docstring InsetBox::xhtml(XHTMLStream & xs, OutputParams const & runparams) cons
 	if (!style.empty())
 		attrs += " style='" + style + "'";
 
-	xs << html::StartTag("div", attrs);
+	xs << xml::StartTag("div", attrs);
 	XHTMLOptions const opts = InsetText::WriteLabel | InsetText::WriteInnerTag;
 	docstring defer = InsetText::insetAsXHTML(xs, runparams, opts);
-	xs << html::EndTag("div");
+	xs << xml::EndTag("div");
 	xs << defer;
 	return docstring();
 }
@@ -739,7 +813,8 @@ void InsetBox::validate(LaTeXFeatures & features) const
 		break;
 	case Boxed:
 		features.require("calc");
-		if (params_.framecolor != "black" || params_.backgroundcolor != "none")
+		if (useFColorBox())
+			// \fcolorbox is provided by [x]color
 			features.require("xcolor");
 		break;
 	case ovalbox:
@@ -804,6 +879,32 @@ void InsetBox::string2params(string const & in, InsetBoxParams & params)
 }
 
 
+string const InsetBox::getFrameColor(bool const gui) const
+{
+	if (params_.framecolor == "default")
+		return gui ? "foreground" : "black";
+	return params_.framecolor;
+}
+
+
+string const InsetBox::getBackgroundColor() const
+{
+	if (params_.backgroundcolor == "none")
+		return buffer().params().isbackgroundcolor
+				? "page_backgroundcolor"
+				: "white";
+	return params_.backgroundcolor;
+}
+
+
+bool InsetBox::useFColorBox() const
+{
+	// we need an \fcolorbox if the framecolor or the backgroundcolor
+	// is non-default. We also do it with black and white for consistency.
+	return params_.framecolor != "default" || params_.backgroundcolor != "none";
+}
+
+
 /////////////////////////////////////////////////////////////////////////
 //
 // InsetBoxParams
@@ -825,7 +926,7 @@ InsetBoxParams::InsetBoxParams(string const & label)
 	  thickness(Length(defaultThick)),
 	  separation(Length(defaultSep)),
 	  shadowsize(Length(defaultShadow)),
-	  framecolor("black"),
+	  framecolor("default"),
 	  backgroundcolor("none")
 {}
 

@@ -18,6 +18,7 @@
 
 #include "Buffer.h"
 #include "BufferView.h"
+#include "Converter.h"
 #include "Cursor.h"
 #include "DispatchResult.h"
 #include "Exporter.h"
@@ -28,10 +29,10 @@
 #include "LyX.h" // use_gui
 #include "LyXRC.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
 #include "output_latex.h"
 #include "output_xhtml.h"
 #include "texstream.h"
+#include "xml.h"
 #include "TocBackend.h"
 
 #include "frontends/alert.h"
@@ -450,12 +451,6 @@ bool InsetExternal::setMouseHover(BufferView const * bv, bool mouse_hover) const
 }
 
 
-void InsetExternal::statusChanged() const
-{
-	updateFrontend();
-}
-
-
 void InsetExternal::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
 	switch (cmd.action()) {
@@ -574,7 +569,7 @@ static docstring latexString(InsetExternal const & inset)
 	// We don't need to set runparams.encoding since it is not used by
 	// latex().
 	OutputParams runparams(0);
-	runparams.flavor = OutputParams::LATEX;
+	runparams.flavor = Flavor::LaTeX;
 	inset.latex(os, runparams);
 	return ods.str();
 }
@@ -653,7 +648,7 @@ void InsetExternal::updatePreview() const
 		renderer_ = make_unique<RenderMonitoredPreview>(this);
 		RenderMonitoredPreview * preview_ptr = renderer_->asMonitoredPreview();
 		// This connection is closed at the same time as this is destroyed.
-		preview_ptr->connect([=]() { fileChanged(); });
+		preview_ptr->connect([this]() { fileChanged(); });
 		add_preview_and_start_loading(*preview_ptr, *this, buffer());
 		break;
 	}
@@ -717,7 +712,7 @@ void InsetExternal::latex(otexstream & os, OutputParams const & runparams) const
 
 	// If the template has specified a PDFLaTeX output, then we try and
 	// use that.
-	if (runparams.flavor == OutputParams::PDFLATEX) {
+	if (runparams.flavor == Flavor::PdfLaTeX) {
 		external::Template const * const et_ptr =
 			external::getTemplatePtr(params_);
 		if (!et_ptr)
@@ -728,19 +723,26 @@ void InsetExternal::latex(otexstream & os, OutputParams const & runparams) const
 			et.formats.find("PDFLaTeX");
 
 		if (cit != et.formats.end()) {
-			external::writeExternal(params_, "PDFLaTeX",
-						buffer(), os,
-						*(runparams.exportdata),
-						external_in_tmpdir,
-						dryrun);
+			external::RetVal retval =
+				external::writeExternal(params_, "PDFLaTeX", buffer(), os,
+				    *(runparams.exportdata), external_in_tmpdir, dryrun);
+			if (retval == external::KILLED) {
+				LYXERR0("External template preparation killed.");
+				if (buffer().isClone() && buffer().isExporting())
+					throw ConversionException();
+			}
 			return;
 		}
 	}
 
-	external::writeExternal(params_, "LaTeX", buffer(), os,
-				*(runparams.exportdata),
-				external_in_tmpdir,
-				dryrun);
+	external::RetVal retval =
+		external::writeExternal(params_, "LaTeX", buffer(), os,
+		    *(runparams.exportdata), external_in_tmpdir, dryrun);
+	if (retval == external::KILLED) {
+		LYXERR0("External template preparation killed.");
+		if (buffer().isClone() && buffer().isExporting())
+			throw ConversionException();
+	}
 }
 
 
@@ -755,36 +757,47 @@ int InsetExternal::plaintext(odocstringstream & os,
 	bool const dryrun = runparams.dryrun || runparams.inComment;
 	otexstream ots(os);
 	ots << '\n'; // output external material on a new line
-	external::writeExternal(params_, "Ascii", buffer(), ots,
-				*(runparams.exportdata), external_in_tmpdir, dryrun);
+	external::RetVal retval =
+		external::writeExternal(params_, "Ascii", buffer(), ots,
+		    *(runparams.exportdata), external_in_tmpdir, dryrun);
+	if (retval == external::KILLED) {
+		LYXERR0("External template preparation killed.");
+		if (buffer().isClone() && buffer().isExporting())
+			throw ConversionException();
+	}
 	return PLAINTEXT_NEWLINE;
 }
 
 
-int InsetExternal::docbook(odocstream & os,
-			   OutputParams const & runparams) const
+void InsetExternal::generateXML(XMLStream & xs, OutputParams const & runparams, std::string const & format) const
 {
 	bool const external_in_tmpdir = !runparams.nice;
 	bool const dryrun = runparams.dryrun || runparams.inComment;
 	odocstringstream ods;
 	otexstream ots(ods);
-	external::writeExternal(params_, "DocBook", buffer(), ots,
-				*(runparams.exportdata), external_in_tmpdir, dryrun);
-	os << ods.str();
-	return int(count(ods.str().begin(), ods.str().end(), '\n'));
+	external::RetVal retval =
+			external::writeExternal(params_, format, buffer(), ots,
+			                        *(runparams.exportdata), external_in_tmpdir, dryrun);
+	if (retval == external::KILLED) {
+		LYXERR0("External template preparation killed.");
+		if (buffer().isClone() && buffer().isExporting())
+			throw ConversionException();
+	}
+	xs << XMLStream::ESCAPE_NONE << ods.str();
 }
 
 
-docstring InsetExternal::xhtml(XHTMLStream & xs,
+void InsetExternal::docbook(XMLStream & xs,
+                            OutputParams const & runparams) const
+{
+	generateXML(xs, runparams, "DocBook");
+}
+
+
+docstring InsetExternal::xhtml(XMLStream & xs,
 			OutputParams const & runparams) const
 {
-	bool const external_in_tmpdir = !runparams.nice;
-	bool const dryrun = runparams.dryrun || runparams.inComment;
-	odocstringstream ods;
-	otexstream ots(ods);
-	external::writeExternal(params_, "XHTML", buffer(), ots,
-				       *(runparams.exportdata), external_in_tmpdir, dryrun);
-	xs << XHTMLStream::ESCAPE_NONE << ods.str();
+	generateXML(xs, runparams, "XHTML");
 	return docstring();
 }
 
@@ -802,25 +815,25 @@ void InsetExternal::validate(LaTeXFeatures & features) const
 
 	string format;
 	switch (features.runparams().flavor) {
-	case OutputParams::LATEX:
-	case OutputParams::DVILUATEX:
+	case Flavor::LaTeX:
+	case Flavor::DviLuaTeX:
 		format = "LaTeX";
 		break;
-	case OutputParams::LUATEX:
-	case OutputParams::PDFLATEX:
-	case OutputParams::XETEX:
+	case Flavor::LuaTeX:
+	case Flavor::PdfLaTeX:
+	case Flavor::XeTeX:
 		format = "PDFLaTeX";
 		break;
-	case OutputParams::XML:
+	case Flavor::DocBook5:
 		format = "DocBook";
 		break;
-	case OutputParams::HTML:
+	case Flavor::Html:
 		format = "html";
 		break;
-	case OutputParams::TEXT:
+	case Flavor::Text:
 		format = "text";
 		break;
-	case OutputParams::LYX:
+	case Flavor::LyX:
 		format = "lyx";
 		break;
 	}
@@ -918,6 +931,12 @@ string InsetExternal::params2string(InsetExternalParams const & params,
 	params.write(buffer, data);
 	data << "\\end_inset\n";
 	return data.str();
+}
+
+
+docstring InsetExternal::toolTip(BufferView const &, int, int) const
+{
+	return from_utf8(params().filename.onlyFileName());
 }
 
 } // namespace lyx

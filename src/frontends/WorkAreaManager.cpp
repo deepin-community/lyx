@@ -13,6 +13,9 @@
 
 #include "WorkAreaManager.h"
 
+#include "BufferView.h"
+#include "Cursor.h"
+
 #include "Application.h"
 #include "WorkArea.h"
 
@@ -47,7 +50,7 @@ void WorkAreaManager::closeAll()
 }
 
 
-bool WorkAreaManager::unhide(Buffer * buf)
+bool WorkAreaManager::unhide(Buffer * buf) const
 {
 	if (!work_areas_.empty())
 		return true;
@@ -59,6 +62,22 @@ void WorkAreaManager::updateTitles()
 {
 	for (WorkArea * wa : work_areas_)
 		wa->updateWindowTitle();
+}
+
+
+void WorkAreaManager::scheduleRedraw()
+{
+	for (WorkArea * wa : work_areas_)
+		wa->scheduleRedraw(true);
+}
+
+
+void WorkAreaManager::sanitizeCursors()
+{
+	for (WorkArea * wa : work_areas_) {
+		wa->bufferView().cursor().sanitize();
+		wa->bufferView().resetInlineCompletionPos();
+	}
 }
 
 

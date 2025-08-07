@@ -1,11 +1,12 @@
-#\DeclareLyXModule[bicaption.sty]{Multilingual Captions}
+#\DeclareLyXModule[bicaption.sty]{Bilingual Captions}
+#\DeclareCategory{Floats & Captions}
 #DescriptionBegin
-#Provides two styles to typeset multilingual captions.
-#For a description see the file MultilingualCaptions.lyx in LyX's examples folder.
+#Provides two styles to typeset bilingual captions.
+#For a description see Help > Specific Manuals > Multilingual Captions.
 #DescriptionEnd
 #Author: Uwe Stöhr <uwestoehr@web.de>
 
-Format 66
+Format 104
 
 Style "Caption setup"
 	LatexType	command
@@ -28,7 +29,7 @@ Style "Caption setup"
 	LabelType	Static
 	LabelString	"Caption setup:"
 	LabelFont
-	  Color		Green
+	  Color		textlabel2
 	EndFont
 	Requires	bicaption
 End
@@ -61,5 +62,5 @@ InsetLayout Caption:Bicaption
 	   margin: 1ex;
 	  }
 	EndHTMLStyle
-	HTMLAttr "class='float-caption float-caption-bicaption'"
+	HTMLClass  "float-caption float-caption-bicaption"
 End

@@ -65,6 +65,8 @@ enum ColorCode {
 	Color_foreground,
 	/// Background color of selected text
 	Color_selection,
+	/// Foreground color of selected math
+	Color_selectionmath,
 	/// Foreground color of selected text
 	Color_selectiontext,
 	/// Text color in LaTeX mode
@@ -107,6 +109,13 @@ enum ColorCode {
 	Color_phantomtext,
 	/// Label color for URL insets
 	Color_urllabel,
+
+	/// Label color 1 for text (layout) labels
+	Color_textlabel1,
+	/// Label color 2 for text (layout) labels
+	Color_textlabel2,
+	/// Label color 3 for text (layout) labels
+	Color_textlabel3,
 
 	/// Color for URL inset text
 	Color_urltext,
@@ -152,7 +161,7 @@ enum ColorCode {
 	Color_mathframe,
 	/// Math inset frame color not under focus
 	Color_mathcorners,
-	/// Math line color
+	/// Math empty box line color
 	Color_mathline,
 
 	/// Collapsible insets text
@@ -164,6 +173,8 @@ enum ColorCode {
 	Color_insetbg,
 	/// Inset marker frame color
 	Color_insetframe,
+	/// Inset marker label color
+	Color_insetlabel,
 
 	/// Error box text color
 	Color_error,
@@ -175,22 +186,24 @@ enum ColorCode {
 	Color_appendix,
 	/// Changebar color
 	Color_changebar,
-	/// Deleted text color
-	Color_deletedtext,
-	/// Added text color
-	Color_addedtext,
-	/// Changed text color author 1
-	Color_changedtextauthor1,
-	/// Changed text color author 2
-	Color_changedtextauthor2,
-	/// Changed text color author 3
-	Color_changedtextauthor3,
-	/// Changed text color author 4
-	Color_changedtextauthor4,
-	/// Changed text color author 5
-	Color_changedtextauthor5,
-	/// Deleted text modifying color
-	Color_deletedtextmodifier,
+	/// Deleted text color (exported output) in CT
+	Color_deletedtext_output,
+	/// Added text color (exported output) in CT
+	Color_addedtext_output,
+	/// Changed text color author 1 (workarea)
+	Color_changedtext_workarea_author1,
+	/// Changed text color author 2 (workarea)
+	Color_changedtext_workarea_author2,
+	/// Changed text color author 3 (workarea)
+	Color_changedtext_workarea_author3,
+	/// Changed text color author 4 (workarea)
+	Color_changedtext_workarea_author4,
+	/// Changed text color author 5 (workarea)
+	Color_changedtext_workarea_author5,
+	/// Changed text color document comparison (workarea)
+	Color_changedtext_workarea_comparison,
+	/// Deleted text modifying color (for brightness modulation) (workarea)
+	Color_deletedtext_workarea_modifier,
 	/// Table line color
 	Color_tabularline,
 	/// Table line color
@@ -207,12 +220,22 @@ enum ColorCode {
 	Color_buttonframe,
 	/// Color used for bottom background
 	Color_buttonbg,
-	/// Color used for buttom under focus
+	/// Color used for button under focus
 	Color_buttonhoverbg,
+	/// Text color for broken insets
+	Color_command_broken,
+	/// Background color for broken insets
+	Color_buttonbg_broken,
+	/// Frame color for broken insets
+	Color_buttonframe_broken,
+	/// Color used for broken inset button under focus
+	Color_buttonhoverbg_broken,
 	/// Color used for the pilcrow sign to mark the end of a paragraph
 	Color_paragraphmarker,
 	/// Preview frame color
 	Color_previewframe,
+	/// Bookmark indicator color
+	Color_bookmark,
 
 	// Logical attributes
 
@@ -221,7 +244,8 @@ enum ColorCode {
 	/// Color for regexp frame
 	Color_regexpframe,
 	/// For ignoring updates of a color
-	Color_ignore
+	Color_ignore,
+	Color_max = 500
 };
 
 

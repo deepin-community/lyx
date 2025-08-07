@@ -49,48 +49,36 @@ extern char const * LyXSeriesNames[NUM_SERIES + 2];
 extern char const * LyXShapeNames[NUM_SHAPE + 2];
 extern char const * LyXSizeNames[NUM_SIZE + 4];
 extern char const * LyXMiscNames[5];
-
-//
-// Names for the GUI
-//
+extern char const * GUIMiscNames[5];
 
 namespace {
-
-char const * GUIFamilyNames[NUM_FAMILIES + 2 /* default & error */] =
-{ N_("Roman"), N_("Sans Serif"), N_("Typewriter"), N_("Symbol"),
-  "cmr", "cmsy", "cmm", "cmex", "msa", "msb", "ds", "eufrak", "rsfs", "stmry",
-  "wasy", "esint", N_("Inherit"), N_("Ignore") };
-
-char const * GUISeriesNames[NUM_SERIES + 2 /* default & error */] =
-{ N_("Medium"), N_("Bold"), N_("Inherit"), N_("Ignore") };
-
-char const * GUIShapeNames[NUM_SHAPE + 2 /* default & error */] =
-{ N_("Upright"), N_("Italic"), N_("Slanted"), N_("Smallcaps"), N_("Inherit"),
-  N_("Ignore") };
-
-char const * GUISizeNames[NUM_SIZE + 4 /* increase, decrease, default & error */] =
-{ N_("Tiny"), N_("Smallest"), N_("Smaller"), N_("Small"), N_("Normal"), N_("Large"),
-  N_("Larger"), N_("Largest"), N_("Huge"), N_("Huger"), N_("Increase"), N_("Decrease"),
-  N_("Inherit"), N_("Ignore") };
-
-char const * GUIMiscNames[5] =
-{ N_("Off"), N_("On"), N_("Toggle"), N_("Inherit"), N_("Ignore") };
 
 //
 // Strings used to write LaTeX files
 //
-char const * LaTeXFamilyNames[NUM_FAMILIES + 2] =
+char const * LaTeXFamilyCommandNames[NUM_FAMILIES + 2] =
 { "textrm", "textsf", "texttt", "error1", "error2", "error3", "error4",
   "error5", "error6", "error7", "error8", "error9", "error10", "error11",
   "error12", "error13", "error14" };
 
-char const * LaTeXSeriesNames[NUM_SERIES + 2] =
+char const * LaTeXFamilySwitchNames[NUM_FAMILIES + 2] =
+{ "rmfamily", "sffamily", "ttfamily", "error1", "error2", "error3", "error4",
+  "error5", "error6", "error7", "error8", "error9", "error10", "error11",
+  "error12", "error13", "error14" };
+
+char const * LaTeXSeriesCommandNames[NUM_SERIES + 2] =
 { "textmd", "textbf", "error4", "error5" };
 
-char const * LaTeXShapeNames[NUM_SHAPE + 2] =
+char const * LaTeXSeriesSwitchNames[NUM_SERIES + 2] =
+{ "mdseries", "bfseries", "error4", "error5" };
+
+char const * LaTeXShapeCommandNames[NUM_SHAPE + 2] =
 { "textup", "textit", "textsl", "textsc", "error6", "error7" };
 
-char const * LaTeXSizeNames[NUM_SIZE + 4] =
+char const * LaTeXShapeSwitchNames[NUM_SHAPE + 2] =
+{ "upshape", "itshape", "slshape", "scshape", "error6", "error7" };
+
+char const * LaTeXSizeSwitchNames[NUM_SIZE + 4] =
 { "tiny", "scriptsize", "footnotesize", "small", "normalsize", "large",
   "Large", "LARGE", "huge", "Huge", "error8", "error9", "error10", "error11" };
 
@@ -126,74 +114,34 @@ void Font::setLanguage(Language const * l)
 
 /// Updates font settings according to request
 void Font::update(Font const & newfont,
-		     Language const * document_language,
+		     Language const * default_lang,
 		     bool toggleall)
 {
 	bits_.update(newfont.fontInfo(), toggleall);
 
 	if (newfont.language() == language() && toggleall)
-		if (language() == document_language)
+		if (language() == default_lang)
 			setLanguage(default_language);
 		else
-			setLanguage(document_language);
+			setLanguage(default_lang);
 	else if (newfont.language() == reset_language)
-		setLanguage(document_language);
+		setLanguage(default_lang);
 	else if (newfont.language() != ignore_language)
 		setLanguage(newfont.language());
 }
 
 
-docstring const stateText(FontInfo const & f)
+docstring const Font::stateText(BufferParams * params, bool const terse) const
 {
 	odocstringstream os;
-	if (f.family() != INHERIT_FAMILY)
-		os << _(GUIFamilyNames[f.family()]) << ", ";
-	if (f.series() != INHERIT_SERIES)
-		os << _(GUISeriesNames[f.series()]) << ", ";
-	if (f.shape() != INHERIT_SHAPE)
-		os << _(GUIShapeNames[f.shape()]) << ", ";
-	if (f.size() != FONT_SIZE_INHERIT)
-		os << _(GUISizeNames[f.size()]) << ", ";
-	if (f.color() != Color_inherit)
-		os << lcolor.getGUIName(f.color()) << ", ";
-	// FIXME: uncomment this when we support background.
-	//if (f.background() != Color_inherit)
-	//	os << lcolor.getGUIName(f.background()) << ", ";
-	if (f.emph() != FONT_INHERIT)
-		os << bformat(_("Emphasis %1$s, "),
-			      _(GUIMiscNames[f.emph()]));
-	if (f.underbar() != FONT_INHERIT)
-		os << bformat(_("Underline %1$s, "),
-			      _(GUIMiscNames[f.underbar()]));
-	if (f.strikeout() != FONT_INHERIT)
-		os << bformat(_("Strike out %1$s, "),
-			      _(GUIMiscNames[f.strikeout()]));
-	if (f.xout() != FONT_INHERIT)
-		os << bformat(_("Cross out %1$s, "),
-			      _(GUIMiscNames[f.xout()]));
-	if (f.uuline() != FONT_INHERIT)
-		os << bformat(_("Double underline %1$s, "),
-			      _(GUIMiscNames[f.uuline()]));
-	if (f.uwave() != FONT_INHERIT)
-		os << bformat(_("Wavy underline %1$s, "),
-			      _(GUIMiscNames[f.uwave()]));
-	if (f.noun() != FONT_INHERIT)
-		os << bformat(_("Noun %1$s, "),
-			      _(GUIMiscNames[f.noun()]));
-	if (f == inherit_font)
-		os << _("Default") << ", ";
-
-	return os.str();
-}
-
-
-docstring const Font::stateText(BufferParams * params) const
-{
-	odocstringstream os;
-	os << lyx::stateText(bits_);
-	if (!params || (language() != params->language))
+	os << bits_.stateText(terse);
+	if ((!params || (language() != params->language))
+	    && (!terse || language() != ignore_language)) {
+		// reset_language is a null pointer!
 		os << bformat(_("Language: %1$s, "),
-			      _(language()->display()));
+			      (language() == reset_language) ? _("Default")
+							     : _(language()->display()));
+	}
 	if (bits_.number() != FONT_OFF)
 		os << "  " << bformat(_("Number %1$s"),
 			      _(GUIMiscNames[bits_.number()]));
@@ -204,7 +152,7 @@ docstring const Font::stateText(BufferParams * params) const
 // Returns size in latex format
 string const Font::latexSize() const
 {
-	return LaTeXSizeNames[bits_.size()];
+	return LaTeXSizeSwitchNames[bits_.size()];
 }
 
 
@@ -221,10 +169,13 @@ void Font::lyxWriteChanges(Font const & orgfont,
 		os << "\\shape " << LyXShapeNames[bits_.shape()] << "\n";
 	if (orgfont.fontInfo().size() != bits_.size())
 		os << "\\size " << LyXSizeNames[bits_.size()] << "\n";
+	// FIXME: shall style be handled there? Probably not.
 	if (orgfont.fontInfo().emph() != bits_.emph())
 		os << "\\emph " << LyXMiscNames[bits_.emph()] << "\n";
 	if (orgfont.fontInfo().number() != bits_.number())
 		os << "\\numeric " << LyXMiscNames[bits_.number()] << "\n";
+	if (orgfont.fontInfo().nospellcheck() != bits_.nospellcheck())
+		os << "\\nospellcheck " << LyXMiscNames[bits_.nospellcheck()] << "\n";
 	if (orgfont.fontInfo().underbar() != bits_.underbar()) {
 		// This is only for backwards compatibility
 		switch (bits_.underbar()) {
@@ -273,13 +224,13 @@ void Font::lyxWriteChanges(Font const & orgfont,
 
 /// Writes the head of the LaTeX needed to impose this font
 // Returns number of chars written.
-int Font::latexWriteStartChanges(odocstream & os, BufferParams const & bparams,
+int Font::latexWriteStartChanges(otexstream & os, BufferParams const & bparams,
 				    OutputParams const & runparams,
 				    Font const & base,
-				    Font const & prev) const
+				    Font const & prev,
+				    bool non_inherit_inset,
+				    bool needs_cprotection) const
 {
-	bool env = false;
-
 	int count = 0;
 
 	// polyglossia or babel?
@@ -287,13 +238,20 @@ int Font::latexWriteStartChanges(odocstream & os, BufferParams const & bparams,
 	    && language()->lang() != base.language()->lang()
 	    && language() != prev.language()) {
 		if (!language()->polyglossia().empty()) {
-			string tmp = "\\text" + language()->polyglossia();
+			string tmp;
+			if (needs_cprotection)
+				tmp += "\\cprotect";
+			tmp += "\\text" + language()->polyglossia();
 			if (!language()->polyglossiaOpts().empty()) {
 				tmp += "[" + language()->polyglossiaOpts() + "]";
-				if (runparams.use_hyperref && runparams.moving_arg)
+				if (runparams.use_hyperref && runparams.moving_arg) {
 					// We need to strip the command for
 					// the pdf string, see #11813
-					tmp = "\\texorpdfstring{" + tmp + "}{}";
+					string tmpp;
+					if (needs_cprotection)
+						tmpp = "\\cprotect";
+					tmp = tmpp + "\\texorpdfstring{" + tmp + "}{}";
+				}
 			}
 			tmp += "{";
 			os << from_ascii(tmp);
@@ -306,21 +264,41 @@ int Font::latexWriteStartChanges(odocstream & os, BufferParams const & bparams,
 	} else if (language()->babel() != base.language()->babel() &&
 	    language() != prev.language()) {
 		if (language()->lang() == "farsi") {
+			if (needs_cprotection) {
+				os << "\\cprotect";
+				count += 9;
+			}
 			os << "\\textFR{";
 			count += 8;
 		} else if (!isRightToLeft() &&
 			    base.language()->lang() == "farsi") {
+			if (needs_cprotection) {
+				os << "\\cprotect";
+				count += 9;
+			}
 			os << "\\textLR{";
 			count += 8;
 		} else if (language()->lang() == "arabic_arabi") {
+			if (needs_cprotection) {
+				os << "\\cprotect";
+				count += 9;
+			}
 			os << "\\textAR{";
 			count += 8;
  		} else if (!isRightToLeft() &&
 				base.language()->lang() == "arabic_arabi") {
+			if (needs_cprotection) {
+				os << "\\cprotect";
+				count += 9;
+			}
 			os << "\\textLR{";
 			count += 8;
 		// currently the remaining RTL languages are arabic_arabtex and hebrew
-		} else if (isRightToLeft() != prev.isRightToLeft()) {
+		} else if (isRightToLeft() != prev.isRightToLeft() && !runparams.isFullUnicode()) {
+			if (needs_cprotection) {
+				os << "\\cprotect";
+				count += 9;
+			}
 			if (isRightToLeft()) {
 				os << "\\R{";
 				count += 3;
@@ -343,7 +321,7 @@ int Font::latexWriteStartChanges(odocstream & os, BufferParams const & bparams,
 	}
 
 	if (language()->encoding()->package() == Encoding::CJK) {
-		pair<bool, int> const c = switchEncoding(os, bparams,
+		pair<bool, int> const c = switchEncoding(os.os(), bparams,
 				runparams, *(language()->encoding()));
 		if (c.first) {
 			open_encoding_ = true;
@@ -357,26 +335,70 @@ int Font::latexWriteStartChanges(odocstream & os, BufferParams const & bparams,
 	FontInfo p = bits_;
 	p.reduce(prev.bits_);
 
+	if (f.size() != INHERIT_SIZE) {
+		if (!runparams.find_effective()) {
+			os << '{';
+			++count;
+			os << '\\'
+			   << LaTeXSizeSwitchNames[f.size()] << termcmd;
+			count += strlen(LaTeXSizeSwitchNames[f.size()]) + 1;
+		}
+		else {
+			os << '\\'
+			   << LaTeXSizeSwitchNames[f.size()] << '{';
+			count += strlen(LaTeXSizeSwitchNames[f.size()]) + 2;
+		}
+	}
 	if (f.family() != INHERIT_FAMILY) {
-		os << '\\'
-		   << LaTeXFamilyNames[f.family()]
-		   << '{';
-		count += strlen(LaTeXFamilyNames[f.family()]) + 2;
-		env = true; //We have opened a new environment
+		if (non_inherit_inset) {
+			os << '{';
+			++count;
+			os << '\\' << LaTeXFamilySwitchNames[f.family()] << termcmd;
+			count += strlen(LaTeXFamilySwitchNames[f.family()]) + 1;
+		} else {
+			if (needs_cprotection) {
+				os << "\\cprotect";
+				count += 9;
+			}
+			os << '\\'
+			   << LaTeXFamilyCommandNames[f.family()]
+			   << '{';
+			count += strlen(LaTeXFamilyCommandNames[f.family()]) + 2;
+		}
 	}
 	if (f.series() != INHERIT_SERIES) {
-		os << '\\'
-		   << LaTeXSeriesNames[f.series()]
-		   << '{';
-		count += strlen(LaTeXSeriesNames[f.series()]) + 2;
-		env = true; //We have opened a new environment
+		if (non_inherit_inset) {
+			os << '{';
+			++count;
+			os << '\\' << LaTeXSeriesSwitchNames[f.series()] << termcmd;
+			count += strlen(LaTeXSeriesSwitchNames[f.series()]) + 1;
+		} else {
+			if (needs_cprotection) {
+				os << "\\cprotect";
+				count += 9;
+			}
+			os << '\\'
+			   << LaTeXSeriesCommandNames[f.series()]
+			   << '{';
+			count += strlen(LaTeXSeriesCommandNames[f.series()]) + 2;
+		}
 	}
 	if (f.shape() != INHERIT_SHAPE) {
-		os << '\\'
-		   << LaTeXShapeNames[f.shape()]
-		   << '{';
-		count += strlen(LaTeXShapeNames[f.shape()]) + 2;
-		env = true; //We have opened a new environment
+		if (non_inherit_inset) {
+			os << '{';
+			++count;
+			os << '\\' << LaTeXShapeSwitchNames[f.shape()] << termcmd;
+			count += strlen(LaTeXShapeSwitchNames[f.shape()]) + 1;
+		} else {
+			if (needs_cprotection) {
+				os << "\\cprotect";
+				count += 9;
+			}
+			os << '\\'
+			   << LaTeXShapeCommandNames[f.shape()]
+			   << '{';
+			count += strlen(LaTeXShapeCommandNames[f.shape()]) + 2;
+		}
 	}
 	if (f.color() != Color_inherit && f.color() != Color_ignore) {
 		if (f.color() == Color_none && p.color() != Color_none) {
@@ -389,7 +411,6 @@ int Font::latexWriteStartChanges(odocstream & os, BufferParams const & bparams,
 			   << "}{";
 			count += lcolor.getLaTeXName(f.color()).length() + 13;
 		}
-		env = true; //We have opened a new environment
 	}
 	// FIXME: uncomment this when we support background.
 	/*
@@ -405,7 +426,7 @@ int Font::latexWriteStartChanges(odocstream & os, BufferParams const & bparams,
 	// the numbers are written Left-to-Right. ArabTeX package
 	// and bidi (polyglossia with XeTeX) reorder the number automatically
 	// but the packages used for Hebrew and Farsi (Arabi) do not.
-	if (!(runparams.use_polyglossia && runparams.flavor == OutputParams::XETEX)
+	if (!bparams.useBidiPackage(runparams)
 	    && !runparams.pass_thru
 	    && bits_.number() == FONT_ON
 	    && prev.fontInfo().number() != FONT_ON
@@ -414,67 +435,85 @@ int Font::latexWriteStartChanges(odocstream & os, BufferParams const & bparams,
 		|| language()->lang() == "arabic_arabi")) {
 		if (runparams.use_polyglossia) {
 			// LuaTeX/luabidi
-			os << "\\LR{";
-			count += 5;
-		} else {
+			// \LR needs extra grouping
+			// (possibly a LuaTeX bug)
+			os << "{\\LR{";
+			count += 6;
+		} else if (!runparams.isFullUnicode()) {
+			// not needed with babel/lua|xetex
 			os << "{\\beginL ";
 			count += 9;
 		}
 	}
 	if (f.emph() == FONT_ON) {
+		if (needs_cprotection) {
+			os << "\\cprotect";
+			count += 9;
+		}
 		os << "\\emph{";
 		count += 6;
-		env = true; //We have opened a new environment
 	}
 	// \noun{} is a LyX special macro
 	if (f.noun() == FONT_ON) {
+		if (needs_cprotection) {
+			os << "\\cprotect";
+			count += 9;
+		}
 		os << "\\noun{";
 		count += 6;
-		env = true; //We have opened a new environment
-	}
-	if (f.size() != FONT_SIZE_INHERIT) {
-		// If we didn't open an environment above, we open one here
-		if (!env) {
-			os << '{';
-			++count;
-		}
-		os << '\\'
-		   << LaTeXSizeNames[f.size()]
-		   << "{}";
-		count += strlen(LaTeXSizeNames[f.size()]) + 3;
 	}
 	// The ulem commands need to be on the deepest nesting level
 	// because ulem puts every nested group or macro in a box,
 	// which prevents linebreaks (#8424, #8733)
 	if (f.underbar() == FONT_ON) {
+		if (needs_cprotection) {
+			os << "\\cprotect";
+			count += 9;
+		}
 		os << "\\uline{";
-		count += 10;
+		count += 7;
 		++runparams.inulemcmd;
 	}
 	if (f.uuline() == FONT_ON) {
+		if (needs_cprotection) {
+			os << "\\cprotect";
+			count += 9;
+		}
 		os << "\\uuline{";
-		count += 11;
+		count += 8;
 		++runparams.inulemcmd;
 	}
 	if (f.strikeout() == FONT_ON) {
+		if (needs_cprotection) {
+			os << "\\cprotect";
+			count += 9;
+		}
 		os << "\\sout{";
-		count += 9;
+		count += 6;
 		++runparams.inulemcmd;
 	}
 	if (f.xout() == FONT_ON) {
+		if (needs_cprotection) {
+			os << "\\cprotect";
+			count += 9;
+		}
 		os << "\\xout{";
-		count += 9;
+		count += 6;
 		++runparams.inulemcmd;
 	}
 	if (f.uwave() == FONT_ON) {
 		if (runparams.inulemcmd) {
 			// needed with nested uwave in xout
 			// see https://tex.stackexchange.com/a/263042
-			os << "\\ULdepth=1000pt";
-			count += 15;
+			os << "\\ULdepth=\\maxdimen";
+			count += 18;
+		}
+		if (needs_cprotection) {
+			os << "\\cprotect";
+			count += 9;
 		}
 		os << "\\uwave{";
-		count += 10;
+		count += 7;
 		++runparams.inulemcmd;
 	}
 	return count;
@@ -489,10 +528,9 @@ int Font::latexWriteEndChanges(otexstream & os, BufferParams const & bparams,
 				  Font const & base,
 				  Font const & next,
 				  bool & needPar,
-				  bool const & closeLanguage) const
+				  bool closeLanguage) const
 {
 	int count = 0;
-	bool env = false;
 
 	// reduce the current font to changes against the base
 	// font (of the layout). We use a temporary for this to
@@ -503,44 +541,38 @@ int Font::latexWriteEndChanges(otexstream & os, BufferParams const & bparams,
 	if (f.family() != INHERIT_FAMILY) {
 		os << '}';
 		++count;
-		env = true; // Size change need not bother about closing env.
 	}
 	if (f.series() != INHERIT_SERIES) {
 		os << '}';
 		++count;
-		env = true; // Size change need not bother about closing env.
 	}
 	if (f.shape() != INHERIT_SHAPE) {
 		os << '}';
 		++count;
-		env = true; // Size change need not bother about closing env.
 	}
 	if (f.color() != Color_inherit && f.color() != Color_ignore && f.color() != Color_none) {
 		os << '}';
 		++count;
-		env = true; // Size change need not bother about closing env.
 	}
 	if (f.emph() == FONT_ON) {
 		os << '}';
 		++count;
-		env = true; // Size change need not bother about closing env.
 	}
 	if (f.noun() == FONT_ON) {
 		os << '}';
 		++count;
-		env = true; // Size change need not bother about closing env.
 	}
-	if (f.size() != FONT_SIZE_INHERIT) {
-		// We only have to close if only size changed
-		if (!env) {
-			if (needPar && !closeLanguage) {
-				os << "\\par";
-				count += 4;
-				needPar = false;
-			}
-			os << '}';
-			++count;
+	if (f.size() != INHERIT_SIZE) {
+		// We do not close size group in front of
+		// insets with InheritFont() false (as opposed
+		// to all other font properties) (#8384)
+		if (needPar && !closeLanguage) {
+			os << "\\par";
+			count += 4;
+			needPar = false;
 		}
+		os << '}';
+		++count;
 	}
 	if (f.underbar() == FONT_ON) {
 		os << '}';
@@ -572,7 +604,7 @@ int Font::latexWriteEndChanges(otexstream & os, BufferParams const & bparams,
 	// the numbers are written Left-to-Right. ArabTeX package
 	// and bidi (polyglossia with XeTeX) reorder the number automatically
 	// but the packages used for Hebrew and Farsi (Arabi) do not.
-	if (!(runparams.use_polyglossia && runparams.flavor == OutputParams::XETEX)
+	if (!bparams.useBidiPackage(runparams)
 	    && !runparams.pass_thru
 	    && bits_.number() == FONT_ON
 	    && next.fontInfo().number() != FONT_ON
@@ -581,9 +613,12 @@ int Font::latexWriteEndChanges(otexstream & os, BufferParams const & bparams,
 		|| language()->lang() == "arabic_arabi")) {
 		if (runparams.use_polyglossia) {
 			// LuaTeX/luabidi
-			os << "}";
-			count += 1;
-		} else {
+			// luabidi's \LR needs extra grouping
+			// (possibly a LuaTeX bug)
+			os << "}}";
+			count += 2;
+		} else if (!runparams.isFullUnicode()) {
+			// not needed with babel/lua|xetex
 			os << "\\endL}";
 			count += 6;
 		}
@@ -603,13 +638,13 @@ int Font::latexWriteEndChanges(otexstream & os, BufferParams const & bparams,
 
 	if (closeLanguage
 	    && language() != base.language() && language() != next.language()
-	    && language()->encoding()->package() != Encoding::CJK) {
+	    && (language()->encoding()->package() != Encoding::CJK)) {
 		os << '}';
 		++count;
 		bool const using_begin_end =
 			runparams.use_polyglossia ||
 				!lyxrc.language_command_end.empty();
-		if (using_begin_end)
+		if (using_begin_end && !languageStackEmpty())
 			popLanguageName();
 	}
 
@@ -635,6 +670,7 @@ string Font::toString(bool const toggle) const
 	   << "uwave " << bits_.uwave() << '\n'
 	   << "noun " << bits_.noun() << '\n'
 	   << "number " << bits_.number() << '\n'
+	   << "nospellcheck " << bits_.nospellcheck() << '\n'
 	   << "color " << bits_.color() << '\n'
 	   << "language " << lang << '\n'
 	   << "toggleall " << convert<string>(toggle);
@@ -659,26 +695,37 @@ bool Font::fromString(string const & data, bool & toggle)
 
 		if (token == "family") {
 			int const next = lex.getInteger();
+			if (next == -1)
+				return false;
 			bits_.setFamily(FontFamily(next));
 
 		} else if (token == "series") {
 			int const next = lex.getInteger();
+			if (next == -1)
+				return false;
 			bits_.setSeries(FontSeries(next));
 
 		} else if (token == "shape") {
 			int const next = lex.getInteger();
+			if (next == -1)
+				return false;
 			bits_.setShape(FontShape(next));
 
 		} else if (token == "size") {
 			int const next = lex.getInteger();
+			if (next == -1)
+				return false;
 			bits_.setSize(FontSize(next));
-
+		// FIXME: shall style be handled there? Probably not.
 		} else if (token == "emph" || token == "underbar"
 			|| token == "noun" || token == "number"
 			|| token == "uuline" || token == "uwave"
-			|| token == "strikeout" || token == "xout") {
+			|| token == "strikeout" || token == "xout"
+			|| token == "nospellcheck") {
 
 			int const next = lex.getInteger();
+			if (next == -1)
+				return false;
 			FontState const misc = FontState(next);
 
 			if (token == "emph")
@@ -697,9 +744,13 @@ bool Font::fromString(string const & data, bool & toggle)
 				bits_.setNoun(misc);
 			else if (token == "number")
 				bits_.setNumber(misc);
+			else if (token == "nospellcheck")
+				bits_.setNoSpellcheck(misc);
 
 		} else if (token == "color") {
 			int const next = lex.getInteger();
+			if (next == -1)
+				return false;
 			bits_.setColor(ColorCode(next));
 
 		/**
@@ -732,34 +783,34 @@ void Font::validate(LaTeXFeatures & features) const
 	Language const * doc_language = bparams.language;
 
 	if (bits_.noun() == FONT_ON) {
-		LYXERR(Debug::LATEX, "font.noun: " << bits_.noun());
+		LYXERR(Debug::OUTFILE, "font.noun: " << bits_.noun());
 		features.require("noun");
-		LYXERR(Debug::LATEX, "Noun enabled. Font: " << to_utf8(stateText(0)));
+		LYXERR(Debug::OUTFILE, "Noun enabled. Font: " << to_utf8(stateText()));
 	}
 	if (bits_.underbar() == FONT_ON) {
-		LYXERR(Debug::LATEX, "font.underline: " << bits_.underbar());
+		LYXERR(Debug::OUTFILE, "font.underline: " << bits_.underbar());
 		features.require("ulem");
-		LYXERR(Debug::LATEX, "Underline enabled. Font: " << to_utf8(stateText(0)));
+		LYXERR(Debug::OUTFILE, "Underline enabled. Font: " << to_utf8(stateText()));
 	}
 	if (bits_.strikeout() == FONT_ON) {
-		LYXERR(Debug::LATEX, "font.strikeout: " << bits_.strikeout());
+		LYXERR(Debug::OUTFILE, "font.strikeout: " << bits_.strikeout());
 		features.require("ulem");
-		LYXERR(Debug::LATEX, "Strike out enabled. Font: " << to_utf8(stateText(0)));
+		LYXERR(Debug::OUTFILE, "Strike out enabled. Font: " << to_utf8(stateText()));
 	}
 	if (bits_.xout() == FONT_ON) {
-		LYXERR(Debug::LATEX, "font.xout: " << bits_.xout());
+		LYXERR(Debug::OUTFILE, "font.xout: " << bits_.xout());
 		features.require("ulem");
-		LYXERR(Debug::LATEX, "Cross out enabled. Font: " << to_utf8(stateText(0)));
+		LYXERR(Debug::OUTFILE, "Cross out enabled. Font: " << to_utf8(stateText()));
 	}
 	if (bits_.uuline() == FONT_ON) {
-		LYXERR(Debug::LATEX, "font.uuline: " << bits_.uuline());
+		LYXERR(Debug::OUTFILE, "font.uuline: " << bits_.uuline());
 		features.require("ulem");
-		LYXERR(Debug::LATEX, "Double underline enabled. Font: " << to_utf8(stateText(0)));
+		LYXERR(Debug::OUTFILE, "Double underline enabled. Font: " << to_utf8(stateText()));
 	}
 	if (bits_.uwave() == FONT_ON) {
-		LYXERR(Debug::LATEX, "font.uwave: " << bits_.uwave());
+		LYXERR(Debug::OUTFILE, "font.uwave: " << bits_.uwave());
 		features.require("ulem");
-		LYXERR(Debug::LATEX, "Wavy underline enabled. Font: " << to_utf8(stateText(0)));
+		LYXERR(Debug::OUTFILE, "Wavy underline enabled. Font: " << to_utf8(stateText()));
 	}
 	switch (bits_.color()) {
 		case Color_none:
@@ -785,7 +836,7 @@ void Font::validate(LaTeXFeatures & features) const
 			break;
 		default:
 			features.require("color");
-			LYXERR(Debug::LATEX, "Color enabled. Font: " << to_utf8(stateText(0)));
+			LYXERR(Debug::OUTFILE, "Color enabled. Font: " << to_utf8(stateText()));
 	}
 
 	// FIXME: Do something for background and soul package?
@@ -797,7 +848,7 @@ void Font::validate(LaTeXFeatures & features) const
 	    && lang_ != latex_language)
 	{
 		features.useLanguage(lang_);
-		LYXERR(Debug::LATEX, "Found language " << lang_->lang());
+		LYXERR(Debug::OUTFILE, "Found language " << lang_->lang());
 	}
 }
 
@@ -815,6 +866,7 @@ ostream & operator<<(ostream & os, FontInfo const & f)
 		<< " series " << f.series()
 		<< " shape " << f.shape()
 		<< " size " << f.size()
+		<< " style " << f.style()
 		<< " color " << f.color()
 		// FIXME: uncomment this when we support background.
 		//<< " background " << f.background()
@@ -825,14 +877,15 @@ ostream & operator<<(ostream & os, FontInfo const & f)
 		<< " uuline " << f.uuline()
 		<< " uwave " << f.uwave()
 		<< " noun " << f.noun()
-		<< " number " << f.number();
+		<< " number " << f.number()
+		<< " nospellcheck " << f.nospellcheck();
 }
 
 
 ostream & operator<<(ostream & os, Font const & font)
 {
 	return os << font.bits_
-		<< " lang: " << (font.lang_ ? font.lang_->lang() : 0);
+		<< " lang: " << (font.lang_ ? font.lang_->lang() : "");
 }
 
 

@@ -1,11 +1,11 @@
 #% Do not delete the line below; configure depends on this
-#  \DeclareLaTeXClass{Japanese Book (JS Class)}
+#  \DeclareLaTeXClass{Japanese Book (JS Bundle)}
 #  \DeclareCategory{Books}
 # Japanese new standard book textclass definition file.
 # Author : Koji Yokota (yokota6@gmail.com)
 
 # This style provides japanese features 
-Format 66
+Format 104
 Provides japanese 1
 
 # Input general definitions

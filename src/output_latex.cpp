@@ -19,8 +19,6 @@
 #include "Font.h"
 #include "InsetList.h"
 #include "Language.h"
-#include "LaTeXFeatures.h"
-#include "Layout.h"
 #include "LyXRC.h"
 #include "OutputParams.h"
 #include "Paragraph.h"
@@ -37,7 +35,6 @@
 #include "support/convert.h"
 #include "support/debug.h"
 #include "support/lstrings.h"
-#include "support/lyxalgo.h"
 #include "support/textutils.h"
 #include "support/gettext.h"
 
@@ -63,16 +60,16 @@ enum OpenEncoding {
 
 struct OutputState
 {
-	OutputState() : open_encoding_(none), cjk_inherited_(0),
-		        prev_env_language_(0), nest_level_(0)
+	OutputState() : prev_env_language_(nullptr), open_encoding_(none),
+		cjk_inherited_(0), nest_level_(0)
 	{
 	}
-	OpenEncoding open_encoding_;
-	int cjk_inherited_;
 	Language const * prev_env_language_;
-	int nest_level_;
 	stack<int> lang_switch_depth_;          // Both are always empty when
 	stack<string> open_polyglossia_lang_;   // not using polyglossia
+	OpenEncoding open_encoding_;
+	int cjk_inherited_;
+	int nest_level_;
 };
 
 
@@ -109,7 +106,7 @@ bool atSameLastLangSwitchDepth(OutputState const * state)
 	// commands. Instead, return always true when using babel with
 	// only a begin command.
 
-	return state->lang_switch_depth_.size() == 0
+	return state->lang_switch_depth_.empty()
 			? true
 			: abs(state->lang_switch_depth_.top()) == state->nest_level_;
 }
@@ -119,7 +116,7 @@ bool isLocalSwitch(OutputState const * state)
 {
 	// Return true if the language was opened by a local command switch.
 
-	return state->lang_switch_depth_.size()
+	return !state->lang_switch_depth_.empty()
 		&& state->lang_switch_depth_.top() < 0;
 }
 
@@ -128,7 +125,7 @@ bool langOpenedAtThisLevel(OutputState const * state)
 {
 	// Return true if the language was opened at the current nesting level.
 
-	return state->lang_switch_depth_.size()
+	return !state->lang_switch_depth_.empty()
 		&& abs(state->lang_switch_depth_.top()) == state->nest_level_;
 }
 
@@ -164,10 +161,10 @@ string const getPolyglossiaBegin(string const & lang_begin_command,
 
 struct TeXEnvironmentData
 {
-	bool cjk_nested;
 	Layout const * style;
 	Language const * par_language;
 	Encoding const * prev_encoding;
+	bool cjk_nested;
 	bool leftindent_open;
 };
 
@@ -188,11 +185,12 @@ static TeXEnvironmentData prepareEnvironment(Buffer const & buf,
 		bparams.documentClass().plainLayout() : pit->layout();
 
 	ParagraphList const & paragraphs = text.paragraphs();
+	bool const firstpar = pit == paragraphs.begin();
 	ParagraphList::const_iterator const priorpit =
-		pit == paragraphs.begin() ? pit : prev(pit, 1);
+		firstpar ? pit : prev(pit, 1);
 
 	OutputState * state = getOutputState();
-	bool const use_prev_env_language = state->prev_env_language_ != 0
+	bool const use_prev_env_language = state->prev_env_language_ != nullptr
 			&& priorpit->layout().isEnvironment()
 			&& (priorpit->getDepth() > pit->getDepth()
 			    || (priorpit->getDepth() == pit->getDepth()
@@ -202,10 +200,13 @@ static TeXEnvironmentData prepareEnvironment(Buffer const & buf,
 	data.par_language = pit->getParLanguage(bparams);
 	Language const * const doc_language = bparams.language;
 	Language const * const prev_par_language =
-		(pit != paragraphs.begin())
-		? (use_prev_env_language ? state->prev_env_language_
-					 : priorpit->getParLanguage(bparams))
-		: doc_language;
+		// use font at inset or document language in first paragraph
+		firstpar ? (runparams.local_font ?
+				    runparams.local_font->language()
+				  : doc_language)
+			 : (use_prev_env_language ?
+				    state->prev_env_language_
+				  : priorpit->getParLanguage(bparams));
 
 	bool const use_polyglossia = runparams.use_polyglossia;
 	string const par_lang = use_polyglossia ?
@@ -222,11 +223,14 @@ static TeXEnvironmentData prepareEnvironment(Buffer const & buf,
 					!lang_end_command.empty();
 
 	// For polyglossia, switch language outside of environment, if possible.
+	// However, if we are at the start of an inset, do not close languages
+	// opened outside.
 	if (par_lang != prev_par_lang) {
-		if ((!using_begin_end || langOpenedAtThisLevel(state)) &&
-		    !lang_end_command.empty() &&
-		    prev_par_lang != doc_lang &&
-		    !prev_par_lang.empty()) {
+		if (!firstpar
+		    && (!using_begin_end || langOpenedAtThisLevel(state))
+		    && !lang_end_command.empty()
+		    && prev_par_lang != doc_lang
+		    && !prev_par_lang.empty()) {
 			os << from_ascii(subst(
 				lang_end_command,
 				"$$lang",
@@ -241,7 +245,7 @@ static TeXEnvironmentData prepareEnvironment(Buffer const & buf,
 		// polyglossia or begin/end commands, then the current
 		// language is the document language.
 		string const & cur_lang = using_begin_end
-					  && state->lang_switch_depth_.size()
+					  && !state->lang_switch_depth_.empty()
 						  ? openLanguageName(state)
 						  : doc_lang;
 
@@ -292,19 +296,27 @@ static TeXEnvironmentData prepareEnvironment(Buffer const & buf,
 				  << "}\n";
 		} else
 			os << from_ascii(style.latexparam()) << '\n';
+		if (style.latextype == LATEX_BIB_ENVIRONMENT
+		    || style.latextype == LATEX_ITEM_ENVIRONMENT
+		    || style.latextype ==  LATEX_LIST_ENVIRONMENT) {
+			OutputParams rp = runparams;
+			rp.local_font = &pit->getFirstFontSettings(bparams);
+			latexArgInsets(paragraphs, pit, os, rp, style.listpreamble(),
+				       "listpreamble:");
+		}
 	}
 	data.style = &style;
 
 	// in multilingual environments, the CJK tags have to be nested properly
 	data.cjk_nested = false;
-	if (data.par_language->encoding()->package() == Encoding::CJK &&
-	    state->open_encoding_ != CJK && pit->isMultiLingual(bparams)) {
+	if (!bparams.useNonTeXFonts
+	    && (bparams.inputenc == "auto-legacy"
+			|| bparams.inputenc == "auto-legacy-plain")
+	    && data.par_language->encoding()->package() == Encoding::CJK
+	    && state->open_encoding_ != CJK && pit->isMultiLingual(bparams)) {
 		if (prev_par_language->encoding()->package() == Encoding::CJK) {
-			docstring const cjkenc = (bparams.encoding().name() == "utf8-cjk"
-						  && LaTeXFeatures::isAvailable("CJKutf8")) ?
-							from_ascii("UTF8")
-						      : from_ascii(data.par_language->encoding()->latexName());
-			os << "\\begin{CJK}{" << cjkenc
+			os << "\\begin{CJK}{"
+			   << from_ascii(data.par_language->encoding()->latexName())
 			   << "}{" << from_ascii(bparams.fonts_cjk) << "}%\n";
 		}
 		state->open_encoding_ = CJK;
@@ -315,10 +327,12 @@ static TeXEnvironmentData prepareEnvironment(Buffer const & buf,
 
 
 static void finishEnvironment(otexstream & os, OutputParams const & runparams,
-			      TeXEnvironmentData const & data)
+			      TeXEnvironmentData const & data, bool const maintext,
+			      bool const lastpar)
 {
 	OutputState * state = getOutputState();
-	// BufferParams const & bparams = buf.params(); // FIXME: for speedup shortcut below, would require passing of "buf" as argument
+	// BufferParams const & bparams = buf.params();
+	// FIXME: for speedup shortcut below, would require passing of "buf" as argument
 	if (state->open_encoding_ == CJK && data.cjk_nested) {
 		// We need to close the encoding even if it does not change
 		// to do correct environment nesting
@@ -344,6 +358,11 @@ static void finishEnvironment(otexstream & os, OutputParams const & runparams,
 				popLanguageName();
 			}
 		}
+		if (data.style->latextype == LATEX_BIB_ENVIRONMENT)
+			// bibliography needs a blank line after
+			// each item for backref to function properly
+			// (see #12041)
+			os << '\n';
 		state->nest_level_ -= 1;
 		string const & name = data.style->latexname();
 		if (!name.empty())
@@ -352,6 +371,20 @@ static void finishEnvironment(otexstream & os, OutputParams const & runparams,
 		if (runparams.encoding != data.prev_encoding) {
 			runparams.encoding = data.prev_encoding;
 			os << setEncoding(data.prev_encoding->iconvName());
+		}
+		// If this is the last par of an inset, the language needs
+		// to be closed after the environment
+		if (lastpar && !maintext) {
+			if (using_begin_end && langOpenedAtThisLevel(state)) {
+				if (isLocalSwitch(state)) {
+					os << "}";
+				} else {
+					os << "\\end{"
+					   << openLanguageName(state)
+					   << "}%\n";
+				}
+				popLanguageName();
+			}
 		}
 	}
 
@@ -371,21 +404,24 @@ static void finishEnvironment(otexstream & os, OutputParams const & runparams,
 
 
 void TeXEnvironment(Buffer const & buf, Text const & text,
-		    OutputParams const & runparams,
+		    OutputParams const & runparams_in,
 		    pit_type & pit, otexstream & os)
 {
 	ParagraphList const & paragraphs = text.paragraphs();
-	ParagraphList::const_iterator par = paragraphs.constIterator(pit);
-	LYXERR(Debug::LATEX, "TeXEnvironment for paragraph " << pit);
+	ParagraphList::const_iterator ipar = paragraphs.iterator_at(pit);
+	LYXERR(Debug::OUTFILE, "TeXEnvironment for paragraph " << pit);
 
-	Layout const & current_layout = par->layout();
-	depth_type const current_depth = par->params().depth();
-	Length const & current_left_indent = par->params().leftIndent();
+	Layout const & current_layout = ipar->layout();
+	depth_type const current_depth = ipar->params().depth();
+	Length const & current_left_indent = ipar->params().leftIndent();
+
+	OutputParams runparams = runparams_in;
+	runparams.no_cprotect = current_layout.nocprotect;
 
 	// This is for debugging purpose at the end.
 	pit_type const par_begin = pit;
 	for (; pit < runparams.par_end; ++pit) {
-		ParagraphList::const_iterator par = paragraphs.constIterator(pit);
+		ParagraphList::const_iterator par = paragraphs.iterator_at(pit);
 
 		// check first if this is an higher depth paragraph.
 		bool go_out = (par->params().depth() < current_depth);
@@ -426,57 +462,91 @@ void TeXEnvironment(Buffer const & buf, Text const & text,
 			continue;
 		}
 
+		// Do not output empty environments if the whole paragraph has
+		// been deleted with ct and changes are not output.
+		bool output_changes;
+		if (!runparams.find_effective())
+			output_changes = buf.params().output_changes;
+		else
+			output_changes = runparams.find_with_deleted();
+		if (size_t(pit + 1) < paragraphs.size()) {
+			ParagraphList::const_iterator nextpar = paragraphs.iterator_at(pit + 1);
+			Paragraph const & cpar = paragraphs.at(pit);
+			if ((par->layout() != nextpar->layout()
+			     || par->params().depth() == nextpar->params().depth()
+			     || par->params().leftIndent() == nextpar->params().leftIndent())
+			    && !cpar.empty()
+			    && cpar.isDeleted(0, cpar.size()) && !output_changes) {
+				if (!output_changes && !cpar.parEndChange().deleted())
+					os << '\n' << '\n';
+				continue;
+			}
+		}
+
 		// This is a new environment.
 		TeXEnvironmentData const data =
 			prepareEnvironment(buf, text, par, os, runparams);
 		// Recursive call to TeXEnvironment!
 		TeXEnvironment(buf, text, runparams, pit, os);
-		finishEnvironment(os, runparams, data);
+		bool const lastpar = size_t(pit + 1) >= paragraphs.size();
+		finishEnvironment(os, runparams, data, text.isMainText(), lastpar);
 	}
 
 	if (pit != runparams.par_end)
-		LYXERR(Debug::LATEX, "TeXEnvironment for paragraph " << par_begin << " done.");
+		LYXERR(Debug::OUTFILE, "TeXEnvironment for paragraph " << par_begin << " done.");
+
+	// set upstream encoding
+	runparams_in.encoding = runparams.encoding;
 }
 
 
-void getArgInsets(otexstream & os, OutputParams const & runparams, Layout::LaTeXArgMap const & latexargs,
-		  map<int, lyx::InsetArgument const *> ilist, vector<string> required, string const & prefix)
+// FIXME: pass the \c required vector by reference and add the stuff
+// from \c latexargs to a different vector. This avoids a copy and
+// (more importantly?) a coverity defect.
+void getArgInsets(otexstream & os, OutputParams const & runparams,
+                  Layout::LaTeXArgMap const & latexargs,
+                  map<size_t, lyx::InsetArgument const *> const & ilist,
+                  vector<string> required, string const & prefix)
 {
-	unsigned int const argnr = latexargs.size();
+	size_t const argnr = latexargs.size();
 	if (argnr == 0)
 		return;
 
 	// Default and preset args are always output, so if they require
 	// other arguments, consider this.
-	Layout::LaTeXArgMap::const_iterator lit = latexargs.begin();
-	Layout::LaTeXArgMap::const_iterator const lend = latexargs.end();
-	for (; lit != lend; ++lit) {
-		Layout::latexarg arg = (*lit).second;
-		if ((!arg.presetarg.empty() || !arg.defaultarg.empty()) && !arg.requires.empty()) {
-				vector<string> req = getVectorFromString(arg.requires);
+	for (auto const & larg : latexargs) {
+		Layout::latexarg const & arg = larg.second;
+		if ((!arg.presetarg.empty() || !arg.defaultarg.empty()) && !arg.required.empty()) {
+				vector<string> req = getVectorFromString(arg.required);
 				required.insert(required.end(), req.begin(), req.end());
 			}
 	}
 
-	for (unsigned int i = 1; i <= argnr; ++i) {
-		map<int, InsetArgument const *>::const_iterator lit = ilist.find(i);
+	for (size_t i = 1; i <= argnr; ++i) {
+		map<size_t, InsetArgument const *>::const_iterator lit = ilist.find(i);
 		bool inserted = false;
 		if (lit != ilist.end()) {
-			InsetArgument const * ins = (*lit).second;
+			InsetArgument const * ins = lit->second;
 			if (ins) {
 				Layout::LaTeXArgMap::const_iterator const lait =
 						latexargs.find(ins->name());
 				if (lait != latexargs.end()) {
-					Layout::latexarg arg = (*lait).second;
-					docstring ldelim = arg.mandatory ?
+					Layout::latexarg arg = lait->second;
+					docstring ldelim;
+					docstring rdelim;
+					if (!arg.nodelims) {
+						ldelim = arg.mandatory ?
 							from_ascii("{") : from_ascii("[");
-					docstring rdelim = arg.mandatory ?
+						rdelim = arg.mandatory ?
 							from_ascii("}") : from_ascii("]");
+					}
 					if (!arg.ldelim.empty())
 						ldelim = arg.ldelim;
 					if (!arg.rdelim.empty())
 						rdelim = arg.rdelim;
 					ins->latexArgument(os, runparams, ldelim, rdelim, arg.presetarg);
+					if (prefix == "listpreamble:")
+						os << breakln;
 					inserted = true;
 				}
 			}
@@ -519,6 +589,10 @@ void getArgInsets(otexstream & os, OutputParams const & runparams, Layout::LaTeX
 			}
 		}
 	}
+	if (runparams.find_effective() && argnr > 1) {
+		// Mark end of arguments for findadv() only
+		os << "\\endarguments{}";
+	}
 }
 
 
@@ -544,6 +618,14 @@ void popLanguageName()
 }
 
 
+bool languageStackEmpty()
+{
+	OutputState * state = getOutputState();
+
+	return state->lang_switch_depth_.empty();
+}
+
+
 string const & openLanguageName()
 {
 	OutputState * state = getOutputState();
@@ -556,7 +638,7 @@ namespace {
 
 void addArgInsets(Paragraph const & par, string const & prefix,
                  Layout::LaTeXArgMap const & latexargs,
-                 map<int, InsetArgument const *> & ilist,
+                 map<size_t, InsetArgument const *> & ilist,
                  vector<string> & required)
 {
 	for (auto const & table : par.insetList()) {
@@ -569,15 +651,13 @@ void addArgInsets(Paragraph const & par, string const & prefix,
 		}
 		string const name = prefix.empty() ?
 			arg->name() : split(arg->name(), ':');
-		// why converting into an integer?
-		unsigned int const nr = convert<unsigned int>(name);
-		if (ilist.find(nr) == ilist.end())
-			ilist[nr] = arg;
+		size_t const nr = convert<size_t>(name);
+		ilist.insert({nr, arg});
 		Layout::LaTeXArgMap::const_iterator const lit =
 			latexargs.find(arg->name());
 		if (lit != latexargs.end()) {
 			Layout::latexarg const & larg = lit->second;
-			vector<string> req = getVectorFromString(larg.requires);
+			vector<string> req = getVectorFromString(larg.required);
 			move(req.begin(), req.end(), back_inserter(required));
 		}
 	}
@@ -591,7 +671,7 @@ void latexArgInsets(Paragraph const & par, otexstream & os,
                     Layout::LaTeXArgMap const & latexargs,
                     string const & prefix)
 {
-	map<int, InsetArgument const *> ilist;
+	map<size_t, InsetArgument const *> ilist;
 	vector<string> required;
 	addArgInsets(par, prefix, latexargs, ilist, required);
 	getArgInsets(os, runparams, latexargs, ilist, required, prefix);
@@ -604,18 +684,18 @@ void latexArgInsets(ParagraphList const & pars,
                     Layout::LaTeXArgMap const & latexargs,
                     string const & prefix)
 {
-	map<int, InsetArgument const *> ilist;
+	map<size_t, InsetArgument const *> ilist;
 	vector<string> required;
 
 	depth_type const current_depth = pit->params().depth();
 	Layout const current_layout = pit->layout();
 
 	// get the first paragraph in sequence with this layout and depth
-	pit_type offset = 0;
+	ptrdiff_t offset = 0;
 	while (true) {
-		if (lyx::prev(pit, offset) == pars.begin())
+		if (prev(pit, offset) == pars.begin())
 			break;
-		ParagraphList::const_iterator priorpit = lyx::prev(pit, offset + 1);
+		ParagraphList::const_iterator priorpit = prev(pit, offset + 1);
 		if (priorpit->layout() == current_layout
 		    && priorpit->params().depth() == current_depth)
 			++offset;
@@ -623,8 +703,7 @@ void latexArgInsets(ParagraphList const & pars,
 			break;
 	}
 
-	ParagraphList::const_iterator spit = lyx::prev(pit, offset);
-
+	ParagraphList::const_iterator spit = prev(pit, offset);
 	for (; spit != pars.end(); ++spit) {
 		if (spit->layout() != current_layout ||
 		    spit->params().depth() < current_depth)
@@ -642,7 +721,7 @@ void latexArgInsetsForParent(ParagraphList const & pars, otexstream & os,
                              Layout::LaTeXArgMap const & latexargs,
                              string const & prefix)
 {
-	map<int, InsetArgument const *> ilist;
+	map<size_t, InsetArgument const *> ilist;
 	vector<string> required;
 
 	for (Paragraph const & par : pars) {
@@ -663,6 +742,12 @@ void parStartCommand(Paragraph const & par, otexstream & os,
 {
 	switch (style.latextype) {
 	case LATEX_COMMAND:
+		if (!runparams.no_cprotect && par.needsCProtection(runparams.moving_arg)) {
+			if (contains(runparams.active_chars, '^'))
+				// cprotect relies on ^ being on catcode 7
+				os << "\\begingroup\\catcode`\\^=7";
+			os << "\\cprotect";
+		}
 		os << '\\' << from_ascii(style.latexname());
 
 		// Command arguments
@@ -672,11 +757,21 @@ void parStartCommand(Paragraph const & par, otexstream & os,
 		break;
 	case LATEX_ITEM_ENVIRONMENT:
 	case LATEX_LIST_ENVIRONMENT:
-		os << "\\" + style.itemcommand();
-		// Item arguments
-		if (!style.itemargs().empty())
-			latexArgInsets(par, os, runparams, style.itemargs(), "item:");
-		os << " ";
+		if (runparams.find_effective()) {
+			os << "\\" + style.itemcommand() << "{" << style.latexname() << "}";
+		}
+		else {
+			os << "\\" + style.itemcommand();
+			// Item arguments
+			if (!style.itemargs().empty())
+				latexArgInsets(par, os, runparams, style.itemargs(), "item:");
+			os << " ";
+		}
+		break;
+	case LATEX_ENVIRONMENT:
+		if (runparams.find_effective()) {
+			os << "\\latexenvironment{" << style.latexname() << "}{";
+		}
 		break;
 	case LATEX_BIB_ENVIRONMENT:
 		// ignore this, the inset will write itself
@@ -710,12 +805,18 @@ void TeXOnePar(Buffer const & buf,
 	if (style.inpreamble && !force)
 		return;
 
-	LYXERR(Debug::LATEX, "TeXOnePar for paragraph " << pit << " ptr " << &par << " '"
-		<< everypar << "'");
+	// Do not output empty commands if the whole paragraph has
+	// been deleted with ct and changes are not output.
+	if (!runparams_in.find_with_deleted() && style.latextype != LATEX_ENVIRONMENT
+	    && !par.empty() && par.isDeleted(0, par.size()) && !bparams.output_changes)
+		return;
+
+	LYXERR(Debug::OUTFILE, "TeXOnePar for paragraph " << pit << " ptr " << &par << " '"
+	                                                  << everypar << "'");
 
 	OutputParams runparams = runparams_in;
 	runparams.isLastPar = (pit == pit_type(paragraphs.size() - 1));
-	// We reinitialze par begin and end to be on the safe side
+	// We reinitialize par begin and end to be on the safe side
 	// with embedded inset as we don't know if they set those
 	// value correctly.
 	runparams.par_begin = 0;
@@ -731,11 +832,14 @@ void TeXOnePar(Buffer const & buf,
 		state->open_encoding_ = none;
 	}
 
+	// This paragraph is merged and we do not show changes in the output
+	bool const merged_par = !bparams.output_changes && par.parEndChange().deleted();
+
 	if (text.inset().isPassThru()) {
 		Font const outerfont = text.outerFont(pit);
 
 		// No newline before first paragraph in this lyxtext
-		if (pit > 0) {
+		if (pit > 0 && !text.inset().getLayout().parbreakIgnored() && !merged_par) {
 			os << '\n';
 			if (!text.inset().getLayout().parbreakIsNewline())
 				os << '\n';
@@ -746,9 +850,9 @@ void TeXOnePar(Buffer const & buf,
 	}
 
 	Paragraph const * nextpar = runparams.isLastPar
-		? 0 : &paragraphs.at(pit + 1);
+		? nullptr : &paragraphs.at(pit + 1);
 
-	bool const intitle_command = style.intitle && style.latextype == LATEX_COMMAND;
+	bool const intitle_command = style.intitle && style.isCommand();
 	// Intitle commands switch languages locally, thus increase
 	// language nesting level
 	if (intitle_command)
@@ -757,6 +861,12 @@ void TeXOnePar(Buffer const & buf,
 	if (style.pass_thru) {
 		Font const outerfont = text.outerFont(pit);
 		parStartCommand(par, os, runparams, style);
+		if (style.isCommand() && style.needprotect)
+			// Due to the moving argument, some fragile
+			// commands (labels, index entries)
+			// are output after this command (#2154)
+			runparams.postpone_fragile_stuff =
+				bparams.postpone_fragile_content;
 		if (intitle_command)
 			os << '{';
 
@@ -765,17 +875,25 @@ void TeXOnePar(Buffer const & buf,
 		// I did not create a parEndCommand for this minuscule
 		// task because in the other user of parStartCommand
 		// the code is different (JMarc)
-		if (style.isCommand())
-			os << "}\n";
-		else
+		if (style.isCommand()) {
+			os << "}";
+			if (!runparams.no_cprotect && par.needsCProtection(runparams.moving_arg)
+			    && contains(runparams.active_chars, '^'))
+				os << "\\endgroup";
+			if (merged_par)
+				os << "{}";
+			else
+				os << "\n";
+		}
+		else if (!merged_par)
 			os << '\n';
-		if (!style.parbreak_is_newline) {
+		if (!style.parbreak_is_newline && !merged_par) {
 			os << '\n';
 		} else if (nextpar && !style.isEnvironment()) {
 			Layout const nextstyle = text.inset().forcePlainLayout()
 				? bparams.documentClass().plainLayout()
 				: nextpar->layout();
-			if (nextstyle.name() != style.name())
+			if (nextstyle.name() != style.name() && !merged_par)
 				os << '\n';
 		}
 
@@ -785,16 +903,16 @@ void TeXOnePar(Buffer const & buf,
 	// This paragraph's language
 	Language const * const par_language = par.getParLanguage(bparams);
 	Language const * const nextpar_language = nextpar ?
-		nextpar->getParLanguage(bparams) : 0;
+		nextpar->getParLanguage(bparams) : nullptr;
 	// The document's language
 	Language const * const doc_language = bparams.language;
 	// The language that was in effect when the environment this paragraph is
 	// inside of was opened
 	Language const * const outer_language =
-		(runparams.local_font != 0) ?
+		(runparams.local_font != nullptr) ?
 			runparams.local_font->language() : doc_language;
 
-	Paragraph const * priorpar = (pit == 0) ? 0 : &paragraphs.at(pit - 1);
+	Paragraph const * priorpar = (pit == 0) ? nullptr : &paragraphs.at(pit - 1);
 
 	// The previous language that was in effect is the language of the
 	// previous paragraph, unless the previous paragraph is inside an
@@ -804,12 +922,12 @@ void TeXOnePar(Buffer const & buf,
 	// Note further that we take the outer language also if the prior par
 	// is PassThru, since in that case it has latex_language, and all secondary
 	// languages have been closed (#10793).
-	bool const use_prev_env_language = state->prev_env_language_ != 0
+	bool const use_prev_env_language = state->prev_env_language_ != nullptr
 			&& priorpar
 			&& priorpar->layout().isEnvironment()
 			&& (priorpar->getDepth() > par.getDepth()
 			    || (priorpar->getDepth() == par.getDepth()
-				    && priorpar->layout() != par.layout()));
+				&& priorpar->layout() != par.layout()));
 
 	// We need to ignore previous intitle commands since languages
 	// are switched locally there (# 11514)
@@ -826,10 +944,12 @@ void TeXOnePar(Buffer const & buf,
 			break;
 		}
 	}
+	bool const have_prior_nptpar =
+			prior_nontitle_par && !prior_nontitle_par->isPassThru();
 	Language const * const prev_language =
-		runparams_in.for_search 
+		runparams_in.find_effective()
 			? languages.getLanguage("ignore")
-			: (prior_nontitle_par && !prior_nontitle_par->isPassThru())
+			: (have_prior_nptpar)
 				? (use_prev_env_language 
 					? state->prev_env_language_
 					: prior_nontitle_par->getParLanguage(bparams))
@@ -858,6 +978,12 @@ void TeXOnePar(Buffer const & buf,
 	// (see #10849); thus open the command here.
 	if (intitle_command) {
 		parStartCommand(par, os, runparams, style);
+		if (style.isCommand() && style.needprotect)
+			// Due to the moving argument, some fragile
+			// commands (labels, index entries)
+			// are output after this command (#2154)
+			runparams.postpone_fragile_stuff =
+				bparams.postpone_fragile_content;
 		os << '{';
 	}
 
@@ -867,32 +993,40 @@ void TeXOnePar(Buffer const & buf,
 	// languages (see # 10111).
 	bool const in_polyglossia_rtl_env =
 		use_polyglossia
-		&& runparams.local_font != 0
+		&& runparams.local_font != nullptr
 		&& outer_language->rightToLeft()
-		&& !par_language->rightToLeft();
-	bool const localswitch = text.inset().forceLocalFontSwitch()
+		&& !par_language->rightToLeft()
+		&& !(have_prior_nptpar
+		     && (prev_language->rightToLeft() != par_language->rightToLeft()));
+	bool const localswitch =
+			(runparams_in.find_effective()
+			// \cprotect'ed insets do not need, and actually
+			// break with, local switches
+			|| (text.inset().forceLocalFontSwitch()
+			    && !text.inset().needsCProtection(maintext, runparams.moving_arg))
 			|| (using_begin_end && text.inset().forcePlainLayout())
-			|| in_polyglossia_rtl_env;
+			|| in_polyglossia_rtl_env)
+			&& !text.inset().forceParDirectionSwitch();
 	if (localswitch) {
 		lang_begin_command = use_polyglossia ?
 			    "\\text$$lang$$opts{" : lyxrc.language_command_local;
 		lang_end_command = "}";
 		lang_command_termination.clear();
 	}
-	
+
 	bool const localswitch_needed = localswitch && par_lang != outer_lang;
 
 	// localswitches need to be closed and reopened at each par
-	if ((par_lang != prev_lang || localswitch_needed)
+	if (runparams_in.find_effective() || ((par_lang != prev_lang || localswitch_needed)
 	     // check if we already put language command in TeXEnvironment()
 	     && !(style.isEnvironment()
 		  && (pit == 0 || (priorpar->layout() != par.layout()
 			           && priorpar->getDepth() <= par.getDepth())
-		      || priorpar->getDepth() < par.getDepth()))) {
+		      || priorpar->getDepth() < par.getDepth())))) {
 		if (!localswitch
 		    && (!using_begin_end || langOpenedAtThisLevel(state))
 		    && !lang_end_command.empty()
-		    && prev_lang != outer_lang 
+		    && prev_lang != outer_lang
 		    && !prev_lang.empty()
 		    && (!using_begin_end || !style.isEnvironment())) {
 			os << from_ascii(subst(lang_end_command,
@@ -919,10 +1053,10 @@ void TeXOnePar(Buffer const & buf,
 			// This behavior is not correct for ArabTeX, though.
 			if (!using_begin_end
 			    // not for ArabTeX
-				&& par_language->lang() != "arabic_arabtex"
-				&& outer_language->lang() != "arabic_arabtex"
+			    && par_language->lang() != "arabic_arabtex"
+			    && outer_language->lang() != "arabic_arabtex"
 			    // are we in an inset?
-			    && runparams.local_font != 0
+			    && runparams.local_font != nullptr
 			    // is the inset within an \L or \R?
 			    //
 			    // FIXME: currently, we don't check this; this means that
@@ -943,13 +1077,15 @@ void TeXOnePar(Buffer const & buf,
 				else if (outer_language->lang() == "arabic_arabi")
 					os << "\\textLR{";
 				// remaining RTL languages currently is hebrew
-				else if (par_language->rightToLeft())
+				else if (par_language->rightToLeft() && !runparams.isFullUnicode())
 					os << "\\R{";
 				else
 					os << "\\L{";
 			}
 			// With CJK, the CJK tag has to be closed first (see below)
-			if (runparams.encoding->package() != Encoding::CJK
+			if ((runparams.encoding->package() != Encoding::CJK
+				 || bparams.useNonTeXFonts
+				 || runparams.find_effective())
 			    && (par_lang != openLanguageName(state) || localswitch || intitle_command)
 			    && !par_lang.empty()) {
 				string bc = use_polyglossia ?
@@ -965,11 +1101,12 @@ void TeXOnePar(Buffer const & buf,
 		}
 	}
 
-	// Switch file encoding if necessary; no need to do this for "default"
+	// Switch file encoding if necessary; no need to do this for "auto-legacy-plain"
 	// encoding, since this only affects the position of the outputted
 	// \inputencoding command; the encoding switch will occur when necessary
-	if (bparams.inputenc == "auto"
+	if (bparams.inputenc == "auto-legacy"
 		&& !runparams.isFullUnicode() // Xe/LuaTeX use one document-wide encoding  (see also switchEncoding())
+		&& runparams.encoding->package() != Encoding::japanese
 		&& runparams.encoding->package() != Encoding::none) {
 		// Look ahead for future encoding changes.
 		// We try to output them at the beginning of the paragraph,
@@ -1001,11 +1138,8 @@ void TeXOnePar(Buffer const & buf,
 			// context (nesting issue).
 			if (par_language->encoding()->package() == Encoding::CJK
 				&& state->open_encoding_ != CJK && state->cjk_inherited_ == 0) {
-				docstring const cjkenc = (bparams.encoding().name() == "utf8-cjk"
-							  && LaTeXFeatures::isAvailable("CJKutf8")) ?
-								from_ascii("UTF8")
-							      : from_ascii(par_language->encoding()->latexName());
-				os << "\\begin{CJK}{" << cjkenc
+				os << "\\begin{CJK}{"
+				   << from_ascii(par_language->encoding()->latexName())
 				   << "}{" << from_ascii(bparams.fonts_cjk) << "}%\n";
 				state->open_encoding_ = CJK;
 			}
@@ -1018,12 +1152,7 @@ void TeXOnePar(Buffer const & buf,
 				if (runparams.encoding->package() == Encoding::CJK
 				    && par_lang != openLanguageName(state)
 				    && !par_lang.empty()) {
-				    	string bc = use_polyglossia ?
-						    getPolyglossiaBegin(lang_begin_command, par_lang,
-						    			par_language->polyglossiaOpts(),
-						    			localswitch)
-						    : subst(lang_begin_command, "$$lang", par_lang);
-					os << bc
+					os << subst(lang_begin_command, "$$lang", par_lang)
 					   << lang_command_termination;
 					if (using_begin_end)
 						pushLanguageName(par_lang, localswitch);
@@ -1035,6 +1164,8 @@ void TeXOnePar(Buffer const & buf,
 	}
 
 	runparams.moving_arg |= style.needprotect;
+	if (style.needmboxprotect)
+		++runparams.inulemcmd;
 	Encoding const * const prev_encoding = runparams.encoding;
 
 	bool const useSetSpace = bparams.documentClass().provides("SetSpace");
@@ -1057,7 +1188,7 @@ void TeXOnePar(Buffer const & buf,
 				&& (pit == 0 || !priorpar->hasSameLayout(par)))
 			{
 				os << from_ascii(par.params().spacing().writeEnvirBegin(useSetSpace))
-				    << '\n';
+				   << '\n';
 			}
 
 			if (style.isCommand()) {
@@ -1068,8 +1199,15 @@ void TeXOnePar(Buffer const & buf,
 
 	// For InTitle commands, we already started the command before
 	// the language switch
-	if (!intitle_command)
+	if (!intitle_command) {
 		parStartCommand(par, os, runparams, style);
+		if (style.isCommand() && style.needprotect)
+			// Due to the moving argument, some fragile
+			// commands (labels, index entries)
+			// are output after this command (#2154)
+			runparams.postpone_fragile_stuff =
+				bparams.postpone_fragile_content;
+	}
 
 	Font const outerfont = text.outerFont(pit);
 
@@ -1083,12 +1221,31 @@ void TeXOnePar(Buffer const & buf,
 
 	bool const is_command = style.isCommand();
 
+	bool const last_was_separator =
+		!par.empty() && par.isEnvSeparator(par.size() - 1);
+
 	// InTitle commands need to be closed after the language has been closed.
 	if (!intitle_command) {
 		if (is_command) {
+			// Signify added/deleted par break in output if show changes in output
+			if (nextpar && !os.afterParbreak() && !last_was_separator
+			    && bparams.output_changes && par.parEndChange().changed()) {
+				Changes::latexMarkChange(os, bparams, Change(Change::UNCHANGED),
+							 par.parEndChange(), runparams);
+				os << bparams.encoding().latexString(docstring(1, 0x00b6)).first << "}";
+			}
 			os << '}';
 			if (!style.postcommandargs().empty())
 				latexArgInsets(par, os, runparams, style.postcommandargs(), "post:");
+			if (!runparams.post_macro.empty()) {
+				// Output the stored fragile commands (labels, indices etc.)
+				// that need to be output after the command with moving argument.
+				os << runparams.post_macro;
+				runparams.post_macro.clear();
+			}
+			if (!runparams.no_cprotect && par.needsCProtection(runparams.moving_arg)
+			    && contains(runparams.active_chars, '^'))
+				os << "\\endgroup";
 			if (runparams.encoding != prev_encoding) {
 				runparams.encoding = prev_encoding;
 				os << setEncoding(prev_encoding->iconvName());
@@ -1108,10 +1265,10 @@ void TeXOnePar(Buffer const & buf,
 			    && nextpar->getDepth() < par.getDepth()))
 			close_lang_switch = using_begin_end;
 		if (nextpar && par.params().depth() < nextpar->params().depth())
-			pending_newline = true;
+			pending_newline = !text.inset().getLayout().parbreakIgnored() && !merged_par;
 		break;
 	case LATEX_ENVIRONMENT: {
-		// if its the last paragraph of the current environment
+		// if it's the last paragraph of the current environment
 		// skip it otherwise fall through
 		if (nextpar
 		    && ((nextpar->layout() != par.layout()
@@ -1127,7 +1284,7 @@ void TeXOnePar(Buffer const & buf,
 	default:
 		// we don't need it for the last paragraph and in InTitle commands!!!
 		if (nextpar && !intitle_command)
-			pending_newline = true;
+			pending_newline = !text.inset().getLayout().parbreakIgnored() && !merged_par;
 	}
 
 	// InTitle commands use switches (not environments) for space settings
@@ -1156,7 +1313,7 @@ void TeXOnePar(Buffer const & buf,
 		&& (par_language->lang() != "arabic_arabtex"
 		    && outer_language->lang() != "arabic_arabtex")
 		// have we opened an \L or \R environment?
-		&& runparams.local_font != 0
+		&& runparams.local_font != nullptr
 		&& runparams.local_font->isRightToLeft() != par_language->rightToLeft()
 		// are we about to close the language?
 		&&((nextpar && par_lang != nextpar_lang)
@@ -1165,19 +1322,26 @@ void TeXOnePar(Buffer const & buf,
 	if (localswitch_needed
 	    || (intitle_command && using_begin_end)
 	    || closing_rtl_ltr_environment
-	    || (((runparams.isLastPar && !runparams.inbranch) || close_lang_switch)
+	    || (((runparams.isLastPar
+		  && (using_begin_end
+		      // Since \selectlanguage write the language to the aux file,
+		      // we need to reset the language at the end of footnote or
+		      // float.
+		      || runparams.inFloat != OutputParams::NONFLOAT || runparams.inFootnote
+		      // Same for maintext in children (see below)
+		      || maintext))
+		 || close_lang_switch)
 	        && (par_lang != outer_lang || (using_begin_end
 						&& style.isEnvironment()
 						&& par_lang != nextpar_lang)))) {
-		// Since \selectlanguage write the language to the aux file,
-		// we need to reset the language at the end of footnote or
-		// float.
 
 		if (!localswitch && (pending_newline || close_lang_switch))
 			os << '\n';
 
 		// when the paragraph uses CJK, the language has to be closed earlier
-		if (font.language()->encoding()->package() != Encoding::CJK) {
+		if ((font.language()->encoding()->package() != Encoding::CJK)
+			|| bparams.useNonTeXFonts
+			|| runparams_in.find_effective()) {
 			if (lang_end_command.empty()) {
 				// If this is a child, we should restore the
 				// master language after the last paragraph.
@@ -1196,7 +1360,8 @@ void TeXOnePar(Buffer const & buf,
 									localswitch)
 						  : subst(lang_begin_command, "$$lang", current_lang);
 					os << bc;
-					pending_newline = !localswitch;
+					pending_newline = !localswitch
+							&& !text.inset().getLayout().parbreakIgnored();
 					unskip_newline = !localswitch;
 					if (using_begin_end)
 						pushLanguageName(current_lang, localswitch);
@@ -1216,7 +1381,7 @@ void TeXOnePar(Buffer const & buf,
 						&& nextpar
 						&& style != nextpar->layout())))
 				    || (atSameLastLangSwitchDepth(state)
-					&& state->lang_switch_depth_.size()
+					&& !state->lang_switch_depth_.empty()
 					&& cur_lang != par_lang)
 				    || in_polyglossia_rtl_env)
 				{
@@ -1226,7 +1391,8 @@ void TeXOnePar(Buffer const & buf,
 						lang_end_command,
 						"$$lang",
 						par_lang));
-					pending_newline = !localswitch;
+					pending_newline = !localswitch
+							&& !text.inset().getLayout().parbreakIgnored();
 					unskip_newline = !localswitch;
 					if (using_begin_end)
 						popLanguageName();
@@ -1239,19 +1405,31 @@ void TeXOnePar(Buffer const & buf,
 
 	// InTitle commands need to be closed after the language has been closed.
 	if (intitle_command) {
-		if (is_command) {
-			os << '}';
-			if (!style.postcommandargs().empty())
-				latexArgInsets(par, os, runparams, style.postcommandargs(), "post:");
-			if (runparams.encoding != prev_encoding) {
-				runparams.encoding = prev_encoding;
-				os << setEncoding(prev_encoding->iconvName());
-			}
+		os << '}';
+		if (!style.postcommandargs().empty())
+			latexArgInsets(par, os, runparams, style.postcommandargs(), "post:");
+		if (!runparams.post_macro.empty()) {
+			// Output the stored fragile commands (labels, indices etc.)
+			// that need to be output after the command with moving argument.
+			os << runparams.post_macro;
+			runparams.post_macro.clear();
+		}
+		if (!runparams.no_cprotect && par.needsCProtection(runparams.moving_arg)
+		    && contains(runparams.active_chars, '^'))
+			os << "\\endgroup";
+		if (runparams.encoding != prev_encoding) {
+			runparams.encoding = prev_encoding;
+			os << setEncoding(prev_encoding->iconvName());
 		}
 	}
 
-	bool const last_was_separator =
-		par.size() > 0 && par.isEnvSeparator(par.size() - 1);
+	// Signify added/deleted par break in output if show changes in output
+	if ((intitle_command || !is_command) && nextpar && !os.afterParbreak() && !last_was_separator
+	    && bparams.output_changes && par.parEndChange().changed()) {
+		Changes::latexMarkChange(os, bparams, Change(Change::UNCHANGED),
+					 par.parEndChange(), runparams);
+		os << bparams.encoding().latexString(docstring(1, 0x00b6)).first << "}";
+	}
 
 	if (pending_newline) {
 		if (unskip_newline)
@@ -1263,10 +1441,12 @@ void TeXOnePar(Buffer const & buf,
 
 	// if this is a CJK-paragraph and the next isn't, close CJK
 	// also if the next paragraph is a multilingual environment (because of nesting)
-	if (nextpar
-		&& state->open_encoding_ == CJK
-		&& (nextpar_language->encoding()->package() != Encoding::CJK
-		   || (nextpar->layout().isEnvironment() && nextpar->isMultiLingual(bparams)))
+	if (nextpar && state->open_encoding_ == CJK
+		&& bparams.encoding().iconvName() != "UTF-8"
+		&& bparams.encoding().package() != Encoding::CJK
+		&& ((nextpar_language &&
+			nextpar_language->encoding()->package() != Encoding::CJK)
+			|| (nextpar->layout().isEnvironment() && nextpar->isMultiLingual(bparams)))
 		// inbetween environments, CJK has to be closed later (nesting!)
 		&& (!style.isEnvironment() || !nextpar->layout().isEnvironment())) {
 		os << "\\end{CJK}\n";
@@ -1274,16 +1454,18 @@ void TeXOnePar(Buffer const & buf,
 	}
 
 	// If this is the last paragraph, close the CJK environment
-	// if necessary. If it's an environment, we'll have to \end that first.
-	if (runparams.isLastPar && !style.isEnvironment()) {
+	// if necessary. If it's an environment or nested in an environment,
+	// we'll have to \end that first.
+	if (runparams.isLastPar && !style.isEnvironment()
+		&& par.params().depth() < 1) {
 		switch (state->open_encoding_) {
 			case CJK: {
 				// do nothing at the end of child documents
 				if (maintext && buf.masterBuffer() != &buf)
 					break;
-				// end of main text
+				// end of main text: also insert a \clearpage (see #5386)
 				if (maintext) {
-					os << "\n\\end{CJK}\n";
+					os << "\n\\clearpage\n\\end{CJK}\n";
 				// end of an inset
 				} else
 					os << "\\end{CJK}";
@@ -1291,6 +1473,12 @@ void TeXOnePar(Buffer const & buf,
 				break;
 			}
 			case inputenc: {
+				// FIXME: If we are in an inset and the switch happened outside this inset,
+				// do not switch back at the end of the inset (bug #8479)
+				// The following attempt does not help with listings-caption in a CJK document:
+				// if (runparams_in.local_font != 0
+				//    && runparams_in.encoding == runparams_in.local_font->language()->encoding())
+				//	break;
 				os << "\\egroup";
 				state->open_encoding_ = none;
 				break;
@@ -1302,13 +1490,13 @@ void TeXOnePar(Buffer const & buf,
 		}
 	}
 
-	// If this is the last paragraph, and a local_font was set upon entering
-	// the inset, and we're using "auto" or "default" encoding, and not
-	// compiling with XeTeX or LuaTeX, the encoding
-	// should be set back to that local_font's encoding.
-	if (runparams.isLastPar && runparams_in.local_font != 0
+	// Information about local language is stored as a font feature.
+	// If this is the last paragraph of the inset and a local_font was set upon entering
+	// and we are mixing encodings ("auto-legacy" or "auto-legacy-plain" and no XeTeX or LuaTeX),
+	// ensure the encoding is set back to the default encoding of the local language.
+	if (runparams.isLastPar && runparams_in.local_font != nullptr
 	    && runparams_in.encoding != runparams_in.local_font->language()->encoding()
-	    && (bparams.inputenc == "auto" || bparams.inputenc == "default")
+	    && (bparams.inputenc == "auto-legacy" || bparams.inputenc == "auto-legacy-plain")
 		&& !runparams.isFullUnicode()
 	   ) {
 		runparams_in.encoding = runparams_in.local_font->language()->encoding();
@@ -1318,45 +1506,52 @@ void TeXOnePar(Buffer const & buf,
 	else
 		runparams_in.encoding = runparams.encoding;
 
+	// Also pass the post_macros upstream
+	runparams_in.post_macro = runparams.post_macro;
 	// These need to be passed upstream as well
 	runparams_in.need_maketitle = runparams.need_maketitle;
 	runparams_in.have_maketitle = runparams.have_maketitle;
+
 
 	// we don't need a newline for the last paragraph!!!
 	// Note from JMarc: we will re-add a \n explicitly in
 	// TeXEnvironment, because it is needed in this case
 	if (nextpar && !os.afterParbreak() && !last_was_separator) {
-		// Make sure to start a new line
-		os << breakln;
-		Layout const & next_layout = nextpar->layout();
+		if (!text.inset().getLayout().parbreakIgnored() && !merged_par)
+			// Make sure to start a new line
+			os << breakln;
 		// A newline '\n' is always output before a command,
 		// so avoid doubling it.
+		Layout const & next_layout = nextpar->layout();
 		if (!next_layout.isCommand()) {
 			// Here we now try to avoid spurious empty lines by
-			// outputting a paragraph break only if: (case 1) the
-			// paragraph style allows parbreaks and no \begin, \end
-			// or \item tags are going to follow (i.e., if the next
-			// isn't the first or the current isn't the last
-			// paragraph of an environment or itemize) and the
-			// depth and alignment of the following paragraph is
-			// unchanged, or (case 2) the following is a
-			// non-environment paragraph whose depth is increased
-			// but whose alignment is unchanged, or (case 3) the
-			// paragraph is not an environment and the next one is a
-			// non-itemize-like env at lower depth, or (case 4) the
-			// paragraph is a command not followed by an environment
-			// and the alignment of the current and next paragraph
-			// is unchanged, or (case 5) the current alignment is
-			// changed and a standard paragraph follows.
+			// outputting a paragraph break only if: 
+			// (case 1) the paragraph style allows parbreaks and
+			// no \begin, \end or \item tags are going to follow
+			// (i.e., if the next isn't the first or the current
+			// isn't the last paragraph of an environment or itemize)
+			// and the depth and alignment of the following paragraph is
+			// unchanged, or 
+			// (case 2) the following is a non-environment paragraph
+			// whose depth is increased but whose alignment is unchanged, or
+			// (case 3) the paragraph is not an environment and the next one
+			// is a non-itemize-like env at lower depth, or
+			// (case 4) the paragraph is a command not followed by an
+			// environment and the alignment of the current and next
+			// paragraph is unchanged, or
+			// (case 5) the current alignment is changed and a
+			// standard paragraph follows.
 			DocumentClass const & tclass = bparams.documentClass();
 			if ((style == next_layout
 			     && !style.parbreak_is_newline
 			     && !text.inset().getLayout().parbreakIsNewline()
+			     && !text.inset().getLayout().parbreakIgnored()
 			     && style.latextype != LATEX_ITEM_ENVIRONMENT
 			     && style.latextype != LATEX_LIST_ENVIRONMENT
 			     && style.align == par.getAlign(bparams)
 			     && nextpar->getDepth() == par.getDepth()
-			     && nextpar->getAlign(bparams) == par.getAlign(bparams))
+			     && (nextpar->getAlign(bparams) == par.getAlign(bparams)
+			         || par.params().spacing() != nextpar->params().spacing()))
 			    || (!next_layout.isEnvironment()
 				&& nextpar->getDepth() > par.getDepth()
 				&& nextpar->getAlign(bparams) == next_layout.align)
@@ -1369,7 +1564,17 @@ void TeXOnePar(Buffer const & buf,
 				&& next_layout.align == nextpar->getAlign(bparams))
 			    || (style.align != par.getAlign(bparams)
 				&& tclass.isDefaultLayout(next_layout))) {
-				os << '\n';
+				// and omit paragraph break if it has been deleted with ct
+				// and changes are not shown in output
+				if (!merged_par) {
+					if (runparams.isNonLong)
+						// This is to allow parbreak in multirow
+						// It could also be used for other non-long
+						// contexts
+						os << "\\endgraf\n";
+					else
+						os << '\n';
+				}
 			}
 		}
 	}
@@ -1378,8 +1583,8 @@ void TeXOnePar(Buffer const & buf,
 	if (intitle_command)
 		state->nest_level_ -= 1;
 
-	LYXERR(Debug::LATEX, "TeXOnePar for paragraph " << pit << " done; ptr "
-		<< &par << " next " << nextpar);
+	LYXERR(Debug::OUTFILE, "TeXOnePar for paragraph " << pit << " done; ptr "
+	                                                  << &par << " next " << nextpar);
 
 	return;
 }
@@ -1412,17 +1617,18 @@ void latexParagraphs(Buffer const & buf,
 	}
 
 	// Open a CJK environment at the beginning of the main buffer
-	// if the document's language is a CJK language
-	// (but not in child documents)
+	// if the document's main encoding requires the CJK package
+	// or the document encoding is utf8 and the CJK package is required
+	// (but not in child documents or documents using system fonts):
 	OutputState * state = getOutputState();
 	if (maintext && !is_child && !bparams.useNonTeXFonts
-	    && bparams.language->encoding()->package() == Encoding::CJK
-	    && (bparams.encoding().name() == "utf8-cjk"
-		|| bparams.encoding().iconvName() != "UTF-8")) {
-		docstring const cjkenc = (bparams.encoding().name() == "utf8-cjk"
-					  && LaTeXFeatures::isAvailable("CJKutf8")) ?
-						from_ascii("UTF8")
-					      : from_ascii(bparams.encoding().latexName());
+	    && (bparams.encoding().package() == Encoding::CJK
+			|| (bparams.encoding().name() == "utf8"
+				&& runparams.use_CJK))
+	   ) {
+		docstring const cjkenc = bparams.encoding().iconvName() == "UTF-8"
+								 ? from_ascii("UTF8")
+								 : from_ascii(bparams.encoding().latexName());
 		os << "\\begin{CJK}{" << cjkenc
 		   << "}{" << from_ascii(bparams.fonts_cjk) << "}%\n";
 		state->open_encoding_ = CJK;
@@ -1458,7 +1664,7 @@ void latexParagraphs(Buffer const & buf,
 		// The full doc will be exported but it is easier to just rely on
 		// runparams range parameters that will be passed TeXEnvironment.
 		runparams.par_begin = 0;
-		runparams.par_end = paragraphs.size();
+		runparams.par_end = static_cast<int>(paragraphs.size());
 	}
 
 	pit_type pit = runparams.par_begin;
@@ -1470,7 +1676,7 @@ void latexParagraphs(Buffer const & buf,
 	bool gave_layout_warning = false;
 	for (; pit < runparams.par_end; ++pit) {
 		lastpit = pit;
-		ParagraphList::const_iterator par = paragraphs.constIterator(pit);
+		ParagraphList::const_iterator par = paragraphs.iterator_at(pit);
 
 		// FIXME This check should not be needed. We should
 		// perhaps issue an error if it is.
@@ -1527,13 +1733,45 @@ void latexParagraphs(Buffer const & buf,
 			continue;
 		}
 
+		// Do not output empty environments if the whole paragraph has
+		// been deleted with ct and changes are not output.
+		bool output_changes;
+		if (!runparams.find_effective())
+			output_changes = bparams.output_changes;
+		else
+			output_changes = runparams.find_with_deleted();
+		bool const lastpar = size_t(pit + 1) >= paragraphs.size();
+		if (!lastpar) {
+			ParagraphList::const_iterator nextpar = paragraphs.iterator_at(pit + 1);
+			Paragraph const & cpar = paragraphs.at(pit);
+			if ((par->layout() != nextpar->layout()
+			     || par->params().depth() == nextpar->params().depth()
+			     || par->params().leftIndent() == nextpar->params().leftIndent())
+			    && !cpar.empty()
+			    && cpar.isDeleted(0, cpar.size()) && !output_changes) {
+				if (!cpar.parEndChange().deleted())
+					os << '\n' << '\n';
+				continue;
+			}
+		} else {
+			// This is the last par
+			Paragraph const & cpar = paragraphs.at(pit);
+			if ( !cpar.empty()
+			    && cpar.isDeleted(0, cpar.size()) && !output_changes) {
+				if (!cpar.parEndChange().deleted())
+					os << '\n' << '\n';
+				continue;
+			}
+		}
+
 		TeXEnvironmentData const data =
 			prepareEnvironment(buf, text, par, os, runparams);
 		// pit can be changed in TeXEnvironment.
 		TeXEnvironment(buf, text, runparams, pit, os);
-		finishEnvironment(os, runparams, data);
+		finishEnvironment(os, runparams, data, maintext, lastpar);
 	}
 
+	// FIXME: uncomment the content or remove this block
 	if (pit == runparams.par_end) {
 			// Make sure that the last paragraph is
 			// correctly terminated (because TeXOnePar does
@@ -1570,19 +1808,19 @@ void latexParagraphs(Buffer const & buf,
 			<< '\n';
 		// If we have language_auto_begin, the stack will
 		// already be empty, nothing to pop()
-		if (using_begin_end && !lyxrc.language_auto_begin)
+		if (using_begin_end && langOpenedAtThisLevel(state))
 			popLanguageName();
 	}
 
 	// If the last paragraph is an environment, we'll have to close
 	// CJK at the very end to do proper nesting.
 	if (maintext && !is_child && state->open_encoding_ == CJK) {
-		os << "\\end{CJK}\n";
+		os << "\\clearpage\n\\end{CJK}\n";
 		state->open_encoding_ = none;
 	}
 	// Likewise for polyglossia or when using begin/end commands
 	// or at the very end of an active branch inset with a language switch
-	Language const * const outer_language = (runparams.local_font != 0)
+	Language const * const outer_language = (runparams.local_font != nullptr)
 			? runparams.local_font->language() : bparams.language;
 	string const & prev_lang = runparams.use_polyglossia
 			? getPolyglossiaEnvName(outer_language)
@@ -1619,58 +1857,55 @@ void latexParagraphs(Buffer const & buf,
 	}
 }
 
-
+// Switch the input encoding for some part(s) of the document.
 pair<bool, int> switchEncoding(odocstream & os, BufferParams const & bparams,
 		   OutputParams const & runparams, Encoding const & newEnc,
-		   bool force)
+		   bool force, bool noswitchmacro)
 {
-	// XeTeX/LuaTeX use only one encoding per document:
-	// * with useNonTeXFonts: "utf8plain",
-	// * with XeTeX and TeX fonts: "ascii" (inputenc fails),
-	// * with LuaTeX and TeX fonts: only one encoding accepted by luainputenc.
+	// Never switch encoding with XeTeX/LuaTeX
+	// or if we're in a moving argument or inherit the outer encoding.
 	if (runparams.isFullUnicode() || newEnc.name() == "inherit")
+		return make_pair(false, 0);	
+
+	// Only switch for auto-selected legacy encodings (inputenc setting
+	// "auto-legacy" or "auto-legacy-plain").
+	// The "listings" environment can force a switch also with other
+	// encoding settings (it does not support variable width encodings
+	// (utf8, jis, ...) under 8-bit latex engines).
+	if (!force && ((bparams.inputenc != "auto-legacy" && bparams.inputenc != "auto-legacy-plain")
+				   || runparams.moving_arg))
 		return make_pair(false, 0);
 
 	Encoding const & oldEnc = *runparams.encoding;
-	bool moving_arg = runparams.moving_arg;
-	// If we switch from/to CJK, we need to switch anyway, despite custom inputenc,
-	// except if we use CJKutf8
-	bool const from_to_cjk =
-		((oldEnc.package() == Encoding::CJK && newEnc.package() != Encoding::CJK)
-		|| (oldEnc.package() != Encoding::CJK && newEnc.package() == Encoding::CJK))
-		&& (bparams.encoding().name() != "utf8-cjk" || !LaTeXFeatures::isAvailable("CJKutf8"));
-	if (!force && !from_to_cjk
-	    && ((bparams.inputenc != "auto" && bparams.inputenc != "default") || moving_arg))
+	// Do not switch, if the encoding is unchanged or switching is not supported.
+	if (oldEnc.name() == newEnc.name()
+		|| oldEnc.package() == Encoding::japanese
+		|| oldEnc.package() == Encoding::none
+		|| newEnc.package() == Encoding::none
+		|| runparams.find_effective())
 		return make_pair(false, 0);
-
-	// Do nothing if the encoding is unchanged.
-	if (oldEnc.name() == newEnc.name())
-		return make_pair(false, 0);
-
 	// FIXME We ignore encoding switches from/to encodings that do
 	// neither support the inputenc package nor the CJK package here.
-	// This does of course only work in special cases (e.g. switch from
-	// tis620-0 to latin1, but the text in latin1 contains ASCII only),
-	// but it is the best we can do
-	if (oldEnc.package() == Encoding::none
-		|| newEnc.package() == Encoding::none)
-		return make_pair(false, 0);
+	// This may fail for characters not supported by "unicodesymbols"
+	// or for non-ASCII characters in "listings"
+	// but it is the best we can do.
 
-	LYXERR(Debug::LATEX, "Changing LaTeX encoding from "
-		<< oldEnc.name() << " to " << newEnc.name());
+	// change encoding
+	LYXERR(Debug::OUTFILE, "Changing LaTeX encoding from "
+		   << oldEnc.name() << " to " << newEnc.name());
 	os << setEncoding(newEnc.iconvName());
-	if (bparams.inputenc == "default")
-		return make_pair(true, 0);
+	if (bparams.inputenc == "auto-legacy-plain")
+	  return make_pair(true, 0);
 
 	docstring const inputenc_arg(from_ascii(newEnc.latexName()));
 	OutputState * state = getOutputState();
 	switch (newEnc.package()) {
 		case Encoding::none:
 		case Encoding::japanese:
-			// shouldn't ever reach here, see above
+			// shouldn't ever reach here (see above) but avoids warning.
 			return make_pair(true, 0);
 		case Encoding::inputenc: {
-			int count = inputenc_arg.length();
+			size_t count = inputenc_arg.length();
 			if (oldEnc.package() == Encoding::CJK &&
 			    state->open_encoding_ == CJK) {
 				os << "\\end{CJK}";
@@ -1683,7 +1918,7 @@ pair<bool, int> switchEncoding(odocstream & os, BufferParams const & bparams,
 				state->open_encoding_ = none;
 				count += 7;
 			}
-			if (runparams.local_font != 0
+			if (runparams.local_font != nullptr
 			    && 	oldEnc.package() == Encoding::CJK) {
 				// within insets, \inputenc switches need
 				// to be embraced within \bgroup...\egroup;
@@ -1692,14 +1927,13 @@ pair<bool, int> switchEncoding(odocstream & os, BufferParams const & bparams,
 				count += 7;
 				state->open_encoding_ = inputenc;
 			}
-			// with the japanese option, inputenc is omitted.
-			if (runparams.use_japanese)
+			if (noswitchmacro)
 				return make_pair(true, count);
 			os << "\\inputencoding{" << inputenc_arg << '}';
 			return make_pair(true, count + 16);
 		}
 		case Encoding::CJK: {
-			int count = inputenc_arg.length();
+			size_t count = inputenc_arg.length();
 			if (oldEnc.package() == Encoding::CJK &&
 			    state->open_encoding_ == CJK) {
 				os << "\\end{CJK}";
@@ -1710,11 +1944,8 @@ pair<bool, int> switchEncoding(odocstream & os, BufferParams const & bparams,
 				os << "\\egroup";
 				count += 7;
 			}
-			docstring const cjkenc = (bparams.encoding().name() == "utf8-cjk"
-						  && LaTeXFeatures::isAvailable("CJKutf8")) ?
-							from_ascii("UTF8")
-						      : from_ascii(bparams.encoding().latexName());
-			os << "\\begin{CJK}{" << cjkenc << "}{"
+			os << "\\begin{CJK}{"
+			   << from_ascii(newEnc.latexName()) << "}{"
 			   << from_ascii(bparams.fonts_cjk) << "}";
 			state->open_encoding_ = CJK;
 			return make_pair(true, count + 15);
@@ -1722,7 +1953,6 @@ pair<bool, int> switchEncoding(odocstream & os, BufferParams const & bparams,
 	}
 	// Dead code to avoid a warning:
 	return make_pair(true, 0);
-
 }
 
 } // namespace lyx

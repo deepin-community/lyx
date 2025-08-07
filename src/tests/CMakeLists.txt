@@ -8,7 +8,7 @@ set(check_layout_SOURCES)
 foreach(_f insets/InsetLayout.cpp CiteEnginesList.cpp Color.cpp Counters.cpp Floating.cpp
        FloatList.cpp FontInfo.cpp Layout.cpp LayoutFile.cpp Lexer.cpp
        ModuleList.cpp Spacing.cpp TextClass.cpp tests/check_layout.cpp
-       tests/boost.cpp support/tests/dummy_functions.cpp)
+       tests/boost.cpp tests/dummy_functions.cpp)
   list(APPEND check_layout_SOURCES "${TOP_SRC_DIR}/src/${_f}")
 endforeach()
 
@@ -17,7 +17,7 @@ include_directories(${TOP_SRC_DIR}/src/support/tests)
 add_executable(check_layout ${check_layout_SOURCES})
 
 target_link_libraries(check_layout support
-  ${Lyx_Boost_Libraries} ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY}
+  ${Lyx_Boost_Libraries} ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY} ${QtCore5CompatLibrary}
   ${ZLIB_LIBRARY} ${ICONV_LIBRARY})
 if(CYGWIN)
     target_link_libraries(check_layout shlwapi)
@@ -29,21 +29,27 @@ set_target_properties(check_layout PROPERTIES FOLDER "tests/src")
 
 file(GLOB layout_files RELATIVE "${TOP_SRC_DIR}/lib/layouts" "${TOP_SRC_DIR}/lib/layouts/*.layout")
 file(GLOB module_files RELATIVE "${TOP_SRC_DIR}/lib/layouts" "${TOP_SRC_DIR}/lib/layouts/*.module")
+file(GLOB citeengine_files RELATIVE "${TOP_SRC_DIR}/lib/citeengines" "${TOP_SRC_DIR}/lib/citeengines/*.citeengine")
 list(SORT layout_files)
 list(SORT module_files)
+list(SORT citeengine_files)
 
-foreach(bns ${layout_files} ${module_files})
-  string(REGEX REPLACE "\\.(layout|module)" "" bn ${bns})
+foreach(bns ${layout_files} ${module_files} ${citeengine_files})
+  string(REGEX REPLACE "\\.(layout|module|citeengine)" "" bn ${bns})
   set(_checktype ${CMAKE_MATCH_1})
-  if("${_checktype}" STREQUAL "module")
+  if("${_checktype}" MATCHES "module|citeengine")
     file(WRITE "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "#% Do not delete the line below; configure depends on this\n")
     file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "#  \\DeclareLaTeXClass{test${bn}}\n")
-    file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "Format 63\n")
+    file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "Format 74\n")
     file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "Style Standard\n")
     file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" " LabelType No_Label\n")
     file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" " Category MainText\n")
     file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "End\n")
-    file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "Input ${bns}\n")
+    if ("${_checktype}" STREQUAL "citeengine")
+      file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "Input \"${TOP_SRC_DIR}/lib/citeengines/${bns}\"\n")
+    else()
+      file(APPEND "${LYX_TESTS_USERDIR}/layouts/test${bn}.layout" "Input ${bns}\n")
+    endif()
     add_test(NAME "check_layout/${bns}"
       COMMAND ${CMAKE_COMMAND}
 	"-DCheckLayout=$<TARGET_FILE:check_layout>"
@@ -60,8 +66,8 @@ endforeach()
 
 set(check_ExternalTransforms_SOURCES)
 foreach(_f graphics/GraphicsParams.cpp insets/ExternalTransforms.cpp
-	Length.cpp lengthcommon.cpp tests/check_ExternalTransforms.cpp
-	tests/boost.cpp support/tests/dummy_functions.cpp)
+	tests/check_ExternalTransforms.cpp
+	tests/boost.cpp tests/dummy_functions.cpp)
     list(APPEND check_ExternalTransforms_SOURCES ${TOP_SRC_DIR}/src/${_f})
 endforeach()
 
@@ -69,7 +75,7 @@ include_directories(${TOP_SRC_DIR}/src/tests)
 add_executable(check_ExternalTransforms ${check_ExternalTransforms_SOURCES})
 
 target_link_libraries(check_ExternalTransforms support
-	${Lyx_Boost_Libraries} ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY})
+	${Lyx_Boost_Libraries} ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY} ${QtCore5CompatLibrary})
 lyx_target_link_libraries(check_ExternalTransforms Magic)
 
 add_dependencies(lyx_run_tests check_ExternalTransforms)
@@ -84,13 +90,13 @@ add_test(NAME "check_ExternalTransforms"
 add_dependencies(lyx_run_tests check_ExternalTransforms)
 
 set(check_Length_SOURCES)
-foreach(_f Length.cpp lengthcommon.cpp tests/check_Length.cpp tests/boost.cpp support/tests/dummy_functions.cpp)
+foreach(_f tests/check_Length.cpp tests/boost.cpp tests/dummy_functions.cpp)
   list(APPEND check_Length_SOURCES ${TOP_SRC_DIR}/src/${_f})
 endforeach()
 add_executable(check_Length ${check_Length_SOURCES})
 
 target_link_libraries(check_Length support
-	${Lyx_Boost_Libraries} ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY})
+	${Lyx_Boost_Libraries} ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY} ${QtCore5CompatLibrary})
 lyx_target_link_libraries(check_Length Magic)
 
 add_dependencies(lyx_run_tests check_Length)
@@ -106,13 +112,13 @@ add_dependencies(lyx_run_tests check_Length)
 
 include_directories(${TOP_SRC_DIR}/src/tests)
 set(check_ListingsCaption_SOURCES)
-foreach(_f tests/check_ListingsCaption.cpp tests/boost.cpp support/tests/dummy_functions.cpp)
+foreach(_f tests/check_ListingsCaption.cpp tests/boost.cpp tests/dummy_functions.cpp)
   list(APPEND check_ListingsCaption_SOURCES ${TOP_SRC_DIR}/src/${_f})
 endforeach()
 add_executable(check_ListingsCaption ${check_ListingsCaption_SOURCES})
 
 target_link_libraries(check_ListingsCaption support
-	${Lyx_Boost_Libraries} ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY})
+	${Lyx_Boost_Libraries} ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY} ${QtCore5CompatLibrary})
 lyx_target_link_libraries(check_ListingsCaption Magic)
 
 add_dependencies(lyx_run_tests check_ListingsCaption)

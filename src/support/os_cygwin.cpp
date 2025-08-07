@@ -342,7 +342,7 @@ string latex_path(string const & p)
 
 	if (windows_style_tex_paths_ && FileName::isAbsolute(p)) {
 		string dos_path = convert_path(p, PathStyle(windows));
-		LYXERR(Debug::LATEX, "<Path correction for LaTeX> ["
+		LYXERR(Debug::OUTFILE, "<Path correction for LaTeX> ["
 			<< p << "]->>[" << dos_path << ']');
 		return dos_path;
 	}
@@ -361,23 +361,6 @@ string latex_path_list(string const & p)
 		return convert_path_list(p, PathStyle(windows));
 
 	return convert_path_list(p, PathStyle(posix));
-}
-
-
-bool is_valid_strftime(string const & p)
-{
-	string::size_type pos = p.find_first_of('%');
-	while (pos != string::npos) {
-		if (pos + 1 == string::npos)
-			break;
-		if (!containsOnly(p.substr(pos + 1, 1),
-			"aAbBcCdDeEFgGhHIjklmMnOpPrRsStTuUVwWxXyYzZ%+"))
-			return false;
-		if (pos + 2 == string::npos)
-		      break;
-		pos = p.find_first_of('%', pos + 2);
-	}
-	return true;
 }
 
 

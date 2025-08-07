@@ -27,8 +27,10 @@
 #include "DispatchResult.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
+#include "InsetLayout.h"
 #include "MetricsInfo.h"
 #include "output_xhtml.h"
+#include "xml.h"
 #include "Text.h"
 #include "TextClass.h"
 #include "TocBackend.h"
@@ -62,7 +64,7 @@ static InsetName insetnames[INSET_CODE_SIZE];
 
 
 // This list should be kept in sync with the list of dialogs in
-// src/frontends/qt4/GuiView.cpp, I.e., if a dialog goes with an
+// src/frontends/qt/GuiView.cpp, I.e., if a dialog goes with an
 // inset, the dialog should have the same name as the inset.
 // Changes should be also recorded in LFUN_DIALOG_SHOW doxygen
 // docs in LyXAction.cpp.
@@ -74,6 +76,7 @@ static void build_translator()
 	insetnames[TOC_CODE] = InsetName("toc");
 	insetnames[QUOTE_CODE] = InsetName("quote");
 	insetnames[REF_CODE] = InsetName("ref");
+	insetnames[COUNTER_CODE] = InsetName("counter");
 	insetnames[HYPERLINK_CODE] = InsetName("href");
 	insetnames[SEPARATOR_CODE] = InsetName("separator");
 	insetnames[ENDING_CODE] = InsetName("ending");
@@ -170,6 +173,7 @@ static void build_translator()
 	insetnames[MATH_SUBSTACK_CODE] = InsetName("mathsubstack");
 	insetnames[MATH_SYMBOL_CODE] = InsetName("mathsymbol");
 	insetnames[MATH_TABULAR_CODE] = InsetName("mathtabular");
+	insetnames[MATH_TEXTSIZE_CODE] = InsetName("mathtextsize");
 	insetnames[MATH_UNDERSET_CODE] = InsetName("mathunderset");
 	insetnames[MATH_UNKNOWN_CODE] = InsetName("mathunknown");
 	insetnames[MATH_XARROW_CODE] = InsetName("mathxarrow");
@@ -234,6 +238,20 @@ docstring Inset::layoutName() const
 }
 
 
+InsetLayout const & Inset::getLayout() const
+{
+	if (!buffer_)
+		return DocumentClass::plainInsetLayout();
+	return buffer().params().documentClass().insetLayout(layoutName());
+}
+
+
+bool Inset::isPassThru() const
+{
+	return getLayout().isPassThru();
+}
+
+
 bool Inset::isFreeSpacing() const
 {
 	return getLayout().isFreeSpacing();
@@ -255,6 +273,18 @@ bool Inset::forceLTR(OutputParams const &) const
 bool Inset::isInToc() const
 {
 	return getLayout().isInToc();
+}
+
+
+FontInfo Inset::getFont() const
+{
+	return getLayout().font();
+}
+
+
+FontInfo Inset::getLabelfont() const
+{
+	return getLayout().labelfont();
 }
 
 
@@ -314,7 +344,7 @@ docstring insetDisplayName(InsetCode c)
 
 void Inset::dispatch(Cursor & cur, FuncRequest & cmd)
 {
-	if (buffer_ == 0) {
+	if (buffer_ == nullptr) {
 		lyxerr << "Unassigned buffer_ member in Inset::dispatch()" << std::endl;
 		lyxerr << "LyX Code: " << lyxCode() << " name: "
 		       << insetName(lyxCode()) << std::endl;
@@ -323,6 +353,8 @@ void Inset::dispatch(Cursor & cur, FuncRequest & cmd)
 	cur.screenUpdateFlags(Update::Force | Update::FitCursor);
 	cur.dispatched();
 	doDispatch(cur, cmd);
+	if (cmd.origin() == FuncRequest::TOC)
+		cur.bv().processUpdateFlags(cur.result().screenUpdate());
 }
 
 
@@ -352,10 +384,15 @@ bool Inset::showInsetDialog(BufferView * bv) const
 void Inset::doDispatch(Cursor & cur, FuncRequest &cmd)
 {
 	switch (cmd.action()) {
+
 	case LFUN_MOUSE_RELEASE:
-		// if the derived inset did not explicitly handle mouse_release,
-		// we assume we request the settings dialog
-		if (!cur.selection() && cmd.button() == mouse_button::button1
+		// If the derived inset did not explicitly handle mouse_release,
+		// we assume we request the settings dialog,
+		// except if we are about to select (MOUSE_MOTION that started
+		// outside the inset).
+		if ((!cur.selection() || covers(cur.bv(), cur.bv().cursor().xClickPos(),
+						cur.bv().cursor().yClickPos()))
+		    && cmd.button() == mouse_button::button1
 		    && clickable(cur.bv(), cmd.x(), cmd.y()) && hasSettings()) {
 			FuncRequest tmpcmd(LFUN_INSET_SETTINGS);
 			dispatch(cur, tmpcmd);
@@ -379,7 +416,7 @@ void Inset::doDispatch(Cursor & cur, FuncRequest &cmd)
 
 
 bool Inset::getStatus(Cursor &, FuncRequest const & cmd,
-	FuncStatus & flag) const
+	FuncStatus & status) const
 {
 	// LFUN_INSET_APPLY is sent from the dialogs when the data should
 	// be applied. This is either changed to LFUN_INSET_MODIFY (if the
@@ -394,20 +431,20 @@ bool Inset::getStatus(Cursor &, FuncRequest const & cmd,
 		// Allow modification of our data.
 		// This needs to be handled in the doDispatch method of our
 		// instantiatable children.
-		flag.setEnabled(true);
+		status.setEnabled(true);
 		return true;
 
 	case LFUN_INSET_INSERT:
 		// Don't allow insertion of new insets.
 		// Every inset that wants to allow new insets from open
 		// dialogs needs to override this.
-		flag.setEnabled(false);
+		status.setEnabled(false);
 		return true;
 
 	case LFUN_INSET_SETTINGS:
 		if (cmd.argument().empty() || cmd.getArg(0) == insetName(lyxCode())) {
 			bool const enable = hasSettings();
-			flag.setEnabled(enable);
+			status.setEnabled(enable);
 			return true;
 		} else {
 			return false;
@@ -415,12 +452,12 @@ bool Inset::getStatus(Cursor &, FuncRequest const & cmd,
 
 	case LFUN_IN_MATHMACROTEMPLATE:
 		// By default we're not in a InsetMathMacroTemplate inset
-		flag.setEnabled(false);
+		status.setEnabled(false);
 		return true;
 
 	case LFUN_IN_IPA:
 		// By default we're not in an IPA inset
-		flag.setEnabled(false);
+		status.setEnabled(false);
 		return true;
 
 	default:
@@ -443,7 +480,7 @@ Inset * Inset::editXY(Cursor &, int x, int y)
 }
 
 
-Inset::idx_type Inset::index(row_type row, col_type col) const
+idx_type Inset::index(row_type row, col_type col) const
 {
 	if (row != 0)
 		LYXERR0("illegal row: " << row);
@@ -465,13 +502,13 @@ bool Inset::idxUpDown(Cursor &, bool) const
 }
 
 
-int Inset::docbook(odocstream &, OutputParams const &) const
+void Inset::docbook(XMLStream & xs, OutputParams const &) const
 {
-	return 0;
+	xs << "[[Inset: " << from_ascii(insetName(lyxCode())) << "]]";
 }
 
 
-docstring Inset::xhtml(XHTMLStream & xs, OutputParams const &) const
+docstring Inset::xhtml(XMLStream & xs, OutputParams const &) const
 {
 	xs << "[[Inset: " << from_ascii(insetName(lyxCode())) << "]]";
 	return docstring();
@@ -555,7 +592,12 @@ void Inset::drawMarkers(PainterInfo & pi, int x, int y) const
 
 bool Inset::editing(BufferView const * bv) const
 {
-	return bv->cursor().isInside(this);
+	if (bv->mouseSelecting())
+		// Avoid flicker when selecting with the mouse: when so, do not make
+		// decisions about metrics based on the mouse location.
+		return bv->cursor().realAnchor().isInside(this);
+	else
+		return bv->cursor().isInside(this);
 }
 
 
@@ -577,18 +619,16 @@ bool Inset::covers(BufferView const & bv, int x, int y) const
 }
 
 
-InsetLayout const & Inset::getLayout() const
-{
-	if (!buffer_)
-		return DocumentClass::plainInsetLayout();
-	return buffer().params().documentClass().insetLayout(layoutName());
-}
-
-
 bool Inset::undefined() const
 {
 	docstring const & n = getLayout().name();
 	return n.empty() || n == DocumentClass::plainInsetLayout().name();
+}
+
+
+CtObject Inset::getCtObject(OutputParams const &) const
+{
+	return CtObject::Normal;
 }
 
 
@@ -617,8 +657,8 @@ Buffer const * Inset::updateFrontend() const
 	// are in the CutAndPaste stack. See InsetGraphics, RenderGraphics and
 	// RenderPreview.
 	if (!buffer_)
-		return 0;
-	return theApp() ? theApp()->updateInset(this) : 0;
+		return nullptr;
+	return theApp() ? theApp()->updateInset(this) : nullptr;
 }
 
 
@@ -631,6 +671,14 @@ bool Inset::resetFontEdit() const
 docstring Inset::completionPrefix(Cursor const &) const
 {
 	return docstring();
+}
+
+
+Language const * Inset::getLocalOrDefaultLang(OutputParams const & rp) const
+{
+	return (rp.local_font != nullptr)
+			? rp.local_font->language()
+			: buffer().params().language;
 }
 
 } // namespace lyx

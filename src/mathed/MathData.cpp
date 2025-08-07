@@ -15,9 +15,10 @@
 
 #include "InsetMathBrace.h"
 #include "InsetMathFont.h"
+#include "InsetMathMacro.h"
 #include "InsetMathScript.h"
 #include "MacroTable.h"
-#include "InsetMathMacro.h"
+#include "MathRow.h"
 #include "MathStream.h"
 #include "MathSupport.h"
 #include "MetricsInfo.h"
@@ -27,6 +28,7 @@
 #include "BufferView.h"
 #include "CoordCache.h"
 #include "Cursor.h"
+#include "Dimension.h"
 
 #include "mathed/InsetMathUnknown.h"
 
@@ -37,7 +39,6 @@
 #include "support/docstream.h"
 #include "support/gettext.h"
 #include "support/lassert.h"
-#include "support/lyxalgo.h"
 
 #include <cstdlib>
 
@@ -47,16 +48,24 @@ namespace lyx {
 
 
 MathData::MathData(Buffer * buf, const_iterator from, const_iterator to)
-	: base_type(from, to), minasc_(0), mindes_(0), slevel_(0),
-	  sshift_(0), kerning_(0), buffer_(buf)
-{}
+	: base_type(from, to), buffer_(buf)
+{
+	setContentsBuffer();
+}
+
+
+void MathData::setContentsBuffer()
+{
+	if (buffer_)
+		for (MathAtom & at : *this)
+			at.nucleus()->setBuffer(*buffer_);
+}
 
 
 void MathData::setBuffer(Buffer & b)
 {
 	buffer_ = &b;
-	for (MathAtom & at : *this)
-		at.nucleus()->setBuffer(b);
+	setContentsBuffer();
 }
 
 
@@ -78,6 +87,8 @@ void MathData::insert(size_type pos, MathAtom const & t)
 {
 	LBUFERR(pos <= size());
 	base_type::insert(begin() + pos, t);
+	if (buffer_)
+		operator[](pos)->setBuffer(*buffer_);
 }
 
 
@@ -85,6 +96,17 @@ void MathData::insert(size_type pos, MathData const & ar)
 {
 	LBUFERR(pos <= size());
 	base_type::insert(begin() + pos, ar.begin(), ar.end());
+	if (buffer_)
+		for (size_type i = 0 ; i < ar.size() ; ++i)
+			operator[](pos + i)->setBuffer(*buffer_);
+}
+
+
+void MathData::push_back(MathAtom const & t)
+{
+	base_type::push_back(t);
+	if (buffer_)
+		back()->setBuffer(*buffer_);
 }
 
 
@@ -220,19 +242,39 @@ bool MathData::contains(MathData const & ar) const
 }
 
 
-void MathData::touch() const
-{
-}
-
-
 bool MathData::addToMathRow(MathRow & mrow, MetricsInfo & mi) const
 {
 	bool has_contents = false;
 	BufferView * bv = mi.base.bv;
+	display_style_ = mi.base.font.style() == DISPLAY_STYLE;
 	MathData * ar = const_cast<MathData*>(this);
 	ar->updateMacros(&bv->cursor(), mi.macrocontext,
 	                 InternalUpdate, mi.base.macro_nesting);
 
+	pos_type bspos = -1, espos = -1;
+	Cursor const & cur = bv->cursor();
+	InsetMath const * inset = cur.inset().asInsetMath();
+	if (cur.selection() && inset) {
+		CursorSlice const s1 = cur.selBegin();
+		CursorSlice const s2 = cur.selEnd();
+		// Detect inner selection in this math data.
+		if (s1.idx() == s2.idx() && &inset->cell(s1.idx()) == this) {
+			bspos = s1.pos();
+			espos = s2.pos();
+		} else if (s1.idx() != s2.idx()) {
+			// search for this math data and check whether it is selected
+			for (idx_type idx = 0; idx < inset->nargs(); ++idx) {
+				MathData const & c = inset->cell(idx);
+				if (&c == this && inset->idxBetween(idx, s1.idx(), s2.idx())) {
+					// whole cell is selected
+					bspos = 0;
+					espos = size();
+					// no need to continue searchning
+					break;
+				}
+			}
+		}
+	}
 
 	// FIXME: for completion, try to insert the relevant data in the
 	// mathrow (like is done for text rows). We could add a pair of
@@ -244,11 +286,15 @@ bool MathData::addToMathRow(MathRow & mrow, MetricsInfo & mi) const
 	size_t const compl_pos = has_completion ? inlineCompletionPos.pos() : 0;
 
 	for (size_t i = 0 ; i < size() ; ++i) {
+		if (i == bspos)
+			mrow.push_back(MathRow::Element(mi, MathRow::BEGIN_SEL));
 		has_contents |= (*this)[i]->addToMathRow(mrow, mi);
 		if (i + 1 == compl_pos) {
 			mrow.back().compl_text = bv->inlineCompletion();
 			mrow.back().compl_unique_to = bv->inlineCompletionUniqueChars();
 		}
+		if (i + 1 == espos)
+			mrow.push_back(MathRow::Element(mi, MathRow::END_SEL));
 	}
 	return has_contents;
 }
@@ -272,19 +318,12 @@ bool isInside(DocIterator const & it, MathData const & ar,
 #endif
 
 
-bool MathData::hasCaret(BufferView * bv) const
-{
-	Cursor & cur = bv->cursor();
-	return cur.inMathed() && &cur.cell() == this;
-}
-
-
 void MathData::metrics(MetricsInfo & mi, Dimension & dim, bool tight) const
 {
 	frontend::FontMetrics const & fm = theFontMetrics(mi.base.font);
 	BufferView * bv = mi.base.bv;
 	int const Iascent = fm.dimension('I').ascent();
-	int xascent = fm.dimension('x').ascent();
+	int xascent = fm.xHeight();
 	if (xascent >= Iascent)
 		xascent = (2 * Iascent) / 3;
 	minasc_ = xascent;
@@ -293,15 +332,13 @@ void MathData::metrics(MetricsInfo & mi, Dimension & dim, bool tight) const
 	sshift_ = xascent / 4;
 
 	MathRow mrow(mi, this);
-	bool has_caret = mrow.metrics(mi, dim);
-	mrow_cache_[bv] = mrow;
-	kerning_ = mrow.kerning(bv);
+	mrow.metrics(mi, dim);
 
 	// Set a minimal ascent/descent for the cell
 	if (tight)
 		// FIXME: this is the minimal ascent seen empirically, check
 		// what the TeXbook says.
-		dim.asc = max(dim.asc, fm.ascent('x'));
+		dim.asc = max(dim.asc, fm.xHeight());
 	else {
 		dim.asc = max(dim.asc, fm.maxAscent());
 		dim.des = max(dim.des, fm.maxDescent());
@@ -309,12 +346,18 @@ void MathData::metrics(MetricsInfo & mi, Dimension & dim, bool tight) const
 
 	// This is one of the the few points where the drawing font is known,
 	// so that we can set the caret vertical dimensions.
-	has_caret |= hasCaret(bv);
-	if (has_caret)
-		bv->setCaretAscentDescent(min(dim.asc, fm.maxAscent()),
-		                          min(dim.des, fm.maxDescent()));
+	mrow.caret_dim.asc = min(dim.asc, fm.maxAscent());
+	mrow.caret_dim.des = min(dim.des, fm.maxDescent());
+	mrow.caret_dim.wid = max(fm.lineWidth(), 1);
 
-	// Cache the dimension.
+	/// do the same for math cells linearized in the row
+	MathRow caret_row = MathRow(mrow.caret_dim);
+	for (auto const & e : mrow)
+		if (e.type == MathRow::BEGIN && e.ar)
+			bv->setMathRow(e.ar, caret_row);
+
+	// Cache row and dimension.
+	bv->setMathRow(this, mrow);
 	bv->coordCache().arrays().add(this, dim);
 }
 
@@ -332,7 +375,7 @@ void MathData::drawSelection(PainterInfo & pi, int const x, int const y) const
 	MathData const & c1 = inset->cell(s1.idx());
 
 	if (s1.idx() == s2.idx() && &c1 == this) {
-		// selection indide cell
+		// selection inside cell
 		Dimension const dim = bv->coordCache().getArrays().dim(&c1);
 		int const beg = c1.pos2x(bv, s1.pos());
 		int const end = c1.pos2x(bv, s2.pos());
@@ -359,7 +402,7 @@ void MathData::draw(PainterInfo & pi, int const x, int const y) const
 	setXY(*pi.base.bv, x, y);
 
 	drawSelection(pi, x, y);
-	MathRow const & mrow = mrow_cache_[pi.base.bv];
+	MathRow const & mrow = pi.base.bv->mathRow(this);
 	mrow.draw(pi, x, y);
 }
 
@@ -382,20 +425,26 @@ void MathData::drawT(TextPainter & pain, int x, int y) const
 	// FIXME: Abdel 16/10/2006
 	// This drawT() method is never used, this is dead code.
 
-	for (const_iterator it = begin(), et = end(); it != et; ++it) {
-		(*it)->drawT(pain, x, y);
-		//x += (*it)->width_;
+	for (auto const & it : *this) {
+		it->drawT(pain, x, y);
+		//x += it->width_;
 		x += 2;
 	}
 }
 
 
-void MathData::updateBuffer(ParIterator const & it, UpdateType utype)
+int MathData::kerning(BufferView const * bv) const
+{
+	return 	bv->mathRow(this).kerning(bv);
+}
+
+
+void MathData::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
 	// pass down
 	for (size_t i = 0, n = size(); i != n; ++i) {
 		MathAtom & at = operator[](i);
-		at.nucleus()->updateBuffer(it, utype);
+		at.nucleus()->updateBuffer(it, utype, deleted);
 	}
 }
 
@@ -548,7 +597,7 @@ void MathData::detachMacroParameters(DocIterator * cur, const size_type macroPos
 		}
 
 		// Otherwise we don't drop an empty optional, put it back normally
-		MathData optarg;
+		MathData optarg(buffer_);
 		asArray(from_ascii("[]"), optarg);
 		MathData & arg = detachedArgs[j];
 
@@ -598,7 +647,7 @@ void MathData::detachMacroParameters(DocIterator * cur, const size_type macroPos
 		    && !(arg[0]->asMacro() && arg[0]->asMacro()->arity() > 0))
 			insert(p, arg[0]);
 		else
-			insert(p, MathAtom(new InsetMathBrace(arg)));
+			insert(p, MathAtom(new InsetMathBrace(buffer_, arg)));
 
 		// cursor in macro?
 		if (curMacroSlice == -1)
@@ -662,9 +711,9 @@ void MathData::attachMacroParameters(Cursor * cur,
 		// In the math parser we remove empty braces in the base
 		// of a script inset, but we have to restore them here.
 		if (scriptInset->nuc().empty()) {
-			MathData ar;
+			MathData ar(buffer_);
 			scriptInset->nuc().push_back(
-					MathAtom(new InsetMathBrace(ar)));
+					MathAtom(new InsetMathBrace(buffer_, ar)));
 		}
 		// put macro into a script inset
 		scriptInset->nuc()[0] = operator[](macroPos);
@@ -782,7 +831,7 @@ void MathData::collectOptionalParameters(Cursor * cur,
 
 	// fill up empty optional parameters
 	while (params.size() < numOptionalParams)
-		params.push_back(MathData());
+		params.push_back(MathData(buffer_));
 }
 
 
@@ -842,7 +891,7 @@ void MathData::collectParameters(Cursor * cur,
 			}
 		} else {
 			// the simplest case: plain inset
-			MathData array;
+			MathData array(buffer_);
 			array.insert(0, cell);
 			params.push_back(array);
 		}
@@ -967,6 +1016,29 @@ MathClass MathData::mathClass() const
 			return MC_ORD;
 	}
 	return res == MC_UNKNOWN ? MC_ORD : res;
+}
+
+
+MathClass MathData::firstMathClass() const
+{
+	for (MathAtom const & at : *this) {
+		MathClass mc = at->mathClass();
+		if (mc != MC_UNKNOWN)
+			return mc;
+	}
+	return MC_ORD;
+}
+
+
+MathClass MathData::lastMathClass() const
+{
+	MathClass res = MC_ORD;
+	for (MathAtom const & at : *this) {
+		MathClass mc = at->mathClass();
+		if (mc != MC_UNKNOWN)
+			res = mc;
+	}
+	return res;
 }
 
 

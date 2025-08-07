@@ -4,7 +4,7 @@
 # Letter textclass definition file.
 # Author : Thomas Hartkens <thomas@hartkens.de>
 
-Format 66
+Format 104
 Input stdinsets.inc
 Input stdfloats.inc
 Input stdcounters.inc
@@ -17,6 +17,9 @@ Columns                 1
 Sides                   1
 PageStyle               Empty
 DefaultStyle            Letter
+
+# Babel is loaded internally
+Provides babel 1
 
 
 Style Letter
@@ -32,8 +35,12 @@ Style Letter
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               Blue
+	  Color               textlabel1
 	EndFont
+	AutoNests 
+		Standard,Itemize,Enumerate,Description,Labeling,Bibliography,Quotation,Quote,Verse,Corollary,
+		Definition,Definitions,Example,Examples,Fact,Lemma,Proof,Theorem,LyX-Code
+	EndAutoNests
 End
 
 
@@ -52,7 +59,7 @@ Style Name
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               Blue
+	  Color               textlabel1
 	EndFont
 End
 

@@ -43,9 +43,9 @@ public:
 	///
 	virtual ~InsetCommand();
 	///
-	InsetCommand * asInsetCommand() { return this; }
+	InsetCommand * asInsetCommand() override { return this; }
 	///
-	InsetCommand const * asInsetCommand() const { return this; }
+	InsetCommand const * asInsetCommand() const override { return this; }
 
 	/// \return true if params are successfully read
 	static bool string2params(std::string const & data,
@@ -62,45 +62,49 @@ public:
 	void setParam(std::string const & name, docstring const & value);
 	/// FIXME Remove
 	docstring const getFirstNonOptParam() const { return p_.getFirstNonOptParam(); }
+	///
+	void setBroken(bool const b) const { broken_ = b; }
+	///
+	bool isBroken() const { return broken_; }
 
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	void write(std::ostream & os) const { p_.write(os); }
+	void write(std::ostream & os) const override { p_.write(os); }
 	///
-	void read(Lexer & lex) { p_.Read(lex, &buffer()); }
+	void read(Lexer & lex) override { p_.Read(lex, &buffer()); }
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const override;
 	///
-	void metrics(MetricsInfo &, Dimension &) const;
+	void metrics(MetricsInfo &, Dimension &) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	virtual void drawBackground(PainterInfo &, int, int) const {}
+	void drawBackground(PainterInfo &, int, int) const override {}
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const & runparams) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	bool setMouseHover(BufferView const * bv, bool mouse_hover) const;
+	bool setMouseHover(BufferView const * bv, bool mouse_hover) const override;
 	///
-	bool clickable(BufferView const &, int, int) const { return hasSettings(); }
+	bool clickable(BufferView const &, int, int) const override { return hasSettings(); }
 	//@}
 
 protected:
 	/// \name Methods relaying to the InsetCommandParams p_
 	//@{
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	///
-	bool showInsetDialog(BufferView * bv) const;
+	bool showInsetDialog(BufferView * bv) const override;
 	//@}
 
 protected:
@@ -118,11 +122,15 @@ protected:
 	/// What matters here is the parameter name, not position.
 	/// \see InsetCommandParams::setCmdName
 	void setCmdName(std::string const & n) { p_.setCmdName(n); }
+	///
+	void changeCmdName(std::string const & new_name);
+	/// was this inset changed by the current author?
+	/// if we're unable to find out, we return true, because of
+	/// how this is used.
+	bool isChangedByCurrentAuthor() const;
 	//@}
 
 private:
-	///
-	RenderButton & button() const { return button_; }
 	/// This should provide the text for the button
 	virtual docstring screenLabel() const = 0;
 
@@ -145,6 +153,8 @@ private:
 	mutable std::map<BufferView const *, bool> mouse_hover_;
 	///
 	mutable RenderButton button_;
+	///
+	mutable bool broken_;
 };
 
 /// Decode InsetCommand considering Inset name and data.

@@ -17,8 +17,8 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 '''
-This module offers several free functions to help with lyx2lyx'ing. 
-More documentaton is below, but here is a quick guide to what 
+This module offers several free functions to help with lyx2lyx'ing.
+More documentaton is below, but here is a quick guide to what
 they do. Optional arguments are marked by brackets.
 
 add_to_preamble(document, text):
@@ -37,8 +37,8 @@ insert_to_preamble(document, text[, index]):
   default index is 0, so the material is inserted at the beginning.
   Prepends a comment "% Added by lyx2lyx" to text.
 
-put_cmd_in_ert(arg):
-  Here arg should be a list of strings (lines), which we want to
+put_cmd_in_ert(cmd):
+  Here cmd should be a list of strings (lines), which we want to
   wrap in ERT. Returns a list of strings so wrapped.
   A call to this routine will often go something like this:
     i = find_token('\\begin_inset FunkyInset', ...)
@@ -65,22 +65,37 @@ lyx2verbatim(document, lines):
   can and return a string containing the translated material.
 
 latex_length(slen):
-    Convert lengths (in LyX form) to their LaTeX representation. Returns
-    (bool, length), where the bool tells us if it was a percentage, and
-    the length is the LaTeX representation.
+  Convert lengths (in LyX form) to their LaTeX representation. Returns
+  (bool, length), where the bool tells us if it was a percentage, and
+  the length is the LaTeX representation.
 
 convert_info_insets(document, type, func):
-    Applies func to the argument of all info insets matching certain types
-    type : the type to match. This can be a regular expression.
-    func : function from string to string to apply to the "arg" field of
-           the info insets.
+  Applies func to the argument of all info insets matching certain types
+  type : the type to match. This can be a regular expression.
+  func : function from string to string to apply to the "arg" field of
+         the info insets.
+
+is_document_option(document, option):
+  Find if _option_ is a document option (\\options in the header).
+
+insert_document_option(document, option):
+  Insert _option_ as a document option.
+
+remove_document_option(document, option):
+  Remove _option_ as a document option.
+
+revert_language(document, lyxname, babelname="", polyglossianame=""):
+  Reverts native language support to ERT
+  If babelname or polyglossianame is empty, it is assumed
+  this language package is not supported for the given language.
 '''
 
+from __future__ import print_function
 import re
-import string
-from parser_tools import find_token, find_end_of_inset
+import sys
+from parser_tools import (find_token, find_end_of_inset, get_containing_layout,
+                          get_containing_inset, get_value, get_bool_value)
 from unicode_symbols import unicode_reps
-
 
 # This will accept either a list of lines or a single line.
 # It is bad practice to pass something with embedded newlines,
@@ -118,36 +133,53 @@ def add_to_preamble(document, text):
 # It should really be a list.
 def insert_to_preamble(document, text, index = 0):
     """ Insert text to the preamble at a given line"""
-    
+
     if not type(text) is list:
       # split on \n just in case
       # it'll give us the one element list we want
       # if there's no \n, too
       text = text.split('\n')
-    
+
     text.insert(0, "% Added by lyx2lyx")
     document.preamble[index:index] = text
 
 
-def put_cmd_in_ert(arg):
-    '''
-    arg should be a list of lines we want to wrap in ERT.
-    Returns a list of strings, with the lines so wrapped.
-    '''
-    
-    ret = ["\\begin_inset ERT", "status collapsed", "", "\\begin_layout Plain Layout", ""]
-    # It will be faster for us to work with a single string internally. 
-    # That way, we only go through the unicode_reps loop once.
-    if type(arg) is list:
-      s = "\n".join(arg)
-    else:
-      s = arg
-    for rep in unicode_reps:
-      s = s.replace(rep[1], rep[0])
-    s = s.replace('\\', "\\backslash\n")
-    ret += s.splitlines()
-    ret += ["\\end_layout", "", "\\end_inset"]
-    return ret
+# A dictionary of Unicode->LICR mappings for use in a Unicode string's translate() method
+# Created from the reversed list to keep the first of alternative definitions.
+licr_table = {ord(ch): cmd for cmd, ch in unicode_reps[::-1]}
+
+def put_cmd_in_ert(cmd, is_open=False, as_paragraph=False):
+    """
+    Return ERT inset wrapping `cmd` as a list of strings.
+
+    `cmd` can be a string or list of lines. Non-ASCII characters are converted
+    to the respective LICR macros if defined in unicodesymbols,
+    `is_open` is a boolean setting the inset status to "open",
+    `as_paragraph` wraps the ERT inset in a Standard paragraph.
+    """
+
+    status = {False:"collapsed", True:"open"}
+    ert_inset = ["\\begin_inset ERT", "status %s"%status[is_open], "",
+                 "\\begin_layout Plain Layout", "",
+                 # content here ([5:5])
+                 "\\end_layout", "", "\\end_inset"]
+
+    paragraph = ["\\begin_layout Standard",
+                 # content here ([1:1])
+                 "", "", "\\end_layout", ""]
+    # ensure cmd is an unicode instance and make it "LyX safe".
+    if isinstance(cmd, list):
+        cmd = u"\n".join(cmd)
+    elif sys.version_info[0] == 2 and isinstance(cmd, str):
+        cmd = cmd.decode('utf8')
+    cmd = cmd.translate(licr_table)
+    cmd = cmd.replace("\\", "\n\\backslash\n")
+
+    ert_inset[5:5] = cmd.splitlines()
+    if not as_paragraph:
+        return ert_inset
+    paragraph[1:1] = ert_inset
+    return paragraph
 
 
 def get_ert(lines, i, verbatim = False):
@@ -300,7 +332,7 @@ def lyx2verbatim(document, lines):
 
 
 def latex_length(slen):
-    ''' 
+    '''
     Convert lengths to their LaTeX representation. Returns (bool, length),
     where the bool tells us if it was a percentage, and the length is the
     LaTeX representation.
@@ -314,9 +346,14 @@ def latex_length(slen):
     # the + always precedes the -
 
     # Convert relative lengths to LaTeX units
-    units = {"text%":"\\textwidth", "col%":"\\columnwidth",
-             "page%":"\\paperwidth", "line%":"\\linewidth",
-             "theight%":"\\textheight", "pheight%":"\\paperheight"}
+    units = {"col%": "\\columnwidth",
+             "text%": "\\textwidth",
+             "page%": "\\paperwidth",
+             "line%": "\\linewidth",
+             "theight%": "\\textheight",
+             "pheight%": "\\paperheight",
+             "baselineskip%": "\\baselineskip"
+            }
     for unit in list(units.keys()):
         i = slen.find(unit)
         if i == -1:
@@ -536,3 +573,220 @@ def convert_info_insets(document, type, func):
                 new_arg = func(arg.group(1))
                 document.body[i + 2] = 'arg   "%s"' % new_arg
         i += 3
+
+
+def insert_document_option(document, option):
+    "Insert _option_ as a document option."
+
+    # Find \options in the header
+    i = find_token(document.header, "\\options", 0)
+    # if the options does not exists add it after the textclass
+    if i == -1:
+        i = find_token(document.header, "\\textclass", 0) + 1
+        document.header.insert(i, r"\options %s" % option)
+        return
+    # otherwise append to options
+    if not is_document_option(document, option):
+        document.header[i] += ",%s" % option
+
+
+def remove_document_option(document, option):
+    """ Remove _option_ as a document option."""
+
+    i = find_token(document.header, "\\options")
+    options = get_value(document.header, "\\options", i)
+    options = [op.strip() for op in options.split(',')]
+
+    # Remove `option` from \options
+    options = [op for op in options if op != option]
+
+    if options:
+        document.header[i] = "\\options " + ','.join(options)
+    else:
+        del document.header[i]
+
+
+def is_document_option(document, option):
+    "Find if _option_ is a document option"
+
+    options = get_value(document.header, "\\options")
+    options = [op.strip() for op in options.split(',')]
+    return option in options
+
+
+singlepar_insets = [s.strip() for s in
+    u"Argument, Caption Above, Caption Below, Caption Bicaption,"
+    u"Caption Centered, Caption FigCaption, Caption Standard, Caption Table,"
+    u"Flex Chemistry, Flex Fixme_Note, Flex Latin, Flex ListOfSlides,"
+    u"Flex Missing_Figure, Flex PDF-Annotation, Flex PDF-Comment-Setup,"
+    u"Flex Reflectbox, Flex S/R expression, Flex Sweave Input File,"
+    u"Flex Sweave Options, Flex Thanks_Reference, Flex URL, Foot InTitle,"
+    u"IPADeco, Index, Info, Phantom, Script".split(',')]
+# print(singlepar_insets)
+
+def revert_language(document, lyxname, babelname="", polyglossianame=""):
+    " Revert native language support "
+
+    # Does the document use polyglossia?
+    use_polyglossia = False
+    if get_bool_value(document.header, "\\use_non_tex_fonts"):
+        i = find_token(document.header, "\\language_package")
+        if i == -1:
+            document.warning("Malformed document! Missing \\language_package")
+        else:
+            pack = get_value(document.header, "\\language_package", i)
+            if pack in ("default", "auto"):
+                use_polyglossia = True
+
+    # Do we use this language with polyglossia?
+    with_polyglossia = use_polyglossia and polyglossianame != ""
+    # Do we use this language with babel?
+    with_babel = with_polyglossia == False and babelname != ""
+
+    # Are we dealing with a primary or secondary language?
+    primary = document.language == lyxname
+    secondary = False
+
+    # Main language first
+    orig_doc_language = document.language
+    if primary:
+        # Change LyX document language to English (we will tell LaTeX
+        # to use the original language at the end of this function):
+        document.language = "english"
+        i = find_token(document.header, "\\language %s" % lyxname, 0)
+        if i != -1:
+            document.header[i] = "\\language english"
+
+    # Now look for occurences in the body
+    i = 0
+    while True:
+        i = find_token(document.body, "\\lang", i+1)
+        if i == -1:
+            break
+        if document.body[i].startswith("\\lang %s" % lyxname):
+            secondary = True
+            texname = use_polyglossia and polyglossianame or babelname
+        elif primary and document.body[i].startswith("\\lang english"):
+            # Since we switched the main language manually, English parts need to be marked
+            texname = "english"
+        else:
+            continue
+
+        parent = get_containing_layout(document.body, i)
+        i_e = parent[2] # end line no,
+        # print(i, texname, parent, document.body[i+1], file=sys.stderr)
+
+        # Move leading space to the previous line:
+        if document.body[i+1].startswith(" "):
+            document.body[i+1] = document.body[i+1][1:]
+            document.body.insert(i, " ")
+            continue
+
+        # TODO: handle nesting issues with font attributes, e.g.
+        # \begin_layout Standard
+        #
+        # \emph on
+        # \lang macedonian
+        # Македонски јазик
+        # \emph default
+        #  — јужнословенски јазик, дел од групата на словенски јазици од јазичното
+        #  семејство на индоевропски јазици.
+        #  Македонскиот е службен и национален јазик во Македонија.
+        # \end_layout
+
+        # Ensure correct handling of list labels
+        if (parent[0] in ["Labeling", "Description"]
+            and not " " in "\n".join(document.body[parent[3]:i])):
+            # line `i+1` is first line of a list item,
+            # part before a space character is the label
+            # TODO: insets or language change before first space character
+            labelline = document.body[i+1].split(' ', 1)
+            if len(labelline) > 1:
+                # Insert a space in the (original) document language
+                # between label and remainder.
+                # print("  Label:", labelline, file=sys.stderr)
+                lines = [labelline[0],
+                    "\\lang %s" % orig_doc_language,
+                    " ",
+                    "\\lang %s" % (primary and "english" or lyxname),
+                    labelline[1]]
+                document.body[i+1:i+2] = lines
+                i_e += 4
+
+        # Find out where to end the language change.
+        langswitch = i
+        while True:
+            langswitch = find_token(document.body, "\\lang", langswitch+1, i_e)
+            if langswitch == -1:
+                break
+            # print("  ", langswitch, document.body[langswitch], file=sys.stderr)
+            # skip insets
+            i_a = parent[3] # paragraph start line
+            container = get_containing_inset(document.body[i_a:i_e], langswitch-i_a)
+            if container and container[1] < langswitch-i_a and container[2] > langswitch-i_a:
+                # print("  inset", container, file=sys.stderr)
+                continue
+            i_e = langswitch
+            break
+
+        # use function or environment?
+        singlepar = i_e - i < 3
+        if not singlepar and parent[0] == "Plain Layout":
+            # environment not allowed in some insets
+            container = get_containing_inset(document.body, i)
+            singlepar = container[0] in singlepar_insets
+
+        # Delete empty language switches:
+        if not "".join(document.body[i+1:i_e]):
+            del document.body[i:i_e]
+            i -= 1
+            continue
+
+        if singlepar:
+            if with_polyglossia:
+                begin_cmd = "\\text%s{"%texname
+            elif with_babel:
+                begin_cmd = "\\foreignlanguage{%s}{" % texname
+            end_cmd = "}"
+        else:
+            if with_polyglossia:
+                begin_cmd = "\\begin{%s}"%texname
+                end_cmd = "\\end{%s}"%texname
+            elif with_babel:
+                begin_cmd = "\\begin{otherlanguage}{%s}" % texname
+                end_cmd = "\\end{otherlanguage}"
+
+        if (not primary or texname == "english"):
+            try:
+                document.body[i_e:i_e] = put_cmd_in_ert(end_cmd)
+                document.body[i+1:i+1] = put_cmd_in_ert(begin_cmd)
+            except UnboundLocalError:
+                pass
+        del document.body[i]
+
+    if not (primary or secondary):
+        return
+
+    # Make the language known to Babel/Polyglossia and ensure the correct
+    # document language:
+    doc_lang_switch = ""
+    if with_babel:
+        # add as global option
+        insert_document_option(document, babelname)
+        # Since user options are appended to the document options,
+        # Babel will treat `babelname` as primary language.
+        if not primary:
+            doc_lang_switch = "\\selectlanguage{%s}" % orig_doc_language
+    if with_polyglossia:
+        # Define language in the user preamble
+        # (don't use \AtBeginDocument, this fails with some languages).
+        add_to_preamble(document, ["\\usepackage{polyglossia}",
+                                   "\\setotherlanguage{%s}" % polyglossianame])
+        if primary:
+            # Changing the main language must be done in the document body.
+            doc_lang_switch = "\\resetdefaultlanguage{%s}" % polyglossianame
+
+    # Reset LaTeX main language if required and not already done
+    if doc_lang_switch and doc_lang_switch[1:] not in document.body[8:20]:
+        document.body[2:2] = put_cmd_in_ert(doc_lang_switch,
+                                            is_open=True, as_paragraph=True)

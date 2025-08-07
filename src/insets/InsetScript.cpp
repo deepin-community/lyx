@@ -25,7 +25,7 @@
 #include "Lexer.h"
 #include "LyXAction.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
 #include "TextClass.h"
 #include "TextMetrics.h"
@@ -151,15 +151,11 @@ docstring InsetScript::layoutName() const
 }
 
 
-Inset::DisplayType InsetScript::display() const
-{
-	return Inline;
-}
-
-
 void InsetScript::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	int const shift = params_.shift(mi.base.font);
+	// Remember the value of the outser font, so that it can be used in cursorPos.
+	outer_font_ = mi.base.font;
 	Changer dummy = mi.base.changeScript();
 	InsetText::metrics(mi, dim);
 	dim.asc -= shift;
@@ -178,8 +174,7 @@ void InsetScript::draw(PainterInfo & pi, int x, int y) const
 void InsetScript::cursorPos(BufferView const & bv,
 		CursorSlice const & sl, bool boundary, int & x, int & y) const
 {
-	Font const font = bv.textMetrics(&text()).displayFont(sl.pit(), sl.pos());
-	int const shift = params_.shift(font.fontInfo());
+	int const shift = params_.shift(outer_font_);
 	InsetText::cursorPos(bv, sl, boundary, x, y);
 	y += shift;
 }
@@ -280,6 +275,7 @@ bool InsetScript::getStatus(Cursor & cur, FuncRequest const & cmd,
 	case LFUN_PREVIEW_INSERT:
 	case LFUN_QUOTE_INSERT:
 	case LFUN_TABULAR_INSERT:
+	case LFUN_TABULAR_STYLE_INSERT:
 	case LFUN_WRAP_INSERT:
 		flag.setEnabled(false);
 		return true;
@@ -358,7 +354,7 @@ int InsetScript::plaintext(odocstringstream & os,
 }
 
 
-int InsetScript::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetScript::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
 	docstring cmdname;
 	switch (params_.type) {
@@ -369,11 +365,10 @@ int InsetScript::docbook(odocstream & os, OutputParams const & runparams) const
 		cmdname = from_ascii("superscript");
 		break;
 	}
-	os << '<' + cmdname + '>';
-	int const i = InsetText::docbook(os, runparams);
-	os << "</" + cmdname + '>';
 
-	return i;
+	xs << xml::StartTag(cmdname);
+	InsetText::docbook(xs, runparams);
+	xs << xml::EndTag(cmdname);
 }
 
 

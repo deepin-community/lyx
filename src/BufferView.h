@@ -15,6 +15,7 @@
 #ifndef BUFFER_VIEW_H
 #define BUFFER_VIEW_H
 
+#include "CoordCache.h"
 #include "DocumentClassPtr.h"
 #include "TexRow.h"
 #include "update_flags.h"
@@ -26,27 +27,27 @@ namespace lyx {
 
 namespace support { class FileName; }
 
+namespace frontend { struct CaretGeometry; }
 namespace frontend { class Painter; }
 namespace frontend { class GuiBufferViewDelegate; }
 
 class Buffer;
 class Change;
-class CoordCache;
 class Cursor;
 class CursorSlice;
+class Dimension;
 class DispatchResult;
 class DocIterator;
-class DocumentClass;
 class FuncRequest;
 class FuncStatus;
 class Intl;
 class Inset;
+class InsetMathNest;
 class Length;
-class ParIterator;
+class MathData;
+class MathRow;
 class ParagraphMetrics;
 class Point;
-class Row;
-class TexRow;
 class Text;
 class TextMetrics;
 
@@ -54,6 +55,16 @@ enum CursorStatus {
 	CUR_INSIDE,
 	CUR_ABOVE,
 	CUR_BELOW
+};
+
+/// How to show cursor
+enum ScrollType {
+	// Make sure row if visible (do nothing if it is visible already)
+	SCROLL_VISIBLE,
+	// Force cursor to be on top of screen
+	SCROLL_TOP,
+	// Force cursor to be at center of screen
+	SCROLL_CENTER
 };
 
 /// Scrollbar Parameters.
@@ -97,14 +108,25 @@ public:
 	Buffer & buffer();
 	Buffer const & buffer() const;
 
+	/// Copy cursor and vertical offset information from \c bv
+	void copySettingsFrom(BufferView const & bv);
+
 	///
 	void setFullScreen(bool full_screen) { full_screen_ = full_screen; }
 
+	/// default value for the margins
+	int defaultMargin() const;
 	/// right margin
 	int rightMargin() const;
-
 	/// left margin
 	int leftMargin() const;
+	/// top margin
+	int topMargin() const;
+	/// bottom margin
+	int bottomMargin() const;
+
+	docstring const & searchRequestCache() const;
+	void setSearchRequestCache(docstring const & text);
 
 	/// return the on-screen size of this length
 	/*
@@ -113,6 +135,11 @@ public:
 	 *  document font.
 	 */
 	int inPixels(Length const & len) const;
+
+	/** Return the number of pixels equivalent to \c pix pixels at
+	 * 100dpi and 100% zoom.
+	 */
+	int zoomedPixels(int pix) const;
 
 	/// \return true if the BufferView is at the top of the document.
 	bool isTopScreen() const;
@@ -141,19 +168,20 @@ public:
 	int horizScrollOffset(Text const * text,
 	                      pit_type pit, pos_type pos) const;
 
-	// Returns true if the row of text starting at (pit, pos) was scrolled
-	// at the last draw event.
-	bool hadHorizScrollOffset(Text const * text,
-                              pit_type pit, pos_type pos) const;
-
-	/// reset the scrollbar to reflect current view position.
-	void updateScrollbar();
+	/// reset the scrollbar parameters to reflect current view position.
+	void updateScrollbarParameters();
 	/// return the Scrollbar Parameters.
 	ScrollbarParameters const & scrollbarParameters() const;
 	/// \return Tool tip for the given position.
 	docstring toolTip(int x, int y) const;
 	/// \return the context menu for the given position.
 	std::string contextMenu(int x, int y) const;
+	/// \return the math inset with a context menu for the given position
+	Inset const * mathContextMenu(InsetMathNest const * inset,
+		CoordCache::Insets const & inset_cache, int x, int y) const;
+	/// \return the clickable math inset for the given position
+	Inset const * clickableMathInset(InsetMathNest const * inset,
+		CoordCache::Insets const & inset_cache, int x, int y) const;
 
 	/// Save the current position as bookmark.
 	/// if idx == 0, save to temp_bookmark
@@ -186,17 +214,16 @@ public:
 	/// This method will automatically scroll and update the BufferView
 	/// (metrics+drawing) if needed.
 	void showCursor();
+
 	/// Ensure the passed cursor \p dit is visible.
 	/// This method will automatically scroll and update the BufferView
 	/// (metrics+drawing) if needed.
-	/// \param recenter Whether the cursor should be centered on screen
-	void showCursor(DocIterator const & dit, bool recenter,
-		bool update);
+	/// \param how Use this scroll strategy
+	void showCursor(DocIterator const & dit, ScrollType how);
 	/// Scroll to the cursor.
-	void scrollToCursor();
-	/// Scroll to the cursor.
-	/// \param recenter Whether the cursor should be centered on screen
-	bool scrollToCursor(DocIterator const & dit, bool recenter);
+	/// \param how Use this scroll strategy
+	/// \return true if screen was scrolled
+	bool scrollToCursor(DocIterator const & dit, ScrollType how);
 	/// scroll down document by the given number of pixels.
 	int scrollDown(int pixels);
 	/// scroll up document by the given number of pixels.
@@ -204,7 +231,7 @@ public:
 	/// scroll document by the given number of pixels.
 	int scroll(int pixels);
 	/// Scroll the view by a number of pixels.
-	void scrollDocView(int pixels, bool update);
+	void scrollDocView(int pixels);
 	/// Set the cursor position based on the scrollbar one.
 	void setCursorFromScrollbar();
 
@@ -216,7 +243,7 @@ public:
 	/// return the inline completion postfix.
 	docstring const & inlineCompletion() const;
 	/// return the number of unique characters in the inline completion.
-	size_t const & inlineCompletionUniqueChars() const;
+	size_t inlineCompletionUniqueChars() const;
 	/// return the position in the buffer of the inline completion postfix.
 	DocIterator const & inlineCompletionPos() const;
 	/// make sure inline completion position is OK
@@ -236,7 +263,7 @@ public:
 
 	/// request an X11 selection.
 	/// \return the selected string.
-	docstring const requestSelection();
+	docstring requestSelection();
 	/// clear the X11 selection.
 	void clearSelection();
 
@@ -247,9 +274,6 @@ public:
 	/// dispatch method helper for \c WorkArea
 	/// \sa WorkArea
 	void mouseEventDispatch(FuncRequest const & ev);
-
-	/// access to anchor.
-	pit_type anchor_ref() const;
 
 	///
 	CursorStatus cursorStatus(DocIterator const & dit) const;
@@ -277,11 +301,15 @@ public:
 	 */
 	void putSelectionAt(DocIterator const & cur,
 		int length, bool backwards);
+	/// set a selection between \p from and \p to
+	void setSelection(DocIterator const & from,
+			 DocIterator const & to);
 
 	/// selects the item at cursor if its paragraph is empty.
 	bool selectIfEmpty(DocIterator & cur);
 
-	/// update the internal \c ViewMetricsInfo.
+	/// Ditch all metrics information and rebuild it. Set the update
+	/// flags and the draw strategy flags accordingly.
 	void updateMetrics();
 
 	// this is the "nodraw" drawing stage: only set the positions of the
@@ -300,16 +328,27 @@ public:
 	CoordCache const & coordCache() const;
 
 	///
+	bool hasMathRow(MathData const * cell) const;
+	///
+	MathRow const & mathRow(MathData const * cell) const;
+	///
+	void setMathRow(MathData const * cell, MathRow const & mrow);
+
+	///
 	Point getPos(DocIterator const & dit) const;
 	/// is the paragraph of the cursor visible ?
 	bool paragraphVisible(DocIterator const & dit) const;
 	/// is the caret currently visible in the view
 	bool caretInView() const;
-	/// set the ascent and descent of the caret
-	void setCaretAscentDescent(int asc, int des);
 	/// get the position and height of the caret
-	void caretPosAndHeight(Point & p, int & h) const;
+	void caretPosAndDim(Point & p, Dimension & dim) const;
+	/// compute the shape of the caret
+	void buildCaretGeometry(bool complet);
+	/// the shape of the caret
+	frontend::CaretGeometry const & caretGeometry() const;
 
+	/// Returns true when the BufferView is not ready for drawing
+	bool busy() const;
 	///
 	void draw(frontend::Painter & pain, bool paint_caret);
 
@@ -330,7 +369,7 @@ public:
 	/// This signal is emitted when some dialog needs to be shown with
 	/// some data.
 	void showDialog(std::string const & name, std::string const & data,
-		Inset * inset = 0);
+		Inset * inset = nullptr);
 
 	/// This signal is emitted when some dialogs needs to be updated.
 	void updateDialog(std::string const & name, std::string const & data);
@@ -343,7 +382,7 @@ public:
 	// Insert plain text file (if filename is empty, prompt for one)
 	void insertPlaintextFile(support::FileName const & f, bool asParagraph);
 	///
-	void insertLyXFile(support::FileName const & f);
+	void insertLyXFile(support::FileName const & f, bool const ignorelang = false);
 	/// save temporary bookmark for jump back navigation
 	void bookmarkEditPosition();
 	/// Find and return the inset associated with given dialog name.
@@ -356,6 +395,16 @@ public:
 	bool clickableInset() const;
 	///
 	void makeDocumentClass();
+	/// Are we currently performing a selection with the mouse?
+	bool mouseSelecting() const;
+
+	/// Reference value for statistics (essentially subtract this from the actual value to see relative counts)
+	/// (words/chars/chars no blanks)
+	int stats_ref_value_w() const;
+	int stats_ref_value_c() const;
+	int stats_ref_value_nb() const;
+	//signals need for update in gui
+	bool stats_update_trigger();
 
 private:
 	/// noncopyable
@@ -367,8 +416,15 @@ private:
 	/// Update current paragraph metrics.
 	/// \return true if no further update is needed.
 	bool singleParUpdate();
-	/// do the work for the public updateMetrics()
-	void updateMetrics(Update::flags & update_flags);
+	/** Helper for the public updateMetrics() and for processUpdateFlags()
+	 * * When \c force is true, get rid of all paragraph metrics and
+         rebuild them anew.
+	 * * When it is false, keep the paragraphs that are still visible in
+	 *   WorkArea and rebuild the missing ones.
+	 *
+	 * This does also set the anchor paragraph and its position correctly
+	*/
+	void updateMetrics(bool force);
 
 	// Set the row on which the cursor lives.
 	void setCurrentRowSlice(CursorSlice const & rowSlice);

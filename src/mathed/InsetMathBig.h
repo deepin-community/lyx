@@ -21,33 +21,33 @@ namespace lyx {
 class InsetMathBig : public InsetMath {
 public:
 	///
-	InsetMathBig(docstring const & name, docstring const & delim);
+	InsetMathBig(Buffer * buf, docstring const & name, docstring const & delim);
 	///
-	docstring name() const;
+	docstring name() const override;
 	/// class is different for l(eft), r(ight) and m(iddle)
-	MathClass mathClass() const;
+	MathClass mathClass() const override;
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	void write(WriteStream & os) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void normalize(NormalStream & os) const;
+	void normalize(NormalStream & os) const override;
 	///
-	void mathmlize(MathStream &) const;
+	void mathmlize(MathMLStream &) const override;
 	///
-	void htmlize(HtmlStream &) const;
+	void htmlize(HtmlStream &) const override;
 	///
-	void infoize2(odocstream & os) const;
+	void infoize2(odocstream & os) const override;
 	///
 	static bool isBigInsetDelim(docstring const &);
 	///
-	InsetCode lyxCode() const { return MATH_BIG_CODE; }
+	InsetCode lyxCode() const override { return MATH_BIG_CODE; }
 	///
-	void validate(LaTeXFeatures &) const;
+	void validate(LaTeXFeatures &) const override;
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 	///
 	size_type size() const;
 	///

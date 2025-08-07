@@ -16,19 +16,17 @@
 
 #include "Dimension.h"
 
-#include <map>
+#include <unordered_map>
 
 namespace lyx {
 
 class Inset;
-class Text;
 class MathData;
-class Paragraph;
 
 void lyxbreaker(void const * data, const char * hint, int size);
 
 struct Geometry {
-	Point pos;
+	Point pos = {-10000, -10000 };
 	Dimension dim;
 
 	bool covers(int x, int y) const
@@ -79,14 +77,18 @@ public:
 
 	void add(T const * thing, Dimension const & dim)
 	{
-		if (!has(thing))
-			data_[thing].pos = Point(-10000, -10000);
 		data_[thing].dim = dim;
+	}
+
+	Geometry & geometry(T const * thing)
+	{
+		checkDim(thing, "geometry");
+		return data_.find(thing)->second;
 	}
 
 	Geometry const & geometry(T const * thing) const
 	{
-		check(thing, "geometry");
+		checkDim(thing, "geometry");
 		return data_.find(thing)->second;
 	}
 
@@ -145,6 +147,7 @@ public:
 private:
 	friend class CoordCache;
 
+#ifdef ENABLE_ASSERTIONS
 	void checkDim(T const * thing, char const * hint) const
 	{
 		if (!hasDim(thing))
@@ -156,8 +159,13 @@ private:
 		if (!has(thing))
 			lyxbreaker(thing, hint, data_.size());
 	}
+#else
+	void checkDim(T const *, char const * const ) const {}
 
-	typedef std::map<T const *, Geometry> cache_type;
+	void check(T const *, char const *) const {}
+#endif
+
+	typedef std::unordered_map<T const *, Geometry> cache_type;
 	cache_type data_;
 };
 

@@ -55,12 +55,18 @@ std::string current_root();
 ///
 shell_type shell();
 
-/// Returns no. of minutes allowed for a command to complete.
-int timeout_min();
+/// Returns no. of milliseconds allowed for a command to complete.
+int timeout_ms();
 
 /// Name of the python interpreter
 /// @param reset True if the python path should be recomputed
 std::string const python(bool reset = false);
+
+/// Check for availability of the python interpreter
+bool hasPython();
+
+/// Return information about the python interperter (version and path)
+std::string const python_info();
 
 ///
 bool isFilesystemCaseSensitive();
@@ -110,9 +116,6 @@ std::string latex_path(std::string const & p);
  * \p p is encoded in utf8.
  */
 std::string latex_path_list(std::string const & p);
-
-/// Checks if the format string is suitable on the OS
-bool is_valid_strftime(std::string const & p);
 
 /** Returns a string suitable to be passed to popen when
  *  reading a file.

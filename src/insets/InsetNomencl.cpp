@@ -22,15 +22,12 @@
 #include "Encoding.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
-#include "InsetIterator.h"
+#include "InsetLayout.h"
 #include "InsetList.h"
 #include "Language.h"
 #include "LaTeXFeatures.h"
-#include "Length.h"
 #include "LyX.h"
-#include "OutputParams.h"
-#include "output_xhtml.h"
-#include "sgml.h"
+#include "xml.h"
 #include "texstream.h"
 #include "TocBackend.h"
 
@@ -39,6 +36,7 @@
 #include "support/debug.h"
 #include "support/docstream.h"
 #include "support/gettext.h"
+#include "support/Length.h"
 #include "support/lstrings.h"
 
 using namespace std;
@@ -54,8 +52,7 @@ namespace lyx {
 /////////////////////////////////////////////////////////////////////
 
 InsetNomencl::InsetNomencl(Buffer * buf, InsetCommandParams const & p)
-	: InsetCommand(buf, p),
-	  nomenclature_entry_id(sgml::uniqueID(from_ascii("nomen")))
+	: InsetCommand(buf, p)
 {}
 
 
@@ -105,32 +102,18 @@ int InsetNomencl::plaintext(odocstringstream & os,
 }
 
 
-int InsetNomencl::docbook(odocstream & os, OutputParams const &) const
+void InsetNomencl::docbook(XMLStream & xs, OutputParams const &) const
 {
-	os << "<glossterm linkend=\"" << nomenclature_entry_id << "\">"
-	   << sgml::escapeString(getParam("symbol"))
-	   << "</glossterm>";
-	return 0;
+	docstring attr = "linkend=\"" + xml::cleanID(from_ascii("nomen") + getParam("symbol")) + "\"";
+	xs << xml::StartTag("glossterm", attr);
+	xs << xml::escapeString(getParam("symbol"));
+	xs << xml::EndTag("glossterm");
 }
 
 
-docstring InsetNomencl::xhtml(XHTMLStream &, OutputParams const &) const
+docstring InsetNomencl::xhtml(XMLStream &, OutputParams const &) const
 {
 	return docstring();
-}
-
-
-int InsetNomencl::docbookGlossary(odocstream & os) const
-{
-	os << "<glossentry id=\"" << nomenclature_entry_id << "\">\n"
-	   << "<glossterm>"
-	   << sgml::escapeString(getParam("symbol"))
-	   << "</glossterm>\n"
-	   << "<glossdef><para>"
-	   << sgml::escapeString(getParam("description"))
-	   << "</para></glossdef>\n"
-	   <<"</glossentry>\n";
-	return 4;
 }
 
 
@@ -186,7 +169,7 @@ docstring InsetPrintNomencl::screenLabel() const
 
 
 struct NomenclEntry {
-	NomenclEntry() : par(0) {}
+	NomenclEntry() : par(nullptr) {}
 	NomenclEntry(docstring s, docstring d, Paragraph const * p)
 	  : symbol(s), desc(d), par(p)
 	{}
@@ -200,7 +183,7 @@ struct NomenclEntry {
 typedef map<docstring, NomenclEntry > EntryMap;
 
 
-docstring InsetPrintNomencl::xhtml(XHTMLStream &, OutputParams const & op) const
+docstring InsetPrintNomencl::xhtml(XMLStream &, OutputParams const & op) const
 {
 	shared_ptr<Toc const> toc = buffer().tocBackend().toc("nomencl");
 
@@ -234,42 +217,42 @@ docstring InsetPrintNomencl::xhtml(XHTMLStream &, OutputParams const & op) const
 	// that's how we deal with the fact that we're probably inside a standard
 	// paragraph, and we don't want to be.
 	odocstringstream ods;
-	XHTMLStream xs(ods);
+	XMLStream xs(ods);
 
 	InsetLayout const & il = getLayout();
 	string const & tag = il.htmltag();
 	docstring toclabel = translateIfPossible(from_ascii("Nomenclature"),
-		op.local_font->language()->lang());
+		getLocalOrDefaultLang(op)->lang());
 
-	xs << html::StartTag("div", "class='nomencl'")
-	   << html::StartTag(tag, "class='nomencl'")
+	xs << xml::StartTag("div", "class='nomencl'")
+	   << xml::StartTag(tag, "class='nomencl'")
 		 << toclabel
-		 << html::EndTag(tag)
-	   << html::CR()
-	   << html::StartTag("dl")
-	   << html::CR();
+		 << xml::EndTag(tag)
+	   << xml::CR()
+	   << xml::StartTag("dl")
+	   << xml::CR();
 
 	EntryMap::const_iterator eit = entries.begin();
 	EntryMap::const_iterator const een = entries.end();
 	for (; eit != een; ++eit) {
 		NomenclEntry const & ne = eit->second;
 		string const parid = ne.par->magicLabel();
-		xs << html::StartTag("dt")
-		   << html::StartTag("a", "href='#" + parid + "' class='nomencl'")
+		xs << xml::StartTag("dt")
+		   << xml::StartTag("a", "href='#" + parid + "' class='nomencl'")
 		   << ne.symbol
-		   << html::EndTag("a")
-		   << html::EndTag("dt")
-		   << html::CR()
-		   << html::StartTag("dd")
+		   << xml::EndTag("a")
+		   << xml::EndTag("dt")
+		   << xml::CR()
+		   << xml::StartTag("dd")
 		   << ne.desc
-		   << html::EndTag("dd")
-		   << html::CR();
+		   << xml::EndTag("dd")
+		   << xml::CR();
 	}
 
-	xs << html::EndTag("dl")
-	   << html::CR()
-	   << html::EndTag("div")
-	   << html::CR();
+	xs << xml::EndTag("dl")
+	   << xml::CR()
+	   << xml::EndTag("div")
+	   << xml::CR();
 
 	return ods.str();
 }
@@ -316,29 +299,74 @@ bool InsetPrintNomencl::getStatus(Cursor & cur, FuncRequest const & cmd,
 }
 
 
-// FIXME This should be changed to use the TOC. Perhaps
-// that could be done when XHTML output is added.
-int InsetPrintNomencl::docbook(odocstream & os, OutputParams const &) const
+void InsetPrintNomencl::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	os << "<glossary>\n";
-	int newlines = 2;
-	InsetIterator it = inset_iterator_begin(buffer().inset());
-	while (it) {
-		if (it->lyxCode() == NOMENCL_CODE) {
-			newlines += static_cast<InsetNomencl const &>(*it).docbookGlossary(os);
-			++it;
-		} else if (!it->producesOutput()) {
-			// Ignore contents of insets that are not in output
-			size_t const depth = it.depth();
-			++it;
-			while (it.depth() > depth)
-				++it;
-		} else {
-			++it;
-		}
+	shared_ptr<Toc const> toc = buffer().tocBackend().toc("nomencl");
+
+	EntryMap entries;
+	Toc::const_iterator it = toc->begin();
+	Toc::const_iterator const en = toc->end();
+	for (; it != en; ++it) {
+		DocIterator dit = it->dit();
+		Paragraph const & par = dit.innerParagraph();
+		Inset const * inset = par.getInset(dit.top().pos());
+		if (!inset)
+			return;
+		InsetCommand const * ic = inset->asInsetCommand();
+		if (!ic)
+			return;
+
+		// FIXME We need a link to the paragraph here, so we
+		// need some kind of struct.
+		docstring const symbol = ic->getParam("symbol");
+		docstring const desc = ic->getParam("description");
+		docstring const prefix = ic->getParam("prefix");
+		docstring const sortas = prefix.empty() ? symbol : prefix;
+
+		entries[sortas] = NomenclEntry(symbol, desc, &par);
 	}
-	os << "</glossary>\n";
-	return newlines;
+
+	if (entries.empty())
+		return;
+
+	// As opposed to XHTML, no need to defer everything until the end of time, so write directly to xs.
+	// TODO: At least, that's what was done before...
+
+	docstring toclabel = translateIfPossible(from_ascii("Nomenclature"),
+						 getLocalOrDefaultLang(runparams)->lang());
+
+	xs << xml::StartTag("glossary");
+	xs << xml::CR();
+	xs << xml::StartTag("title");
+	xs << toclabel;
+	xs << xml::EndTag("title");
+	xs << xml::CR();
+
+	EntryMap::const_iterator eit = entries.begin();
+	EntryMap::const_iterator const een = entries.end();
+	for (; eit != een; ++eit) {
+		NomenclEntry const & ne = eit->second;
+
+		xs << xml::StartTag("glossentry", "xml:id=\"" + xml::cleanID(from_ascii("nomen") + ne.symbol) + "\"");
+		xs << xml::CR();
+		xs << xml::StartTag("glossterm");
+		xs << ne.symbol;
+		xs << xml::EndTag("glossterm");
+		xs << xml::CR();
+		xs << xml::StartTag("glossdef");
+		xs << xml::CR();
+		xs << xml::StartTag("para");
+		xs << ne.desc;
+		xs << xml::EndTag("para");
+		xs << xml::CR();
+		xs << xml::EndTag("glossdef");
+		xs << xml::CR();
+		xs << xml::EndTag("glossentry");
+		xs << xml::CR();
+	}
+
+	xs << xml::EndTag("glossary");
+	xs << xml::CR();
 }
 
 
@@ -350,7 +378,7 @@ docstring nomenclWidest(Buffer const & buffer, OutputParams const & runparams)
 
 	int w = 0;
 	docstring symb;
-	InsetNomencl const * nomencl = 0;
+	InsetNomencl const * nomencl = nullptr;
 	ParagraphList::const_iterator it = buffer.paragraphs().begin();
 	ParagraphList::const_iterator end = buffer.paragraphs().end();
 
@@ -365,10 +393,13 @@ docstring nomenclWidest(Buffer const & buffer, OutputParams const & runparams)
 				continue;
 			nomencl = static_cast<InsetNomencl const *>(inset);
 			// Use proper formatting. We do not escape makeindex chars here
-			docstring const symbol = nomencl ?
+			docstring symbol = nomencl ?
 				nomencl->params().prepareCommand(runparams, nomencl->getParam("symbol"),
 							ParamInfo::HANDLING_LATEXIFY)
 				: docstring();
+			// strip out % characters which are used as escape in nomencl
+			// but act as comment in our context here
+			symbol = subst(symbol, from_ascii("%"), docstring());
 			// This is only an approximation,
 			// but the best we can get.
 			int const wx = use_gui ?

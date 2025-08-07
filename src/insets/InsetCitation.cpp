@@ -18,13 +18,16 @@
 #include "buffer_funcs.h"
 #include "BufferParams.h"
 #include "BufferView.h"
+#include "Citation.h"
 #include "DispatchResult.h"
-#include "Font.h"
 #include "FuncCode.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "LaTeXFeatures.h"
+#include "LyX.h"
+#include "LyXRC.h"
 #include "output_xhtml.h"
+#include "output_docbook.h"
 #include "ParIterator.h"
 #include "texstream.h"
 #include "TocBackend.h"
@@ -32,6 +35,7 @@
 #include "support/debug.h"
 #include "support/docstream.h"
 #include "support/FileNameList.h"
+#include "support/filetools.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
 
@@ -46,7 +50,8 @@ namespace lyx {
 InsetCitation::InsetCitation(Buffer * buf, InsetCommandParams const & p)
 	: InsetCommand(buf, p)
 {
-	buffer().removeBiblioTempFiles();
+	buffer().scheduleBiblioTempRemoval();
+	cleanKeys();
 }
 
 
@@ -56,7 +61,7 @@ InsetCitation::~InsetCitation()
 		/* We do not use buffer() because Coverity believes that this
 		 * may throw an exception. Actually this code path is not
 		 * taken when buffer_ == 0 */
-		buffer_->removeBiblioTempFiles();
+		buffer_->scheduleBiblioTempRemoval();
 }
 
 
@@ -133,8 +138,11 @@ CitationStyle InsetCitation::getCitationStyle(BufferParams const & bp, string co
 void InsetCitation::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
 	switch (cmd.action()) {
+	case LFUN_INSET_EDIT:
+		openCitation();
+		break;
 	case LFUN_INSET_MODIFY: {
-		buffer().removeBiblioTempFiles();
+		buffer().scheduleBiblioTempRemoval();
 		cache.recalculate = true;
 		if (cmd.getArg(0) == "toggleparam") {
 			string cmdname = getCmdName();
@@ -158,9 +166,77 @@ void InsetCitation::doDispatch(Cursor & cur, FuncRequest & cmd)
 			cmd = FuncRequest(LFUN_INSET_MODIFY, "changetype " + newcmdname);
 		}
 	}
-		// fall through
+	// fall through
 	default:
 		InsetCommand::doDispatch(cur, cmd);
+		if (cmd.action() == LFUN_INSET_MODIFY)
+			cleanKeys();
+	}
+}
+
+bool InsetCitation::openCitationPossible() const
+{
+	Buffer const & buf = *buffer_;
+	// only after the buffer is loaded from file...
+	if (!buf.isFullyLoaded())
+		return false;
+
+	BiblioInfo const & bi = buf.masterBibInfo();
+	if (bi.empty())
+		return false;
+
+	docstring const & key = getParam("key");
+	if (key.empty())
+		return false;
+
+	// does bibtex item contains some locator?
+	vector<docstring> keys = getVectorFromString(key);
+	docstring doi, url, file;
+	for (docstring const & kvar : keys) {
+		bi.getLocators(kvar, doi, url, file);
+		if (!file.empty() || !doi.empty() || !url.empty())
+			return true;
+	}
+
+	// last resort: is external script activated?
+	return lyxrc.citation_search;
+}
+
+void InsetCitation::openCitation()
+{
+	Buffer const & buf = *buffer_;
+	BiblioInfo const & bi = buf.masterBibInfo();
+	docstring const & key = getParam("key");
+
+	vector<docstring> keys = getVectorFromString(key);
+	docstring titledata, doi, url, file;
+	for (docstring const & kvar : keys) {
+		CiteItem ci;
+		titledata = bi.getInfo(kvar, buffer(), ci,
+				       from_ascii(lyxrc.citation_search_pattern));
+		// some cleanup: commas, " and " and " et al.", as used in name lists,
+		// are not expected in file names
+		titledata = subst(titledata, from_ascii(","), docstring());
+		titledata = subst(titledata, from_ascii(" and "), from_ascii(" "));
+		titledata = subst(titledata, from_ascii(" et al."), docstring());
+		bi.getLocators(kvar, doi, url, file);
+		LYXERR(Debug::INSETS, "Locators: doi:" << doi << " url:"
+		        << url << " file:" << file << " title data:" << titledata
+		        << " citation search: " << lyxrc.citation_search
+		        << " citation search pattern: " << lyxrc.citation_search_pattern);
+		docstring locator;
+		if (!file.empty()) {
+			locator = provideScheme(file, from_ascii("file"));
+		} else if (!doi.empty()) {
+			locator = provideScheme(doi, from_ascii("doi"));
+		} else if (!url.empty()) {
+			locator = url;
+		} else {
+			locator = "EXTERNAL " + titledata;
+		}
+		LYXERR(Debug::INSETS, "Resolved locator: " << locator);
+		FuncRequest cmd = FuncRequest(LFUN_CITATION_OPEN, locator);
+		lyx::dispatch(cmd);
 	}
 }
 
@@ -203,6 +279,8 @@ bool InsetCitation::getStatus(Cursor & cur, FuncRequest const & cmd,
 			}
 		}
 		return true;
+	case LFUN_INSET_EDIT:
+		return openCitationPossible();
 	default:
 		return InsetCommand::getStatus(cur, cmd, status);
 	}
@@ -211,7 +289,7 @@ bool InsetCitation::getStatus(Cursor & cur, FuncRequest const & cmd,
 
 bool InsetCitation::addKey(string const & key)
 {
-	docstring const ukey = from_utf8(key);
+	docstring const ukey = from_utf8(trim(key));
 	docstring const & curkeys = getParam("key");
 	if (curkeys.empty()) {
 		setParam("key", ukey);
@@ -220,10 +298,8 @@ bool InsetCitation::addKey(string const & key)
 	}
 
 	vector<docstring> keys = getVectorFromString(curkeys);
-	vector<docstring>::const_iterator it = keys.begin();
-	vector<docstring>::const_iterator en = keys.end();
-	for (; it != en; ++it) {
-		if (*it == ukey) {
+	for (auto const & k : keys) {
+		if (k == ukey) {
 			LYXERR0("Key " << key << " already present.");
 			return false;
 		}
@@ -259,8 +335,8 @@ docstring InsetCitation::toolTip(BufferView const & bv, int, int) const
 	docstring tip;
 	tip += "<ol>";
 	int count = 0;
-	for (docstring const & key : keys) {
-		docstring const key_info = bi.getInfo(key, buffer(), ci);
+	for (docstring const & kvar : keys) {
+		docstring const key_info = bi.getInfo(kvar, buffer(), ci);
 		// limit to reasonable size.
 		if (count > 9 && keys.size() > 11) {
 			tip.push_back(0x2026);// HORIZONTAL ELLIPSIS
@@ -323,22 +399,24 @@ inline docstring wrapCitation(docstring const & key,
 		return content;
 	// we have to do the escaping here, because we will ultimately
 	// write this as a raw string, so as not to escape the tags.
-	return "<a href='#LyXCite-" + html::cleanAttr(key) + "'>" +
-			html::htmlize(content, XHTMLStream::ESCAPE_ALL) + "</a>";
+	return "<a href='#LyXCite-" + xml::cleanAttr(key) + "'>" +
+			xml::escapeString(content, XMLStream::ESCAPE_ALL) + "</a>";
 }
 
 } // anonymous namespace
 
 
-map<docstring, docstring> InsetCitation::getQualifiedLists(docstring const p) const
+vector<pair<docstring, docstring>> InsetCitation::getQualifiedLists(docstring const & p) const
 {
 	vector<docstring> ps =
 		getVectorFromString(p, from_ascii("\t"));
-	std::map<docstring, docstring> res;
+	QualifiedList res;
 	for (docstring const & s: ps) {
-		docstring key;
-		docstring val = split(s, key, ' ');
-		res[key] = val;
+		docstring key = s;
+		docstring val;
+		if (contains(s, ' '))
+			val = split(s, key, ' ');
+		res.push_back(make_pair(key, val));
 	}
 	return res;
 }
@@ -363,14 +441,33 @@ docstring InsetCitation::complexLabel(bool for_xhtml) const
 	if (!buf.isFullyLoaded())
 		return docstring();
 
-	BiblioInfo const & biblist = buf.masterBibInfo();
-	if (biblist.empty())
-		return docstring();
-
 	docstring const & key = getParam("key");
+
+	BiblioInfo const & biblist = buf.masterBibInfo();
+
+	// mark broken citations
+	setBroken(false);
+
+	if (biblist.empty()) {
+		setBroken(true);
+		return docstring();
+	}
+
 	if (key.empty())
 		return _("No citations selected!");
 
+	// check all citations
+	// we only really want the last 'false', to suppress trimming, but
+	// we need to give the other defaults, too, to set it.
+	vector<docstring> keys =
+		getVectorFromString(key, from_ascii(","), false, false);
+	for (auto const & k : keys) {
+		if (biblist.find(k) == biblist.end()) {
+			setBroken(true);
+			break;
+		}
+	}
+	
 	string cite_type = getCmdName();
 	bool const uppercase = isUpperCase(cite_type[0]);
 	if (uppercase)
@@ -390,18 +487,14 @@ docstring InsetCitation::complexLabel(bool for_xhtml) const
 	buffer().params().documentClass().addCiteMacro("!textafter", to_utf8(after));
 	*/
 	docstring label;
-	// we only really want the last 'false', to suppress trimming, but
-	// we need to give the other defaults, too, to set it.
-	vector<docstring> keys =
-		getVectorFromString(key, from_ascii(","), false, false);
 	CitationStyle cs = getCitationStyle(buffer().masterParams(),
 			cite_type, buffer().masterParams().citeStyles());
 	bool const qualified = cs.hasQualifiedList
 		&& (keys.size() > 1
 		    || !getParam("pretextlist").empty()
 		    || !getParam("posttextlist").empty());
-	map<docstring, docstring> pres = getQualifiedLists(getParam("pretextlist"));
-	map<docstring, docstring> posts = getQualifiedLists(getParam("posttextlist"));
+	QualifiedList pres = getQualifiedLists(getParam("pretextlist"));
+	QualifiedList posts = getQualifiedLists(getParam("posttextlist"));
 
 	CiteItem ci;
 	ci.textBefore = getParam("before");
@@ -448,13 +541,11 @@ docstring InsetCitation::basicLabel(bool for_xhtml) const
 bool InsetCitation::forceLTR(OutputParams const & rp) const
 {
 	// We have to force LTR for numeric references
-	// [= plain BibTeX, numeric natbib and biblatex].
-	// Except for XeTeX/bidi . See #3005.
-	if (rp.local_font->isRightToLeft()
-	    && rp.use_polyglossia
-	    && rp.flavor == OutputParams::XETEX)
+	// [= bibliography, plain BibTeX, numeric natbib
+	// and biblatex]. Except for XeTeX/bidi. See #3005.
+	if (buffer().masterParams().useBidiPackage(rp))
 		return false;
-	return (buffer().masterParams().citeEngine().list().front() == "basic"
+	return (buffer().masterParams().citeEngine() == "basic"
 		|| buffer().masterParams().citeEngineType() == ENGINE_TYPE_NUMERICAL);
 }
 
@@ -464,7 +555,7 @@ docstring InsetCitation::screenLabel() const
 }
 
 
-void InsetCitation::updateBuffer(ParIterator const &, UpdateType)
+void InsetCitation::updateBuffer(ParIterator const &, UpdateType, bool const /*deleted*/)
 {
 	if (!cache.recalculate && buffer().citeLabelsValid())
 		return;
@@ -473,8 +564,8 @@ void InsetCitation::updateBuffer(ParIterator const &, UpdateType)
 	cache.recalculate = false;
 	cache.generated_label = glabel;
 	unsigned int const maxLabelChars = 45;
-	cache.screen_label = glabel.substr(0, maxLabelChars + 1);
-	support::truncateWithEllipsis(cache.screen_label, maxLabelChars);
+	cache.screen_label = glabel;
+	support::truncateWithEllipsis(cache.screen_label, maxLabelChars, true);
 }
 
 
@@ -486,10 +577,17 @@ void InsetCitation::addToToc(DocIterator const & cpit, bool output_active,
 	// from the document. It is used indirectly, via BiblioInfo::makeCitationLables,
 	// by both XHTML and plaintext output. So, if we change what goes into the TOC,
 	// then we will also need to change that routine.
-	docstring const tocitem = getParam("key");
+	docstring tocitem;
+	if (isBroken())
+		tocitem = _("BROKEN: ");
+	tocitem += getParam("key");
 	TocBuilder & b = backend.builder("citation");
 	b.pushItem(cpit, tocitem, output_active);
 	b.pop();
+	if (isBroken()) {
+		shared_ptr<Toc> toc2 = backend.toc("brokenrefs");
+		toc2->push_back(TocItem(cpit, 0, tocitem, output_active));
+	}
 }
 
 
@@ -500,7 +598,7 @@ int InsetCitation::plaintext(odocstringstream & os,
 	if (cmd == "nocite")
 		return 0;
 
-	docstring const label = generateLabel(false);
+	docstring const label = generateLabel();
 	os << label;
 	return label.size();
 }
@@ -508,39 +606,57 @@ int InsetCitation::plaintext(odocstringstream & os,
 
 static docstring const cleanupWhitespace(docstring const & citelist)
 {
-	docstring::const_iterator it  = citelist.begin();
-	docstring::const_iterator end = citelist.end();
 	// Paranoia check: make sure that there is no whitespace in here
 	// -- at least not behind commas or at the beginning
 	docstring result;
 	char_type last = ',';
-	for (; it != end; ++it) {
-		if (*it != ' ')
-			last = *it;
-		if (*it != ' ' || last != ',')
-			result += *it;
+	for (char_type c : citelist) {
+		if (c != ' ')
+			last = c;
+		if (c != ' ' || last != ',')
+			result += c;
 	}
 	return result;
 }
 
 
-int InsetCitation::docbook(odocstream & os, OutputParams const &) const
+void InsetCitation::cleanKeys() {
+	docstring cleankeys = cleanupWhitespace(getParam("key"));
+	setParam("key", cleankeys);
+}
+
+void InsetCitation::docbook(XMLStream & xs, OutputParams const &) const
 {
-	os << from_ascii("<citation>")
-	   << cleanupWhitespace(getParam("key"))
-	   << from_ascii("</citation>");
-	return 0;
+	if (getCmdName() == "nocite")
+		return;
+
+	// Split the different citations (on ","), so that one tag can be output for each of them.
+	// DocBook does not support having multiple citations in one tag, so that we have to deal with formatting here.
+	docstring citations = getParam("key");
+	if (citations.find(',') == string::npos) {
+		xs << xml::CompTag("biblioref", "linkend=\"" + to_utf8(xml::cleanID(citations)) + "\"");
+	} else {
+		size_t pos = 0;
+		while (pos != string::npos) {
+			pos = citations.find(',');
+			xs << xml::CompTag("biblioref", "linkend=\"" + to_utf8(xml::cleanID(citations.substr(0, pos))) + "\"");
+			citations.erase(0, pos + 1);
+
+			if (pos != string::npos) {
+				xs << ", "; 
+			}
+		}
+	}
 }
 
 
-docstring InsetCitation::xhtml(XHTMLStream & xs, OutputParams const &) const
+docstring InsetCitation::xhtml(XMLStream & xs, OutputParams const &) const
 {
-	string const & cmd = getCmdName();
-	if (cmd == "nocite")
+	if (getCmdName() == "nocite")
 		return docstring();
 
 	// have to output this raw, because generateLabel() will include tags
-	xs << XHTMLStream::ESCAPE_NONE << generateLabel(true);
+	xs << XMLStream::ESCAPE_NONE << generateLabel(true);
 
 	return docstring();
 }
@@ -549,7 +665,7 @@ docstring InsetCitation::xhtml(XHTMLStream & xs, OutputParams const &) const
 void InsetCitation::toString(odocstream & os) const
 {
 	odocstringstream ods;
-	plaintext(ods, OutputParams(0));
+	plaintext(ods, OutputParams(nullptr));
 	os << ods.str();
 }
 
@@ -567,7 +683,7 @@ void InsetCitation::forOutliner(docstring & os, size_t const, bool const) const
 // engine, e.g. \cite[]{} for the basic engine.
 void InsetCitation::latex(otexstream & os, OutputParams const & runparams) const
 {
-	// When this is a child compiled on its own, we use the childs
+	// When this is a child compiled on its own, we use the children
 	// own bibinfo, else the master's
 	BiblioInfo const & bi = runparams.is_child
 			? buffer().masterBibInfo() : buffer().bibInfo();
@@ -626,12 +742,30 @@ void InsetCitation::latex(otexstream & os, OutputParams const & runparams) const
 		os << '{' << escape(cleanupWhitespace(key)) << '}';
 	else {
 		if (qualified) {
-			map<docstring, docstring> pres = getQualifiedLists(getParam("pretextlist"));
-			map<docstring, docstring> posts = getQualifiedLists(getParam("posttextlist"));
-			for (docstring const & k: keys) {
-				docstring bef = params().prepareCommand(runparams, pres[k],
+			QualifiedList pres = getQualifiedLists(getParam("pretextlist"));
+			QualifiedList posts = getQualifiedLists(getParam("posttextlist"));
+			for (docstring const & k : keys) {
+				docstring prenote;
+				QualifiedList::iterator it = pres.begin();
+				for (; it != pres.end() ; ++it) {
+					if ((*it).first == k) {
+						prenote = (*it).second;
+						pres.erase(it);
+						break;
+					}
+				}
+				docstring bef = params().prepareCommand(runparams, prenote,
 				                   pinfo["pretextlist"].handling());
-				docstring aft = params().prepareCommand(runparams, posts[k],
+				docstring postnote;
+				QualifiedList::iterator pit = posts.begin();
+				for (; pit != posts.end() ; ++pit) {
+					if ((*pit).first == k) {
+						postnote = (*pit).second;
+						posts.erase(pit);
+						break;
+					}
+				}
+				docstring aft = params().prepareCommand(runparams, postnote,
 				                   pinfo["posttextlist"].handling());
 				if (!bef.empty())
 					os << '[' << protectArgument(bef)
@@ -646,6 +780,13 @@ void InsetCitation::latex(otexstream & os, OutputParams const & runparams) const
 
 	if (runparams.inulemcmd)
 		os << "}";
+}
+
+
+pair<int, int> InsetCitation::isWords() const
+{
+	docstring const label = generateLabel(false);
+	return pair<int, int>(label.size(), wordCount(label));
 }
 
 

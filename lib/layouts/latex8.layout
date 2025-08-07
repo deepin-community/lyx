@@ -4,7 +4,7 @@
 # Latex8 textclass definition file.
 # Author : Allan Rae <rae@elec.uq.edu.au>
 
-Format 66
+Format 104
 Preamble
 	\usepackage{latex8}
 	\usepackage{times}
@@ -41,6 +41,9 @@ Style Title
 	  Series              Bold
 	  Size                Larger
 	EndFont
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 

@@ -47,8 +47,7 @@ global.
   deriving from DocIterator
 
 * A Cursor is a descendant of CursorData that contains interesting
-  display-related information, in particular targetX(), the horizontal
-  position of the cursor in pixels.
+  display-related information, in particular the BufferView that owns it.
 */
 
 #ifndef LCURSOR_H
@@ -92,62 +91,9 @@ public:
 	friend std::ostream & operator<<(std::ostream & os, CursorData const & cur);
 	friend LyXErr & operator<<(LyXErr & os, CursorData const & cur);
 
-protected:
-	/// the anchor position
-	DocIterator anchor_;
-	/// do we have a selection?
-	bool selection_;
-	/// are we on the way to get one?
-	bool mark_;
-	/// are we in word-selection mode? This is set when double clicking.
-	bool word_selection_;
-
-// FIXME: make them protected.
-public:
-	/// the current font settings
-	Font current_font;
-	/// the current font
-	Font real_current_font;
-
-protected:
-
-	//
-	// math specific stuff that could be promoted to "global" later
-	//
-	/// do we allow autocorrection
-	bool autocorrect_;
-	/// are we entering a macro name?
-	bool macromode_;
-};
-
-
-/// The cursor class describes the position of a cursor within a document.
-class Cursor : public CursorData
-{
-public:
-	/// create the cursor of a BufferView
-	explicit Cursor(BufferView & bv);
-
-	/// returns true if we made a decision
-	bool getStatus(FuncRequest const & cmd, FuncStatus & flag) const;
-	/// dispatch from innermost inset upwards
-	void dispatch(FuncRequest const & cmd);
-	/// get the resut of the last dispatch
-	DispatchResult const & result() const;
-	/// add a new cursor slice
-	void push(Inset & inset);
-	/// add a new cursor slice, place cursor at front (move backwards)
-	void pushBackward(Inset & inset);
-	/// pop one level off the cursor
-	void pop();
-	/// pop one slice off the cursor stack and go backwards
-	bool popBackward();
-	/// pop one slice off the cursor stack and go forward
-	bool popForward();
-	/// make sure we are outside of given inset
-	void leaveInset(Inset const & inset);
-	/// set the cursor data
-	void setCursorData(CursorData const & data);
+	/// reset cursor bottom to the beginning of the top inset
+	// (sort of 'chroot' environment...)
+	void reset();
 	/// sets cursor part
 	/// this (intentionally) does neither touch anchor nor selection status
 	void setCursor(DocIterator const & it);
@@ -155,9 +101,6 @@ public:
 	void setCursorSelectionTo(DocIterator dit);
 	/// sets the cursor to the normalized selection anchor
 	void setCursorToAnchor();
-
-	///
-	void setCurrentFont();
 
 	//
 	// selection
@@ -175,7 +118,7 @@ public:
 	///
 	void setWordSelection(bool set) { word_selection_ = set; }
 	///
-	bool wordSelection() { return word_selection_; }
+	bool wordSelection() const { return word_selection_; }
 	/// did we place the anchor?
 	bool mark() const { return mark_; }
 	/// did we place the anchor?
@@ -188,10 +131,20 @@ public:
 	void clearSelection();
 	/// check whether selection contains specific type of inset
 	/// returns 0 if no selection was made
-	bool insetInSelection(InsetCode const & inset);
+	bool insetInSelection(InsetCode const & inset) const;
 	/// count occurences of specific inset type in the selection
 	/// returns 0 if no selection was made
-	int countInsetsInSelection(InsetCode const & inset);
+	int countInsetsInSelection(InsetCode const & inset) const;
+
+	/// access to normalized selection anchor
+	// FIXME: this should return a full DocIterator
+	CursorSlice normalAnchor() const;
+	/// access to real selection anchor
+	DocIterator const & realAnchor() const { return anchor_; }
+	DocIterator & realAnchor() { return anchor_; }
+	/// sets anchor to cursor position
+	void resetAnchor();
+
 	/// access start of selection
 	CursorSlice selBegin() const;
 	/// access end of selection
@@ -200,6 +153,143 @@ public:
 	DocIterator selectionBegin() const;
 	/// access end of selection
 	DocIterator selectionEnd() const;
+
+	///
+	docstring selectionAsString(bool const with_label,
+				    bool const skipdelete = false) const;
+	/// get some interesting description of top position
+	void info(odocstream & os, bool devel_mode) const;
+	///
+	docstring currentState(bool devel_mode) const;
+
+	/// fix cursor in circumstances that should never happen.
+	/// \retval true if a fix occurred.
+	bool fixIfBroken();
+	/// Repopulate the slices insets from bottom to top. Useful
+	/// for stable iterators or Undo data.
+	void sanitize();
+
+	///
+	bool undoAction();
+	///
+	bool redoAction();
+
+	/// makes sure the next operation will be stored
+	void finishUndo() const;
+	/// open a new group of undo operations. Groups can be nested.
+	void beginUndoGroup() const;
+	/// end the current undo group
+	void endUndoGroup() const;
+	/// end abruptly the current group and create a new one wih the same nesting level
+	void splitUndoGroup() const;
+
+	/// The general case: prepare undo for an arbitrary range.
+	void recordUndo(pit_type from, pit_type to) const;
+	/// Convenience: prepare undo for the range between 'from' and cursor.
+	void recordUndo(pit_type from) const;
+	/// Convenience: prepare undo for the single paragraph or cell
+	/// containing the cursor
+	void recordUndo(UndoKind kind = ATOMIC_UNDO) const;
+	/// Convenience: prepare undo for the inset containing the cursor
+	void recordUndoInset(Inset const * inset = nullptr) const;
+	/// Convenience: prepare undo for the whole buffer
+	void recordUndoFullBuffer() const;
+	/// Convenience: prepare undo for buffer parameters
+	void recordUndoBufferParams() const;
+	/// Convenience: prepare undo for the selected paragraphs or cells
+	void recordUndoSelection() const;
+
+	/// hook for text input to maintain the "new born word"
+	void markNewWordPosition();
+	/// The position of the new born word
+	/// As the user is entering a word without leaving it
+	/// the result is not empty. When not in text mode
+	/// and after leaving the word the result is empty.
+	DocIterator newWord() const { return new_word_; }
+
+	/// are we in math mode (2), text mode (1) or unsure (0)?
+	int currentMode() const;
+
+	/// Return true if the next or previous inset has confirmDeletion depending
+	/// on the boolean before. If there is a selection, return true if at least
+	/// one inset in the selection has confirmDeletion.
+	bool confirmDeletion(bool before = false) const;
+
+private:
+	/// validate the "new born word" position
+	void checkNewWordPosition();
+	/// clear the "new born word" position
+	void clearNewWordPosition();
+
+	/// the anchor position
+	DocIterator anchor_;
+	/// do we have a selection?
+	bool selection_;
+	/// are we on the way to get one?
+	bool mark_;
+	/// are we in word-selection mode? This is set when double clicking.
+	bool word_selection_;
+
+	/// the start of the new born word
+	DocIterator new_word_;
+	//
+	// math specific stuff that could be promoted to "global" later
+	//
+
+	// FIXME: make them private
+public:
+	/// The current font settings. This holds the settings for output.
+	Font current_font;
+	/// The current display font. This holds the settings of the text
+	/// in the workarea.
+	Font real_current_font;
+};
+
+
+/// The cursor class describes the position of a cursor within a document.
+class Cursor : public CursorData
+{
+public:
+	/// create the cursor of a BufferView
+	explicit Cursor(BufferView & bv);
+
+	/// add a new cursor slice
+	void push(Inset & inset);
+	/// add a new cursor slice, place cursor at front (move backwards)
+	void pushBackward(Inset & inset);
+	/// try to put cursor in inset before it in entry cell, or next one
+	/// if it is not empty, or exit the slice if there is no next one.
+	void editInsertedInset();
+
+	/// pop one level off the cursor
+	void pop();
+	/// pop one slice off the cursor stack and go backwards
+	bool popBackward();
+	/// pop one slice off the cursor stack and go forward
+	bool popForward();
+	/// set the cursor data
+	void setCursorData(CursorData const & data);
+
+	/// returns true if we made a decision
+	bool getStatus(FuncRequest const & cmd, FuncStatus & status) const;
+	/// dispatch from innermost inset upwards
+	void dispatch(FuncRequest const & cmd);
+	/// display a message
+	void message(docstring const & msg) const;
+	/// display an error message
+	void errorMessage(docstring const & msg) const;
+	/// get the result of the last dispatch
+	DispatchResult const & result() const;
+
+	/// Set the cursor language from current input method language
+	/* Considers first exact math with the codes used in the document,
+	 * then approximate match among the same list, and finally exact
+	 * or partial match with the whole list of languages.
+	 */
+	void setLanguageFromInput();
+	/// Set the current font of the cursor from its location.
+	void setCurrentFont();
+
 	/**
 	 * Update the selection status and save permanent
 	 * selection if needed.
@@ -207,19 +297,6 @@ public:
 	 * @return whether the selection status has changed
 	 */
 	bool selHandle(bool selecting);
-	///
-	docstring selectionAsString(bool with_label) const;
-	///
-	docstring currentState(bool devel_mode) const;
-
-	/// auto-correct mode
-	bool autocorrect() const { return autocorrect_; }
-	/// auto-correct mode
-	bool & autocorrect() { return autocorrect_; }
-	/// are we entering a macro name?
-	bool macromode() const { return macromode_; }
-	/// are we entering a macro name?
-	bool & macromode() { return macromode_; }
 
 	/// returns x,y position
 	void getPos(int & x, int & y) const;
@@ -270,12 +347,28 @@ public:
 	/// Should interpretation of the arrow keys be reversed?
 	bool reverseDirectionNeeded() const;
 
-	/// insert an inset
-	void insert(Inset *);
+	///
+	///  Insertion (mathed and texted)
+	///
 	/// insert a single char
 	void insert(char_type c);
 	/// insert a string
 	void insert(docstring const & str);
+	/// insert an inset
+	void insert(Inset *);
+	///
+	///  Insertion (mathed only)
+	///
+	/// insert a math atom
+	void insert(MathAtom const &);
+	/// insert a string of atoms
+	void insert(MathData const &);
+	/// Like insert, but moves the selection inside the inset if possible
+	void niceInsert(MathAtom const & at);
+	/// return the number of inserted array items
+	/// FIXME: document properly
+	int niceInsert(docstring const & str, Parse::flags f = Parse::NORMAL,
+			bool enter = true);
 
 	/// FIXME: rename to something sensible showing difference to x_target()
 	/// in pixels from left of screen, set to current position if unset
@@ -288,29 +381,23 @@ public:
 	void setTargetX();
 	/// clear targetX, i.e. set it to -1
 	void clearTargetX();
+	/// return x position of latest mouse press or -1 if unset
+	int xClickPos() const { return x_clickpos_; }
+	/// return y position of latest mouse press or -1 if unset
+	int yClickPos() const { return y_clickpos_; }
+	/// register mouse press coordinates
+	void setClickPos(int x, int y);
 	/// set offset to actual position - targetX
 	void updateTextTargetOffset();
 	/// distance between actual and targeted position during last up/down in text
 	int textTargetOffset() const;
 
-	/// access to normalized selection anchor
-	CursorSlice normalAnchor() const;
-	/// access to real selection anchor
-	DocIterator const & realAnchor() const { return anchor_; }
-	DocIterator & realAnchor() { return anchor_; }
-	/// sets anchor to cursor position
-	void resetAnchor();
 	/// access to owning BufferView
 	BufferView & bv() const;
-	/// get some interesting description of top position
-	void info(odocstream & os, bool devel_mode) const;
-	/// are we in math mode (2), text mode (1) or unsure (0)?
-	int currentMode();
 	/// reset cursor bottom to the beginning of the top inset
 	// (sort of 'chroot' environment...)
 	void reset();
-	/// for spellchecking
-	void replaceWord(std::string const & replacestring);
+
 	/**
 	 * the event was not (yet) dispatched.
 	 *
@@ -323,16 +410,11 @@ public:
 	void undispatched() const;
 	/// the event was already dispatched
 	void dispatched() const;
-	/// Set which screen update should be done
+
+	/// Describe the screen update that should be done
 	void screenUpdateFlags(Update::flags f) const;
-	/// Forces an updateBuffer() call
-	void forceBufferUpdate() const;
-	/// Removes any pending updateBuffer() call
-	void clearBufferUpdate() const;
-	/// Do we need to call updateBuffer()?
-	bool needBufferUpdate() const;
 	/**
-	 * don't call update() when done
+	 * Reset update flags to Update::None.
 	 *
 	 * Should only be called by an inset's doDispatch() method. It means:
 	 * I handled that request and I can reassure you that the screen does
@@ -342,71 +424,29 @@ public:
 	 * Not using noScreenUpdate() should never be wrong.
 	 */
 	void noScreenUpdate() const;
-	/// fix cursor in circumstances that should never happen.
-	/// \retval true if a fix occurred.
-	bool fixIfBroken();
+
+	/// Forces an updateBuffer() call
+	void forceBufferUpdate() const;
+	/// Removes any pending updateBuffer() call
+	void clearBufferUpdate() const;
+	/// Do we need to call updateBuffer()?
+	bool needBufferUpdate() const;
+
 	/// Repopulate the slices insets from bottom to top. Useful
 	/// for stable iterators or Undo data.
 	void sanitize();
 
 	///
-	bool textUndo();
-	///
-	bool textRedo();
-
-	/// makes sure the next operation will be stored
-	void finishUndo() const;
-
-	/// open a new group of undo operations. Groups can be nested.
-	void beginUndoGroup() const;
-
-	/// end the current undo group
-	void endUndoGroup() const;
-
-	/// The general case: prepare undo for an arbitrary range.
-	void recordUndo(pit_type from, pit_type to) const;
-
-	/// Convenience: prepare undo for the range between 'from' and cursor.
-	void recordUndo(pit_type from) const;
-
-	/// Convenience: prepare undo for the single paragraph or cell
-	/// containing the cursor
-	void recordUndo(UndoKind kind = ATOMIC_UNDO) const;
-
-	/// Convenience: prepare undo for the inset containing the cursor
-	void recordUndoInset(Inset const * inset = 0) const;
-
-	/// Convenience: prepare undo for the whole buffer
-	void recordUndoFullBuffer() const;
-
-	/// Convenience: prepare undo for buffer parameters
-	void recordUndoBufferParams() const;
-
-	/// Convenience: prepare undo for the selected paragraphs or cells
-	void recordUndoSelection() const;
-
-	///
 	void checkBufferStructure();
-
-	/// hook for text input to maintain the "new born word"
-	void markNewWordPosition();
-
-	/// The position of the new born word
-	/// As the user is entering a word without leaving it
-	/// the result is not empty. When not in text mode
-	/// and after leaving the word the result is empty.
-	DocIterator newWord() const { return new_word_; }
-
-	/// Return true if the next or previous inset has confirmDeletion depending
-	/// on the boolean before. If there is a selection, return true if at least
-	/// one inset in the selection has confirmDeletion.
-	bool confirmDeletion(bool before = false) const;
 
 	/// Determine if x falls to the left or to the side of the middle of the
 	/// inset, and advance the cursor to match this position. If edit is true,
 	/// keep the cursor in front of the inset if it matter for dialogs.
 	/// Note: it does not handle RTL text yet, and is only used in math for now.
 	void moveToClosestEdge(int x, bool edit = false);
+
+	/// whether the cursor is either at the first or last row
+	bool atFirstOrLastRow(bool up);
 
 public:
 //private:
@@ -415,12 +455,6 @@ public:
 	DocIterator const & beforeDispatchCursor() const { return beforeDispatchCursor_; }
 	///
 	void saveBeforeDispatchPosXY();
-
-private:
-	/// validate the "new born word" position
-	void checkNewWordPosition();
-	/// clear the "new born word" position
-	void clearNewWordPosition();
 
 private:
 	///
@@ -442,8 +476,9 @@ private:
 	int x_target_;
 	/// if a x_target cannot be hit exactly in a text, put the difference here
 	int textTargetOffset_;
-	/// the start of the new born word
-	DocIterator new_word_;
+	/// Exact position of mouse click
+	int x_clickpos_;
+	int y_clickpos_;
 	/// position before dispatch started
 	DocIterator beforeDispatchCursor_;
 	/// cursor screen coordinates before dispatch started
@@ -459,10 +494,6 @@ private:
 ///////////////////////////////////////////////////////////////////
 
 public:
-	///
-	void insert(MathAtom const &);
-	///
-	void insert(MathData const &);
 	/// return false for empty math insets
 	/// Use force to skip the confirmDeletion check.
 	bool erase(bool force = false);
@@ -474,8 +505,6 @@ public:
 	/// move the cursor up by sending an internal LFUN_DOWN,
 	/// return true if fullscreen update is needed
 	bool down();
-	/// whether the cursor is either at the first or last row
-	bool atFirstOrLastRow(bool up);
 	/// move up/down in a text inset, called for LFUN_UP/DOWN,
 	/// return true if successful, updateNeeded set to true if fullscreen
 	/// update is needed, otherwise it's not touched
@@ -483,10 +512,6 @@ public:
 	/// move up/down in math or any non text inset, call for LFUN_UP/DOWN
 	/// return true if successful
 	bool upDownInMath(bool up);
-	///
-	InsetMath & nextMath();
-	///
-	InsetMath & prevMath();
 	/// move forward in math. word: whether to skip a whole "word" (insets with
 	/// the same mathclass)
 	bool mathForward(bool word);
@@ -496,15 +521,6 @@ public:
 	void plainErase();
 	///
 	void plainInsert(MathAtom const & at);
-	///
-	void niceInsert(MathAtom const & at);
-	/// return the number of inserted array items
-	int niceInsert(docstring const & str, Parse::flags f = Parse::NORMAL,
-			bool enter = true);
-
-	/// in pixels from top of screen
-	void setScreenPos(int x, int y);
-	/// current offset in the top cell
 
 	/// interpret name of a macro or ditch it if \c cancel is true.
 	/// Returns true if something got inserted.
@@ -515,38 +531,22 @@ public:
 	InsetMathUnknown * activeMacro();
 	/// get access to the macro we are currently typing
 	InsetMathUnknown const * activeMacro() const;
+	/// the name of the macro we are currently inputting
+	docstring macroName();
 
 	/// replace selected stuff with at, placing the former
-	// selection in given cell of atom
-	void handleNest(MathAtom const & at, int cell = 0);
-	///
-	bool isInside(Inset const *) const;
+	// selection in entry cell of atom
+	void handleNest(MathAtom const & at);
 
 	/// make sure cursor position is valid
 	/// FIXME: It does a subset of fixIfBroken. Maybe merge them?
 	void normalize();
-	/// mark current cursor trace for redraw
-	void touch();
 
-	/// hack for reveal codes
-	void markInsert();
-	void markErase();
 	/// injects content of a cell into parent
 	void pullArg();
 	/// split font inset etc
 	void handleFont(std::string const & font);
 
-	/// display a message
-	void message(docstring const & msg) const;
-	/// display an error message
-	void errorMessage(docstring const & msg) const;
-	///
-	docstring getPossibleLabel() const;
-
-	/// the name of the macro we are currently inputting
-	docstring macroName();
-	/// where in the curent cell does the macro name start?
-	int macroNamePos();
 	/// can we enter the inset?
 	bool openable(MathAtom const &) const;
 	/// font at cursor position
@@ -566,4 +566,4 @@ bool notifyCursorLeavesOrEnters(Cursor const & old, Cursor & cur);
 
 } // namespace lyx
 
-#endif // LYXLCURSOR_H
+#endif // LCURSOR_H

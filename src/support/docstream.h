@@ -21,8 +21,8 @@ namespace lyx {
 
 class iconv_codecvt_facet_exception : public std::exception {
 public:
-	virtual ~iconv_codecvt_facet_exception() throw() {}
-	virtual const char * what() const throw();
+	virtual ~iconv_codecvt_facet_exception() noexcept {}
+	const char * what() const noexcept override;
 };
 
 /// Base class for UCS4 input streams
@@ -111,8 +111,8 @@ SetEnc setEncoding(std::string const & encoding);
     os << setEncoding("ISO-8859-1");
     \endcode
  */
-odocstream & operator<<(odocstream & os, SetEnc e);
-idocstream & operator<<(idocstream & os, SetEnc e);
+odocstream & operator<<(odocstream & os, SetEnc const & e);
+idocstream & operator<<(idocstream & os, SetEnc const & e);
 
 } // namespace lyx
 

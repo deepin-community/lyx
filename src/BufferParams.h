@@ -15,17 +15,16 @@
 #ifndef BUFFERPARAMS_H
 #define BUFFERPARAMS_H
 
-#include "Author.h"
 #include "Citation.h"
+#include "ColorCode.h"
+#include "ColorSet.h"
 #include "DocumentClassPtr.h"
-#include "Format.h"
 #include "LayoutModuleList.h"
-#include "OutputParams.h"
 #include "paper.h"
-
-#include "insets/InsetQuotes.h"
+#include "WordLangTuple.h"
 
 #include "support/copied_ptr.h"
+#include "support/types.h"
 
 #include <map>
 #include <vector>
@@ -34,20 +33,30 @@ namespace lyx {
 
 namespace support { class FileName; }
 
+class Author;
+class AuthorList;
 class BranchList;
 class Bullet;
+class Buffer;
 class DocumentClass;
 class Encoding;
 class Font;
+class Format;
 class IndicesList;
 class Language;
+class LaTeXFeatures;
 class LayoutFile;
 class LayoutFileIndex;
 class Length;
 class Lexer;
+class OutputParams;
+class otexstream;
 class PDFOptions;
 class Spacing;
 class VSpace;
+
+enum class Flavor : int;
+enum class QuoteStyle : int;
 
 /** Buffer parameters.
  *  This class contains all the parameters for this buffer's use. Some
@@ -72,7 +81,7 @@ public:
 	/// read a header token, if unrecognised, return it or an unknown class name
 	std::string readToken(Lexer & lex,
 		std::string const & token, ///< token to read.
-		support::FileName const & filepath);
+		support::FileName const & filename);
 
 	///
 	void writeFile(std::ostream &, Buffer const *) const;
@@ -123,7 +132,7 @@ public:
 	 */
 	ParagraphSeparation paragraph_separation;
 	///
-	InsetQuotesParams::QuoteStyle quotes_style;
+	QuoteStyle quotes_style;
 	///
 	bool dynamic_quotes;
 	///
@@ -145,7 +154,7 @@ public:
 	/// on to class BufferView::updateDocumentClass(). The exception, of course,
 	/// is in GuiDocument, where we use a BufferParams simply to hold a copy of
 	/// the parameters from the active Buffer.
-	void makeDocumentClass(bool const clone = false);
+	void makeDocumentClass(bool clone = false, bool internal = false);
 	/// Returns the DocumentClass currently in use: the BaseClass as modified
 	/// by modules.
 	DocumentClass const & documentClass() const;
@@ -170,8 +179,6 @@ public:
 	/// checks to make sure module's requriements are satisfied, that it does
 	/// not conflict with already-present modules, isn't already loaded, etc.
 	bool layoutModuleCanBeAdded(std::string const & modName) const;
-	/// same, but for citaton modules.
-	bool citationModuleCanBeAdded(std::string const & modName) const;
 	///
 	void addRemovedModule(std::string const & modName)
 			{ removed_modules_.push_back(modName); }
@@ -186,18 +193,21 @@ public:
 
 	/// returns \c true if the buffer contains a LaTeX document
 	bool isLatex() const;
-	/// returns \c true if the buffer contains a DocBook document
-	bool isDocBook() const;
 	/// returns \c true if the buffer contains a Wed document
 	bool isLiterate() const;
+	/// Is this package option requested?
+	bool hasPackageOption(std::string const package, std::string const opt) const;
+	/// Get the options requested for a given package
+	std::string getPackageOptions(std::string const package) const;
+	/// Do we use the bidi package (which does some reordering and stuff)?
+	bool useBidiPackage(OutputParams const & rp) const;
 
 	/// return the format of the buffer on a string
 	std::string bufferFormat() const;
 	/// return the default output format of the current backend
 	std::string getDefaultOutputFormat() const;
 	/// return the output flavor of \p format or the default
-	OutputParams::FLAVOR getOutputFlavor(
-		  std::string const & format = std::string()) const;
+	Flavor getOutputFlavor(std::string const & format = std::string()) const;
 	///
 	bool isExportable(std::string const & format, bool need_viewable) const;
 	///
@@ -216,13 +226,18 @@ public:
 	void clearIncludedChildren() { included_children_.clear(); }
 
 	/// update aux files of unincluded children (with \includeonly)
-	bool maintain_unincluded_children;
+	enum ChildrenMaintenance {
+		CM_None,
+		CM_Mostly,
+		CM_Strict
+	};
+	ChildrenMaintenance maintain_unincluded_children;
 
 	/// returns the main font for the buffer (document)
 	Font const getFont() const;
 
 	/// translate quote style string to enum value
-	InsetQuotesParams::QuoteStyle getQuoteStyle(std::string const & qs) const;
+	QuoteStyle getQuoteStyle(std::string const & qs) const;
 
 	/* these are for the PaperLayout */
 	/// the papersize
@@ -231,6 +246,8 @@ public:
 	PAPER_ORIENTATION orientation;
 	/// use custom margins
 	bool use_geometry;
+	///
+	mutable std::string set_geometry;
 	///
 	std::string paperwidth;
 	///
@@ -285,16 +302,26 @@ public:
 	bool useNonTeXFonts;
 	/// use expert Small Caps
 	bool fonts_expert_sc;
-	/// use Old Style Figures
-	bool fonts_old_figures;
+	/// use Old Style Figures (rm)
+	bool fonts_roman_osf;
+	/// use Old Style Figures (sf)
+	bool fonts_sans_osf;
+	/// use Old Style Figures (tt)
+	bool fonts_typewriter_osf;
+	/// the options for the roman font
+	std::string font_roman_opts;
 	/// the scale factor of the sf font: [0] for TeX fonts, [1] for non-TeX fonts
 	int fonts_sans_scale[2];
 	/// the scale factor of the sf font
 	int fontsSansScale() const { return fonts_sans_scale[useNonTeXFonts]; }
+	// the options for the sans font
+	std::string font_sans_opts;
 	/// the scale factor of the tt font: [0] for TeX fonts, [1] for non-TeX fonts
 	int fonts_typewriter_scale[2];
 	/// the scale factor of the tt font
 	int fontsTypewriterScale() const { return fonts_typewriter_scale[useNonTeXFonts]; }
+	// the options for the typewriter font
+	std::string font_typewriter_opts;
 	/// the font used by the CJK command
 	std::string fonts_cjk;
 	/// use LaTeX microtype package
@@ -318,6 +345,10 @@ public:
 	/// IndicesList:
 	IndicesList & indiceslist();
 	IndicesList const & indiceslist() const;
+	///
+	WordLangTable & spellignore();
+	WordLangTable const & spellignore() const;
+	bool spellignored(WordLangTuple const & wl) const;
 	/**
 	 * The LyX name of the input encoding for LaTeX. This can be one of
 	 * - \c auto: find out the input encoding from the used languages
@@ -326,23 +357,27 @@ public:
 	 * The encoding of the LyX file is always utf8 and has nothing to
 	 * do with this setting.
 	 * The difference between \c auto and \c default is that \c auto also
-	 * causes loading of the inputenc package, while \c default does not.
+	 * causes loading of the inputenc package and writes a \inputenc{} command
+	 * to the file when switching to another encoding, while \c default does not.
 	 * \c default will not work unless the user takes additional measures
 	 * (such as using special environments like the CJK environment from
 	 * CJK.sty).
-	 * \c default can be seen as an unspecified 8bit encoding, since LyX
+	 * \c default can be seen as an unspecified mix of 8bit encodings, since LyX
 	 * does not interpret it in any way apart from display on screen.
 	 */
 	std::string inputenc;
 	/// The main encoding used by this buffer for LaTeX output.
-	/// Individual pieces of text can use different encodings.
+	/// If the main encoding is \c auto or \c default,
+	/// individual pieces of text can use different encodings.
 	/// Output for XeTeX with 8-bit TeX fonts uses ASCII (set at runtime)
-	/// instead of the value returned by this function.
+	/// instead of the value returned by this function (cf. #10600).
 	Encoding const & encoding() const;
 	///
 	std::string origin;
 	///
 	docstring preamble;
+	/// DocumentMetadata as introduced by LaTeX 2022/06
+	docstring document_metadata;
 	///
 	std::string options;
 	/// use the class options defined in the layout?
@@ -354,6 +389,8 @@ public:
 	///
 	std::string float_placement;
 	///
+	std::string float_alignment;
+	///
 	unsigned int columns;
 	///
 	bool justification;
@@ -363,6 +400,8 @@ public:
 	PageSides sides;
 	///
 	std::string pagestyle;
+	///
+	std::string tablestyle;
 	///
 	RGBColor backgroundcolor;
 	///
@@ -374,7 +413,11 @@ public:
 	///
 	RGBColor notefontcolor;
 	///
+	bool isnotefontcolor;
+	///
 	RGBColor boxbgcolor;
+	///
+	bool isboxbgcolor;
 	/// \param index should lie in the range 0 <= \c index <= 3.
 	Bullet & temp_bullet(size_type index);
 	Bullet const & temp_bullet(size_type index) const;
@@ -420,12 +463,16 @@ public:
 	 */
 	bool output_changes;
 	///
+	bool change_bars;
+	///
 	bool compressed;
+	///
+	bool postpone_fragile_content;
 
 	/// the author list for the document
 	AuthorList & authors();
 	AuthorList const & authors() const;
-	void addAuthor(Author a);
+	void addAuthor(Author const & a);
 
 	/// map of the file's author IDs to AuthorList indexes
 	typedef std::map<int, int> AuthorMap;
@@ -452,7 +499,8 @@ public:
 		XDVI
 	};
 	///
-	std::string paperSizeName(PapersizePurpose purpose) const;
+	std::string paperSizeName(PapersizePurpose purpose,
+				  std::string const & psize = std::string()) const;
 	/// set up if and how babel is called
 	std::string babelCall(std::string const & lang_opts, bool const langoptions) const;
 	/// return supported drivers for specific packages
@@ -465,21 +513,12 @@ public:
 	std::string const loadFonts(LaTeXFeatures & features) const;
 
 	/// the cite engine modules
-	LayoutModuleList const & citeEngine() const
-		{ return cite_engine_; }
+	std::string const & citeEngine() const { return cite_engine_; }
 	/// the type of cite engine (authoryear or numerical)
 	CiteEngineType const & citeEngineType() const
 		{ return cite_engine_type_; }
 	/// add the module to the cite engine modules
-	bool addCiteEngine(std::string const &);
-	/// add the modules to the cite engine modules
-	bool addCiteEngine(std::vector<std::string> const &);
-	/// clear the list of cite engine modules
-	void clearCiteEngine() { cite_engine_.clear(); }
-	/// set the cite engine module
-	void setCiteEngine(std::string const &);
-	/// set the cite engine modules
-	void setCiteEngine(std::vector<std::string> const &);
+	void setCiteEngine(std::string const & eng) { cite_engine_ = eng; }
 	/// set the cite engine type
 	void setCiteEngineType(CiteEngineType const & engine_type)
 		{ cite_engine_type_ = engine_type; }
@@ -490,7 +529,7 @@ public:
 	std::vector<CitationStyle> citeStyles() const;
 
 	/// Return the actual bibtex command (lyxrc or buffer param)
-	std::string const bibtexCommand() const;
+	std::string const bibtexCommand(bool const warn = false) const;
 
 	/// Are we using biblatex?
 	bool useBiblatex() const;
@@ -500,7 +539,7 @@ public:
 	/// Get the default BibTeX style file from the TextClass
 	std::string const & defaultBiblioStyle() const;
 	/// whether the BibTeX style supports full author lists
-	bool const & fullAuthorList() const;
+	bool fullAuthorList() const;
 	/// Check if a citation style is an alias to another style
 	std::string getCiteAlias(std::string const & s) const;
 
@@ -510,6 +549,14 @@ public:
 	std::string biblatex_bibstyle;
 	/// The biblatex citation style
 	std::string biblatex_citestyle;
+	/// Set the bib file encoding (for biblatex)
+	void setBibEncoding(std::string const & s) { bib_encoding = s; }
+	/// Get the bib file encoding (for biblatex)
+	std::string const & bibEncoding() const { return bib_encoding; }
+	/// Set encoding for individual bib file (for biblatex)
+	void setBibFileEncoding(std::string const & file, std::string const & enc);
+	///
+	std::string const bibFileEncoding(std::string const & file) const;
 
 	/// options for pdf output
 	PDFOptions & pdfoptions();
@@ -537,6 +584,24 @@ public:
 	std::string html_latex_end;
 	///
 	bool html_css_as_file;
+
+	// do not change these values. we rely upon them.
+	enum TableOutput {
+		HTMLTable = 0,
+		CALSTable = 1
+	};
+	/// what format to use for table output in DocBook. present choices are above
+	TableOutput docbook_table_output;
+
+	// do not change these values. we rely upon them.
+	enum MathMLNameSpacePrefix {
+		NoPrefix = 0,
+		MPrefix = 1,
+		MMLPrefix = 2
+	};
+	/// what prefix to use when outputting MathML. present choices are above
+	MathMLNameSpacePrefix docbook_mathml_prefix;
+
 	/// allow the LaTeX backend to run external programs
 	bool shell_escape;
 	/// generate output usable for reverse/forward search
@@ -545,8 +610,14 @@ public:
 	std::string output_sync_macro;
 	/// use refstyle? or prettyref?
 	bool use_refstyle;
+	/// use formatted references in the workarea?
+	bool use_formatted_ref;
 	/// use minted? or listings?
 	bool use_minted;
+	//output line numbering
+	bool use_lineno;
+	//optional params for lineno package
+	std::string lineno_opts;
 
 	/// Return true if language could be set to lang,
 	/// otherwise return false and do not change language
@@ -561,6 +632,8 @@ public:
 private:
 	///
 	void readPreamble(Lexer &);
+	///
+	void readDocumentMetadata(Lexer &);
 	///
 	void readLocalLayout(Lexer &, bool);
 	///
@@ -578,17 +651,24 @@ private:
 	///
 	void readIncludeonly(Lexer &);
 	/// A cache for the default flavors
-	typedef std::map<std::string, OutputParams::FLAVOR> DefaultFlavorCache;
+	typedef std::map<std::string, Flavor> DefaultFlavorCache;
 	///
 	mutable DefaultFlavorCache default_flavors_;
-	/// the cite engine modules
-	LayoutModuleList cite_engine_;
+	/// the cite engine
+	std::string cite_engine_;
 	/// the type of cite engine (authoryear or numerical)
 	CiteEngineType cite_engine_type_;
 	/// the default BibTeX style file for the document
 	std::string biblio_style;
+	/// The main encoding of the bib files, for Biblatex
+	std::string bib_encoding;
+	/// Individual file encodings, for Biblatex
+	std::map<std::string, std::string> bib_encodings;
 	/// Split bibliography?
 	bool use_bibtopic;
+	/// Return the actual or an appropriate fallback bibtex command
+	std::string const getBibtexCommand(std::string const cmd,
+					   bool const warn) const;
 	///
 	DocumentClassPtr doc_class_;
 	///
@@ -621,6 +701,10 @@ private:
 	};
 	support::copied_ptr<Impl, MemoryTraits> pimpl_;
 };
+
+
+///
+BufferParams const & defaultBufferParams();
 
 } // namespace lyx
 

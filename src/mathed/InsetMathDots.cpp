@@ -25,8 +25,8 @@
 
 namespace lyx {
 
-InsetMathDots::InsetMathDots(latexkeys const * key)
-	: dh_(0), key_(key)
+InsetMathDots::InsetMathDots(Buffer * buf, latexkeys const * key)
+	: InsetMath(buf), dh_(0), key_(key)
 {}
 
 
@@ -38,18 +38,13 @@ Inset * InsetMathDots::clone() const
 
 void InsetMathDots::metrics(MetricsInfo & mi, Dimension & dim) const
 {
-	dim = theFontMetrics(mi.base.font).dimension('M');
+	dim = theFontMetrics(mi.base.font).dimension('X');
 	dh_ = 0;
 	if (key_->name == "cdots" || key_->name == "dotsb"
 			|| key_->name == "dotsm" || key_->name == "dotsi")
 		dh_ = dim.asc / 2;
-	else if (key_->name == "dotsc")
-		dh_ = dim.asc / 4;
-	else if (key_->name == "vdots") {
-		dim.wid = (dim.wid / 2) + 1;
-		dh_ = dim.asc;
-	}
-	else if (key_->name == "ddots" || key_->name == "adots" || key_->name == "iddots")
+	else if (key_->name == "ddots" || key_->name == "adots"
+			|| key_->name == "iddots" || key_->name == "vdots")
 		dh_ = dim.asc;
 }
 
@@ -59,16 +54,10 @@ void InsetMathDots::draw(PainterInfo & pi, int x, int y) const
 	Dimension const dim = dimension(*pi.base.bv);
 	if (key_->name == "adots" || key_->name == "iddots")
 		--y;
-	mathed_draw_deco(pi, x + 2, y - dh_, dim.width() - 2, dim.ascent(),
+	else if (key_->name == "vdots")
+		x += (dim.width() - 2) / 2;
+	mathed_draw_deco(pi, x + 1, y - dh_, dim.width() - 2, dim.ascent(),
 			key_->name);
-	if (key_->name == "vdots" || key_->name == "ddots" || key_->name == "adots" || key_->name == "iddots")
-		++x;
-	if (key_->name == "adots" || key_->name == "iddots")
-		++y;
-	else if (key_->name != "vdots")
-		--y;
-	mathed_draw_deco(pi, x + 2, y - dh_, dim.width() - 2, dim.ascent(),
-		key_->name);
 }
 
 
@@ -80,52 +69,39 @@ docstring InsetMathDots::name() const
 
 void InsetMathDots::validate(LaTeXFeatures & features) const
 {
-	if (!key_->requires.empty())
-		features.require(key_->requires);
+	if (!key_->required.empty())
+		features.require(key_->required);
 }
 
 
-void InsetMathDots::mathmlize(MathStream & os) const
-{
+namespace {
+std::string symbolToXMLEntity(docstring const & n) {
 	// which symbols we support is decided by what is listed in
 	// lib/symbols as generating a dots inset
-	docstring const & n = key_->name;
-	std::string ent;
 	if (n == "dots" || n == "dotsc" || n == "dotso" || n == "ldots")
-		ent = "&hellip;";
+		return "&#x2026;";
 	else if (n == "adots" || n == "iddots")
-		ent = "&utdot;";
+		return "&#x22F0;";
 	else if (n == "cdots" || n == "dotsb" || n == "dotsi" || n == "dotsm")
-		ent = "&ctdot;";
+		return "&#x22EF;";
 	else if (n == "ddots")
-		ent = "&dtdot;";
+		return "&#x22F1;";
 	else if (n == "vdots")
-		ent = "&vellip;";
-	else
-		LASSERT(false, ent = "&hellip;");
-	os << MTag("mi") << from_ascii(ent) << ETag("mi");
+		return "&#x22EE;";
+	else LASSERT(false, return "&#x2026;");
+}
+}
+
+
+void InsetMathDots::mathmlize(MathMLStream & ms) const
+{
+	ms << MTagInline("mi") << from_ascii(symbolToXMLEntity(key_->name)) << ETagInline("mi");
 }
 
 
 void InsetMathDots::htmlize(HtmlStream & os) const
 {
-	// which symbols we support is decided by what is listed in
-	// lib/symbols as generating a dots inset
-	docstring const & n = key_->name;
-	std::string ent;
-	if (n == "dots" || n == "dotsc" || n == "dotso" || n == "ldots")
-		ent = "&#x02026;";
-	else if (n == "adots" || n == "iddots")
-		ent = "&#x022F0;";
-	else if (n == "cdots" || n == "dotsb" || n == "dotsi" || n == "dotsm")
-		ent = "&#x022EF;";
-	else if (n == "ddots")
-		ent = "&#x022F1;";
-	else if (n == "vdots")
-		ent = "&#x022EE;";
-	else
-		LASSERT(false, ent = "#x02026;");
-	os << from_ascii(ent);
+	os << from_ascii(symbolToXMLEntity(key_->name));
 }
 
 } // namespace lyx

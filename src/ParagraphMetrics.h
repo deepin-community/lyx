@@ -20,32 +20,16 @@
 #include "Dimension.h"
 #include "Row.h"
 
-#include <map>
-#include <vector>
-
 namespace lyx {
 
-/**
- * Each paragraph is broken up into a number of rows on the screen.
- * This is a list of such on-screen rows, ordered from the top row
- * downwards.
- */
-typedef std::vector<Row> RowList;
-
-class Buffer;
 class BufferView;
-class BufferParams;
-class Font;
-class Inset;
 class Paragraph;
-class MetricsInfo;
-class PainterInfo;
 
 /// Helper class for paragraph metrics.
 class ParagraphMetrics {
 public:
 	/// Default constructor (only here for STL containers).
-	ParagraphMetrics() : position_(0), par_(0) {}
+	ParagraphMetrics() {}
 	/// The only useful constructor.
 	explicit ParagraphMetrics(Paragraph const & par);
 
@@ -54,8 +38,6 @@ public:
 
 	void reset(Paragraph const & par);
 
-	///
-	Row & getRow(pos_type pos, bool boundary);
 	///
 	Row const & getRow(pos_type pos, bool boundary) const;
 	///
@@ -78,6 +60,8 @@ public:
 	RowList const & rows() const { return rows_; }
 	///
 	int rightMargin(BufferView const & bv) const;
+	///
+	Paragraph const & par() const { return *par_; }
 
 	/// dump some information to lyxerr
 	void dump() const;
@@ -85,19 +69,31 @@ public:
 	///
 	bool hfillExpansion(Row const & row, pos_type pos) const;
 
-	///
-	int position() const { return position_; }
+	/// The vertical position of the baseline of the first line of the paragraph
+	int position() const;
 	void setPosition(int position);
+	/// Set position to unknown
+	void resetPosition();
+	/// Return true when the position of the paragraph is known
+	bool hasPosition() const;
+	/// The vertical position of the top of the paragraph
+	int top() const { return position_ - dim_.ascent(); }
+	/// The vertical position of the bottom of the paragraph
+	int bottom() const { return position_ + dim_.descent(); }
+	///
+	int id() const { return id_; }
 
 private:
 	///
-	int position_;
+	int position_ = 0;
+	///
+	int id_ = -1;
 	///
 	mutable RowList rows_;
 	/// cached dimensions of paragraph
 	Dimension dim_;
 	///
-	Paragraph const * par_;
+	Paragraph const * par_ = nullptr;
 };
 
 } // namespace lyx

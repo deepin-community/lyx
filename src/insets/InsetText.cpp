@@ -12,8 +12,14 @@
 
 #include "InsetText.h"
 
+#include "mathed/MacroTable.h"
+
 #include "insets/InsetArgument.h"
 #include "insets/InsetLayout.h"
+#include "insets/InsetPreview.h"
+
+#include "graphics/PreviewImage.h"
+#include "graphics/PreviewLoader.h"
 
 #include "buffer_funcs.h"
 #include "Buffer.h"
@@ -25,6 +31,7 @@
 #include "CutAndPaste.h"
 #include "DispatchResult.h"
 #include "ErrorList.h"
+#include "Exporter.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "InsetList.h"
@@ -38,33 +45,33 @@
 #include "MetricsInfo.h"
 #include "output_docbook.h"
 #include "output_latex.h"
-#include "output_xhtml.h"
-#include "OutputParams.h"
 #include "output_plaintext.h"
+#include "output_xhtml.h"
 #include "Paragraph.h"
 #include "ParagraphParameters.h"
 #include "ParIterator.h"
-#include "Row.h"
-#include "sgml.h"
 #include "TexRow.h"
 #include "texstream.h"
 #include "TextClass.h"
 #include "Text.h"
 #include "TextMetrics.h"
 #include "TocBackend.h"
+#include "TocBuilder.h"
 
 #include "frontends/alert.h"
 #include "frontends/Painter.h"
 
-#include "support/bind.h"
 #include "support/convert.h"
 #include "support/debug.h"
+#include "support/filetools.h"
 #include "support/gettext.h"
 #include "support/lassert.h"
 #include "support/lstrings.h"
-#include "support/RefChanger.h"
+#include "support/Changer.h"
+#include "support/FileName.h"
 
 #include <algorithm>
+#include <stack>
 
 
 using namespace std;
@@ -73,23 +80,21 @@ using namespace lyx::support;
 
 namespace lyx {
 
-using graphics::PreviewLoader;
-
-
 /////////////////////////////////////////////////////////////////////
 
 InsetText::InsetText(Buffer * buf, UsePlain type)
-	: Inset(buf), drawFrame_(false), intitle_context_(false),
-	  frame_color_(Color_insetframe), text_(this, type == DefaultLayout)
+	: Inset(buf), drawFrame_(false), is_changed_(false), intitle_context_(false),
+	  frame_color_(Color_insetframe),
+	text_(this, type == DefaultLayout)
 {
 }
 
 
 InsetText::InsetText(InsetText const & in)
-	: Inset(in), intitle_context_(false), text_(this, in.text_)
+	: Inset(in), drawFrame_(in.drawFrame_), is_changed_(in.is_changed_),
+	  intitle_context_(false), frame_color_(in.frame_color_),
+	  text_(this, in.text_)
 {
-	drawFrame_ = in.drawFrame_;
-	frame_color_ = in.frame_color_;
 }
 
 
@@ -97,7 +102,7 @@ void InsetText::setBuffer(Buffer & buf)
 {
 	ParagraphList::iterator end = paragraphs().end();
 	for (ParagraphList::iterator it = paragraphs().begin(); it != end; ++it)
-		it->setBuffer(buf);
+		it->setInsetBuffers(buf);
 	Inset::setBuffer(buf);
 }
 
@@ -140,10 +145,10 @@ void InsetText::clear()
 Dimension const InsetText::dimensionHelper(BufferView const & bv) const
 {
 	TextMetrics const & tm = bv.textMetrics(&text_);
-	Dimension dim = tm.dimension();
-	dim.wid += 2 * TEXT_TO_INSET_OFFSET;
-	dim.des += TEXT_TO_INSET_OFFSET;
-	dim.asc += TEXT_TO_INSET_OFFSET;
+	Dimension dim = tm.dim();
+	dim.wid += leftOffset(&bv) + rightOffset(&bv);
+	dim.des += bottomOffset(&bv);
+	dim.asc += topOffset(&bv);
 	return dim;
 }
 
@@ -184,15 +189,28 @@ void InsetText::read(Lexer & lex)
 }
 
 
+void InsetText::setOuterFont(BufferView & bv, FontInfo const & outer) const
+{
+	TextMetrics & tm = bv.textMetrics(&text_);
+	FontInfo tmpfont = getFont();
+	tmpfont.realize(outer);
+	tm.font_.fontInfo() = tmpfont;
+}
+
+
 void InsetText::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	TextMetrics & tm = mi.base.bv->textMetrics(&text_);
 
 	//lyxerr << "InsetText::metrics: width: " << mi.base.textwidth << endl;
 
-	// Hand font through to contained lyxtext:
-	tm.font_.fontInfo() = mi.base.font;
-	mi.base.textwidth -= 2 * TEXT_TO_INSET_OFFSET;
+	int const horiz_offset = leftOffset(mi.base.bv) + rightOffset(mi.base.bv);
+	mi.base.textwidth -= horiz_offset;
+
+	// Remember the full outer font
+	setOuterFont(*mi.base.bv, mi.base.font);
+	// and use it in these metrics computation.
+	mi.base.font = tm.font_.fontInfo();
 
 	// This can happen when a layout has a left and right margin,
 	// and the view is made very narrow. We can't do better than
@@ -204,10 +222,10 @@ void InsetText::metrics(MetricsInfo & mi, Dimension & dim) const
 		tm.metrics(mi, dim, mi.base.textwidth);
 	else
 		tm.metrics(mi, dim);
-	mi.base.textwidth += 2 * TEXT_TO_INSET_OFFSET;
-	dim.asc += TEXT_TO_INSET_OFFSET;
-	dim.des += TEXT_TO_INSET_OFFSET;
-	dim.wid += 2 * TEXT_TO_INSET_OFFSET;
+	mi.base.textwidth += horiz_offset;
+	dim.asc += topOffset(mi.base.bv);
+	dim.des += bottomOffset(mi.base.bv);
+	dim.wid += horiz_offset;
 }
 
 
@@ -215,21 +233,22 @@ void InsetText::draw(PainterInfo & pi, int x, int y) const
 {
 	TextMetrics & tm = pi.base.bv->textMetrics(&text_);
 
-	int const w = tm.width() + TEXT_TO_INSET_OFFSET;
-	int const yframe = y - TEXT_TO_INSET_OFFSET - tm.ascent();
-	int const h = tm.height() + 2 * TEXT_TO_INSET_OFFSET;
-	int const xframe = x + TEXT_TO_INSET_OFFSET / 2;
+	int const horiz_offset = leftOffset(pi.base.bv) + rightOffset(pi.base.bv);
+	int const w = tm.width() + (horiz_offset - horiz_offset / 2);
+	int const yframe = y - topOffset(pi.base.bv) - tm.ascent();
+	int const h = tm.height() + topOffset(pi.base.bv) + bottomOffset(pi.base.bv);
+	int const xframe = x + leftOffset(pi.base.bv) / 2;
 	bool change_drawn = false;
 	if (pi.full_repaint)
 			pi.pain.fillRectangle(xframe, yframe, w, h,
 				pi.backgroundColor(this));
 
 	{
-		Changer dummy = make_change(pi.background_color,
+		Changer dummy = changeVar(pi.background_color,
 		                            pi.backgroundColor(this, false));
 		// The change tracking cue must not be inherited
-		Changer dummy2 = make_change(pi.change_, Change());
-		tm.draw(pi, x + TEXT_TO_INSET_OFFSET, y);
+		Changer dummy2 = changeVar(pi.change, Change());
+		tm.draw(pi, x + leftOffset(pi.base.bv), y);
 	}
 
 	if (drawFrame_) {
@@ -237,7 +256,7 @@ void InsetText::draw(PainterInfo & pi, int x, int y) const
 		// Only do so if the color is not custom. But do so even if RowPainter
 		// handles the strike-through already.
 		Color c;
-		if (pi.change_.changed()
+		if (pi.change.changed()
 		    // Originally, these are the colors with role Text, from role() in
 		    // ColorCache.cpp.  The code is duplicated to avoid depending on Qt
 		    // types, and also maybe it need not match in the future.
@@ -246,18 +265,18 @@ void InsetText::draw(PainterInfo & pi, int x, int y) const
 		        || frameColor() == Color_preview
 		        || frameColor() == Color_tabularline
 		        || frameColor() == Color_previewframe)) {
-			c = pi.change_.color();
+			c = pi.change.color();
 			change_drawn = true;
 		} else
 			c = frameColor();
 		pi.pain.rectangle(xframe, yframe, w, h, c);
 	}
 
-	if (canPaintChange(*pi.base.bv) && (!change_drawn || pi.change_.deleted()))
+	if (canPaintChange(*pi.base.bv) && (!change_drawn || pi.change.deleted()))
 		// Do not draw the change tracking cue if already done by RowPainter and
 		// do not draw the cue for INSERTED if the information is already in the
 		// color of the frame
-		pi.change_.paintCue(pi, xframe, yframe, xframe + w, yframe + h);
+		pi.change.paintCue(pi, xframe, yframe, xframe + w, yframe + h);
 }
 
 
@@ -276,6 +295,7 @@ void InsetText::edit(Cursor & cur, bool front, EntryDirection entry_from)
 	}
 
 	cur.top().setPitPos(pit, pos);
+	cur.setCurrentFont();
 	cur.finishUndo();
 }
 
@@ -290,6 +310,7 @@ void InsetText::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
 	LYXERR(Debug::ACTION, "InsetText::doDispatch(): cmd: " << cmd);
 
+#if 0
 	// See bug #9042, for instance.
 	if (isPassThru()) {
 		// Force any new text to latex_language FIXME: This
@@ -301,6 +322,7 @@ void InsetText::doDispatch(Cursor & cur, FuncRequest & cmd)
 		cur.current_font.setLanguage(latex_language);
 		cur.real_current_font.setLanguage(latex_language);
 	}
+#endif
 
 	switch (cmd.action()) {
 	case LFUN_PASTE:
@@ -312,21 +334,29 @@ void InsetText::doDispatch(Cursor & cur, FuncRequest & cmd)
 		// attributes.
 		// FIXME: Change only the pasted paragraphs
 		fixParagraphsFont();
+		// This might be needed in general, but we currently
+		// only have evidence for PassThru (latex_font),
+		// see #12592
+		if (isPassThru())
+			// assure current cursor font is latex
+			cur.setCurrentFont();
 		break;
 
+	case LFUN_INSET_SPLIT:
 	case LFUN_INSET_DISSOLVE: {
 		bool const main_inset = text_.isMainText();
 		bool const target_inset = cmd.argument().empty()
 			|| cmd.getArg(0) == insetName(lyxCode());
 
 		if (!main_inset && target_inset) {
+			UndoGroupHelper ugh(&buffer());
 			// Text::dissolveInset assumes that the cursor
 			// is inside the Inset.
-			if (&cur.inset() != this)
+			if (&cur.inset() != this) {
+				cur.recordUndo();
 				cur.pushBackward(*this);
-			cur.beginUndoGroup();
+			}
 			text_.dispatch(cur, cmd);
-			cur.endUndoGroup();
 		} else
 			cur.undispatched();
 		break;
@@ -345,6 +375,7 @@ bool InsetText::getStatus(Cursor & cur, FuncRequest const & cmd,
 	FuncStatus & status) const
 {
 	switch (cmd.action()) {
+	case LFUN_INSET_SPLIT:
 	case LFUN_INSET_DISSOLVE: {
 		bool const main_inset = text_.isMainText();
 		bool const target_inset = cmd.argument().empty()
@@ -411,6 +442,18 @@ void InsetText::fixParagraphsFont()
 }
 
 
+// bool InsetText::isChanged() const
+// {
+// 	ParagraphList::const_iterator pit = paragraphs().begin();
+// 	ParagraphList::const_iterator end = paragraphs().end();
+// 	for (; pit != end; ++pit) {
+// 		if (pit->isChanged())
+// 			return true;
+// 	}
+// 	return false;
+// }
+
+
 void InsetText::setChange(Change const & change)
 {
 	ParagraphList::iterator pit = paragraphs().begin();
@@ -448,14 +491,23 @@ void InsetText::latex(otexstream & os, OutputParams const & runparams) const
 	// environment. Standard collapsible insets should not
 	// redefine this, non-standard ones may call this.
 	InsetLayout const & il = getLayout();
+
 	if (il.forceOwnlines())
 		os << breakln;
+	bool needendgroup = false;
 	if (!il.latexname().empty()) {
-		if (il.latextype() == InsetLayout::COMMAND) {
+		if (il.latextype() == InsetLaTeXType::COMMAND) {
 			// FIXME UNICODE
 			// FIXME \protect should only be used for fragile
 			//    commands, but we do not provide this information yet.
-			if (runparams.moving_arg)
+			if (!il.noCProtect() && !runparams.no_cprotect && hasCProtectContent(runparams.moving_arg)) {
+				if (contains(runparams.active_chars, '^')) {
+					// cprotect relies on ^ being on catcode 7
+					os << "\\begingroup\\catcode`\\^=7";
+					needendgroup = true;
+				}
+				os << "\\cprotect";
+			} else if (runparams.moving_arg)
 				os << "\\protect";
 			os << '\\' << from_utf8(il.latexname());
 			if (!il.latexargs().empty())
@@ -463,7 +515,7 @@ void InsetText::latex(otexstream & os, OutputParams const & runparams) const
 			if (!il.latexparam().empty())
 				os << from_utf8(il.latexparam());
 			os << '{';
-		} else if (il.latextype() == InsetLayout::ENVIRONMENT) {
+		} else if (il.latextype() == InsetLaTeXType::ENVIRONMENT) {
 			if (il.isDisplay())
 				os << breakln;
 			else
@@ -493,14 +545,22 @@ void InsetText::latex(otexstream & os, OutputParams const & runparams) const
 		rp.pass_thru = true;
 	if (il.isNeedProtect())
 		rp.moving_arg = true;
+	if (il.isNeedMBoxProtect())
+		++rp.inulemcmd;
 	if (!il.passThruChars().empty())
 		rp.pass_thru_chars += il.passThruChars();
+	if (il.noCProtect())
+		rp.no_cprotect = true;
+	if (!il.newlineCmd().empty())
+		rp.newlinecmd = il.newlineCmd();
 	rp.par_begin = 0;
 	rp.par_end = paragraphs().size();
 
 	// Output the contents of the inset
 	latexParagraphs(buffer(), text_, os, rp);
 	runparams.encoding = rp.encoding;
+	// Pass the post_macros upstream
+	runparams.post_macro = rp.post_macro;
 	// These need to be passed upstream as well
 	runparams.need_maketitle = rp.need_maketitle;
 	runparams.have_maketitle = rp.have_maketitle;
@@ -509,11 +569,13 @@ void InsetText::latex(otexstream & os, OutputParams const & runparams) const
 		os << il.rightdelim();
 
 	if (!il.latexname().empty()) {
-		if (il.latextype() == InsetLayout::COMMAND) {
+		if (il.latextype() == InsetLaTeXType::COMMAND) {
 			os << "}";
 			if (!il.postcommandargs().empty())
 				getArgs(os, runparams, true);
-		} else if (il.latextype() == InsetLayout::ENVIRONMENT) {
+			if (needendgroup)
+				os << "\\endgroup";
+		} else if (il.latextype() == InsetLaTeXType::ENVIRONMENT) {
 			// A comment environment doesn't need a % before \n\end
 			if (il.isDisplay() || runparams.inComment)
 				os << breakln;
@@ -540,7 +602,7 @@ int InsetText::plaintext(odocstringstream & os,
 	for (; it != end; ++it) {
 		if (it != beg) {
 			os << '\n';
-			if (runparams.linelen > 0)
+			if (runparams.linelen > 0 && !getLayout().parbreakIsNewline())
 				os << '\n';
 		}
 		odocstringstream oss;
@@ -558,24 +620,226 @@ int InsetText::plaintext(odocstringstream & os,
 }
 
 
-int InsetText::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetText::docbook(XMLStream & xs, OutputParams const & rp) const
 {
-	ParagraphList::const_iterator const beg = paragraphs().begin();
-
-	if (!undefined())
-		sgml::openTag(os, getLayout().latexname(),
-			      beg->getID(buffer(), runparams) + getLayout().latexparam());
-
-	docbookParagraphs(text_, buffer(), os, runparams);
-
-	if (!undefined())
-		sgml::closeTag(os, getLayout().latexname());
-
-	return 0;
+	docbook(xs, rp, WriteEverything);
 }
 
 
-docstring InsetText::xhtml(XHTMLStream & xs, OutputParams const & runparams) const
+void InsetText::docbook(XMLStream & xs, OutputParams const & rp, XHTMLOptions opts) const
+{
+	// Always output all the paragraphs.
+	OutputParams runparams = rp;
+	runparams.par_begin = 0;
+	runparams.par_end = text().paragraphs().size();
+
+	if (undefined()) {
+		xs.startDivision(false);
+		docbookParagraphs(text_, buffer(), xs, runparams);
+		xs.endDivision();
+		return;
+	}
+
+	InsetLayout const &il = getLayout();
+
+	// Maybe this is an <info> paragraph that should not be generated
+	// at all (i.e. right now, its place is somewhere else, typically outside
+	// the current paragraph).
+	if (!rp.docbook_generate_info && il.docbookininfo() != "never")
+		return;
+
+	// Maybe this inset must be rendered before being output.
+	if (il.docbookrenderasimage()) {
+		docbookRenderAsImage(xs, runparams, opts);
+		return;
+	}
+
+	// If none of the special cases before apply, output the inset.
+	docbookText(xs, runparams, opts);
+}
+
+
+void InsetText::docbookRenderAsImage(XMLStream & xs, OutputParams const & rp, XHTMLOptions opts) const
+{
+	LASSERT(getLayout().docbookrenderasimage(), return);
+
+	// Generate the LaTeX code to compile in order to get the image.
+	// This code actually does the same as an InsetPreview, but without
+	// an InsetPreview.
+	// Also, the image must be generated before the DocBook output is finished,
+	// unlike a preview that is not immediately required for display.
+	docstring const latex_snippet = insetToLaTeXSnippet(&buffer(), this);
+	docstring const snippet = support::trim(latex_snippet);
+	// TODO: no real support for Unicode. This code is very similar to RenderPreview::addPreview, the same gotcha applies.
+
+	graphics::PreviewLoader* loader = buffer().loader();
+	// This should be OK because we are exporting
+	LASSERT(loader != nullptr, return);
+	loader->add(snippet);
+	loader->startLoading(true); // Generate the image and wait until done.
+	graphics::PreviewImage const * img = loader->preview(snippet);
+	LASSERT(img != nullptr, return);
+	support::FileName const & filename = img->filename();
+
+	// Use a file name that is only determined by the LaTeX code: the name of
+	// the snippet is more or less random (i.e., if the user generates the file
+	// several times, they will have a clutter of preview files).
+	// Hence: use a cryptographic hash of the snippet. If the snippet changes,
+	// the file name will change a lot; two snippets are unlikely to have the
+	// same hash (by design of cryptographic hash functions). Computing a hash
+	// is typically slow, but extremely fast compared to compilation of the
+	// preview and image rendering.
+	std::string newFileName = "lyx_" + sanitizeFileName(toHexHash(to_utf8(snippet))) + "." + filename.extension();
+
+	// Copy the image into the right folder.
+	rp.exportdata->addExternalFile("docbook5", filename, newFileName);
+
+	// TODO: deal with opts. What exactly is the WriterOuterTag here, for instance?
+	// Start writing the DocBook code for the image.
+	xs << xml::StartTag("mediaobject")
+	   << xml::CR();
+
+	// Output the rendered inset.
+	xs << xml::StartTag("imageobject")
+	   << xml::CR()
+	   << xml::CompTag("imagedata", std::string("fileref='") + newFileName + "'")
+	   << xml::CR()
+	   << xml::EndTag("imageobject")
+	   << xml::CR();
+
+	// Output the raw content.
+	xs << xml::StartTag("textobject")
+	   << xml::CR()
+	   << xml::StartTag("programlisting", "language='latex' role='" + getLayout().latexname() + "'");
+	docbookText(xs, rp, opts);
+	xs << xml::EndTag("programlisting")
+	   << xml::CR()
+	   << xml::EndTag("textobject")
+	   << xml::CR();
+
+	xs << xml::EndTag("mediaobject");
+}
+
+
+void InsetText::docbookText(XMLStream & xs, OutputParams const & rp, XHTMLOptions opts) const
+{
+	InsetLayout const &il = getLayout();
+	OutputParams runparams = rp;
+
+	// In some cases, the input parameters must be overridden for outer tags.
+	bool writeOuterTag = opts & WriteOuterTag;
+	if (writeOuterTag) {
+		// For each paragraph, if there are only Bibitems and the corresponding text, don't write the outer tags.
+		bool allBibitems = std::all_of(text().paragraphs().begin(), text().paragraphs().end(), [](Paragraph const & par) {
+			auto nInsets = std::distance(par.insetList().begin(), par.insetList().end());
+			auto parSize = (size_t) par.size();
+			return nInsets == 1 && parSize > 1 && par.insetList().begin()->inset->lyxCode() == BIBITEM_CODE;
+		});
+		writeOuterTag = !allBibitems;
+	}
+
+	// Detect arguments that should be output before/after the paragraph.
+	// Don't reuse runparams.docbook_prepended_arguments, as the same object is used in InsetArgument to determine
+	// whether the inset should be output or not, whatever the context (i.e. position with respect to the wrapper).
+	std::set<InsetArgument const *> prependedArguments;
+	for (auto const & par : paragraphs()) {
+		for (pos_type i = 0; i < par.size(); ++i) {
+			if (par.getInset(i) && par.getInset(i)->lyxCode() == ARG_CODE) {
+				InsetArgument const *arg = par.getInset(i)->asInsetArgument();
+				if (arg->docbookargumentbeforemaintag())
+					prependedArguments.insert(par.getInset(i)->asInsetArgument());
+			}
+		}
+	}
+
+	std::set<InsetArgument const *> appendedArguments;
+	for (auto const & par : paragraphs()) {
+		for (pos_type i = 0; i < par.size(); ++i) {
+			if (par.getInset(i) && par.getInset(i)->lyxCode() == ARG_CODE) {
+				InsetArgument const *arg = par.getInset(i)->asInsetArgument();
+				if (arg->docbookargumentaftermaintag())
+					appendedArguments.insert(par.getInset(i)->asInsetArgument());
+			}
+		}
+	}
+
+	// Start outputting this inset.
+	// - First, wrapper around the inset and its main tag.
+	if (writeOuterTag) {
+		if (!il.docbookwrappertag().empty() && il.docbookwrappertag() != "NONE" && il.docbookwrappertag() != "IGNORE")
+			xml::openTag(xs, il.docbookwrappertag(), il.docbookwrapperattr(), il.docbookwrappertagtype());
+
+		if (!il.docbooktag().empty() && il.docbooktag() != "NONE" && il.docbooktag() != "IGNORE") {
+			docstring attrs = docstring();
+			if (!il.docbookattr().empty())
+				attrs += from_ascii(il.docbookattr());
+			if (il.docbooktag() == "link")
+				attrs += from_ascii(" xlink:href=\"") + text_.asString() + from_ascii("\"");
+			xml::openTag(xs, il.docbooktag(), attrs, il.docbooktagtype());
+		}
+
+		if (!il.docbookinnertag().empty() && il.docbookinnertag() != "NONE" && il.docbookinnertag() != "IGNORE")
+			xml::openTag(xs, il.docbookinnertag(), il.docbookinnerattr(), il.docbookinnertagtype());
+	}
+
+	// - Think about the arguments before the paragraph.
+	OutputParams np = runparams;
+	np.docbook_in_par = true;
+	for (auto const & arg : prependedArguments)
+		arg->docbook(xs, np);
+
+	// - Mark the newly generated arguments are not-to-be-generated-again. Do the same for arguments that will follow.
+	runparams.docbook_prepended_arguments = std::move(prependedArguments);
+	runparams.docbook_appended_arguments = appendedArguments;
+
+	// - Deal with the first item.
+	// TODO: in things like SciPoster, this should also check if the item tag is allowed. Hard to formalise for now...
+	if (writeOuterTag) {
+		if (!il.docbookitemwrappertag().empty() && il.docbookitemwrappertag() != "NONE" && il.docbookitemwrappertag() != "IGNORE")
+			xml::openTag(xs, il.docbookitemwrappertag(), il.docbookitemwrapperattr(), il.docbookitemwrappertagtype());
+
+		if (!il.docbookitemtag().empty() && il.docbookitemtag() != "NONE" && il.docbookitemtag() != "IGNORE")
+			xml::openTag(xs, il.docbookitemtag(), il.docbookitemattr(), il.docbookitemtagtype());
+	}
+
+	// No need for labels that are generated from counters. They should be handled by the external DocBook processor.
+
+	// With respect to XHTML, paragraphs are still allowed here.
+	if (runparams.docbook_consider_allow_multi_par && !allowMultiPar())
+		runparams.docbook_make_pars = false;
+	if (il.isPassThru())
+		runparams.pass_thru = true;
+
+	// - Write the main content of the inset.
+	xs.startDivision(false);
+	docbookParagraphs(text_, buffer(), xs, runparams);
+	xs.endDivision();
+
+	// - Think about the arguments after the paragraph.
+	for (auto const & arg : appendedArguments)
+		arg->docbook(xs, np);
+
+	// - Close the required tags.
+	if (writeOuterTag) {
+		if (!il.docbookitemtag().empty() && il.docbookitemtag() != "NONE" && il.docbookitemtag() != "IGNORE")
+			xml::closeTag(xs, il.docbookitemtag(), il.docbookitemtagtype());
+
+		if (!il.docbookitemwrappertag().empty() && il.docbookitemwrappertag() != "NONE" && il.docbookitemwrappertag() != "IGNORE")
+			xml::closeTag(xs, il.docbookitemwrappertag(), il.docbookitemwrappertagtype());
+
+		if (!il.docbookinnertag().empty() && il.docbookinnertag() != "NONE" && il.docbookinnertag() != "IGNORE")
+			xml::closeTag(xs, il.docbookinnertag(), il.docbookinnertagtype());
+
+		if (!il.docbooktag().empty() && il.docbooktag() != "NONE" && il.docbooktag() != "IGNORE")
+			xml::closeTag(xs, il.docbooktag(), il.docbooktagtype());
+
+		if (!il.docbookwrappertag().empty() && il.docbookwrappertag() != "NONE" && il.docbookwrappertag() != "IGNORE")
+			xml::closeTag(xs, il.docbookwrappertag(), il.docbookwrappertagtype());
+	}
+}
+
+
+docstring InsetText::xhtml(XMLStream & xs, OutputParams const & runparams) const
 {
 	return insetAsXHTML(xs, runparams, WriteEverything);
 }
@@ -594,7 +858,7 @@ docstring InsetText::xhtml(XHTMLStream & xs, OutputParams const & runparams) con
 // if so, try to close fonts, etc.
 // There are probably limits to how well we can do here, though, and we will
 // have to rely upon users not putting footnotes inside noun-type insets.
-docstring InsetText::insetAsXHTML(XHTMLStream & xs, OutputParams const & rp,
+docstring InsetText::insetAsXHTML(XMLStream & xs, OutputParams const & rp,
                                   XHTMLOptions opts) const
 {
 	// we will always want to output all our paragraphs when we are
@@ -612,7 +876,7 @@ docstring InsetText::insetAsXHTML(XHTMLStream & xs, OutputParams const & rp,
 
 	InsetLayout const & il = getLayout();
 	if (opts & WriteOuterTag)
-		xs << html::StartTag(il.htmltag(), il.htmlattr());
+		xs << xml::StartTag(il.htmltag(), il.htmlGetAttrString());
 
 	if ((opts & WriteLabel) && !il.counter().empty()) {
 		BufferParams const & bp = buffer().masterBuffer()->params();
@@ -624,15 +888,15 @@ docstring InsetText::insetAsXHTML(XHTMLStream & xs, OutputParams const & rp,
 				cntrs.counterLabel(from_utf8(il.htmllabel()), bp.language->code());
 			// FIXME is this check necessary?
 			if (!lbl.empty()) {
-				xs << html::StartTag(il.htmllabeltag(), il.htmllabelattr());
+				xs << xml::StartTag(il.htmllabeltag(), il.htmllabelattr());
 				xs << lbl;
-				xs << html::EndTag(il.htmllabeltag());
+				xs << xml::EndTag(il.htmllabeltag());
 			}
 		}
 	}
 
 	if (opts & WriteInnerTag)
-		xs << html::StartTag(il.htmlinnertag(), il.htmlinnerattr());
+		xs << xml::StartTag(il.htmlinnertag(), il.htmlinnerattr());
 
 	// we will eventually lose information about the containing inset
 	if (!allowMultiPar() || opts == JustText)
@@ -645,10 +909,10 @@ docstring InsetText::insetAsXHTML(XHTMLStream & xs, OutputParams const & rp,
 	xs.endDivision();
 
 	if (opts & WriteInnerTag)
-		xs << html::EndTag(il.htmlinnertag());
+		xs << xml::EndTag(il.htmlinnertag());
 
 	if (opts & WriteOuterTag)
-		xs << html::EndTag(il.htmltag());
+		xs << xml::EndTag(il.htmltag());
 
 	return docstring();
 }
@@ -674,7 +938,7 @@ void InsetText::getArgs(otexstream & os, OutputParams const & runparams_in,
 void InsetText::cursorPos(BufferView const & bv,
 		CursorSlice const & sl, bool boundary, int & x, int & y) const
 {
-	x = bv.textMetrics(&text_).cursorX(sl, boundary) + TEXT_TO_INSET_OFFSET;
+	x = bv.textMetrics(&text_).cursorX(sl, boundary) + leftOffset(&bv);
 	y = bv.textMetrics(&text_).cursorY(sl, boundary);
 }
 
@@ -721,13 +985,14 @@ void InsetText::appendParagraphs(ParagraphList & plist)
 	mergeParagraph(buffer().params(), pl,
 		       distance(pl.begin(), ins) - 1);
 
-	for_each(pit, plist.end(),
-		 bind(&ParagraphList::push_back, ref(pl), _1));
+	ParagraphList::iterator const pend = plist.end();
+	for (; pit != pend; ++pit)
+		pl.push_back(*pit);
 }
 
 
 void InsetText::addPreview(DocIterator const & text_inset_pos,
-	PreviewLoader & loader) const
+	graphics::PreviewLoader & loader) const
 {
 	ParagraphList::const_iterator pit = paragraphs().begin();
 	ParagraphList::const_iterator pend = paragraphs().end();
@@ -760,20 +1025,84 @@ ParagraphList & InsetText::paragraphs()
 }
 
 
+bool InsetText::hasCProtectContent(bool fragile) const
+{
+	fragile |= getLayout().isNeedProtect();
+	ParagraphList const & pars = paragraphs();
+	pit_type pend = pit_type(paragraphs().size());
+	for (pit_type pit = 0; pit != pend; ++pit) {
+		Paragraph const & par = pars[size_type(pit)];
+		if (par.needsCProtection(fragile))
+			return true;
+	}
+	return false;
+}
+
+
 bool InsetText::insetAllowed(InsetCode code) const
 {
 	switch (code) {
-	// Arguments and (plain) quotes are also allowed in PassThru insets
+	// Arguments, (plain) quotes and counter insets 
+	// are also allowed in PassThru insets
 	case ARG_CODE:
 	case QUOTE_CODE:
+	case COUNTER_CODE:
 		return true;
+	// These are only allowed in index insets
+	case INDEXMACRO_CODE:
+	case INDEXMACRO_SORTKEY_CODE:
+		return false;
 	default:
 		return !isPassThru();
 	}
 }
 
 
-void InsetText::updateBuffer(ParIterator const & it, UpdateType utype)
+bool InsetText::allowSpellCheck() const
+{
+	return getLayout().spellcheck() && !getLayout().isPassThru();
+}
+
+
+bool InsetText::allowMultiPar() const
+{
+	return getLayout().isMultiPar();
+}
+
+
+bool InsetText::forcePlainLayout(idx_type) const
+{
+	return getLayout().forcePlainLayout();
+}
+
+
+bool InsetText::allowParagraphCustomization(idx_type) const
+{
+	return getLayout().allowParagraphCustomization();
+}
+
+
+bool InsetText::forceLocalFontSwitch() const
+{
+	return getLayout().forceLocalFontSwitch();
+}
+
+
+void InsetText::checkIntitleContext(ParIterator const & it)
+{
+	intitle_context_ = it.paragraph().layout().intitle;
+	// Also check embedding layouts
+	size_t const n = it.depth();
+	for (size_t i = 0; i < n; ++i) {
+		if (it[i].paragraph().layout().intitle) {
+			intitle_context_ = true;
+			break;
+		}
+	}
+}
+
+
+void InsetText::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
 	ParIterator it2 = it;
 	it2.forwardPos();
@@ -787,35 +1116,25 @@ void InsetText::updateBuffer(ParIterator const & it, UpdateType utype)
 			cnt.clearLastLayout();
 			// FIXME cnt.saveLastCounter()?
 		}
-		buffer().updateBuffer(it2, utype);
+		buffer().updateBuffer(it2, utype, deleted);
 		if (save_layouts) {
 			// LYXERR0("Exiting " << name());
 			cnt.restoreLastLayout();
 			// FIXME cnt.restoreLastCounter()?
 		}
-		// Record in this inset is embedded in a title layout
-		// This is needed to decide when \maketitle is output.
-		intitle_context_ = it.paragraph().layout().intitle;
-		// Also check embedding layouts
-		size_t const n = it.depth();
-		for (size_t i = 0; i < n; ++i) {
-			if (it[i].paragraph().layout().intitle) {
-				intitle_context_ = true;
-				break;
-			}
-		}
+		checkIntitleContext(it);
 	} else {
 		DocumentClass const & tclass = buffer().masterBuffer()->params().documentClass();
 		// Note that we do not need to call:
 		//	tclass.counters().clearLastLayout()
 		// since we are saving and restoring the existing counters, etc.
-		Counters const savecnt = tclass.counters();
+		Counters savecnt = tclass.counters();
 		tclass.counters().reset();
 		// we need float information even in note insets (#9760)
 		tclass.counters().current_float(savecnt.current_float());
 		tclass.counters().isSubfloat(savecnt.isSubfloat());
-		buffer().updateBuffer(it2, utype);
-		tclass.counters() = savecnt;
+		buffer().updateBuffer(it2, utype, deleted);
+		tclass.counters() = std::move(savecnt);
 	}
 }
 
@@ -884,12 +1203,16 @@ void InsetText::iterateForToc(DocIterator const & cdit, bool output_active,
 		// If we find an InsetArgument that is supposed to provide the TOC caption,
 		// we'll save it for use later.
 		InsetArgument const * arginset = nullptr;
-		for (auto const & table : par.insetList()) {
-			dit.pos() = table.pos;
-			table.inset->addToToc(dit, doing_output, utype, backend);
-			if (InsetArgument const * x = table.inset->asInsetArgument())
-				if (x->isTocCaption())
-					arginset = x;
+		for (auto const & elem : par.insetList()) {
+			dit.pos() = elem.pos;
+			bool const being_output = doing_output &&
+				!par.lookupChange(elem.pos).deleted();
+			if (being_output) {
+				elem.inset->addToToc(dit, being_output, utype, backend);
+				if (InsetArgument const * x = elem.inset->asInsetArgument())
+					if (x->isTocCaption())
+						arginset = x;
+			}
 		}
 
 		// End custom AddToToc in paragraph layouts
@@ -932,7 +1255,7 @@ pit_type InsetText::openAddToTocForParagraph(pit_type pit,
 {
 	Paragraph const & par = paragraphs()[pit];
 	TocBuilder & b = backend.builder(par.layout().tocType());
-	docstring const label = par.labelString();
+	docstring const & label = par.labelString();
 	b.pushItem(dit, label + (label.empty() ? "" : " "), output_active);
 	return text().lastInSequence(pit);
 }
@@ -1000,7 +1323,8 @@ bool InsetText::automaticPopupCompletion() const
 
 bool InsetText::showCompletionCursor() const
 {
-	return lyxrc.completion_cursor_text;
+	return lyxrc.completion_cursor_text &&
+		(lyxrc.completion_inline_text || lyxrc.completion_popup_text);
 }
 
 
@@ -1018,13 +1342,12 @@ docstring InsetText::completionPrefix(Cursor const & cur) const
 }
 
 
-bool InsetText::insertCompletion(Cursor & cur, docstring const & s,
-	bool finished)
+bool InsetText::insertCompletion(Cursor & cur, docstring const & s, bool /*finished*/)
 {
 	if (!completionSupported(cur))
 		return false;
 
-	return text_.insertCompletion(cur, s, finished);
+	return text_.insertCompletion(cur, s);
 }
 
 
@@ -1051,7 +1374,7 @@ string InsetText::contextMenuName() const
 }
 
 
-docstring InsetText::toolTipText(docstring prefix, size_t const len) const
+docstring InsetText::toolTipText(docstring const & prefix, size_t const len) const
 {
 	OutputParams rp(&buffer().params().encoding());
 	rp.for_tooltip = true;
@@ -1069,12 +1392,12 @@ docstring InsetText::toolTipText(docstring prefix, size_t const len) const
 		if ((*it).isRTL(buffer().params()))
 			oss << "<div dir=\"rtl\">";
 		writePlaintextParagraph(buffer(), *it, oss, rp, ref_printed, len);
-		if ((*it).isRTL(buffer().params()))
-			oss << "</div>";
 		if (oss.tellp() >= 0 && size_t(oss.tellp()) > len)
 			break;
 	}
 	docstring str = oss.str();
+	if (isChanged())
+		str += from_ascii("\n\n") + _("[contains tracked changes]");
 	support::truncateWithEllipsis(str, len);
 	return str;
 }
@@ -1083,6 +1406,52 @@ docstring InsetText::toolTipText(docstring prefix, size_t const len) const
 InsetText::XHTMLOptions operator|(InsetText::XHTMLOptions a1, InsetText::XHTMLOptions a2)
 {
 	return static_cast<InsetText::XHTMLOptions>((int)a1 | (int)a2);
+}
+
+
+bool InsetText::needsCProtection(bool const maintext, bool const fragile) const
+{
+	// Nested cprotect content needs \cprotect
+	// on each level
+	if (producesOutput() && hasCProtectContent(fragile))
+		return true;
+
+	// Environments generally need cprotection in fragile context
+	if (fragile && getLayout().latextype() == InsetLaTeXType::ENVIRONMENT)
+		return true;
+
+	if (!getLayout().needsCProtect())
+		return false;
+
+	// Environments and "no latex" types (e.g., knitr chunks)
+	// need cprotection regardless the content
+	if (!maintext && getLayout().latextype() != InsetLaTeXType::COMMAND)
+		return true;
+
+	// If the inset does not produce output (e.g. Note or Branch),
+	// we can ignore the contained paragraphs
+	if (!producesOutput())
+		return false;
+
+	// Commands need cprotection if they contain specific chars
+	int const nchars_escape = 9;
+	static char_type const chars_escape[nchars_escape] = {
+		'&', '_', '$', '%', '#', '^', '{', '}', '\\'};
+
+	ParagraphList const & pars = paragraphs();
+	pit_type pend = pit_type(paragraphs().size());
+
+	for (pit_type pit = 0; pit != pend; ++pit) {
+		Paragraph const & par = pars[size_type(pit)];
+		if (par.needsCProtection(fragile))
+			return true;
+		docstring const par_str = par.asString();
+		for (int k = 0; k < nchars_escape; k++) {
+			if (!maintext && contains(par_str, chars_escape[k]))
+				return true;
+		}
+	}
+	return false;
 }
 
 } // namespace lyx

@@ -16,13 +16,14 @@
 #include "BufferParams.h"
 #include "Dimension.h"
 #include "Encoding.h"
-#include "Font.h"
+#include "FontInfo.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
+#include "InsetLayout.h"
 #include "LaTeXFeatures.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
-#include "output_xhtml.h"
+#include "xml.h"
 #include "texstream.h"
 
 #include "frontends/FontMetrics.h"
@@ -282,14 +283,27 @@ void InsetIPADeco::latex(otexstream & os, OutputParams const & runparams) const
 }
 
 
-int InsetIPADeco::plaintext(odocstringstream & os,
-			    OutputParams const & runparams, size_t max_length) const
+namespace {
+std::pair<docstring, docstring> splitPlainTextInHalves(
+		const InsetIPADeco * inset, OutputParams const & runparams,
+		size_t max_length = INT_MAX)
 {
 	odocstringstream ods;
-	int h = (int)(InsetCollapsible::plaintext(ods, runparams, max_length) / 2);
+	int h = inset->InsetCollapsible::plaintext(ods, runparams, max_length) / 2;
 	docstring result = ods.str();
 	docstring const before = result.substr(0, h);
 	docstring const after = result.substr(h, result.size());
+	return {before, after};
+}
+}
+
+
+int InsetIPADeco::plaintext(odocstringstream & os,
+			    OutputParams const & runparams, size_t max_length) const
+{
+	docstring before;
+	docstring after;
+	tie(before, after) = splitPlainTextInHalves(this, runparams, max_length);
 
 	if (params_.type == InsetIPADecoParams::Toptiebar) {
 		os << before;
@@ -301,23 +315,33 @@ int InsetIPADeco::plaintext(odocstringstream & os,
 		os.put(0x035c);
 		os << after;
 	}
-	return result.size();
+	return before.size() + after.size();
 }
 
 
-int InsetIPADeco::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetIPADeco::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	// FIXME: Any docbook option here?
-	return InsetCollapsible::docbook(os, runparams);
+	// The special combining character must be put in the middle, between the two other characters.
+	// It will not work if there is anything else than two pure characters, so going back to plaintext.
+	docstring before;
+	docstring after;
+	tie(before, after) = splitPlainTextInHalves(this, runparams);
+
+	xs << XMLStream::ESCAPE_NONE << before;
+	if (params_.type == InsetIPADecoParams::Toptiebar)
+		xs << XMLStream::ESCAPE_NONE << "&#x0361;";
+	else if (params_.type == InsetIPADecoParams::Bottomtiebar)
+		xs << XMLStream::ESCAPE_NONE << "&#x035c;";
+	xs << XMLStream::ESCAPE_NONE << after;
 }
 
 
-docstring InsetIPADeco::xhtml(XHTMLStream & xs, OutputParams const & runparams) const
+docstring InsetIPADeco::xhtml(XMLStream & xs, OutputParams const & runparams) const
 {
-	// FIXME: Like in plaintext, the combining characters "&#x361;" (toptiebar)
-	// or "&#x35c;" (bottomtiebar) would need to be inserted just in the mid
-	// of the text string. (How) can this be done with the xhtml stream?
-	return InsetCollapsible::xhtml(xs, runparams);
+	// The DocBook encoding for this inset has no DocBook tag, but sheer XML (relying on a plaintext
+	// transformation of the inset).
+	docbook(xs, runparams);
+	return docstring();
 }
 
 
@@ -381,7 +405,7 @@ bool InsetIPADeco::insetAllowed(InsetCode code) const
 
 
 InsetIPAChar::InsetIPAChar(Kind k)
-	: Inset(0), kind_(k)
+	: Inset(nullptr), kind_(k)
 {}
 
 
@@ -540,47 +564,34 @@ int InsetIPAChar::plaintext(odocstringstream & os, OutputParams const &, size_t)
 }
 
 
-int InsetIPAChar::docbook(odocstream & /*os*/, OutputParams const &) const
-{
-	switch (kind_) {
-	case TONE_FALLING:
-	case TONE_RISING:
-	case TONE_HIGH_RISING:
-	case TONE_LOW_RISING:
-	case TONE_HIGH_RISING_FALLING:
-		// FIXME
-		LYXERR0("IPA tone macros not yet implemented with DocBook!");
-		break;
+namespace {
+std::string ipaCharToXMLEntity(InsetIPAChar::Kind kind) {
+	switch (kind) {
+	case InsetIPAChar::Kind::TONE_FALLING:
+		return "&#x2e5;&#x2e9;";
+	case InsetIPAChar::Kind::TONE_RISING:
+		return "&#x2e9;&#x2e5;";
+	case InsetIPAChar::Kind::TONE_HIGH_RISING:
+		return "&#x2e7;&#x2e5;";
+	case InsetIPAChar::Kind::TONE_LOW_RISING:
+		return "&#x2e9;&#x2e7;";
+	case InsetIPAChar::Kind::TONE_HIGH_RISING_FALLING:
+		return "&#x2e8;&#x2e5;&#x2e8;";
 	}
-	return 0;
+	return "";
+}
 }
 
 
-docstring InsetIPAChar::xhtml(XHTMLStream & xs, OutputParams const &) const
+void InsetIPAChar::docbook(XMLStream & xs, OutputParams const &) const
 {
-	switch (kind_) {
-	case TONE_FALLING:
-		xs << XHTMLStream::ESCAPE_NONE << "&#x2e5;"
-		   << XHTMLStream::ESCAPE_NONE << "&#x2e9;";
-		break;
-	case TONE_RISING:
-		xs << XHTMLStream::ESCAPE_NONE << "&#x2e9;"
-		   << XHTMLStream::ESCAPE_NONE << "&#x2e5;";
-		break;
-	case TONE_HIGH_RISING:
-		xs << XHTMLStream::ESCAPE_NONE << "&#x2e7;"
-		   << XHTMLStream::ESCAPE_NONE << "&#x2e5;";
-		break;
-	case TONE_LOW_RISING:
-		xs << XHTMLStream::ESCAPE_NONE << "&#x2e9;"
-		   << XHTMLStream::ESCAPE_NONE << "&#x2e7;";
-		break;
-	case TONE_HIGH_RISING_FALLING:
-		xs << XHTMLStream::ESCAPE_NONE << "&#x2e8;"
-		   << XHTMLStream::ESCAPE_NONE << "&#x2e5;"
-		   << XHTMLStream::ESCAPE_NONE << "&#x2e8;";
-		break;
-	}
+	xs << XMLStream::ESCAPE_NONE << from_ascii(ipaCharToXMLEntity(kind()));
+}
+
+
+docstring InsetIPAChar::xhtml(XMLStream & xs, OutputParams const &) const
+{
+	xs << XMLStream::ESCAPE_NONE << from_ascii(ipaCharToXMLEntity(kind()));
 	return docstring();
 }
 

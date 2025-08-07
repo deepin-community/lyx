@@ -14,11 +14,15 @@
 #include "PDFOptions.h"
 
 #include "Encoding.h"
+#include "LaTeXFeatures.h"
 #include "Lexer.h"
+#include "OutputParams.h"
 #include "texstream.h"
 
 #include "support/convert.h"
 #include "support/debug.h"
+#include "support/docstream.h"
+#include "support/docstring.h"
 #include "support/lstrings.h"
 
 #include <sstream>
@@ -101,9 +105,12 @@ void PDFOptions::writeLaTeX(OutputParams & runparams, otexstream & os,
 	if (!runparams.hyperref_driver.empty())
 		opt += runparams.hyperref_driver + ",";
 
-	// since LyX uses unicode, also set the PDF strings to unicode strings with the
-	// hyperref option "unicode"
-	opt += "unicode=true,";
+	// Since LyX uses unicode, also set the PDF strings to unicode strings
+	// with the hyperref option "unicode". This is only needed with pdflatex.
+	// As of 2021/02/04, unicode=true is default.
+	if (!LaTeXFeatures::isAvailableAtLeastFrom("hyperref", 2021, 2, 4)
+	     && !runparams.isFullUnicode() && !runparams.use_japanese)
+		opt += "unicode=true,";
 
 	// only use the hyperref settings if hyperref is enabled by the user
 	// see bug #7052
@@ -112,7 +119,8 @@ void PDFOptions::writeLaTeX(OutputParams & runparams, otexstream & os,
 		// explicitly given
 		if (pdfusetitle && title.empty() && author.empty())
 			opt += "pdfusetitle,";
-		opt += "\n ";
+		if (!opt.empty())
+			opt += "\n ";
 		opt += "bookmarks=" + convert<string>(bookmarks) + ',';
 		if (bookmarks) {
 			opt += "bookmarksnumbered=" + convert<string>(bookmarksnumbered) + ',';
@@ -121,7 +129,8 @@ void PDFOptions::writeLaTeX(OutputParams & runparams, otexstream & os,
 				opt += "bookmarksopenlevel="
 				+ convert<string>(bookmarksopenlevel) + ',';
 		}
-		opt += "\n ";
+		if (!opt.empty())
+			opt += "\n ";
 		opt += "breaklinks=" + convert<string>(breaklinks) + ',';
 		opt += "pdfborder={0 0 ";
 		opt += (pdfborder ? '0' : '1');
@@ -156,8 +165,8 @@ void PDFOptions::writeLaTeX(OutputParams & runparams, otexstream & os,
 	docstring const hs = from_utf8(hyperset);
 	bool need_unicode = false;
 	if (enc) {
-		for (size_t n = 0; n < hs.size(); ++n) {
-			if (!enc->encodable(hs[n]))
+		for (char_type h : hs) {
+			if (!enc->encodable(h))
 				need_unicode = true;
 		}
 	}
@@ -185,7 +194,7 @@ void PDFOptions::writeLaTeX(OutputParams & runparams, otexstream & os,
 	// this if the current input encoding does not support a character.
 	// FIXME: don't use \inputencoding if "inputenc" is not loaded (#9839).
 	if (need_unicode && enc && enc->iconvName() != "UTF-8") {
-	    if (runparams.flavor != OutputParams::XETEX)
+	    if (runparams.flavor != Flavor::XeTeX)
 			os << "\\inputencoding{utf8}\n";
 		os << setEncoding("UTF-8");
 	}
@@ -205,7 +214,7 @@ void PDFOptions::writeLaTeX(OutputParams & runparams, otexstream & os,
 		os << from_utf8(opt);
 	if (need_unicode && enc && enc->iconvName() != "UTF-8") {
 		os << setEncoding(enc->iconvName());
-	    if (runparams.flavor != OutputParams::XETEX)
+	    if (runparams.flavor != Flavor::XeTeX)
 			os << "\\inputencoding{" << from_ascii(enc->latexName()) << "}\n";
 	}
 }

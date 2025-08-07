@@ -12,7 +12,7 @@
 #ifndef BUFFER_LIST_H
 #define BUFFER_LIST_H
 
-#include "support/docstring.h"
+#include "support/strfwd.h"
 
 #include <vector>
 
@@ -58,7 +58,7 @@ public:
 	/// Is child a child of some Buffer other than parent?
 	/// NOTE: child must be a child of parent, and both must be non-null.
 	/// Otherwise we assert.
-	bool isOthersChild(Buffer * parent, Buffer * child);
+	bool isOthersChild(Buffer * parent, Buffer * child) const;
 
 	/// delete a buffer
 	void release(Buffer * b);
@@ -100,8 +100,9 @@ public:
 	/// \return a pointer to the buffer with the given number
 	Buffer * getBuffer(unsigned int);
 
-	/// \return a pointer to the buffer whose temppath matches the given path
-	Buffer * getBufferFromTmp(std::string const & path);
+	/// \return a pointer to the buffer whose temppath matches the given \p path
+	///  If optional \p realpath is \c true the lookup is done with real path names
+	Buffer * getBufferFromTmp(std::string const & path, bool realpath = false);
 
 	/** returns a pointer to the buffer that follows argument in
 	 * buffer list. The buffer following the last in list is the

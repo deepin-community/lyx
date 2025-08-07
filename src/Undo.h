@@ -22,11 +22,8 @@
 namespace lyx {
 
 class Buffer;
-class BufferParams;
 class CursorData;
 class Inset;
-class MathData;
-class ParagraphList;
 
 /// This is used to combine consecutive undo recordings of the same kind.
 enum UndoKind {
@@ -60,10 +57,10 @@ public:
 	void clear();
 
 	/// this will undo the last action - returns false if no undo possible
-	bool textUndo(CursorData &);
+	bool undoAction(CursorData &);
 
 	/// this will redo the last undo - returns false if no redo possible
-	bool textRedo(CursorData &);
+	bool redoAction(CursorData &);
 
 	/// End a sequence of INSERT_UNDO or DELETE_UNDO type of undo
 	/// operations (grouping of consecutive characters insertion/deletion).
@@ -96,6 +93,8 @@ public:
 	void endUndoGroup();
 	/// end the current undo group and set UndoElement::cur_after if necessary.
 	void endUndoGroup(CursorData const & cur_after);
+	/// end abruptly the current group and create a new one wih the same nesting level
+	void splitUndoGroup(CursorData const & cur);
 	/// return true if an undo group is open and contains at least one element
 	bool activeUndoGroup() const;
 
@@ -131,19 +130,18 @@ private:
 
 /** Helper class to simplify the use of undo groups across several buffers.
  *
- *  The undo group is created when the object is instanciated; it is
- *  then ended as the object goes out of scope or the buffer is reset
- *  (see below)
+ *  The undo group is open when the object is instantiated or when
+ *  the buffer is reset; it is then ended as the object goes out of
+ *  scope (see below)
  */
 class UndoGroupHelper {
 public:
-	UndoGroupHelper(Buffer * buf = 0);
-
+	// Begin a new undo group for buffer \c buf.
+	UndoGroupHelper(Buffer * buf);
+	// End all active undo groups.
 	~UndoGroupHelper();
 
-	/** Close the current undo group if necessary and create a new one
-	 * for buffer \c buf.
-	 */
+	// Begin if needed an undo group for buffer \c buf.
 	void resetBuffer(Buffer * buf);
 
 private:

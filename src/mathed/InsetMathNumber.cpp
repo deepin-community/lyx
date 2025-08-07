@@ -12,7 +12,6 @@
 
 #include "InsetMathNumber.h"
 #include "MathStream.h"
-#include "MathStream.h"
 #include "MathSupport.h"
 
 #include "MetricsInfo.h"
@@ -22,8 +21,8 @@ using namespace std;
 
 namespace lyx {
 
-InsetMathNumber::InsetMathNumber(docstring const & s)
-	: str_(s)
+InsetMathNumber::InsetMathNumber(Buffer * buf, docstring const & s)
+	: InsetMath(buf), str_(s)
 {}
 
 
@@ -69,9 +68,11 @@ void InsetMathNumber::octave(OctaveStream & os) const
 }
 
 
-void InsetMathNumber::mathmlize(MathStream & os) const
+void InsetMathNumber::mathmlize(MathMLStream & ms) const
 {
-	os << "<mn>" << str_ << "</mn>";
+	ms << MTagInline("mn")
+	   << str_
+	   << ETagInline("mn");
 }
 
 
@@ -81,7 +82,7 @@ void InsetMathNumber::htmlize(HtmlStream & os) const
 }
 
 
-void InsetMathNumber::write(WriteStream & os) const
+void InsetMathNumber::write(TeXMathStream & os) const
 {
 	os << str_;
 }

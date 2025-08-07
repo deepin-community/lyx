@@ -17,15 +17,12 @@
 #include "support/filetools.h"
 #include "support/Package.h"
 #include "support/FileName.h"
-#include "support/lstrings.h"
-#include "support/os.h"
 
 #include <string>
 #include <fstream>
 
 using namespace std;
 using namespace lyx::support;
-using namespace lyx::support::os;
 
 namespace lyx {
 
@@ -54,7 +51,7 @@ void PersonalWordList::load()
 	LYXERR(Debug::FILES, "load personal dictionary from: " << fn);
 	ifstream ifs(fn.toFilesystemEncoding().c_str());
 
-	dirty(words_.size() > 0);
+	dirty(!words_.empty());
 	words_.clear();
 	string line;
 	getline(ifs, line);

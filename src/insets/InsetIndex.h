@@ -19,17 +19,28 @@
 
 namespace lyx {
 
+class IndexEntry;
+
 class InsetIndexParams {
 public:
+	enum PageRange {
+		None,
+		Start,
+		End
+	};
 	///
 	explicit InsetIndexParams(docstring const & b = docstring())
-		: index(b) {}
+		: index(b), range(None), pagefmt("default") {}
 	///
 	void write(std::ostream & os) const;
 	///
 	void read(Lexer & lex);
 	///
 	docstring index;
+	///
+	PageRange range;
+	///
+	std::string pagefmt;
 };
 
 
@@ -43,51 +54,95 @@ public:
 	static std::string params2string(InsetIndexParams const &);
 	///
 	static void string2params(std::string const &, InsetIndexParams &);
+	///
+	const InsetIndexParams& params() const { return params_; }
+	///
+	int rowFlags() const override { return CanBreakBefore | CanBreakAfter; }
+	///
+	InsetIndex const * asInsetIndex() const override { return this; }
 private:
 	///
-	bool hasSettings() const;
+	bool hasSettings() const override;
 	///
-	InsetCode lyxCode() const { return INDEX_CODE; }
+	InsetCode lyxCode() const override { return INDEX_CODE; }
 	///
-	docstring layoutName() const { return from_ascii("Index"); }
+	docstring layoutName() const override { return from_ascii("Index"); }
 	///
-	ColorCode labelColor() const;
+	ColorCode labelColor() const override;
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 	///
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
-	bool showInsetDialog(BufferView *) const;
+	void processLatexSorting(otexstream &, OutputParams const &,
+				 docstring const &, docstring const &) const;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool showInsetDialog(BufferView *) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
-	/// should paragraph indendation be omitted in any case?
-	bool neverIndent() const { return true; }
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
+	///
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
+	/// should paragraph indentation be omitted in any case?
+	bool neverIndent() const override { return true; }
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	///
-	docstring const buttonLabel(BufferView const & bv) const;
+	docstring const buttonLabel(BufferView const & bv) const override;
 	/// Updates needed features for this inset.
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	std::string contextMenuName() const;
+	void getSortkey(otexstream &, OutputParams const &) const;
 	///
-	Inset * clone() const { return new InsetIndex(*this); }
+	docstring getSortkeyAsText(OutputParams const &) const;
+	///
+	void emptySubentriesWarning(docstring const & mainentry) const;
+	///
+	void getSubentries(otexstream &, OutputParams const &, docstring const &) const;
+	///
+	std::vector<docstring> getSubentriesAsText(OutputParams const &,
+						   bool const asLabel = false) const;
+	///
+	docstring getMainSubentryAsText(OutputParams const & runparams) const;
+	///
+	void getSeeRefs(otexstream &, OutputParams const &) const;
+	///
+	docstring getSeeAsText(OutputParams const & runparams,
+			       bool const asLabel = false) const;
+	///
+	std::vector<docstring> getSeeAlsoesAsText(OutputParams const & runparams,
+						  bool const asLabel = false) const;
+	///
+	bool hasSubentries() const;
+	///
+	bool hasSeeRef() const;
+	///
+	bool hasSortKey() const;
+	///
+	bool macrosPossible(std::string const type) const;
+	///
+	std::string contextMenuName() const override;
+	///
+	std::string contextMenu(BufferView const &, int, int) const override;
+	///
+	Inset * clone() const override { return new InsetIndex(*this); }
 	/// Is the content of this inset part of the immediate text sequence?
-	bool isPartOfTextSequence() const { return false; }
+	bool isPartOfTextSequence() const override { return false; }
+	///
+	bool insetAllowed(InsetCode code) const override;
 
 	///
 	friend class InsetIndexParams;
+	///
+	friend class IndexEntry;
 	///
 	InsetIndexParams params_;
 };
@@ -101,25 +156,25 @@ public:
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	InsetCode lyxCode() const { return INDEX_PRINT_CODE; }
+	InsetCode lyxCode() const override { return INDEX_PRINT_CODE; }
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 	///
-	void updateBuffer(ParIterator const & it, UpdateType);
+	void updateBuffer(ParIterator const & it, UpdateType, bool const deleted = false) override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	/// Updates needed features for this inset.
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	bool hasSettings() const;
+	bool hasSettings() const override;
 	///
-	DisplayType display() const { return AlignCenter; }
+	int rowFlags() const override { return Display; }
 	//@}
 
 	/// \name Static public methods obligated for InsetCommand derived classes
@@ -136,13 +191,13 @@ private:
 	/// \name Private functions inherited from Inset class
 	//@{
 	///
-	Inset * clone() const { return new InsetPrintIndex(*this); }
+	Inset * clone() const override { return new InsetPrintIndex(*this); }
 	//@}
 
 	/// \name Private functions inherited from InsetCommand class
 	//@{
 	///
-	docstring screenLabel() const;
+	docstring screenLabel() const override;
 	//@}
 };
 

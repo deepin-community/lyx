@@ -1,0 +1,425 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/nl/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language dutch
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\use_lineno 0
+\index Trefwoord
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style polish
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle plain
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Title
+DIT IS DE TITEL VAN HET DOCUMENT
+\end_layout
+
+\begin_layout Author
+door Fee \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Date
+12 juni 1972
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Uitgangspunten
+\end_layout
+
+\begin_layout Standard
+Het uitgangspunt van \SpecialChar LyX
+ is dat u zich niet bezig houdt met de vormgeving,
+ maar met de inhoud van uw tekst.
+\end_layout
+
+\begin_layout Subsection
+Hoe \SpecialChar LyX
+ het oplost
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ gebruikt \SpecialChar LaTeX
+,
+ een tekstverwerkingssysteem ontworpen door Leslie Lamport in 1985.
+ Dit was op zich weer gebaseerd op een opmaaktaal voor tekst genaamd \SpecialChar TeX
+,
+ door Donald Knuth gemaakt in 1984.
+ \SpecialChar LaTeX
+ is ontworpen met dezelfde uitgangspunten als \SpecialChar LyX
+.
+ Leslie Lamport zei eens (zie referentie 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "lamport"
+literal "true"
+
+\end_inset
+
+):
+\end_layout
+
+\begin_layout Quote
+De functie van typografisch ontwerp is om de lezer te helpen de ideeën van de schrijver te begrijpen.
+ Om een document gemakkelijk leesbaar te laten zijn,
+ zal de visuele structuur de logische structuur moeten weerspiegelen.
+ Een citaat en een computerprogramma,
+ die als structurele elementen logisch van elkaar verschillen,
+ zouden onderling visueel van elkaar te onderscheiden moeten zijn....
+ Omdat \SpecialChar LaTeX
+ niet kan begrijpen wat u schrijft,
+ zal u expliciet de logische structuur moeten aangeven door bepaalde commando's te typen....
+ Als u uw document aan het schrijven bent,
+ zou u zich bezig moeten houden met de logische structuur,
+ niet met het zichtbare uiterlijk.
+\end_layout
+
+\begin_layout Subsection
+Waarom \SpecialChar LyX
+ beter is
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:lyxbeter"
+
+\end_inset
+
+\SpecialChar LyX
+ kan voor meer mensen handig zijn dan \SpecialChar LaTeX
+.
+ Het is aanzienlijk eenvoudiger te leren,
+ omdat u \SpecialChar LaTeX
+ niet hoeft te leren (wat eigenlijk een programmeertaal is).
+ \SpecialChar LyX
+ is in feite net als andere 
+\begin_inset Quotes pld
+\end_inset
+
+Wat u ziet is wat u krijgt
+\begin_inset Quotes erd
+\end_inset
+
+-tekstverwerkers,
+ behalve dat \SpecialChar LyX
+ 
+\begin_inset Quotes pld
+\end_inset
+
+Wat u ziet is wat u bedoelt
+\begin_inset Quotes erd
+\end_inset
+
+ is.
+ Op deze manier combineert het het gemak van tekstverwerkers met de kracht van \SpecialChar LaTeX
+.
+ Dit is Goed.
+ Ook is het bestandsformaat niet afhankelijk van het platform.
+ En als beste:
+ het is VRIJ en GRATIS!
+\end_layout
+
+\begin_layout Section
+De mogelijkheden van \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ heeft vele mogelijkheden die het schrijven van documenten vergemakkelijken.
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Per slot van rekening:
+ waarom zou u het anders willen gebruiken?
+\end_layout
+
+\end_inset
+
+ Ik vind het 
+\emph on
+geweldig
+\emph default
+ om er over te vertellen.
+ Hier volgt een lijst van slechts een deel van deze mogelijkheden.
+\end_layout
+
+\begin_layout Itemize
+\SpecialChar LyX
+ regelt marges,
+ en het nummeren van voetnoten in uw plaats
+\end_layout
+
+\begin_layout Itemize
+\SpecialChar LyX
+ maakt het gemakkelijk om wiskundige formules te maken en te veranderen
+\end_layout
+
+\begin_layout Standard
+Voor een meer filosofische verhandeling waarom \SpecialChar LyX
+ beter is dan andere tekstverwerkers,
+ zie paragraaf 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:lyxbeter"
+nolink "false"
+
+\end_inset
+
+,
+ die te vinden is op pagina 
+\begin_inset CommandInset ref
+LatexCommand pageref
+reference "sec:lyxbeter"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Zwakke pogingen om andere dingen in \SpecialChar LyX
+ te gebruiken
+\end_layout
+
+\begin_layout Standard
+Ik heb laatst een programma geschreven.
+ Het zag er uit als volgt.
+\end_layout
+
+\begin_layout LyX-Code
+5  REMARK MIJN GEWELDIGE PROGRAMMA
+\end_layout
+
+\begin_layout LyX-Code
+10 PRINT 
+\begin_inset Quotes eld
+\end_inset
+
+IK BEN GEWELDIG!
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout LyX-Code
+20 GOTO 10
+\end_layout
+
+\begin_layout Standard
+Na al dit wetenschappelijk denkwerk,
+ voelde ik mij meer artistiek,
+ dus schreef ik deze haiku
+\end_layout
+
+\begin_layout Verse
+\SpecialChar LyX
+ is echt geweldig 
+\begin_inset Newline newline
+\end_inset
+
+Tekstzettende tekstverwerker
+\begin_inset Newline newline
+\end_inset
+
+Het bespaart zo veel tijd
+\end_layout
+
+\begin_layout Section
+Wiskunde dingen
+\end_layout
+
+\begin_layout Standard
+Mijn favoriete vergelijking is de oplossing van een kwadratische vergelijking.
+ Als 
+\begin_inset Formula $ax^{2}+bx+c=0$
+\end_inset
+
+ (verg.1),
+ dan is 
+\begin_inset Formula $x=\frac{-b\pm\sqrt{b^{2}-4ac}}{2a}$
+\end_inset
+
+ (verg.
+ 2).
+\end_layout
+
+\begin_layout Standard
+Een andere favoriete vergelijking is de grondslag van calculus:
+ 
+\begin_inset Formula $f'(x)\equiv\lim_{\Delta x\rightarrow0}\frac{f(x+\Delta x)-f(x)}{\Delta x}$
+\end_inset
+
+ (verg.
+ 3).
+\end_layout
+
+\begin_layout Section
+Opmerkingen
+\end_layout
+
+\begin_layout Standard
+Een paar opmerkingen over het ver\SpecialChar LyX
+en van dit bestand:
+\end_layout
+
+\begin_layout Itemize
+Ik kon de lijnen die met streepjes gemaakt waren verwijderen.
+ Deze waren daar enkel om de titel en de referenties van de rest van het document te scheiden.
+ \SpecialChar LyX
+ (\SpecialChar LaTeX
+) begrijpt genoeg om deze onderdelen van het document met witruimte te scheiden.
+\end_layout
+
+\begin_layout Itemize
+Ik heb niet de moeite genomen de wiskundige vergelijkingen in weergavemodus te zetten.
+ Ik gebruikte ook niet de mogelijkheid van \SpecialChar LyX
+ om de vergelijkingen automatisch te nummeren,
+ omdat dit niet in de 
+\emph on
+Tutorial
+\emph default
+ wordt beschreven.
+\end_layout
+
+\begin_layout Itemize
+Ik moest het woord 
+\begin_inset Quotes pld
+\end_inset
+
+Referenties
+\begin_inset Quotes erd
+\end_inset
+
+ niet te typen.
+ \SpecialChar LyX
+ schrijft dit automatisch (of het woord 
+\begin_inset Quotes pld
+\end_inset
+
+Bibliografie
+\begin_inset Quotes erd
+\end_inset
+
+,
+ afhankelijk van de tekstklasse) wanneer u de omgeving 
+\family sans
+Bibliografie
+\family default
+ kiest.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "lamport"
+literal "true"
+
+\end_inset
+
+Lamport,
+ Leslie.
+\emph on
+\SpecialChar LaTeX
+:
+ A Document Preparation System.
+
+\emph default
+ Addison-Wesley,
+ Reading,
+ Massachusetts,
+ second edition,
+ 1994.
+\end_layout
+
+\end_body
+\end_document

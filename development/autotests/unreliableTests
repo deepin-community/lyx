@@ -9,54 +9,166 @@
 #   Use "unfit" or "unapplicable" as better label and name of pattern file?
 
 
+# These are not unreliable (not dependent on any external driver)
+!.*(/ja|)/.*(docbook5|xhtml|lyx[12][0123456])
+
 Sublabel: nonstandard
 #####################
 # Documents with additional requirements,
 # e.g. a class or package file not in TeXLive.
 # TODO: rename to "extra" or "exotic"?
 
-export/templates/IUCr-article_(dvi|pdf).*
-export/templates/kluwer_.*_systemF
-export/templates/ectaart_(dvi3|pdf5).*
+# aa.cls (not in TeXLive).
+export/examples/Articles/Astronomy_%26_Astrophysics.*
+export/templates/Articles/Astronomy_%26_Astrophysics.*
 
-# requires knitr, requires rjournal.sty (not in TeXLive)
+# AEA.cls (see https://wiki.lyx.org/Examples/AEA)
+export/templates/Articles/American_Economic_Association_.*AEA.*
+
+# copernicus.cls (not in TeXLive)
+# see https://publications.copernicus.org/for_authors/manuscript_preparation.html
+export/templates/Articles/Copernicus_Publications_Manuscript_Preparation_.*
+
+# ectaart.cls
+# see https://wiki.lyx.org/Examples/Econometrica
+export/templates/Articles/Econometrica.*
+
+# iucr.cls (not in TeXLive)
+export/templates/Articles/International_Union_of_Crystallography.*
+
+# ws-ijmpc.cls, w-ijmpd.cls
+# see https://wiki.lyx.org/Examples/IJMP
+export/templates/Articles/Int._Journal_of_Modern_Physics_C.*
+export/templates/Articles/Int._Journal_of_Modern_Physics_D.*
+
+# iopart.cls, iopams.sty, setstack.sty
+# see https://wiki.lyx.org/Layouts/Iopart
+export/templates/Articles/Institute_of_Physics_.*
+
+# jasatex.cls
+# see https://wiki.lyx.org/Layouts/JASATeX
+export/templates/Articles/Journal_of_the_Acoustical_Society_of_America.*
+
+# jss.cls
+export/templates/Articles/Journal_of_Statistical_Software_.*
+
+# LilyPond-book version 2.13 or newer.
+export/examples/(|ja/)Modules/LilyPond_Book_(dvi|pdf|lyx2[23]).*
+
+# maa-monthly.sty (not in TeXLive)
+# http://www.maa.org/sites/default/files/pdf/pubs/maa-monthly.sty
+export/templates/Articles/Mathematical_Monthly.*
+
+# knitr, RJournal.sty (not in TeXLive)
 # incompatible with fontspec?
-export/templates/RJournal_(dvi3|pdf[45])_systemF
+export/templates/Articles/R_Journal_.*
 
-# Requires aa.cls (not in TeXLive).
-# Fails with XeTeX/LuaTeX
-# Reported upstream (https://www.mail-archive.com/lyx-devel@lists.lyx.org/msg184435.html)
-# Is there a new version fixing the problem?
-export/examples/aa_sample_(dvi3|pdf[45])_.*
-export/templates/aa_(dvi3|pdf[45])_.*
+# R (http://www.r-project.org)
+# R package knitr (http://yihui.name/knitr)
+export/examples/(|ja/)Modules/Sweave_(dvi|pdf|lyx2[23]).*
+export/examples/(|ja/)Modules/Rnw.*knitr.*_(dvi|pdf|lyx2[23]).*
 
-# Requires iucr.cls (not in TeXLive)
-# Is there a new version fixing the problem?
-# Does LuaTeX produce sensible results?
-export/templates/IUCr-article_pdf4_systemF
+# obsolete versions of documentclass or style files
+export/templates/Obsolete/.*
 
-# Requires acmsiggraph.cls (not in TeXLive)
-# see http://wiki.lyx.org/Examples/AcmSiggraph
-export/templates/obsolete/ACM-siggraph/ACM-siggraph_(dvi|pdf).*
+# svjour3.cls, svglov2.clo
+# see https://wiki.lyx.org/Examples/Springer
+export/templates/Articles/Springers_Global_Journal_Template.*
+
+# svmono.cls
+export/templates/examples/Books/Springer_Monographs.*
+# svmult.cls
+export/templates/examples/Books/Springer_Contributed_Books.*
+
+
+# TeXLive does not set up Hebrew 8-bit TeX fonts
+# We use the external package "culmus-latex"
+# https://sourceforge.net/projects/ivritex/files/culmus-latex/culmus-latex-0.7/
+# With current "culmus-latex", dvipdfm (.*_pdf3) fails because some of the
+# fonts are type1 "*.pfa" while dvipdfm only works with binary "*.pfb" fonts:
+#   dvipdfmx:warning: Could not locate a virtual/physical font for TFM "david".
+#   dvipdfmx:warning: >> This font is mapped to a physical font "DavidCLM-Medium.pfa".
+#   dvipdfmx:warning: >> Please check if kpathsea library can find this font: DavidCLM-Medium.pfa
+# but: `kpsewhich DavidCLM-Medium.pfa` finds the font!
+# Converting with `t1binary` (from t1utils) helps.
+export/.*/he/.*((dvi|pdf.?)|_texF)
+export/export/latex/unicodesymbols/.*_he.*pdf2
+export/export/latex/(supported-languages|he-scrarticle).*
+export/export/latex/languages/supported-languages_.*_pdf3
+
+
+# Japanese (platex)
+# dvips requires special font setup for kanji.
+# Debian's texlive-lang-japanese does this automatically, tlmgr not.
+# Without proper font setup setup,
+# * the Postscript file has wrong and missing characters
+#   (without error or warning),
+# * as a consequence, `ps2pdf` fails for some documents:
+export/.*/ja/.*_pdf
+
+# "exotic" languages require "exotic" *system* fonts, e.g.
+# Monomakh Unicode (from Debian package "texlive-fonts-extra" or sci.ponomar.net/fonts.html)
+# Noto Serif Devanagari (from Debian package "fonts-noto-hinted")
+export/export/latex/languages/supported-languages_polyglossia_.*_systemF
+
+Sublabel: needauth
+##################
+# Tests that require authorisation to call external programs.
+export/examples/External_Material/Gnuplot.*
+export/examples/Graphics_and_Insets/Minted_File_Listing.*
+export/examples/Graphics_and_Insets/Minted_Listings.*
+
 
 Sublabel: erratic
 #################
 # Tests depending on local configuration, or the phase of the moon.
 
-# Manual export fails the first time but works the second time. (Why?)
-export/doc/es/(Customization|Intro)_pdf4_texF
-
 
 Sublabel: varying_versions
 ##########################
-# Test depending on e.g. OS or version of a non-TeX-Live dependency.
-# Note that a full, up-to-date TeX Live installation is required so this
-# sublabel is about versions of other dependencies.
+# If a test with this tag fails, this may be due to, e.g., the OS
+# or the version of a dependency.
 
 # Encoding cp858 only supported by some iconv variants
 # Gnu iconv only supports it, if configured with "--enable-extra-encodings"
 # (see https://www.gnu.org/software/libiconv/)
-export/export/latex/cp858_pdf2
+export/export/latex/inputenc-cp858_pdf2
+
+# Fails with TL18 from Debian/stable (resolved with TexLive 19)
+# -------------------------------------------------------------
+
+# since TL18, Babel-Ukrainean uses UTF-8 if it detects Xe/LuaTeX (for "\date").
+# * garbled output with LuaTeX + TeX fonts (since TL18)
+# * missing chars with XeTeX + TeX fonts (see invertedTests)
+export/(doc|examples)/uk/(Intro|Welcome)_.*_texF
+
+# Polyglossia bug with LuaTeX and LTR languages (Arab, Hebrew and Farsi):
+# Undefined control sequences "\luatexpardir" and "\luatextextdir".
+# https://github.com/reutenauer/polyglossia/commit/ccb0e9e2c6411170ad779b05ff5076f1193cc323
+export/.*/ar/.*(dvi3|pdf5)_systemF
+export/.*/fa/Welcome_(dvi3|pdf5)_systemF
+
+# Beamer fails also with XeTeX
+export/examples/ar/Presentations/Beamer_.*_systemF
+
+# Fails with TL19 but solved in TL20
+
+# Babel with non-TeX fonts fails for some supported languages
+# Lithuanian: L7x font encoding also set with LuaTeX and non-TeX fonts
+# (error but output OK)
+export/export/latex/languages/supported-languages_babel_non-tex_(dvi3|pdf5)_systemF
+
+# Babel + XeTeX and system fonts fails due to a babel bug:
+# https://www.mail-archive.com/search?l=mid&q=20190831012945.zl76dbstyijfqgdh%40boogie
+# The error is the following, although remoing the referenced language just leads
+# to a different error:
+#
+#  ! File ended while scanning use of \bbl@inireader.
+#  <inserted text>
+#                  \par
+#  l.3 \input{babel-german-switzerland}
+#  I suspect you have forgotten a `}', causing me
+export/export/latex/languages/supported-languages_babel_non-tex_pdf4_systemF
 
 
 Sublabel: wrong_output
@@ -66,28 +178,36 @@ Sublabel: wrong_output
 # These tests are actually not "unreliable" (different result for different
 # runs) but *invalid* (not measuring what they should measure).
 
-# seminar.sty uses Postscript specials or PGF
-# -> wrong output with DVI and PDF (ps2pdf) (de-placed landscape slides).
-export/examples/(|fr/)seminar_(dvi|pdf).*
+# seminar.sty uses Postscript specials or PGF resulting in problems with slide
+# size and orientation depending on the output format and viewing application.
+# For details see Troubleshooting and the Appendix in examples/seminar.lyx.
+export/examples/(|fr/)Presentations/Seminar_(dvi|pdf).*
 
-# Babel-Spanish uses UTF-8 encoded "unicode" strings if it detects LuaTeX
-# (with TeXLive 2016 also for XeTeX).
-# With LuaTeX and 8-bit TeX-fonts, e.g., the toc heading becomes
-# ÃŊndice instead of Índice.
-# The problem is generic to all Spanish documents but only manifests itself
-# if Babel strings with non-ASCII chars are deployed.
-# Set inputenc to utf8? (Changing the default in lib/languages
-# requires more tests for utf8 first.)
-export/examples/es/(ejemplo_con_lyx|tufte_book)_(pdf5|dvi3)_texF
-export/doc/es/.*_(pdf5|dvi3)_texF
+# Babel-Spanish uses UTF-8 encoded strings if it detects Xe/LuaTeX.
+# With "language default" (=="latin9"), Babel strings  come out wrong
+# when compiling with Xe/LuaTeX and TeX-fonts.
+export/export/latex/es_auto-legacy_texF
 
-# Non-ASCII char in verbatim environment is dropped (with a warning when
-# doing this interactively) with ASCII (and hence also with XeTeX).
-export/doc/(|de/|es/|fr/)EmbeddedObjects_pdf4_texF
+# since TL18, Babel-Ukrainean uses UTF-8 if it detects Xe/LuaTeX (for "\date").
+# * garbled output with LuaTeX + TeX fonts (since TL18)
+#   (date and chapter headings)
+# * missing chars with XeTeX + TeX fonts (see invertedTests)
+export/export/latex/languages/uk-babel-date-missing-chars-with-ascii_.*_texF
+export/doc/uk/Intro_.*_texF
 
-# inputencoding="utf8-plain" with 8-bit TeX: non-ASCII characters are passed
-#  as two 8-bit characters leading to garbage in the output
-export/export/latex/utf8-plain-with-tex-fonts_(dvi|pdf.?)
+# Although DejaVu fonts are set and output is correct for pdf5,
+# for dvi3 the Russian characters are not shown (the problem currently
+# is obvious to see).
+export/examples/ru/Graphics_and_Insets/XY-(Pic|Figure)_dvi3_systemF
+
+
+# LyX issues
+# **********
+
+#6197: „amssymb” with Polish babel: name clash \lll ("<<<" vs. "ł")
+# Wrong output with pdflatex
+# missing character with XeTeX/LuaTeX and Babel (-> invertedTests)
+export/export/latex/6197-polish-amssymb_(dvi|pdf).?
 
 # The following document mixes inTitle layouts and leads to
 # likely unintended output. See #10347
@@ -98,8 +218,32 @@ export/export/mixing_inTitle_layouts_(pdf|dvi).*
 # https://www.mail-archive.com/search?l=mid&q=20160831134006.4fewxothddqfeyw4%40steph
 # (not expecting much attention because DVI is not given high priority)
 export/doc/es/Customization_dvi3_systemF
-export/examples/(|es/)(europe|modern)CV_dvi3_systemF
+export/examples/(|es/)Curricula_Vitae/Europe_CV_dvi3_.*F
 
-#9681 textgreek and textcyr also required for encodable characters
-# -> Latin transcription instead of Greek
-export/export/latex/unicodesymbols/008-greek-and-coptic_iso8859-7_pdf2
+# `acmart` requires PDFlatex:
+# * Missing page number in DVI, Postscript, and PDF (ps2pdf)
+# * "PDF (ps2pdf)" fails (problem with Postscript) in TeXLive < 2018
+#   "Postscript" not tested by ctest autotests
+export/templates/Articles/Association_for_Computing_Machinery_dvi.*
+export/templates/Articles/Association_for_Computing_Machinery_pdf
+
+# lyx2lyx back-conversion of "Date" info-inset writes
+# the name of the day in English instead of Japanese.
+export/examples/ja/Multilingual_Typesetting_.*_lyx.*
+
+# No localization of auto-strings with Chinese language under 8-bit TeX
+# (ctex font issue with texlive-lang-chinese (from Debian) under pdflatex)
+# and only partial localization with non-tex-fonts:
+export/export/latex/CJK/zh_CN-toc.*
+export/doc/zh_CN/(Intro|Tutorial)_(dvi|pdf.?)
+
+# CJK languages don't change/reset the "language" (which is problematic for
+# documents in a language that uses a non-standard font encoding)
+# In a Greek document, Latin letters in a text part set to "Chinese"
+# come out as Greek letters:
+export/export/latex/CJK/el-zh_CN_utf8-cjk.*
+
+# Bug 3059: document language instead of "outer language" in table cells
+# This document fails with "fontencoding=auto-legacy" 
+# and has wrong output (RTL in table cells) with all export formats.
+export/export/latex/lyxbugs/3059.*

@@ -4,7 +4,7 @@ current file format are listed. The table is organized in three columns:
 
 
 Format:        First file format that supports the feature. In some cases the
-               feature may habe been revised in later file formats.
+               feature may have been revised in later file formats.
 LaTeX feature: LaTeX package, command or environment
 LyX feature:   LyX inset or document setting
 
@@ -16,7 +16,7 @@ Format LaTeX feature                        LyX feature
         - Dia and LilyPond are an \includegraphics and can therefore only be imported as image
         - Chess diagram, PDF pages and Spreadsheet are supported)
        (Xfig figure, Lilypond, Dia diagram can be supported by looking at the file extension)
-254    esint.sty                            \use_esint
+254    automatic esint loading              \use_esint
 267    XeTeX                                utf8 encoding
 326    PDFLaTeX for external insets         InsetExternal
 329    master documents                     \master
@@ -35,11 +35,12 @@ Format LaTeX feature                        LyX feature
 453    automatic stmaryrd loading           \use_package stmaryrd
 457    automatic stackrel loading           \use_package stackrel
 
-
 General
 
 * Use the language information provided by Language.cpp and the languages file (for babel/lyx/polyglossia name, quote style etc.)
   instead of hardcoding this information in Preamble.cpp.
+
+* Read unicodesymbols file for LaTeX macros in mathed.
 
 * Store alias commands for characters in a file with
   "lib/unicodesymbols"-format, e.g.

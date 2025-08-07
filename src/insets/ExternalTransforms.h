@@ -12,13 +12,11 @@
 #ifndef EXTERNALTRANSFORMS_H
 #define EXTERNALTRANSFORMS_H
 
-#include "Length.h"
-
 #include "graphics/GraphicsParams.h"
 
+#include "support/any.h"
+#include "support/Length.h"
 #include "support/unique_ptr.h"
-
-#include <boost/any.hpp>
 
 #include <functional>
 #include <map>
@@ -27,8 +25,6 @@
 
 
 namespace lyx {
-
-class Lexer;
 
 namespace external {
 
@@ -49,7 +45,7 @@ public:
 class ExtraData {
 public:
 	std::string const get(std::string const & id) const;
-	void set(std::string const & id, std::string const & contents);
+	void set(std::string const & id, std::string const & data);
 
 	typedef std::map<std::string, std::string>::const_iterator const_iterator;
 	const_iterator begin() const { return data_.begin(); }
@@ -149,12 +145,12 @@ private:
 class ResizeCommand : public TransformCommand {
 protected:
 	ResizeData data;
-	ResizeCommand(ResizeData const & data_) : data(data_) {}
+	explicit ResizeCommand(ResizeData const & data_) : data(data_) {}
 
 private:
-	virtual std::string const front_placeholder_impl() const
+	std::string const front_placeholder_impl() const override
 		{ return "$$ResizeFront"; }
-	virtual std::string const back_placeholder_impl() const
+	std::string const back_placeholder_impl() const override
 		{ return "$$ResizeBack"; }
 };
 
@@ -165,22 +161,22 @@ public:
 		{ return ptr_type(new ResizeLatexCommand(data)); }
 
 private:
-	ResizeLatexCommand(ResizeData const & data_)
+	explicit ResizeLatexCommand(ResizeData const & data_)
 		: ResizeCommand(data_) {}
-	virtual std::string const front_impl() const;
-	virtual std::string const back_impl() const;
+	std::string const front_impl() const override;
+	std::string const back_impl() const override;
 };
 
 
 class RotationCommand : public TransformCommand {
 protected:
 	RotationData data;
-	RotationCommand(RotationData const & data_) : data(data_) {}
+	explicit RotationCommand(RotationData const & data_) : data(data_) {}
 
 private:
-	virtual std::string const front_placeholder_impl() const
+	std::string const front_placeholder_impl() const override
 		{ return "$$RotateFront"; }
-	virtual std::string const back_placeholder_impl() const
+	std::string const back_placeholder_impl() const override
 		{ return "$$RotateBack"; }
 };
 
@@ -191,10 +187,10 @@ public:
 		{ return ptr_type(new RotationLatexCommand(data)); }
 
 private:
-	RotationLatexCommand(RotationData const & data_)
+	explicit RotationLatexCommand(RotationData const & data_)
 		: RotationCommand(data_) {}
-	virtual std::string const front_impl() const;
-	virtual std::string const back_impl() const;
+	std::string const front_impl() const override;
+	std::string const back_impl() const override;
 };
 
 
@@ -221,10 +217,10 @@ private:
 class ClipOption : public TransformOption {
 protected:
 	ClipData data;
-	ClipOption(ClipData const & data_) : data(data_) {}
+	explicit ClipOption(ClipData const & data_) : data(data_) {}
 
 private:
-	virtual std::string const placeholder_impl() const
+	std::string const placeholder_impl() const override
 		{ return "$$Clip"; }
 };
 
@@ -235,9 +231,9 @@ public:
 		{ return ptr_type(new ClipLatexOption(data)); }
 
 private:
-	ClipLatexOption(ClipData const & data_)
+	explicit ClipLatexOption(ClipData const & data_)
 		: ClipOption(data_) {}
-	virtual std::string const option_impl() const;
+	std::string const option_impl() const override;
 };
 
 
@@ -247,11 +243,11 @@ public:
 		{ return ptr_type(new ExtraOption(data)); }
 
 private:
-	ExtraOption(std::string const & data_) : data(data_) {}
+	explicit ExtraOption(std::string const & data_) : data(data_) {}
 
-	virtual std::string const placeholder_impl() const
+	std::string const placeholder_impl() const override
 		{ return "$$Extra"; }
-	virtual std::string const option_impl() const
+	std::string const option_impl() const override
 		{ return data; }
 	std::string data;
 };
@@ -260,10 +256,10 @@ private:
 class ResizeOption : public TransformOption {
 protected:
 	ResizeData data;
-	ResizeOption(ResizeData const & data_) : data(data_) {}
+	explicit ResizeOption(ResizeData const & data_) : data(data_) {}
 
 private:
-	virtual std::string const placeholder_impl() const
+	std::string const placeholder_impl() const override
 		{ return "$$Resize"; }
 };
 
@@ -274,19 +270,19 @@ public:
 		{ return ptr_type(new ResizeLatexOption(data)); }
 
 private:
-	ResizeLatexOption(ResizeData const & data_)
+	explicit ResizeLatexOption(ResizeData const & data_)
 		: ResizeOption(data_) {}
-	virtual std::string const option_impl() const;
+	std::string const option_impl() const override;
 };
 
 
 class RotationOption : public TransformOption {
 protected:
 	RotationData data;
-	RotationOption(RotationData const & data_) : data(data_) {}
+	explicit RotationOption(RotationData const & data_) : data(data_) {}
 
 private:
-	virtual std::string const placeholder_impl() const
+	std::string const placeholder_impl() const override
 		{ return "$$Rotate"; }
 };
 
@@ -297,9 +293,9 @@ public:
 		{ return ptr_type(new RotationLatexOption(data)); }
 
 private:
-	RotationLatexOption(RotationData const & data_)
+	explicit RotationLatexOption(RotationData const & data_)
 		: RotationOption(data_) {}
-	virtual std::string const option_impl() const;
+	std::string const option_impl() const override;
 };
 
 
@@ -311,6 +307,7 @@ std::string const sanitizeDocBookOption(std::string const & input);
 
 
 enum TransformID {
+	None = -1,
 	Rotate,
 	Resize,
 	Clip,
@@ -342,7 +339,7 @@ public:
 	 */
 	template <typename Factory>
 	TransformStore(TransformID id_, Factory const & factory)
-		: id(id_), any_factory(boost::any(factory)) {}
+		: id(id_), any_factory(any(factory)) {}
 
 	typedef TransformCommand::ptr_type ComPtr;
 	typedef TransformOption::ptr_type  OptPtr;
@@ -356,7 +353,7 @@ public:
 
 private:
 	TransformID id;
-	boost::any any_factory;
+	any any_factory;
 };
 
 } // namespace external

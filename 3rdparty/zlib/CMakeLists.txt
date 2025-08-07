@@ -1,10 +1,22 @@
-cmake_minimum_required(VERSION 2.4.4)
+cmake_minimum_required(VERSION 3.5.0)
+
+set(LYX_IPO_SUPPORTED FALSE)
+if (POLICY CMP0069)
+  cmake_policy(SET CMP0069 NEW)
+  if (LYX_USE_IPO MATCHES "ON")
+    set(LYX_IPO_SUPPORTED YES)
+  endif()
+endif()
+if (POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
 project(zlib C)
 
-set(VERSION "1.2.8")
-set(SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/1.2.8)
+set(VERSION "1.2.11")
+set(SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/1.2.11)
 
 option(ASM686 "Enable building i686 assembly implementation")
 option(AMD64 "Enable building amd64 assembly implementation")
@@ -158,4 +170,6 @@ set(ZLIB_LIBRARY zlibstatic CACHE STRING "Zlib library" FORCE)
 set(ZLIB_INCLUDE_DIR  ${SRCDIR} CACHE STRING "Zlib include dir" FORCE)
 set(ZLIB_FOUND CACHE STRING "Zlib found" FORCE )
 
-set_target_properties(zlibstatic PROPERTIES FOLDER "3rd_party")
+set_target_properties(zlibstatic PROPERTIES
+	FOLDER "3rd_party"
+	INTERPROCEDURAL_OPTIMIZATION ${LYX_IPO_SUPPORTED})

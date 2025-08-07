@@ -12,6 +12,7 @@
 
 #include "CmdDef.h"
 
+#include "FuncRequest.h"
 #include "LyXAction.h"
 #include "Lexer.h"
 
@@ -99,8 +100,8 @@ bool CmdDef::read(string const & def_file)
 		}
 		case BN_DEFFILE:
 			if (lex.next()) {
-				string const tmp = lex.getString();
-				error |= !read(tmp);
+				string const stmp = lex.getString();
+				error |= !read(stmp);
 			} else {
 				lex.printError("BN_DEFFILE: Missing file name");
 				error = true;

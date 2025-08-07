@@ -1,4 +1,5 @@
 #\DeclareLyXModule{GraphicBoxes}
+#\DeclareCategory{Boxes}
 #DescriptionBegin
 #Boxes to scale and rotate its contents
 #DescriptionEnd
@@ -6,7 +7,7 @@
 #Author: Jürgen Spitzmüller <spitz@lyx.org>
 #        Uwe Stöhr <uwestoehr@lyx.org>
 
-Format 66
+Format 104
 
 InsetLayout Flex:Reflectbox
 	LyXType		custom
@@ -16,7 +17,7 @@ InsetLayout Flex:Reflectbox
 	LatexName	reflectbox
 	LabelFont
 	  Family	Roman
-	  Color		red
+	  Color		textlabel3
 	EndFont
 	ResetsFont	0
 	Requires	graphicx

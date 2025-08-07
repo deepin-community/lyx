@@ -2,7 +2,7 @@
 
 Summary: A WYSIWYM (What You See Is What You Mean) document processor
 Name: lyx
-Version: 2.3.6
+Version: 2.4.3
 Release: 2
 License: GPL
 Group: Applications/Publishing
@@ -90,3 +90,4 @@ texhash
 %{_datadir}/texmf/tex/latex/%{name}
 %{_datadir}/icons/*
 %{_datadir}/applications/*
+%{_datadir}/metainfo/*

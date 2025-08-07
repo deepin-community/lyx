@@ -12,13 +12,17 @@
 use strict;
 use warnings;
 use Getopt::Std;
+use Encode qw(encode decode);
+
+sub mylc($);
+sub replaceSynopsis($);
 
 my $usage = <<EOT;
 pocheck.pl [-acmpqst] po_file [po_file] ...
 
-This script performs some consistency checks on po files. 
+This script performs some consistency checks on po files.
 
-We check for everything listed here, unless one or more of these 
+We check for everything listed here, unless one or more of these
 options is given, in which case we checks only for those requested.
 -a: Check arguments, like %1\$s
 -c: Check for colons at end
@@ -36,9 +40,9 @@ EOT
 my %options;
 getopts(":hacfmpqstwi", \%options);
 
-if (defined($options{h})) { 
-  print $usage; 
-  exit 0; 
+if (defined($options{h})) {
+  print $usage;
+  exit 0;
 }
 
 my $only_total = defined($options{w});
@@ -79,7 +83,7 @@ foreach my $pofilename ( @ARGV ) {
   my $warn = 0;
 
   my $i = 0;
-  my ($msgid, $msgstr, $more);
+  my ($msgid, $msgid_trans, $msgstr, $more);
 
   while ($i <= $noOfLines) {
     my $linenum = $i;
@@ -112,6 +116,7 @@ foreach my $pofilename ( @ARGV ) {
     next if ($msgid eq "" or $msgstr eq "");
 
     # discard [[...]] from the end of msgid, this is used only as hint to translation
+    $msgid_trans = $msgid;	# used for uniform translation
     $msgid =~ s/\[\[.*\]\]$//;
 
     # Check for matching %1$s, etc.
@@ -151,6 +156,9 @@ foreach my $pofilename ( @ARGV ) {
 
     if ($check_periods) {
       # Check period at the end of a message; uncomment code if you are paranoid
+      # Convert '...' to '…' first
+      $msgid = replaceSynopsis($msgid);
+      $msgstr = replaceSynopsis($msgstr);
       if ( ( $msgid =~ m/\. *(\|.*)?$/ ) != ( $msgstr =~ m/\. *(\|.*)?$/ ) ) {
        print "Line $linenum: Missing or unexpected period:\n  '$msgid' => '$msgstr'\n"
         unless $only_total;
@@ -160,8 +168,18 @@ foreach my $pofilename ( @ARGV ) {
     }
 
     if ($check_spaces) {
-      # Check space at the end of a message
-      if ( ( $msgid =~ m/  *?(\|.*)?$/ ) != ( $msgstr =~ m/  *?(\|.*)?$/ ) ) {
+      # Check space at the end of a message (if not a shortcut)
+      my ($msgid1, $msgstr1) = ($msgid, $msgstr);
+      $msgid1 =~ s/\|.$//;
+      if ($msgstr =~ /^(.*)\|(.+)$/) {
+	my ($msg, $shortcut) = ($1, $2);
+	# Check for unicode char
+	my $u = decode('utf-8', $shortcut);
+	if (length($u) == 1) {
+	  $msgstr1 = $msg;
+	}
+      }
+      if (($msgid1 =~ / $/) != ($msgstr1 =~ / $/)) {
         print "Line $linenum: Missing or unexpected space:\n  '$msgid' => '$msgstr'\n"
           unless $only_total;
         ++$bad{"Bad spaces"};
@@ -171,7 +189,7 @@ foreach my $pofilename ( @ARGV ) {
 
     if ($check_qt) {
       # Check for "&" shortcuts
-      if ( ( $msgid =~ m/&[^ ]/ ) != ( $msgstr =~ m/&[^ ]/ ) ) {
+      if ( ( $msgid =~ m/&[^ &]/ ) != ( $msgstr =~ m/&[^ &]/ ) ) {
         print "Line $linenum: Missing or unexpected Qt shortcut:\n  '$msgid' => '$msgstr'\n"
           unless $only_total;
         ++$bad{"Bad Qt shortcuts"};
@@ -180,8 +198,16 @@ foreach my $pofilename ( @ARGV ) {
     }
 
     if ($check_menu) {
-      # Check for "|..." shortcuts
-      if ( ( $msgid =~ m/\|[^ ]/ ) != ( $msgstr =~ m/\|[^ ]/ ) ) {
+      # Check for "|..." shortcuts (space shortcut allowed)
+      # Shortcut is either 1 char (ascii in msgid) or utf8 char (in msgstr)
+      my ($s1, $s2) = (0,0);
+      $s1 = 1 if ($msgid =~ /\|(.)$/);
+      if ($msgstr =~ /.*\|(.+)$/) {
+	my $chars = $1;
+	my $u = decode('utf-8', $chars);
+	$s2 = 1 if (length($u) == 1);
+      }
+      if($s1 != $s2) {
         print "Line $linenum: Missing or unexpected menu shortcut:\n  '$msgid' => '$msgstr'\n"
           unless $only_total;
         ++$bad{"Bad menu shortcuts"};
@@ -194,8 +220,8 @@ foreach my $pofilename ( @ARGV ) {
     # we now collect these translations in a hash.
     # this will allow us to check below if we have translated
     # anything more than one way.
-    my $msgid_clean  = lc($msgid);
-    my $msgstr_clean = lc($msgstr);
+    my $msgid_clean  = lc($msgid_trans);
+    my $msgstr_clean = mylc($msgstr);
 
     $msgid_clean  =~ s/(.*)\|.*?$/$1/;  # strip menu shortcuts
     $msgstr_clean =~ s/(.*)\|.*?$/$1/;
@@ -206,7 +232,7 @@ foreach my $pofilename ( @ARGV ) {
     # cleaned versions of ORIGINAL strings. the keys of the inner hash 
     # are the cleaned versions of their TRANSLATIONS. The value for the 
     # inner hash is an array of the orignal string and translation.
-    $trans{$msgid_clean}{$msgstr_clean} = [ $msgid, $msgstr, $linenum ];
+    $trans{$msgid_clean}{$msgstr_clean} = [ $msgid_trans, $msgstr, $linenum ];
   }
 
   if ($check_trans) {
@@ -247,3 +273,19 @@ foreach my $pofilename ( @ARGV ) {
 
 exit ($total_warn > 0);
 
+# Use lowercase also for non-ascii chars
+sub mylc($)
+{
+  my ($msg) = @_;
+  return(encode('utf-8',lc(decode('utf-8', $msg))));
+}
+
+sub replaceSynopsis($)
+{
+  my ($string) = @_;
+
+  return ($string) if ($string !~ /^(.*)\.\.\.(.*)$/);
+  my ($before, $after) = ($1, $2);
+  return $string if (($before =~ /\.$/) || ($after =~ /^\./));
+  return("$before…$after");
+}

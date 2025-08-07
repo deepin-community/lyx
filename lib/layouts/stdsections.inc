@@ -7,13 +7,13 @@
 # commands that are useful for article-like document classes, but not
 # for letters.
 
-Format 66
+Format 104
 
 Style Part
 	Category              Sectioning
-	Margin                Dynamic
+	Margin                Static
 	LabelString           "Part \thepart"
-	LabelType             Static
+	LabelType             Centered
 	TocLevel              -1
 	LabelCounter          part
 	LatexType             Command
@@ -21,7 +21,7 @@ Style Part
 	NeedProtect           1
 	NextNoIndent          1
 	ToggleIndent          Never
-	Labelsep              xxx
+	LabelBottomSep        1
 	ParSkip               0.4
 	TopSep                4
 	BottomSep             4
@@ -33,12 +33,23 @@ Style Part
 		Tooltip       "The part as it appears in the table of contents/running headers"
 		InsertCotext  1
 		IsTocCaption  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 	Font
+	  Series              Bold
+	  Size                Giant
+	EndFont
+	LabelFont
 	  Series              Bold
 	  Size                Huge
 	EndFont
 	HTMLTag               h1
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+	DocBookSectionTag     part
+	DocBookForceAbstractTag	partintro
 End
 
 
@@ -55,6 +66,7 @@ Style Chapter
 	NeedProtect           1
 	NextNoIndent          1
 	ToggleIndent          Never
+	LabelBottomSep        1
 	ParSkip               0.4
 	TopSep                2
 	BottomSep             0.8
@@ -65,12 +77,22 @@ Style Chapter
 		Tooltip       "The chapter as it appears in the table of contents/running headers"
 		InsertCotext  1
 		IsTocCaption  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 	Font
+	  Series              Bold
+	  Size                Giant
+	EndFont
+	LabelFont
 	  Series              Bold
 	  Size                Huge
 	EndFont
 	HTMLTag               h1
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+	DocBookSectionTag     chapter
 End
 
 
@@ -96,12 +118,18 @@ Style Section
 		Tooltip       "The section as it appears in the table of contents/running headers"
 		InsertCotext  1
 		IsTocCaption  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 	Font
 	  Series              Bold
 	  Size                Larger
 	EndFont
 	HTMLTag               h2
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+	DocBookSectionTag     section
 End
 
 

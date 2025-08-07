@@ -4,7 +4,7 @@
 # This file is part of LyX, the document processor.
 # Licence details can be found in the file COPYING.
 
-# author Richard Heck
+# author Richard Kimberly Heck
 
 # Full author contact details are available in file CREDITS
 
@@ -196,6 +196,52 @@ def label_copy_as_reference(line):
 def remove_print_support(line):
 	return simple_remove(line, "dialog-show print")
 
+
+def info_rename_vcsauthor(line):
+	return simple_renaming(line, "info-insert buffer vcs-author", "info-insert vcs author")
+
+
+def info_rename_vcsdate(line):
+	return simple_renaming(line, "info-insert buffer vcs-date", "info-insert vcs date")
+
+
+def info_rename_vcstime(line):
+	return simple_renaming(line, "info-insert buffer vcs-time", "info-insert vcs time")
+
+
+def info_rename_vcsrevision(line):
+	return simple_renaming(line, "info-insert buffer vcs-revision", "info-insert vcs revision")
+
+
+def info_rename_vcstreerevision(line):
+	return simple_renaming(line, "info-insert buffer vcs-tree-revision", "info-insert vcs tree-revision")
+
+
+def remove_date_insert(line):
+	return simple_remove(line, "date-insert")
+
+
+re_delete_force = re.compile(r"((char|word)-delete-(for|back)ward)(\s+force)?")
+def delete_force(line):
+	# we change as follows:
+	# char-delete-forward -> char-delete-forward confirm
+	# but:
+	# char-delete-forward force -> char-delete-forward
+	#
+	def change(match):
+		if match.group(4):
+			return match.group(1)
+		else:
+			return match.group(1) + " confirm"
+
+	result = re_delete_force.subn(change, line)
+	if result[1]:
+		return (True, result[0])
+	else:
+		return no_match
+
+
+
 #
 ###########################################################
 
@@ -226,5 +272,14 @@ conversions = [
 	]],
 	[ 4, [ # list of conversions to format 4, LyX 2.2
 		redo_tabular_feature
+	]],
+	[ 5, [ # list of conversions to format 5, LyX 2.4
+		info_rename_vcsauthor,
+		info_rename_vcsdate,
+		info_rename_vcstime,
+		info_rename_vcsrevision,
+		info_rename_vcstreerevision,
+		remove_date_insert,
+                delete_force
 	]]
 ]

@@ -55,13 +55,14 @@ class TocItem
 {
 public:
 	/// Default constructor for STL containers.
-	TocItem() : dit_(0), depth_(0), output_(false) {}
+	TocItem() : dit_(0), depth_(0), output_(false), missing_(false) {}
 	///
 	TocItem(DocIterator const & dit,
 		int depth,
 		docstring const & s,
 		bool output_active,
-		FuncRequest action = FuncRequest(LFUN_UNKNOWN_ACTION)
+		bool missing = false,
+		FuncRequest const & action = FuncRequest(LFUN_UNKNOWN_ACTION)
 		);
 	///
 	DocIterator const & dit() const { return dit_; }
@@ -72,13 +73,24 @@ public:
 	///
 	void str(docstring const & s) { str_ = s; }
 	///
+	docstring const & prettyStr() const { return pretty_str_; }
+	///
+	void prettyStr(docstring const & s) { pretty_str_ = s; }
+	///
 	bool isOutput() const { return output_; }
 	///
-	void setAction(FuncRequest a) { action_ = a; }
+	bool isMissing() const { return missing_; }
+	///
+	void setAction(FuncRequest const & a) { action_ = a; }
+	/// return comma-separated list of all par IDs (including nested insets)
+	/// this is used by captioned elements
+	docstring const parIDs() const { return par_ids_; }
+	///
+	void setParIDs(docstring const & ids) { par_ids_ = ids; }
 
 	/// custom action, or the default one (paragraph-goto) if not customised
 	FuncRequest action() const;
-	///
+	/// return only main par ID
 	int id() const;
 	/// String for display, e.g. it has a mark if output is inactive
 	docstring const asString() const;
@@ -90,10 +102,16 @@ private:
 	int depth_;
 	/// Full item string
 	docstring str_;
+	/// Dereferenced name, for labels (e.g. Label 5.2 instead of lem:foobar)
+	docstring pretty_str_;
 	/// Is this item in a note, inactive branch, etc?
 	bool output_;
+	/// Is this item missing, e.g. missing label?
+	bool missing_;
 	/// Custom action
 	FuncRequest action_;
+	/// Paragraph IDs including nested insets (comma-separated).
+	docstring par_ids_;
 };
 
 
@@ -113,8 +131,10 @@ public:
 	void setBuffer(Buffer const * buffer) { buffer_ = buffer; }
 	///
 	void update(bool output_active, UpdateType utype);
+	///
+	void reset();
 	/// \return true if the item was updated.
-	bool updateItem(DocIterator const & pit);
+	bool updateItem(DocIterator const & pit) const;
 	///
 	TocList const & tocs() const { return tocs_; }
 	/// never null
@@ -147,7 +167,7 @@ private:
 	///
 	TocList tocs_;
 	///
-	std::map<std::string, unique_ptr<TocBuilder>> builders_;
+    std::map<std::string, std::unique_ptr<TocBuilder>> builders_;
 	/// Stores localised outliner names from this buffer and its children
 	std::map<std::string, docstring> outliner_names_;
 	///

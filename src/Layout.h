@@ -58,7 +58,7 @@ public:
 	void setUnknown(bool unknown) { unknown_ = unknown; }
 	/// Reads a layout definition from file
 	/// \return true on success.
-	bool read(Lexer &, TextClass const &);
+	bool read(Lexer &, TextClass const &, bool validating = false);
 	///
 	void readAlign(Lexer &);
 	///
@@ -74,7 +74,7 @@ public:
 	///
 	void readSpacing(Lexer &);
 	///
-	void readArgument(Lexer &);
+	void readArgument(Lexer &, bool);
 	/// Write a layout definition in utf8 encoding
 	void write(std::ostream &) const;
 	///
@@ -89,25 +89,39 @@ public:
 	std::string const & latexname() const { return latexname_; }
 	///
 	std::string const & itemcommand() const { return itemcommand_; }
-	/// The arguments of this layout
+	/// One argument of this layout
 	struct latexarg {
 		docstring labelstring;
 		docstring menustring;
-		bool mandatory;
+		bool mandatory = false;
+		bool nodelims = false;
 		docstring ldelim;
 		docstring rdelim;
 		docstring defaultarg;
 		docstring presetarg;
 		docstring tooltip;
-		std::string requires;
+		std::string required;
 		std::string decoration;
-		FontInfo font;
-		FontInfo labelfont;
-		bool autoinsert;
-		bool insertcotext;
-		ArgPassThru passthru;
+		FontInfo font = inherit_font;
+		FontInfo labelfont = inherit_font;
+		bool autoinsert = false;
+		bool insertcotext = false;
+		bool insertonnewline = false;
+		ArgPassThru passthru = PT_INHERITED;
 		docstring pass_thru_chars;
-		bool is_toc_caption;
+		bool is_toc_caption = false;
+		bool free_spacing = false;
+		std::string newlinecmd;
+		/// The DocBook tag corresponding to this argument.
+		docstring docbooktag;
+		docstring docbooktagtype;
+		docstring docbookattr;
+		/// Whether this argument should be output after the main tag (default: inside). The result if the argument
+		/// should be output both before and after the main tag is undefined.
+		bool docbookargumentbeforemaintag = false;
+		/// Whether this argument should be output before the main tag (default: inside). The result if the argument
+		/// should be output both before and after the main tag is undefined.
+		bool docbookargumentaftermaintag = false;
 	};
 	///
 	typedef std::map<std::string, latexarg> LaTeXArgMap;
@@ -115,6 +129,8 @@ public:
 	LaTeXArgMap const & latexargs() const { return latexargs_; }
 	///
 	LaTeXArgMap const & postcommandargs() const { return postcommandargs_; }
+	///
+	LaTeXArgMap const & listpreamble() const { return listpreamble_; }
 	///
 	LaTeXArgMap const & itemargs() const { return itemargs_; }
 	/// Returns true is the layout has arguments. If false, then an
@@ -147,7 +163,7 @@ public:
 	/// this layout for language \p lang
 	docstring const babelpreamble() const { return babelpreamble_; }
 	///
-	std::set<std::string> const & requires() const { return requires_; }
+	std::set<std::string> const & required() const { return required_; }
 	///
 	std::set<docstring> const & autonests() const { return autonests_; }
 	///
@@ -167,7 +183,11 @@ public:
 	///
 	std::string const & htmltag() const;
 	///
-	std::string const & htmlattr() const;
+	std::string const & htmlattr() const { return htmlattr_; }
+	///
+	std::string const & htmlclass() const;
+	/// Returns a complete attribute string, including class, etc.
+	std::string const & htmlGetAttrString() const;
 	///
 	std::string const & htmlitemtag() const;
 	///
@@ -176,6 +196,8 @@ public:
 	std::string const & htmllabeltag() const;
 	///
 	std::string const & htmllabelattr() const;
+	///
+	bool htmlintoc() const { return htmlintoc_; }
 	///
 	std::string defaultCSSClass() const;
 	///
@@ -186,6 +208,64 @@ public:
 	docstring const & htmlpreamble() const { return htmlpreamble_; }
 	///
 	bool htmltitle() const { return htmltitle_; }
+	///
+	std::string const & docbooktag() const;
+	///
+	std::string const & docbookattr() const;
+	///
+	std::string const & docbooktagtype() const;
+	///
+	std::string const & docbookinnertag() const;
+	///
+	std::string const & docbookinnerattr() const;
+	///
+	std::string const & docbookinnertagtype() const;
+	///
+	std::string const & docbookininfo() const;
+	///
+	bool docbookabstract() const { return docbookabstract_; }
+	///
+	std::string const & docbookwrappertag() const;
+	///
+	std::string const & docbookwrapperattr() const;
+	///
+	std::string const & docbookwrappertagtype() const;
+	///
+	bool docbookwrappermergewithprevious() const { return docbookwrappermergewithprevious_; }
+	///
+	std::string const & docbooksectiontag() const;
+	///
+	bool docbooksection() const { return docbooksection_; }
+	///
+	std::string const & docbookitemwrappertag() const;
+	///
+	std::string const & docbookitemwrapperattr() const;
+	///
+	std::string const & docbookitemwrappertagtype() const;
+	///
+	std::string const & docbookitemlabeltag() const;
+	///
+	std::string const & docbookitemlabelattr() const;
+	///
+	std::string const & docbookitemlabeltagtype() const;
+	///
+	std::string const & docbookiteminnertag() const;
+	///
+	std::string const & docbookiteminnerattr() const;
+	///
+	std::string const & docbookiteminnertagtype() const;
+	///
+	std::string const & docbookitemtag() const;
+	///
+	std::string const & docbookitemattr() const;
+	///
+	std::string const & docbookitemtagtype() const;
+	///
+	std::string const & docbookforceabstracttag() const;
+	///
+	bool docbooknofontinside() const { return docbooknofontinside_; }
+	///
+	bool docbookgeneratetitle() const { return docbookgeneratetitle_; }
 	///
 	bool isParagraph() const { return latextype == LATEX_PARAGRAPH; }
 	///
@@ -204,13 +284,18 @@ public:
 	bool labelIsInline() const {
 		return labeltype == LABEL_STATIC
 			|| labeltype == LABEL_SENSITIVE
-		  || labeltype == LABEL_ENUMERATE
+			|| labeltype == LABEL_ENUMERATE
 			|| labeltype == LABEL_ITEMIZE;
 	}
 	bool labelIsAbove() const {
 		return labeltype == LABEL_ABOVE
 			|| labeltype == LABEL_CENTERED
-		  || labeltype == LABEL_BIBLIO;
+			|| labeltype == LABEL_BIBLIO;
+	}
+	bool isNumHeadingLabelType() const {
+		return labeltype == LABEL_ABOVE
+			|| labeltype == LABEL_CENTERED
+			|| labeltype == LABEL_STATIC;
 	}
 	///
 	bool addToToc() const { return add_to_toc_; }
@@ -311,6 +396,15 @@ public:
 	/** true when the fragile commands in the paragraph need to be
 	    \protect'ed. */
 	bool needprotect;
+	/** true when the verbatim stuff of this layout needs to be
+	    \cprotect'ed. */
+	bool needcprotect;
+  	/** true when the verbatim stuff of this layout never should be
+	    \cprotect'ed. */
+	bool nocprotect;
+	/** true when specific commands in this paragraph need to be
+	    protected in an \mbox. */
+	bool needmboxprotect;
 	/// true when empty paragraphs should be kept.
 	bool keepempty;
 	/// Type of LaTeX object
@@ -323,17 +417,12 @@ public:
 	docstring counter;
 	/// Resume counter?
 	bool resumecounter;
-	/// Step master counter?
-	bool stepmastercounter;
+	/// Step parent counter?
+	bool stepparentcounter;
 	/// Prefix to use when creating labels
 	docstring refprefix;
 	/// Depth of XML command
 	int commanddepth;
-
-	/// Return a pointer on a new layout suitable to describe a caption.
-	/// FIXME: remove this eventually. This is only for tex2lyx
-	/// until it has proper support for the caption inset (JMarc)
-	static Layout * forCaption();
 
 	/// Is this spellchecked?
 	bool spellcheck;
@@ -353,7 +442,7 @@ public:
 private:
 	/// Reads a layout definition from file
 	/// \return true on success.
-	bool readIgnoreForcelocal(Lexer &, TextClass const &);
+	bool readIgnoreForcelocal(Lexer &, TextClass const &, bool validating);
 	/// generates the default CSS for this layout
 	void makeDefaultCSS() const;
 	///
@@ -416,9 +505,13 @@ private:
 	///
 	/// Defaults to "div".
 	mutable std::string htmltag_;
-	/// Additional attributes for inclusion with the start tag. Defaults
-	/// to: class="layoutname".
-	mutable std::string htmlattr_;
+	/// Additional attributes for inclusion with the start tag.
+	/// Note that the CSS class is handled separately.
+	std::string htmlattr_;
+	/// The CSS class to use. Calculated from the layout name if not given.
+	mutable std::string htmlclass_;
+	/// cached
+	mutable std::string htmlfullattrs_;
 	/// Tag for individual paragraphs in an environment. In lists, this
 	/// would be something like "li". But it also needs to be set for
 	/// quotation, e.g., since the paragraphs in a quote need to be
@@ -443,8 +536,75 @@ private:
 	///    <item><label>...</label>...</item>
 	/// The latter is the default.
 	bool htmllabelfirst_;
+	/// Is this to be output with the toc?
+	bool htmlintoc_;
 	/// CSS information needed by this layout.
 	docstring htmlstyle_;
+	/// DocBook tag corresponding to this layout.
+	mutable std::string docbooktag_;
+	/// Roles to add to docbooktag_, if any (default: none).
+	mutable std::string docbookattr_;
+	/// DocBook tag type corresponding to this layout (block, paragraph, or inline; default: block).
+	mutable std::string docbooktagtype_;
+	/// DocBook inner tag corresponding to this layout.
+	mutable std::string docbookinnertag_;
+	/// Roles to add to docbookinnertag_, if any (default: none).
+	mutable std::string docbookinnerattr_;
+	/// DocBook inner-tag type corresponding to this layout (block, paragraph, or inline; default: block).
+	mutable std::string docbookinnertagtype_;
+	/// DocBook tag corresponding to this item (mainly for lists).
+	mutable std::string docbookitemtag_;
+	/// Roles to add to docbookitemtag_, if any (default: none).
+	mutable std::string docbookitemattr_;
+	/// DocBook tag type corresponding to this item (block, paragraph, or inline; default: block).
+	mutable std::string docbookitemtagtype_;
+	/// DocBook tag corresponding to the wrapper around an item (mainly for lists).
+	mutable std::string docbookitemwrappertag_;
+	/// Roles to add to docbookitemwrappertag_, if any (default: none).
+	mutable std::string docbookitemwrapperattr_;
+	/// DocBook tag type corresponding to the wrapper around an item (block, paragraph, or inline; default: block).
+	mutable std::string docbookitemwrappertagtype_;
+	/// DocBook tag corresponding to this label (mostly for description lists;
+	/// labels in the common sense do not exist with DocBook).
+	mutable std::string docbookitemlabeltag_;
+	/// Roles to add to docbooklabeltag_, if any (default: none).
+	mutable std::string docbookitemlabelattr_;
+	/// DocBook tag corresponding to this label (block, paragraph, or inline; default: block).
+	mutable std::string docbookitemlabeltagtype_;
+	/// DocBook tag to add within the item, around its direct content (mainly for lists).
+	mutable std::string docbookiteminnertag_;
+	/// Roles to add to docbookiteminnertag_, if any (default: none).
+	mutable std::string docbookiteminnerattr_;
+	/// DocBook tag to add within the item, around its direct content (block, paragraph, or inline; default: block).
+	mutable std::string docbookiteminnertagtype_;
+	/// DocBook tag corresponding to this wrapper around the main tag.
+	mutable std::string docbookwrappertag_;
+	/// Roles to add to docbookwrappertag_, if any (default: none).
+	mutable std::string docbookwrapperattr_;
+	/// DocBook tag corresponding to this wrapper around the main tag (block, paragraph, or inline; default: block).
+	mutable std::string docbookwrappertagtype_;
+	/// Whether this wrapper tag may be merged with the previously opened wrapper tag.
+	bool docbookwrappermergewithprevious_;
+	/// Outer tag for this section, only if this layout represent a sectionning item, including chapters
+	/// (default: section).
+	mutable std::string docbooksectiontag_;
+	/// Whether this element should be considered as a section-level element in DocBook.
+	bool docbooksection_;
+	/// Whether this tag must/can/can't go into an <info> tag (default: never, as it only makes sense for metadata).
+	mutable std::string docbookininfo_;
+	/// Whether this paragraph should be considered as abstract. Such paragraphs are output as a part of the document
+	/// abstract element (corresponding to the root tag).
+	bool docbookabstract_;
+	/// Whether this element (root or not) does not accept text without a section (i.e. the first text that is met
+	/// in LyX must be considered as the abstract if this is true); this text must be output with the specific tag
+	/// held by this attribute.
+	mutable std::string docbookforceabstracttag_;
+	/// Whether font tags are allowed inside this tag.
+	bool docbooknofontinside_ = false;
+	/// Whether LyX should create a title on its own, just after the wrapper tag. Typically, this parameter is required
+	/// because the wrapper tag requires a title (like a figure). The generated title will be similar to a LyXHTML label
+	/// (environment type and a number).
+	bool docbookgeneratetitle_ = false;
 	/// Should we generate the default CSS for this layout, even if HTMLStyle
 	/// has been given? Default is false.
 	/// Note that the default CSS is output first, then the user CSS, so it is
@@ -471,7 +631,7 @@ private:
 	/// Are adjacent paragraphs handled as one group?
 	bool par_group_;
 	/// Packages needed for this layout
-	std::set<std::string> requires_;
+	std::set<std::string> required_;
 	/// Layouts that are by default nested after this one
 	std::set<docstring> autonests_;
 	/// Layouts that by auto-nest this one
@@ -480,6 +640,8 @@ private:
 	LaTeXArgMap latexargs_;
 	///
 	LaTeXArgMap postcommandargs_;
+	///
+	LaTeXArgMap listpreamble_;
 	///
 	LaTeXArgMap itemargs_;
 	///

@@ -1,6 +1,6 @@
 # Reference prefixes for theorem environments
 
-Format 66
+Format 104
 
 ModifyStyle Theorem
 	RefPrefix thm
@@ -82,10 +82,6 @@ ModifyStyle Summary
 	RefPrefix sum
 End
 
-ModifyStyle Acknowledgement
-	RefPrefix ack
-End
-
 ModifyStyle Conclusion
 	RefPrefix conc
 End
@@ -93,7 +89,6 @@ End
 ModifyStyle Assumption
 	RefPrefix assu
 End
-
 
 ModifyStyle Question
 	RefPrefix que

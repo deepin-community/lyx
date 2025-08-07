@@ -24,25 +24,22 @@ import sys, os
 
 # Uncomment only what you need to import, please.
 
-#from parser_tools import find_token, find_end_of, find_tokens, \
-#  find_token_exact, find_end_of_inset, find_end_of_layout, \
-#  find_token_backwards, is_in_inset, get_value, get_quoted_value, \
-#  del_token, check_token, get_option_value
+from lyx2lyx_tools import (add_to_preamble, put_cmd_in_ert, get_ert,
+    lyx2latex, lyx2verbatim, length_in_bp, convert_info_insets, insert_document_option,
+    revert_language)
 
-from lyx2lyx_tools import add_to_preamble, put_cmd_in_ert, get_ert, lyx2latex, \
-  lyx2verbatim, length_in_bp, convert_info_insets
-#  insert_to_preamble, latex_length, revert_flex_inset, \
-#  revert_font_attrs, hex2ratio, str2bool
+from parser_tools import (check_token, del_complete_lines,
+    find_end_of_inset, find_end_of_layout, find_nonempty_line, find_re,
+    find_substring, find_token, find_token_backwards, get_containing_layout,
+    get_containing_inset, get_quoted_value, get_value, is_in_inset,
+    get_bool_value, set_bool_value)
 
-from parser_tools import find_token, find_token_backwards, find_re, \
-     find_end_of_inset, find_end_of_layout, find_nonempty_line, \
-     get_containing_layout, get_value, check_token
 
 ####################################################################
 # Private helper functions
 
 def revert_Argument_to_TeX_brace(document, line, endline, n, nmax, environment, opt, nolastopt):
-    '''
+    r"""
     Reverts an InsetArgument to TeX-code
     usage:
     revert_Argument_to_TeX_brace(document, LineOfBegin, LineOfEnd, StartArgument, EndArgument, isEnvironment, isOpt, notLastOpt)
@@ -53,7 +50,7 @@ def revert_Argument_to_TeX_brace(document, line, endline, n, nmax, environment, 
     isEnvironment must be true, if the layout is for a LaTeX environment
     isOpt must be true, if the argument is an optional one
     notLastOpt must be true if the argument is mandatory and followed by optional ones
-    '''
+    """
     lineArg = 0
     wasOpt = False
     while lineArg != -1 and n < nmax + 1:
@@ -74,11 +71,8 @@ def revert_Argument_to_TeX_brace(document, line, endline, n, nmax, environment, 
           l = endInset + 1
         if environment == False:
           if opt == False:
-            if nolastopt == False:
-              document.body[endInset - 2 : endInset + 1] = put_cmd_in_ert("}{")
-            else:
-              document.body[endInset - 2 : endInset + 1] = put_cmd_in_ert("}")
-            del(document.body[lineArg : beginPlain + 1])
+            document.body[endInset - 2 : endInset + 1] = put_cmd_in_ert("}")
+            document.body[lineArg : beginPlain + 1] = put_cmd_in_ert("{")
             wasOpt = False
           else:
             document.body[endInset - 2 : endInset + 1] = put_cmd_in_ert("]")
@@ -353,7 +347,8 @@ def convert_parbreak(document):
             return
         lay = get_containing_layout(document.body, i)
         if lay == False:
-            document.warning("Malformed LyX document: Can't convert separator inset at line " + str(i))
+            document.warning("Malformed LyX document: "
+                             "Can't convert separator inset at line %d"%i)
             i += 1
             continue
         if lay[0] == "Standard":
@@ -604,7 +599,7 @@ def revert_question_env(document):
 
         document.body[i : i + 1] = ["\\begin_layout Standard", ""] + begcmd
 
-        add_to_preamble(document, "\\providecommand{\questionname}{Question}")
+        add_to_preamble(document, "\\providecommand{\\questionname}{Question}")
 
         if starred:
             add_to_preamble(document, "\\theoremstyle{plain}\n" \
@@ -623,95 +618,101 @@ def convert_dashes(document):
         return
 
     i = 0
-    while i < len(document.body):
-        words = document.body[i].split()
-        if (len(words) > 1 and words[0] == "\\begin_inset"
-            and (words[1] in ["CommandInset", "ERT", "External", "Formula",
-                              "FormulaMacro", "Graphics", "IPA", "listings"]
-                 or ' '.join(words[1:]) == "Flex Code")):
-            # must not replace anything in insets that store LaTeX contents in .lyx files
-            # (math and command insets without overridden read() and write() methods
-            # filtering out IPA makes Text::readParToken() more simple
-            # skip ERT as well since it is not needed there
-            # Flex Code is logical markup, typically rendered as typewriter
-            j = find_end_of_inset(document.body, i)
-            if j == -1:
-                document.warning("Malformed LyX document: Can't find end of " + words[1] + " inset at line " + str(i))
-                i += 1
-            else:
-                i = j
+    while True:
+        i = find_substring(document.body, "--", i+1)
+        if i == -1:
+            break
+        line = document.body[i]
+        # skip label width string (bug 10243):
+        if line.startswith("\\labelwidthstring"):
             continue
-        if document.body[i] == "\\begin_layout LyX-Code":
-            j = find_end_of_layout(document.body, i)
-            if j == -1:
-                document.warning("Malformed LyX document: "
-                    "Can't find end of %s layout at line %d" % (words[1],i))
-                i += 1
-            else:
-                i = j
+        # Do not touch hyphens in some insets:
+        try:
+            value, start, end = get_containing_inset(document.body, i)
+        except TypeError:
+            # False means no (or malformed) containing inset
+            value, start, end = "no inset", -1, -1
+        # We must not replace anything in insets that store LaTeX contents in .lyx files
+        # (math and command insets without overridden read() and write() methods.
+        # Filtering out IPA and ERT makes Text::readParToken() more simple,
+        # Flex Code is logical markup, typically rendered as typewriter
+        if (value.split()[0] in ["CommandInset", "ERT", "External", "Formula",
+                                 "FormulaMacro", "Graphics", "IPA", "listings"]
+            or value in ["Flex Code", "Flex URL"]):
+            i = end
             continue
+        try:
+            layout, start, end, j = get_containing_layout(document.body, i)
+        except TypeError: # no (or malformed) containing layout
+            document.warning("Malformed LyX document: "
+                             "Can't find layout at line %d" % i)
+            continue
+        if layout == "LyX-Code":
+            i = end
+            continue
+        # We can have an arbitrary number of consecutive hyphens.
+        # Replace as LaTeX does: First try emdash, then endash
+        line = line.replace("---", "\\threehyphens\n")
+        line = line.replace("--", "\\twohyphens\n")
+        document.body[i:i+1] = line.split('\n')
 
-        if len(words) > 0 and words[0] in ["\\leftindent", "\\paragraph_spacing", "\\align", "\\labelwidthstring"]:
-            # skip paragraph parameters (bug 10243)
-            i += 1
-            continue
-        while True:
-            j = document.body[i].find("--")
-            if j == -1:
-                break
-            front = document.body[i][:j]
-            back = document.body[i][j+2:]
-            # We can have an arbitrary number of consecutive hyphens.
-            # These must be split into the corresponding number of two and three hyphens
-            # We must match what LaTeX does: First try emdash, then endash, then single hyphen
-            if back.find("-") == 0:
-                back = back[1:]
-                if len(back) > 0:
-                    document.body.insert(i+1, back)
-                document.body[i] = front + "\\threehyphens"
-            else:
-                if len(back) > 0:
-                    document.body.insert(i+1, back)
-                document.body[i] = front + "\\twohyphens"
-        i += 1
+    # remove ligature breaks between dashes
+    i = 0
+    while True:
+        i = find_substring(document.body,
+                           r"-\SpecialChar \textcompwordmark{}", i+1)
+        if i == -1:
+            break
+        if document.body[i+1].startswith("-"):
+            document.body[i] = document.body[i].replace(
+                r"\SpecialChar \textcompwordmark{}", document.body.pop(i+1))
 
 
 def revert_dashes(document):
-    "convert \\twohyphens and \\threehyphens to -- and ---"
+    """
+    Remove preamble code from 2.3->2.2 conversion.
+    Prevent ligatures of existing --- and --.
+    Revert \\twohyphens and \\threehyphens to -- and ---.
+    """
+    del_complete_lines(document.preamble,
+                       ['% Added by lyx2lyx',
+                        r'\renewcommand{\textendash}{--}',
+                        r'\renewcommand{\textemdash}{---}'])
 
-    # eventually remove preamble code from 2.3->2.2 conversion:
-    for i, line in enumerate(document.preamble):
-        if i > 1 and line == r'\renewcommand{\textemdash}{---}':
-            if (document.preamble[i-1] == r'\renewcommand{\textendash}{--}'
-                and document.preamble[i-2] == '% Added by lyx2lyx'):
-                del document.preamble[i-2:i+1]
+    # Insert ligature breaks to prevent ligation of hyphens to dashes:
     i = 0
-    while i < len(document.body):
-        words = document.body[i].split()
-        if len(words) > 1 and words[0] == "\\begin_inset" and \
-           words[1] in ["CommandInset", "ERT", "External", "Formula", "Graphics", "IPA", "listings"]:
-            # see convert_dashes
-            j = find_end_of_inset(document.body, i)
-            if j == -1:
-                document.warning("Malformed LyX document: Can't find end of " + words[1] + " inset at line " + str(i))
-                i += 1
-            else:
-                i = j
+    while True:
+        i = find_substring(document.body, "--", i+1)
+        if i == -1:
+            break
+        line = document.body[i]
+        # skip label width string (bug 10243):
+        if line.startswith("\\labelwidthstring"):
             continue
-        replaced = False
-        if document.body[i].find("\\twohyphens") >= 0:
-            document.body[i] = document.body[i].replace("\\twohyphens", "--")
-            replaced = True
-        if document.body[i].find("\\threehyphens") >= 0:
-            document.body[i] = document.body[i].replace("\\threehyphens", "---")
-            replaced = True
-        if replaced and i+1 < len(document.body) and \
-           (document.body[i+1].find("\\") != 0 or \
-            document.body[i+1].find("\\twohyphens") == 0 or
-            document.body[i+1].find("\\threehyphens") == 0) and \
-           len(document.body[i]) + len(document.body[i+1]) <= 80:
-            document.body[i] = document.body[i] + document.body[i+1]
-            document.body[i+1:i+2] = []
+        # do not touch hyphens in some insets (cf. convert_dashes):
+        try:
+            value, start, end = get_containing_inset(document.body, i)
+        except TypeError:
+            # False means no (or malformed) containing inset
+            value, start, end = "no inset", -1, -1
+        if (value.split()[0] in ["CommandInset", "ERT", "External", "Formula",
+                                 "FormulaMacro", "Graphics", "IPA", "listings"]
+            or value == "Flex URL"):
+            i = end
+            continue
+        line = line.replace("--", "-\\SpecialChar \\textcompwordmark{}\n-")
+        document.body[i:i+1] = line.split('\n')
+
+    # Revert \twohyphens and \threehyphens:
+    i = 1
+    while i < len(document.body):
+        line = document.body[i]
+        if not line.endswith("hyphens"):
+            i +=1
+        elif line.endswith("\\twohyphens") or line.endswith("\\threehyphens"):
+            line = line.replace("\\twohyphens", "--")
+            line = line.replace("\\threehyphens", "---")
+            document.body[i] = line + document.body.pop(i+1)
         else:
             i += 1
 
@@ -736,27 +737,26 @@ def convert_phrases(document):
     if document.backend != "latex":
         return
 
-    for phrase in phrases:
-        i = 0
-        while i < len(document.body):
-            if document.body[i] and document.body[i][0] == "\\":
-                words = document.body[i].split()
-                if len(words) > 1 and words[0] == "\\begin_inset" and \
-                words[1] in ["CommandInset", "External", "Formula", "Graphics", "listings"]:
-                    # must not replace anything in insets that store LaTeX contents in .lyx files
-                    # (math and command insets without overridden read() and write() methods)
-                    j = find_end_of_inset(document.body, i)
-                    if j == -1:
-                        document.warning("Malformed LyX document: Can't find end of inset at line " + str(i))
-                        i += 1
-                    else:
-                        i = j
-                else:
+    i = 0
+    while i < len(document.body):
+        if document.body[i] and document.body[i][0] == "\\":
+            words = document.body[i].split()
+            if len(words) > 1 and words[0] == "\\begin_inset" and \
+            words[1] in ["CommandInset", "External", "Formula", "Graphics", "listings"]:
+                # must not replace anything in insets that store LaTeX contents in .lyx files
+                # (math and command insets without overridden read() and write() methods)
+                j = find_end_of_inset(document.body, i)
+                if j == -1:
+                    document.warning("Malformed LyX document: Can't find end of inset at line %d" % (i))
                     i += 1
-                continue
+                else:
+                    i = j
+            else:
+                i += 1
+            continue
+        for phrase in phrases:
             j = document.body[i].find(phrase)
             if j == -1:
-                i += 1
                 continue
             if not is_part_of_converted_phrase(document.body[i], j, phrase):
                 front = document.body[i][:j]
@@ -765,7 +765,7 @@ def convert_phrases(document):
                     document.body.insert(i+1, back)
                 # We cannot use SpecialChar since we do not know whether we are outside passThru
                 document.body[i] = front + "\\SpecialCharNoPassThru \\" + phrase
-            i += 1
+        i += 1
 
 
 def revert_phrases(document):
@@ -853,20 +853,7 @@ def revert_specialchar(document):
 def revert_georgian(document):
     "Set the document language to English but assure Georgian output"
 
-    if document.language == "georgian":
-        document.language = "english"
-        i = find_token(document.header, "\\language georgian", 0)
-        if i != -1:
-    	    document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-    	    document.header[j] = "\\language_package babel"
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-    	    document.header[k] = document.header[k].replace("\\options", "\\options georgian,")
-        else:
-    	    l = find_token(document.header, "\\use_default_options", 0)
-    	    document.header.insert(l + 1, "\\options georgian")
+    revert_language(document, "georgian", "georgian", "")
 
 
 def revert_sigplan_doi(document):
@@ -1141,12 +1128,12 @@ def revert_BoxFeatures(document):
         beg = document.body[i+2].find('"');
         end = document.body[i+2].rfind('"');
         shadowsize = document.body[i+2][beg+1:end];
-        # delete the specification
-        del document.body[i:i+3]
         # output ERT
         # first output the closing brace
         if shadowsize != defaultShadow or separation != defaultSep or thickness != defaultThick:
-            document.body[einset -1 : einset - 1] = put_cmd_in_ert("}")
+            document.body[einset + 1 : einset + 1] = put_cmd_in_ert("}")
+        # delete the specification
+        del document.body[i:i+3]
         # we have now the problem that if there is already \(f)colorbox in ERT around the inset
         # the ERT from this routine must be around it
         regexp = re.compile(r'^.*colorbox{.*$')
@@ -1255,67 +1242,74 @@ def revert_textcolor(document):
 
 
 def convert_colorbox(document):
-    " adds color settings for boxes "
-
-    i = 0
+    "Add color settings for boxes."
+    i = 1
     while True:
         i = find_token(document.body, "shadowsize", i)
         if i == -1:
             return
-        document.body[i+1:i+1] = ['framecolor "black"', 'backgroundcolor "none"']
-        i = i + 3
+        # check whether this is really a LyX Box setting
+        start, end = is_in_inset(document.body, i, "\\begin_inset Box")
+        if (end == -1 or
+            find_token(document.body, "\\begin_layout", start, i) != -1):
+            i += 1
+            continue
+        document.body[i+1:i+1] = ['framecolor "black"',
+                                  'backgroundcolor "none"']
+        i += 3
 
 
 def revert_colorbox(document):
-    " outputs color settings for boxes as TeX code "
-    
+    """Change box color settings to LaTeX code."""
+
     i = 0
-    defaultframecolor = "black"
-    defaultbackcolor = "none"
     while True:
-        i = find_token(document.body, "framecolor", i)
+        i = find_token(document.body, "\\begin_inset Box", i)
         if i == -1:
             return
-        binset = find_token(document.body, "\\begin_inset Box", i - 14)
-        if binset == -1:
-            return
-        einset = find_end_of_inset(document.body, binset)
+
+        j = find_end_of_inset(document.body, i)
+        k = find_token(document.body, "\\begin_layout", i, j)
+        if k == -1:
+            document.warning("Malformed LyX document: no layout in Box inset!")
+            i += 1
+            continue
+        # Get and delete colour settings:
+        framecolor = get_quoted_value(document.body, "framecolor", i, k, delete=True)
+        backcolor = get_quoted_value(document.body, "backgroundcolor", i, k + 1, delete=True)
+        if not framecolor or not backcolor:
+            document.warning("Malformed LyX document: color options not found in Box inset!")
+            i += 1
+            continue
+        if framecolor == "black" and backcolor == "none": # default values
+            i += 1
+            continue
+
+        # Emulate non-default colours with LaTeX code:
+        einset = find_end_of_inset(document.body, i)
         if einset == -1:
             document.warning("Malformed LyX document: Can't find end of box inset!")
+            i += 1
             continue
-        # read out the values
-        beg = document.body[i].find('"');
-        end = document.body[i].rfind('"');
-        framecolor = document.body[i][beg+1:end];
-        beg = document.body[i + 1].find('"');
-        end = document.body[i + 1].rfind('"');
-        backcolor = document.body[i+1][beg+1:end];
-        # delete the specification
-        del document.body[i:i + 2]
-        # output ERT
-        # first output the closing brace
-        if framecolor != defaultframecolor or backcolor != defaultbackcolor:
-            add_to_preamble(document, ["\\@ifundefined{rangeHsb}{\\usepackage{xcolor}}{}"])
-            document.body[einset : einset] = put_cmd_in_ert("}")
-        # determine the box type
-        isBox = find_token(document.body, "\\begin_inset Box Boxed", binset)
-        # now output the box commands
-        if (framecolor != defaultframecolor and isBox == binset) or (backcolor != defaultbackcolor and isBox == binset):
-            document.body[i - 14 : i - 14] = put_cmd_in_ert("\\fcolorbox{" + framecolor + "}{" + backcolor + "}{")
-            # in the case we must also change the box type because the ERT code adds a frame
-            document.body[i - 4] = "\\begin_inset Box Frameless"
-            # if has_inner_box 0 we must set it and use_makebox to 1
-            ibox = find_token(document.body, "has_inner_box", i - 4)
-            if ibox == -1 or ibox != i - 1:
-                document.warning("Malformed LyX document: Can't find has_inner_box statement!")
-                continue
-            # read out the value
-            innerbox = document.body[ibox][-1:];
-            if innerbox == "0":
-                document.body[ibox] = "has_inner_box 1"
-                document.body[ibox + 3] = "use_makebox 1"
-        if backcolor != defaultbackcolor and isBox != binset:
-            document.body[i - 14 : i - 14] =  put_cmd_in_ert("\\colorbox{" + backcolor + "}{")
+        add_to_preamble(document, ["\\@ifundefined{rangeHsb}{\\usepackage{xcolor}}{}"])
+        # insert the closing brace first (keeps indices 'i' and 'einset' valid)
+        document.body[einset+1:einset+1] = put_cmd_in_ert("}")
+        # now insert the (f)color box command
+        if ("Box Boxed" in document.body[i]): # framed box, use \fcolorbox
+            # change the box type (frame added by \fcolorbox)
+            document.body[i] = "\\begin_inset Box Frameless"
+            # ensure an inner box:
+            try:
+                if not set_bool_value(document.body, "has_inner_box", True, i+3, i+4):
+                    set_bool_value(document.body, "use_makebox", True, i+6, i+7)
+            except ValueError:
+                document.warning("Malformed LyX document: 'has_inner_box' or "
+                                 "'use_makebox' option not found in box inset!")
+            ertinset = put_cmd_in_ert("\\fcolorbox{%s}{%s}{"% (framecolor, backcolor))
+        else:
+            ertinset = put_cmd_in_ert("\\colorbox{%s}{" % backcolor)
+        document.body[i:i] = ertinset + [""]
+        i += 13
 
 
 def revert_mathmulticol(document):
@@ -1360,215 +1354,127 @@ def revert_jss(document):
     if document.textclass != "jss":
         return
 
-    h = 0
-    m = 0
-    j = 0
-    k = 0
-    n = 0
+    # at first revert the inset layouts because
+    # they can be part of the In_Preamble layouts
+    il_dict = {
+      "Pkg"      :  "pkg",
+      "Proglang" :  "proglang",
+      "Code"     :  "code",
+      "E-mail"   :  "email",
+      "URL"      :  "url",
+      }
+    for iltype in il_dict.keys():
+        i = 0
+        while True:
+            i = find_token(document.body, "\\begin_inset Flex " + iltype, i)
+            if i == -1:
+                break
+
+            if document.body[i] != "\\begin_inset Flex " + iltype:
+                # Not an exact match!
+                i += 1
+                continue
+
+            end = find_end_of_inset(document.body, i)
+            if end == -1:
+                document.warning("Malformed LyX document: No end of Flex " + iltype + " found!")
+                i += 1
+                continue
+            document.body[end - 2 : end + 1] = put_cmd_in_ert("}")
+            document.body[i : i + 4] = put_cmd_in_ert("\\%s{" % il_dict[iltype])
+            i += 1
+
+    # now revert the In_Preamble layouts
+    ipl_dict = {
+      "Title"          :  "title",
+      "Author"         :  "author",
+      "Plain Author"   :  "Plainauthor",
+      "Plain Title"    :  "Plaintitle",
+      "Short Title"    :  "Shorttitle",
+      "Abstract"       :  "Abstract",
+      "Keywords"       :  "Keywords",
+      "Plain Keywords" :  "Plainkeywords",
+      "Address"        :  "Address",
+      }
+    for ipltype in ipl_dict.keys():
+        i = 0
+        while True:
+            i = find_token(document.body, "\\begin_layout " + ipltype, i)
+            if i == -1:
+                break
+
+            end = find_end_of_layout(document.body, i)
+            if end == -1:
+                document.warning("Malformed LyX document: Can't find end of " + ipltype + " layout")
+                i += 1
+                continue
+
+            content = lyx2latex(document, document.body[i:end + 1])
+            add_to_preamble(document, ["\\" + ipl_dict[ipltype] + "{" + content + "}"])
+            del document.body[i:end + 1]
+            i += 1
+
+    # Now code chunks
+    i = 0
     while True:
-      # at first revert the inset layouts because they can be part of the In_Preamble layouts
-      while m != -1 or j != -1 or h != -1 or k != -1 or n != -1:
-        # \pkg
-        if h != -1:
-          h = find_token(document.body, "\\begin_inset Flex Pkg", h)
-        if h != -1:
-          endh = find_end_of_inset(document.body, h)
-          document.body[endh - 2 : endh + 1] = put_cmd_in_ert("}")
-          document.body[h : h + 4] = put_cmd_in_ert("\\pkg{")
-          h = h + 5
-        # \proglang
-        if m != -1:
-          m = find_token(document.body, "\\begin_inset Flex Proglang", m)
-        if m != -1:
-          endm = find_end_of_inset(document.body, m)
-          document.body[endm - 2 : endm + 1] = put_cmd_in_ert("}")
-          document.body[m : m + 4] = put_cmd_in_ert("\\proglang{")
-          m = m + 5
-        # \code
-        if j != -1:
-          j = find_token(document.body, "\\begin_inset Flex Code", j)
-        if j != -1:
-          # assure that we are not in a Code Chunk inset
-          if document.body[j][-1] == "e":
-              endj = find_end_of_inset(document.body, j)
-              document.body[endj - 2 : endj + 1] = put_cmd_in_ert("}")
-              document.body[j : j + 4] = put_cmd_in_ert("\\code{")
-              j = j + 5
-          else:
-              j = j + 1
-        # \email
-        if k != -1:
-          k = find_token(document.body, "\\begin_inset Flex E-mail", k)
-        if k != -1:
-          endk = find_end_of_inset(document.body, k)
-          document.body[endk - 2 : endk + 1] = put_cmd_in_ert("}")
-          document.body[k : k + 4] = put_cmd_in_ert("\\email{")
-          k = k + 5
-        # \url
-        if n != -1:
-          n = find_token(document.body, "\\begin_inset Flex URL", n)
-        if n != -1:
-          endn = find_end_of_inset(document.body, n)
-          document.body[endn - 2 : endn + 1] = put_cmd_in_ert("}")
-          document.body[n : n + 4] = put_cmd_in_ert("\\url{")
-          n = n + 5
-      # now revert the In_Preamble layouts
-      # \title
-      i = find_token(document.body, "\\begin_layout Title", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Title layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\title{" + content + "}"])
-      del document.body[i:j + 1]
-      # \author
-      i = find_token(document.body, "\\begin_layout Author", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Author layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\author{" + content + "}"])
-      del document.body[i:j + 1]
-      # \Plainauthor
-      i = find_token(document.body, "\\begin_layout Plain Author", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Plain Author layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\Plainauthor{" + content + "}"])
-      del document.body[i:j + 1]
-      # \Plaintitle
-      i = find_token(document.body, "\\begin_layout Plain Title", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Plain Title layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\Plaintitle{" + content + "}"])
-      del document.body[i:j + 1]
-      # \Shorttitle
-      i = find_token(document.body, "\\begin_layout Short Title", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Short Title layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\Shorttitle{" + content + "}"])
-      del document.body[i:j + 1]
-      # \Abstract
-      i = find_token(document.body, "\\begin_layout Abstract", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Abstract layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\Abstract{" + content + "}"])
-      del document.body[i:j + 1]
-      # \Keywords
-      i = find_token(document.body, "\\begin_layout Keywords", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Keywords layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\Keywords{" + content + "}"])
-      del document.body[i:j + 1]
-      # \Plainkeywords
-      i = find_token(document.body, "\\begin_layout Plain Keywords", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Plain Keywords layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\Plainkeywords{" + content + "}"])
-      del document.body[i:j + 1]
-      # \Address
-      i = find_token(document.body, "\\begin_layout Address", 0)
-      if i == -1:
-        return
-      j = find_end_of_layout(document.body, i)
-      if j == -1:
-        document.warning("Malformed LyX document: Can't find end of Address layout")
-        i += 1
-        continue
-      content = lyx2latex(document, document.body[i:j + 1])
-      add_to_preamble(document, ["\\Address{" + content + "}"])
-      del document.body[i:j + 1]
-      # finally handle the code layouts
-      h = 0
-      m = 0
-      j = 0
-      k = 0
-      while m != -1 or j != -1 or h != -1 or k != -1:
         # \CodeChunk
-        if h != -1:
-          h = find_token(document.body, "\\begin_inset Flex Code Chunk", h)
-        if h != -1:
-          endh = find_end_of_inset(document.body, h)
-          document.body[endh : endh + 1] = put_cmd_in_ert("\\end{CodeChunk}")
-          document.body[h : h + 3] = put_cmd_in_ert("\\begin{CodeChunk}")
-          document.body[h - 1 : h] = ["\\begin_layout Standard"]
-          h = h + 1
-        # \CodeInput
-        if j != -1:
-          j = find_token(document.body, "\\begin_layout Code Input", j)
-        if j != -1:
-          endj = find_end_of_layout(document.body, j)
-          document.body[endj : endj + 1] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[endj + 3 : endj + 4] = put_cmd_in_ert("\\end{CodeInput}")
-          document.body[endj + 13 : endj + 13] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[j + 1 : j] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[j : j + 1] = put_cmd_in_ert("\\begin{CodeInput}")
-          j = j + 1
-        # \CodeOutput
-        if k != -1:
-          k = find_token(document.body, "\\begin_layout Code Output", k)
-        if k != -1:
-          endk = find_end_of_layout(document.body, k)
-          document.body[endk : endk + 1] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[endk + 3 : endk + 4] = put_cmd_in_ert("\\end{CodeOutput}")
-          document.body[endk + 13 : endk + 13] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[k + 1 : k] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[k : k + 1] = put_cmd_in_ert("\\begin{CodeOutput}")
-          k = k + 1
-        # \Code
-        if m != -1:
-          m = find_token(document.body, "\\begin_layout Code", m)
-        if m != -1:
-          endm = find_end_of_layout(document.body, m)
-          document.body[endm : endm + 1] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[endm + 3 : endm + 4] = put_cmd_in_ert("\\end{Code}")
-          document.body[endm + 13 : endm + 13] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[m + 1 : m] = ["\\end_layout", "", "\\begin_layout Standard"]
-          document.body[m : m + 1] = put_cmd_in_ert("\\begin{Code}")
-          m = m + 1
+        i = find_token(document.body, "\\begin_inset Flex Code Chunk", i)
+        if i == -1:
+            break
+
+        end = find_end_of_inset(document.body, i)
+        if end == -1:
+            document.warning("Malformed LyX document: No end of Flex Code Chunk found!")
+            i += 1
+            continue
+
+        document.body[end : end + 1] = ["\\end_layout", "", "\\begin_layout Standard"] + put_cmd_in_ert("\\end{CodeChunk}")
+        document.body[i : i + 2] = put_cmd_in_ert("\\begin{CodeChunk}")
+        i += 1
+
+    # finally handle the code layouts
+    codes_dict = {
+        "Code Input"  :  "CodeInput",
+        "Code Output" :  "CodeOutput",
+        "Code"        :  "Code",
+        }
+    for ctype in codes_dict.keys():
+        i = 0
+        while True:
+            i = find_token(document.body, "\\begin_layout " + ctype, i)
+            if i == -1:
+                break
+            if document.body[i] != "\\begin_layout " + ctype:
+                # Not an exact match!
+                i += 1
+                continue
+            end = find_end_of_layout(document.body, i)
+            if end == -1:
+                document.warning("Malformed LyX document: No end of " + ctype + " layout found!")
+                i += 1
+                continue
+            seq_end = end
+            # Handle subsequent layouts
+            while True:
+                j = find_token(document.body, "\\begin_layout ", seq_end)
+                if j == -1 or document.body[j] != "\\begin_layout " + ctype:
+                    break
+                this_end = find_end_of_layout(document.body, j)
+                if this_end == -1:
+                    document.warning("Malformed LyX document: No end of " + ctype + " layout found!")
+                    j += 1
+                    continue
+                seq_end = this_end
+            document.body[seq_end + 1 : seq_end + 1] = ["\\end_inset", "\\end_layout", "", "\\begin_layout Standard"] + put_cmd_in_ert("\\end{%s}" % codes_dict[ctype])
+            if seq_end != end:
+                k = i + 1
+                while k < seq_end:
+                    document.body[k] = document.body[k].replace("\\begin_layout " + ctype, "\\begin_layout Plain Layout")
+                    k += 1
+            document.body[i : i + 1] = ["\\end_layout", "", "\\begin_layout Standard"] \
+                + put_cmd_in_ert("\\begin{%s}" % codes_dict[ctype]) \
+                + ["\\end_layout", "", "\\begin_layout Standard", "", "\\begin_inset ERT", "status open", "", "\\begin_layout Plain Layout"]
+            i += 1
 
 
 def convert_subref(document):
@@ -1724,190 +1630,387 @@ def revert_external_bbox(document):
 
 
 def revert_tcolorbox_1(document):
-  " Reverts the Flex:Subtitle inset of tcolorbox to TeX-code "
-  i = -1
-  while True:
-    i = find_token(document.header, "tcolorbox", i)
+    " Reverts the Flex:Subtitle inset of tcolorbox to TeX-code "
+
+    i = find_token(document.header, "tcolorbox", 0)
     if i == -1:
-      break
-    else:
-      flex = 0
-      flexEnd = -1
-      flex = find_token(document.body, "\\begin_inset Flex Subtitle", flex)
-      if flex == -1:
-        return flexEnd
-      flexEnd = find_end_of_inset(document.body, flex)
-      wasOpt = revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, False, True, False)
-      revert_Argument_to_TeX_brace(document, flex, 0, 2, 2, False, False, False)
-      flexEnd = find_end_of_inset(document.body, flex)
-      if wasOpt == True:
-        document.body[flex + 0 : flex + 4] = put_cmd_in_ert("\\tcbsubtitle")
-      else:
-        document.body[flex + 0 : flex + 4] = put_cmd_in_ert("\\tcbsubtitle{")
-      document.body[flexEnd + 4 : flexEnd + 7] = put_cmd_in_ert("}")
-      flex += 1
+        return
+
+    flex = 0
+
+    while True:
+        flex = find_token(document.body, "\\begin_inset Flex Subtitle", flex)
+        if flex == -1:
+            return
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Subtitle found.")
+            flex += 1
+            continue
+
+        wasOpt = revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, False, True, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Subtitle found.")
+            flex += 1
+            continue
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 2, 2, False, False, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Subtitle found.")
+            flex += 1
+            continue
+
+        bp = find_token(document.body, "\\begin_layout Plain Layout", flex)
+        if bp == -1:
+            document.warning("Malformed LyX document! No Flex Subtitle layout found.")
+            flex += 1
+            continue
+
+        ep = find_end_of_layout(document.body, bp)
+        if ep == -1:
+            document.warning("Malformed LyX document! No end of layout found.")
+            flex += 1
+            continue
+
+        document.body[ep : flexEnd + 1] = put_cmd_in_ert("}")
+        if wasOpt == True:
+            document.body[flex : bp + 1] = put_cmd_in_ert("\\tcbsubtitle")
+        else:
+            document.body[flex : bp + 1] = put_cmd_in_ert("\\tcbsubtitle{")
+        flex += 1
 
 
 def revert_tcolorbox_2(document):
-  " Reverts the Flex:Raster_Color_Box inset of tcolorbox to TeX-code "
-  i = -1
-  while True:
-    i = find_token(document.header, "tcolorbox", i)
+    " Reverts the Flex:Raster_Color_Box inset of tcolorbox to TeX-code "
+
+    i = find_token(document.header, "tcolorbox", 0)
     if i == -1:
-      break
-    else:
-      flex = 0
-      flexEnd = -1
-      flex = find_token(document.body, "\\begin_inset Flex Raster Color Box", flex)
-      if flex == -1:
-        return flexEnd
-      flexEnd = find_end_of_inset(document.body, flex)
-      revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
-      flexEnd = find_end_of_inset(document.body, flex)
-      document.body[flex + 0 : flex + 4] = put_cmd_in_ert("\\begin{tcbraster}")
-      document.body[flexEnd + 4 : flexEnd + 7] = put_cmd_in_ert("\\end{tcbraster}")
-      flex += 1
+        return
+
+    flex = 0
+    while True:
+        flex = find_token(document.body, "\\begin_inset Flex Raster Color Box", flex)
+        if flex == -1:
+            return
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Raster Color Box found.")
+            flex += 1
+            continue
+
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
+
+        bp = find_token(document.body, "\\begin_layout Plain Layout", flex)
+        if bp == -1:
+            document.warning("Malformed LyX document! No plain layout in Raster Color Box found.")
+            flex += 1
+            continue
+
+        ep = find_end_of_layout(document.body, bp)
+        if ep == -1:
+            document.warning("Malformed LyX document! No end of layout found.")
+            flex += 1
+            continue
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Raster Color Box found.")
+            flex += 1
+            continue
+        document.body[ep : flexEnd + 1] = put_cmd_in_ert("\\end{tcbraster}")
+        document.body[flex : bp + 1] = put_cmd_in_ert("\\begin{tcbraster}")
+        flex += 1
 
 
 def revert_tcolorbox_3(document):
-  " Reverts the Flex:Custom_Color_Box_1 inset of tcolorbox to TeX-code "
-  i = -1
-  while True:
-    i = find_token(document.header, "tcolorbox", i)
+    " Reverts the Flex:Custom_Color_Box_1 inset of tcolorbox to TeX-code "
+
+    i = find_token(document.header, "tcolorbox", 0)
     if i == -1:
-      break
-    else:
-      flex = 0
-      flexEnd = -1
-      flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 1", flex)
-      if flex == -1:
-        return flexEnd
-      flexEnd = find_end_of_inset(document.body, flex)
-      revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
-      revert_Argument_to_TeX_brace(document, flex, 0, 2, 2, True, False, False)
-      flexEnd = find_end_of_inset(document.body, flex)
-      document.body[flex + 0 : flex + 4] = put_cmd_in_ert("\\begin{cBoxA}")
-      document.body[flexEnd + 4 : flexEnd + 7] = put_cmd_in_ert("{}\\end{cBoxA}")
-      flex += 1
+        return
+
+    flex = 0
+    while True:
+        flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 1", flex)
+        if flex == -1:
+            return
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 1 found.")
+            flex += 1
+            continue
+
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Subtitle found.")
+            flex += 1
+            continue
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 2, 2, True, False, False)
+
+        bp = find_token(document.body, "\\begin_layout Plain Layout", flex)
+        if bp == -1:
+            document.warning("Malformed LyX document! No plain layout in Custom Color Box 1 found.")
+            flex += 1
+            continue
+
+        ep = find_end_of_layout(document.body, bp)
+        if ep == -1:
+            document.warning("Malformed LyX document! No end of layout found.")
+            flex += 1
+            continue
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 1 found.")
+            flex += 1
+            continue
+
+        document.body[ep : flexEnd + 1] = put_cmd_in_ert("{}\\end{cBoxA}")
+        document.body[flex : bp + 1] = put_cmd_in_ert("\\begin{cBoxA}")
+        flex += 1
 
 
 def revert_tcolorbox_4(document):
-  " Reverts the Flex:Custom_Color_Box_2 inset of tcolorbox to TeX-code "
-  i = -1
-  while True:
-    i = find_token(document.header, "tcolorbox", i)
+    " Reverts the Flex:Custom_Color_Box_2 inset of tcolorbox to TeX-code "
+
+    i = find_token(document.header, "tcolorbox", 0)
     if i == -1:
-      break
-    else:
-      flex = 0
-      flexEnd = -1
-      flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 2", flex)
-      if flex == -1:
-        return flexEnd
-      flexEnd = find_end_of_inset(document.body, flex)
-      revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
-      revert_Argument_to_TeX_brace(document, flex, 0, 2, 2, True, False, False)
-      flexEnd = find_end_of_inset(document.body, flex)
-      document.body[flex + 0 : flex + 4] = put_cmd_in_ert("\\begin{cBoxB}")
-      document.body[flexEnd + 4 : flexEnd + 7] = put_cmd_in_ert("{}\\end{cBoxB}")
-      flex += 1
+        return
+
+    flex = 0
+    while True:
+        flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 2", flex)
+        if flex == -1:
+            return
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 2 found.")
+            flex += 1
+            continue
+
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Subtitle found.")
+            flex += 1
+            continue
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 2, 2, True, False, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 2 found.")
+            flex += 1
+            continue
+
+        bp = find_token(document.body, "\\begin_layout Plain Layout", flex)
+        if bp == -1:
+            document.warning("Malformed LyX document! No plain layout in Custom Color Box 2 found.")
+            flex += 1
+            continue
+
+        ep = find_end_of_layout(document.body, bp)
+        if ep == -1:
+            document.warning("Malformed LyX document! No end of layout found.")
+            flex += 1
+            continue
+
+        document.body[ep : flexEnd + 1] = put_cmd_in_ert("{}\\end{cBoxB}")
+        document.body[flex : bp + 1] = put_cmd_in_ert("\\begin{cBoxB}")
+        flex += 1
 
 
 def revert_tcolorbox_5(document):
-  " Reverts the Flex:Custom_Color_Box_3 inset of tcolorbox to TeX-code "
-  i = -1
-  while True:
-    i = find_token(document.header, "tcolorbox", i)
+    " Reverts the Flex:Custom_Color_Box_3 inset of tcolorbox to TeX-code "
+
+    i = find_token(document.header, "tcolorbox", 0)
     if i == -1:
-      break
-    else:
-      flex = 0
-      flexEnd = -1
-      flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 3", flex)
-      if flex == -1:
-        return flexEnd
-      flexEnd = find_end_of_inset(document.body, flex)
-      revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
-      revert_Argument_to_TeX_brace(document, flex, 0, 2, 2, True, False, False)
-      flexEnd = find_end_of_inset(document.body, flex)
-      document.body[flex + 0 : flex + 4] = put_cmd_in_ert("\\begin{cBoxC}")
-      document.body[flexEnd + 4 : flexEnd + 7] = put_cmd_in_ert("{}\\end{cBoxC}")
-      flex += 1
+        return
+
+    flex = 0
+    while True:
+        flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 3", flex)
+        if flex == -1:
+            return
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 3 found.")
+            flex += 1
+            continue
+
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Subtitle found.")
+            flex += 1
+            continue
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 2, 2, True, False, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 3 found.")
+            flex += 1
+            continue
+
+        bp = find_token(document.body, "\\begin_layout Plain Layout", flex)
+        if bp == -1:
+            document.warning("Malformed LyX document! No plain layout in Custom Color Box 3 found.")
+            flex += 1
+            continue
+
+        ep = find_end_of_layout(document.body, bp)
+        if ep == -1:
+            document.warning("Malformed LyX document! No end of layout found.")
+            flex += 1
+            continue
+
+        document.body[ep : flexEnd + 1] = put_cmd_in_ert("{}\\end{cBoxC}")
+        document.body[flex : bp + 1] = put_cmd_in_ert("\\begin{cBoxC}")
+        flex += 1
 
 
 def revert_tcolorbox_6(document):
-  " Reverts the Flex:Custom_Color_Box_4 inset of tcolorbox to TeX-code "
-  i = -1
-  while True:
-    i = find_token(document.header, "tcolorbox", i)
+    " Reverts the Flex:Custom_Color_Box_4 inset of tcolorbox to TeX-code "
+
+    i = find_token(document.header, "tcolorbox", 0)
     if i == -1:
-      break
-    else:
-      flex = 0
-      flexEnd = -1
-      flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 4", flex)
-      if flex == -1:
-        return flexEnd
-      flexEnd = find_end_of_inset(document.body, flex)
-      revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
-      revert_Argument_to_TeX_brace(document, flex, 0, 2, 2, True, False, False)
-      flexEnd = find_end_of_inset(document.body, flex)
-      document.body[flex + 0 : flex + 4] = put_cmd_in_ert("\\begin{cBoxD}")
-      document.body[flexEnd + 4 : flexEnd + 7] = put_cmd_in_ert("{}\\end{cBoxD}")
-      flex += 1
+        return
+
+    flex = 0
+    while True:
+        flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 4", flex)
+        if flex == -1:
+            return
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 4 found.")
+            flex += 1
+            continue
+
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Subtitle found.")
+            flex += 1
+            continue
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 2, 2, True, False, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 4 found.")
+            flex += 1
+            continue
+
+        bp = find_token(document.body, "\\begin_layout Plain Layout", flex)
+        if bp == -1:
+            document.warning("Malformed LyX document! No plain layout in Custom Color Box 4 found.")
+            flex += 1
+            continue
+
+        ep = find_end_of_layout(document.body, bp)
+        if ep == -1:
+            document.warning("Malformed LyX document! No end of layout found.")
+            flex += 1
+            continue
+
+        document.body[ep : flexEnd + 1] = put_cmd_in_ert("{}\\end{cBoxD}")
+        document.body[flex : bp + 1] = put_cmd_in_ert("\\begin{cBoxD}")
+        flex += 1
 
 
 def revert_tcolorbox_7(document):
-  " Reverts the Flex:Custom_Color_Box_5 inset of tcolorbox to TeX-code "
-  i = -1
-  while True:
-    i = find_token(document.header, "tcolorbox", i)
+    " Reverts the Flex:Custom_Color_Box_5 inset of tcolorbox to TeX-code "
+
+    i = find_token(document.header, "tcolorbox", 0)
     if i == -1:
-      break
-    else:
-      flex = 0
-      flexEnd = -1
-      flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 5", flex)
-      if flex == -1:
-        return flexEnd
-      flexEnd = find_end_of_inset(document.body, flex)
-      revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
-      revert_Argument_to_TeX_brace(document, flex, 0, 2, 2, True, False, False)
-      flexEnd = find_end_of_inset(document.body, flex)
-      document.body[flex + 0 : flex + 4] = put_cmd_in_ert("\\begin{cBoxE}")
-      document.body[flexEnd + 4 : flexEnd + 7] = put_cmd_in_ert("{}\\end{cBoxE}")
-      flex += 1
+        return
+
+    flex = 0
+    while True:
+        flex = find_token(document.body, "\\begin_inset Flex Custom Color Box 5", flex)
+        if flex == -1:
+            return
+
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 5 found.")
+            flex += 1
+            continue
+
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 1, 1, True, True, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Subtitle found.")
+            flex += 1
+            continue
+        revert_Argument_to_TeX_brace(document, flex, flexEnd, 2, 2, True, False, False)
+        flexEnd = find_end_of_inset(document.body, flex)
+        if flexEnd == -1:
+            document.warning("Malformed LyX document! No end of Flex Custom Color Box 5 found.")
+            flex += 1
+            continue
+
+        bp = find_token(document.body, "\\begin_layout Plain Layout", flex)
+        if bp == -1:
+            document.warning("Malformed LyX document! No plain layout in Custom Color Box 5 found.")
+            flex += 1
+            continue
+
+        ep = find_end_of_layout(document.body, bp)
+        if ep == -1:
+            document.warning("Malformed LyX document! No end of layout found.")
+            flex += 1
+            continue
+
+        document.body[ep : flexEnd + 1] = put_cmd_in_ert("{}\\end{cBoxE}")
+        document.body[flex : bp + 1] = put_cmd_in_ert("\\begin{cBoxE}")
+        flex += 1
 
 
 def revert_tcolorbox_8(document):
-  " Reverts the layout New Color Box Type of tcolorbox to TeX-code "
-  i = 0
-  j = 0
-  k = 0
-  while True:
-    if i != -1:
-      i = find_token(document.body, "\\begin_layout New Color Box Type", i)
-    if i != -1:
-      j = find_end_of_layout(document.body, i)
-      wasOpt = revert_Argument_to_TeX_brace(document, i, j, 1, 1, False, True, False)
-      revert_Argument_to_TeX_brace(document, i, 0, 2, 2, False, False, True)
-      revert_Argument_to_TeX_brace(document, i, 0, 3, 4, False, True, False)
-      document.body[i] = document.body[i].replace("\\begin_layout New Color Box Type", "\\begin_layout Standard")
-      if wasOpt == True:
+    " Reverts the layout New Color Box Type of tcolorbox to TeX-code "
+
+    i = 0
+    while True:
+        i = find_token(document.body, "\\begin_layout New Color Box Type", i)
+        if i == -1:
+            return
+
+        j = find_end_of_layout(document.body, i)
+        if j == -1:
+            document.warning("Malformed LyX document! No end of New Color Box Type layout found.")
+            i += 1
+            continue
+
+        wasOpt = revert_Argument_to_TeX_brace(document, i, j, 1, 1, False, True, True)
+        j = find_end_of_layout(document.body, i)
+        if j == -1:
+            document.warning("Malformed LyX document! No end of New Color Box Type layout found.")
+            i += 1
+            continue
+        revert_Argument_to_TeX_brace(document, i, j, 2, 2, False, False, True)
+        j = find_end_of_layout(document.body, i)
+        if j == -1:
+            document.warning("Malformed LyX document! No end of New Color Box Type layout found.")
+            i += 1
+            continue
+        revert_Argument_to_TeX_brace(document, i, j, 3, 4, False, True, False)
+        j = find_end_of_layout(document.body, i)
+        if j == -1:
+            document.warning("Malformed LyX document! No end of New Color Box Type layout found.")
+            i += 1
+            continue
+        document.body[i] = document.body[i].replace("\\begin_layout New Color Box Type", "\\begin_layout Standard")
         document.body[i + 1 : i + 1] = put_cmd_in_ert("\\newtcolorbox")
-      else:
-        document.body[i + 1 : i + 1] = put_cmd_in_ert("\\newtcolorbox{")
-      k = find_end_of_inset(document.body, j)
-      k = find_token(document.body, "\\end_inset", k + 1)
-      k = find_token(document.body, "\\end_inset", k + 1)
-      if wasOpt == True:
-        k = find_token(document.body, "\\end_inset", k + 1)
-      document.body[k + 2 : j + 2] = put_cmd_in_ert("{")
-      j = find_token(document.body, "\\begin_layout Standard", j + 1)
-      document.body[j - 2 : j - 2] = put_cmd_in_ert("}")
-      i += 1
-    if i == -1:
-      return
+        k = find_end_of_inset(document.body, j)
+        document.body[k + 2 : j + 2] = put_cmd_in_ert("{") + ["\\begin_inset ERT", "status collapsed", "\\begin_layout Plain Layout"]
+        j = find_token(document.body, "\\begin_layout Standard", j + 1)
+        document.body[j - 2 : j - 2] = ["\\end_layout", "\\end_inset"] + put_cmd_in_ert("}")
+        i += 1
 
 
 def revert_moderncv_1(document):
@@ -1942,7 +2045,7 @@ def revert_moderncv_1(document):
       i += 1
       continue
     content = lyx2latex(document, document.body[i:j + 1])
-    add_to_preamble(document, ["\\setlength{\hintscolumnwidth}{" + content + "}"])
+    add_to_preamble(document, ["\\setlength{\\hintscolumnwidth}{" + content + "}"])
     del document.body[i:j + 1]
     # now change the new styles to the obsolete ones
     # \name
@@ -2280,7 +2383,7 @@ def revert_solution(document):
             add_to_preamble(document, "\\%s{%s}[thm]{\\protect\\solutionname}" % \
                 (theoremName, LaTeXName))
 
-        add_to_preamble(document, "\\providecommand{\solutionname}{Solution}")
+        add_to_preamble(document, "\\providecommand{\\solutionname}{Solution}")
         i = j
 
 

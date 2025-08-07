@@ -12,8 +12,6 @@
 #ifndef COMPARE_H
 #define COMPARE_H
 
-#include "Buffer.h"
-
 #include <QObject>
 #include <QThread>
 #include <QTimer>
@@ -21,6 +19,8 @@
 
 
 namespace lyx {
+
+class Buffer;
 
 /**
  * The options that are used by the Comparison algorithm
@@ -30,11 +30,13 @@ class CompareOptions {
 public:
 	///
 	CompareOptions()
-		: settings_from_new(0)
+		: settings_from_new(0), author(0)
 	{}
 
 	/// Copy the settings from the new or old document
 	bool settings_from_new;
+	/// Author id for change tracking
+	bool author;
 };
 
 /**

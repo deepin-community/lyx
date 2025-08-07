@@ -1,0 +1,654 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/es/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language spanish
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Índice
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style french
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle plain
+\tablestyle default
+\tracking_changes true
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\author -1463541724 "Daniel" d3vf4n@tutanota.com
+\end_header
+
+\begin_body
+
+\begin_layout Standard
+ESTE ES EL TÍTULO DEL DOCUMENTO
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ el título debería parecerse más a un título
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+por Fulanito
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Fulanito es el AUTOR
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+12 de junio de 1972
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Esto es una FECHA
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Índice general
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Sería estupendo que no tuviésemos que escribir el índice
+\end_layout
+
+\begin_layout Plain Layout
+de manera explícita
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+1.
+ Filosofía general..................1
+\end_layout
+
+\begin_layout Standard
+1.1 Cómo lo hace \SpecialChar LyX
+...............1
+\end_layout
+
+\begin_layout Standard
+1.2 Por qué \SpecialChar LyX
+ es mejor...............1
+\end_layout
+
+\begin_layout Standard
+2.
+ Características de \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+3.
+ Intentos 
+\change_deleted -1463541724 1694119762
+fallidos
+\change_inserted -1463541724 1694119763
+simples
+\change_unchanged
+ de usar más cosas de \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+4.
+ Matemáticas
+\end_layout
+
+\begin_layout Standard
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+
+\end_layout
+
+\begin_layout Standard
+1.
+ Filosofía general
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Los títulos de sección deberían resaltar mas
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+La filosofía básica de \SpecialChar LyX
+ es que te preocupes del contenido de lo que escribes,
+ no de 
+\change_inserted -1463541724 1694105090
+su presentación
+\change_deleted -1463541724 1694105084
+la forma
+\change_unchanged
+.
+\end_layout
+
+\begin_layout Standard
+1.1 Cómo lo hace \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ utiliza \SpecialChar LaTeX
+,
+ un sistema de preparación de documentos diseñado por Leslie Lamport en 1985.
+ Fue construido sobre un lenguaje de composición
+\change_inserted -1463541724 1694105112
+ tipográfica
+\change_unchanged
+ llamado \SpecialChar TeX
+,
+ creado por Donald Knuth en 1984.
+ \SpecialChar LaTeX
+ está diseñado sobre una filosofía similar a la de \SpecialChar LyX
+.
+ Leslie Lamport dijo (ver referencia [1]) 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Probablemente esta REFERENCIA A CITA no debería
+\end_layout
+
+\begin_layout Plain Layout
+estar escrita "directamente".
+ ¿Qué pasaría si ponemos el libro
+\end_layout
+
+\begin_layout Plain Layout
+de Lamport en la segunda entrada de la bibliografía?
+\end_layout
+
+\end_inset
+
+:
+\end_layout
+
+\begin_layout Standard
+«La función del diseño tipográfico es ayudar al lector a comprender las ideas del autor.
+ Para que un documento sea fácil de leer,
+ su estructura visual debe reflejar su estructura lógica.
+ Las citas y los programas de ordenador,
+ al ser elementos 
+\change_inserted -1463541724 1694114230
+lógica y 
+\change_unchanged
+estructuralmente distintos,
+ deberían distinguirse visualmente uno de otro [...] Como \SpecialChar LaTeX
+ no puede entenderte directamente,
+ debes indicarle explícitamente la estructura lógica mediante 
+\change_deleted -1463541724 1694114282
+comandos
+\change_inserted -1463541724 1694114381
+instrucciones
+\change_unchanged
+ especiales [...] Mientras escribes el documento,
+ deberías preocuparte de su estructura lógica,
+ no de su apariencia.».
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Esto es una CITA
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+1.2 Por qué \SpecialChar LyX
+ es mejor
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ puede ser útil a más gente que \SpecialChar LaTeX
+.
+ Es considerablemente más fácil de usar,
+ ya que no necesitas aprender \SpecialChar LaTeX
+ (que es prácticamente un lenguaje de programación).
+ \SpecialChar LyX
+ es básicamente como los demás procesadores de texto «lo que ves es lo que obtienes»,
+ salvo que \SpecialChar LyX
+ es «lo que ves es lo que quieres decir».
+ De esta forma,
+ combina la facilidad de uso de los procesadores de texto con la potencia de \SpecialChar LaTeX
+.
+ 
+\change_deleted -1463541724 1694114452
+Esto es Bueno.
+
+\change_unchanged
+ Además,
+ el formato de fichero es independiente del ordenador/sistema que uses.
+ Y lo mejor de todo,
+ ¡es LIBRE y GRATUITO!
+\end_layout
+
+\begin_layout Standard
+2.
+ Características de \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ posee muchas características que hacen más fácil escribir documentos.
+ (Después de todo,
+ ¿por qué otra cosa lo querrías usar?
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Este comentario entre paréntesis quedaría mejor en una
+\end_layout
+
+\begin_layout Plain Layout
+nota a pie de página
+\end_layout
+
+\end_inset
+
+) Estoy MUY EMOCIONADO
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ 
+\change_inserted -1463541724 1694113614
+Énfasis
+\change_deleted -1463541724 1694113611
+¡Resáltalo!
+\change_unchanged
+
+\end_layout
+
+\end_inset
+
+ 
+\change_deleted -1463541724 1694113622
+de
+\change_inserted -1463541724 1694113622
+por
+\change_unchanged
+ hablarte de ellas.
+ Aquí tienes una lista con s
+\change_inserted -1463541724 1694114511
+o
+\change_deleted -1463541724 1694114506
+ó
+\change_unchanged
+lo unas pocas.
+\end_layout
+
+\begin_layout Standard
+* \SpecialChar LyX
+ se en
+\change_inserted -1463541724 1694113581
+c
+\change_deleted -1463541724 1694113581
+g
+\change_unchanged
+arga él solo de los márgenes y la numeración de las notas a pie de página
+\change_inserted -1463541724 1694116929
+.
+\change_unchanged
+
+\end_layout
+
+\begin_layout Standard
+* \SpecialChar LyX
+ hace muy simple la edición de fórmulas matemáticas.
+\end_layout
+
+\begin_layout Standard
+Para una discusión más filosófica de por qué \SpecialChar LyX
+ es mejor que muchos procesadores de texto,
+ mira la sección 1.2,
+ que se encuentra en la página 1.
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Seguramente,
+ estas REFERENCIAS CRUZADAS no
+\end_layout
+
+\begin_layout Plain Layout
+deberían escribirse 
+\change_deleted -1463541724 1694114049
+"
+\change_inserted -1463541724 1694114050
+
+\begin_inset Quotes fld
+\end_inset
+
+
+\change_unchanged
+directamente
+\change_inserted -1463541724 1694114047
+
+\begin_inset Quotes frd
+\end_inset
+
+
+\change_deleted -1463541724 1694114046
+"
+\change_unchanged
+.
+ ¿Y si cambiásemos los
+\end_layout
+
+\begin_layout Plain Layout
+números de sección?
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+3.
+ Intentos simples de usar más cosas de \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+El otro día escribí un programa.
+ Era el siguiente:
+\end_layout
+
+\begin_layout Standard
+5 REMARK MI IMPRESIONANTE PROGRAMA
+\end_layout
+
+\begin_layout Standard
+10 PRINT 
+\begin_inset Quotes eld
+\end_inset
+
+¡SOY IMPRESIONANTE!
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+20 GOTO 10 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Esto es código de ordenador
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Después de este gran esfuerzo científico,
+ empecé a sentirme más artístico,
+ así que escribí este haiku:
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ es 
+\change_deleted -1463541724 1694114031
+un maravilloso
+\change_inserted -1463541724 1694114032
+muy bueno
+\change_unchanged
+
+\end_layout
+
+\begin_layout Standard
+Procesador de textos
+\end_layout
+
+\begin_layout Standard
+Ahorra tanto tiempo 
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ No es muy bueno,
+ pero es poes
+\change_deleted -1463541724 1694113713
+i
+\change_inserted -1463541724 1694113713
+í
+\change_unchanged
+a,
+ concretamente una
+\end_layout
+
+\begin_layout Plain Layout
+estrofa
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+4.
+ Matemáticas
+\begin_inset Note Note
+status open
+
+\begin_layout Plain Layout
+Pista:
+ Todas las fórmulas a partir de aquí deberían escribirse
+\end_layout
+
+\begin_layout Plain Layout
+en modo matem
+\change_inserted -1463541724 1694113953
+á
+\change_deleted -1463541724 1694113953
+a
+\change_unchanged
+tico
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Mi 
+\change_deleted -1463541724 1694113644
+ecuación
+\change_inserted -1463541724 1694113645
+fórmula
+\change_unchanged
+ favorita es la solución de la ecuación de segundo grado.
+ Si ax^2+bx+c=0 (ec.1),
+ entonces x= -b + o menos la raíz cuadrada de b^2-4ac,
+ todo dividido por 2a (ec.
+ 2).
+\end_layout
+
+\begin_layout Standard
+Otra de mis 
+\change_deleted -1463541724 1694113674
+ecuaciones 
+\change_unchanged
+favoritas es la base del cálculo:
+ f'(x) se define como el límite cuando deltax tiende a cero de f(x+deltax) - f(x) dividido por deltax (ec.
+ 3).
+\end_layout
+
+\begin_layout Standard
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+
+\end_layout
+
+\begin_layout Standard
+REFERENCIAS
+\end_layout
+
+\begin_layout Standard
+[1] Lamport,
+ Leslie.
+ \SpecialChar LaTeX
+:
+ A Document Preparation System.
+ Addison-Wesley,
+ Reading,
+ Massachusetts,
+ segunda edición,
+ 1994.
+\end_layout
+
+\end_body
+\end_document

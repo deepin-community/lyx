@@ -1,0 +1,9 @@
+# Aliases for icon names. This allows to avoid duplication of icons
+# Each line is of the form
+#   <original substring> <replacement substring>
+dialog-toggle dialog-show
+layout_ layout-toggle_
+tabular-feature_set tabular-feature_toggle
+# use same icon for outline-in/out regardless of "local" argument
+outline-in_local outline-in
+outline-out_local outline-out

@@ -55,13 +55,16 @@
 #include "support/lassert.h"
 #include "support/lstrings.h"
 #include "support/os.h"
-#include "support/signals.h"
 
 #include <iostream>
 
 #ifdef _WIN32
-#include <io.h>
-#include <QCoreApplication>
+# include <io.h>
+# include <QCoreApplication>
+#else
+# ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+# endif
 #endif
 #include <QThread>
 
@@ -172,7 +175,7 @@ bool LyXComm::pipeServer()
 
 		pipe_[i].overlap.hEvent = event_[i];
 		pipe_[i].iobuf.erase();
-		pipe_[i].handle = CreateNamedPipe(pipename.c_str(),
+		pipe_[i].handle = CreateNamedPipeA(pipename.c_str(),
 				open_mode | FILE_FLAG_OVERLAPPED, PIPE_WAIT,
 				MAX_CLIENTS, PIPE_BUFSIZE, PIPE_BUFSIZE,
 				PIPE_TIMEOUT, NULL);
@@ -199,8 +202,8 @@ bool LyXComm::pipeServer()
 	LYXERR(Debug::LYXSERVER, "LyXComm: Connection established");
 	ready_ = true;
 	outbuf_.erase();
-	DWORD status;
-	bool success;
+	DWORD status = 0;
+	bool success = false;
 
 	while (!checkStopServer()) {
 		// Indefinitely wait for the completion of an overlapped
@@ -378,6 +381,9 @@ bool LyXComm::pipeServer()
 			if (!resetPipe(i, !success))
 				return false;
 			break;
+		case CONNECTING_STATE:
+			LYXERR0("Wrong pipe state");
+			break;
 		}
 	}
 
@@ -483,7 +489,7 @@ bool LyXComm::resetPipe(DWORD index, bool close_handle)
 		CloseHandle(pipe_[index].handle);
 
 		pipe_[index].iobuf.erase();
-		pipe_[index].handle = CreateNamedPipe(name.c_str(),
+		pipe_[index].handle = CreateNamedPipeA(name.c_str(),
 				open_mode | FILE_FLAG_OVERLAPPED, PIPE_WAIT,
 				MAX_CLIENTS, PIPE_BUFSIZE, PIPE_BUFSIZE,
 				PIPE_TIMEOUT, NULL);
@@ -521,7 +527,7 @@ void LyXComm::openConnection()
 	}
 
 	// Check whether the pipe name is being used by some other instance.
-	if (!stopserver_ && WaitNamedPipe(inPipeName().c_str(), 0)) {
+	if (!stopserver_ && WaitNamedPipeA(inPipeName().c_str(), 0)) {
 		// Tell the running instance to load the files
 		if (run_mode == USE_REMOTE && loadFilesInOtherInstance()) {
 			deferred_loading_ = true;
@@ -860,7 +866,7 @@ int LyXComm::startPipe(string const & file, bool write)
 	if (!write) {
 		// Make sure not to call read_ready after destruction.
 		weak_ptr<void> tracker = tracker_.p();
-		theApp()->registerSocketCallback(fd, [=](){
+		theApp()->registerSocketCallback(fd, [this, tracker](){
 				if (!tracker.expired())
 					read_ready();
 			});
@@ -1000,14 +1006,27 @@ struct Sleep : QThread
 } // namespace
 
 
-bool LyXComm::loadFilesInOtherInstance()
+bool LyXComm::loadFilesInOtherInstance() const
 {
-	if (theFilesToLoad().empty())
-		return true;
-
 	int pipefd;
-	int loaded_files = 0;
 	FileName const pipe(inPipeName());
+
+	if (theFilesToLoad().empty()) {
+		LYXERR0("LyX is already running in another instance\n"
+			"and 'use single instance' is active.");
+		// Wait a while for the other instance to reset the connection
+		Sleep::millisec(200);
+		pipefd = ::open(pipe.toFilesystemEncoding().c_str(), O_WRONLY);
+		if (pipefd >= 0) {
+			string const cmd = "LYXCMD:pipe:window-raise\n";
+			if (::write(pipefd, cmd.c_str(), cmd.length()) < 0)
+				LYXERR0("Cannot communicate with running instance!");
+			::close(pipefd);
+		}
+		return true;
+	}
+
+	int loaded_files = 0;
 	vector<string>::iterator it = theFilesToLoad().begin();
 	while (it != theFilesToLoad().end()) {
 		FileName fname = fileSearch(string(), os::internal_path(*it),

@@ -17,7 +17,6 @@
 #include "Buffer.h"
 #include "BufferParams.h"
 #include "BufferView.h"
-#include "Counters.h"
 #include "Cursor.h"
 #include "Dimension.h"
 #include "Floating.h"
@@ -26,10 +25,11 @@
 #include "FuncStatus.h"
 #include "InsetList.h"
 #include "Language.h"
+#include "LyXRC.h"
 #include "MetricsInfo.h"
+#include "xml.h"
 #include "output_latex.h"
 #include "output_xhtml.h"
-#include "OutputParams.h"
 #include "Paragraph.h"
 #include "ParIterator.h"
 #include "TexRow.h"
@@ -53,8 +53,7 @@ namespace lyx {
 
 
 InsetCaption::InsetCaption(Buffer * buf, string const & type)
-    : InsetText(buf, InsetText::PlainLayout),
-      labelwidth_(0), is_subfloat_(false), type_(type)
+    : InsetText(buf, InsetText::PlainLayout), type_(type)
 {
 	setDrawFrame(true);
 	setFrameColor(Color_collapsibleframe);
@@ -83,13 +82,8 @@ void InsetCaption::cursorPos(BufferView const & bv,
 		CursorSlice const & sl, bool boundary, int & x, int & y) const
 {
 	InsetText::cursorPos(bv, sl, boundary, x, y);
-	x += labelwidth_;
-}
-
-
-void InsetCaption::setCustomLabel(docstring const & label)
-{
-	custom_label_ = translateIfPossible(label);
+	if (!rtl_)
+		x += labelwidth_;
 }
 
 
@@ -117,17 +111,14 @@ void InsetCaption::addToToc(DocIterator const & cpit, bool output_active,
 
 void InsetCaption::metrics(MetricsInfo & mi, Dimension & dim) const
 {
-	FontInfo tmpfont = mi.base.font;
-	mi.base.font = mi.base.bv->buffer().params().getFont().fontInfo();
 	labelwidth_ = theFontMetrics(mi.base.font).width(full_label_);
 	// add some space to separate the label from the inset text
-	labelwidth_ += 2 * TEXT_TO_INSET_OFFSET;
+	labelwidth_ += leftOffset(mi.base.bv) + rightOffset(mi.base.bv);
 	dim.wid = labelwidth_;
 	Dimension textdim;
 	// Correct for button and label width
 	mi.base.textwidth -= dim.wid;
 	InsetText::metrics(mi, textdim);
-	mi.base.font = tmpfont;
 	mi.base.textwidth += dim.wid;
 	dim.des = max(dim.des - textdim.asc + dim.asc, textdim.des);
 	dim.asc = textdim.asc;
@@ -138,8 +129,10 @@ void InsetCaption::metrics(MetricsInfo & mi, Dimension & dim) const
 void InsetCaption::drawBackground(PainterInfo & pi, int x, int y) const
 {
 	TextMetrics & tm = pi.base.bv->textMetrics(&text());
-	int const h = tm.height() + 2 * TEXT_TO_INSET_OFFSET;
-	int const yy = y - TEXT_TO_INSET_OFFSET - tm.ascent();
+	int const h = tm.height() + topOffset(pi.base.bv) + bottomOffset(pi.base.bv);
+	int const yy = y - topOffset(pi.base.bv) - tm.ascent();
+	if (rtl_)
+		x+= + dimension(*pi.base.bv).wid - labelwidth_;
 	pi.pain.fillRectangle(x, yy, labelwidth_, h, pi.backgroundColor(this));
 }
 
@@ -154,12 +147,25 @@ void InsetCaption::draw(PainterInfo & pi, int x, int y) const
 
 	// Answer: the text inset (in buffer_funcs.cpp: setCaption).
 
+	rtl_ = !pi.ltr_pos;
 	FontInfo tmpfont = pi.base.font;
-	pi.base.font = pi.base.bv->buffer().params().getFont().fontInfo();
-	pi.base.font.setColor(pi.textColor(pi.base.font.color()).baseColor);
-	int const xx = x + TEXT_TO_INSET_OFFSET;
-	pi.pain.text(xx, y, full_label_, pi.base.font);
-	InsetText::draw(pi, x + labelwidth_, y);
+	if (non_float_)
+		pi.base.font.setColor(Color_error);
+	else
+		pi.base.font.setPaintColor(pi.textColor(pi.base.font.color()));
+	int const lo = leftOffset(pi.base.bv);
+	if (rtl_) {
+		InsetText::draw(pi, x, y);
+		pi.pain.text(x + dimension(*pi.base.bv).wid - labelwidth_ + lo,
+		             y, full_label_, pi.base.font);
+	} else {
+		pi.pain.text(x + lo, y, full_label_, pi.base.font);
+		InsetText::draw(pi, x + labelwidth_, y);
+	}
+	// Draw the change tracking cue on the label, unless RowPainter already
+	// takes care of it.
+	if (canPaintChange(*pi.base.bv))
+		pi.change.paintCue(pi, x, y, x + labelwidth_, pi.base.font);
 	pi.base.font = tmpfont;
 }
 
@@ -234,7 +240,7 @@ bool InsetCaption::getStatus(Cursor & cur, FuncRequest const & cmd,
 			if (cur.depth() > 1) {
 				varia = cur[cur.depth() - 2].inset().allowsCaptionVariation(type);
 			}
-			status.setEnabled(varia
+			status.setEnabled(!is_subfloat_ && varia
 					  && buffer().params().documentClass().hasInsetLayout(
 						from_ascii("Caption:" + type)));
 			return true;
@@ -265,7 +271,16 @@ void InsetCaption::latex(otexstream & os,
 	// \caption{...}, later we will make it take advantage
 	// of the one of the caption packages. (Lgb)
 	OutputParams runparams = runparams_in;
+	// Some fragile commands (labels, index entries)
+	// are output after the caption (#2154)
+	runparams.postpone_fragile_stuff = buffer().masterParams().postpone_fragile_content;
 	InsetText::latex(os, runparams);
+	if (!runparams.post_macro.empty()) {
+		// Output the stored fragile commands (labels, indices etc.)
+		// that need to be output after the caption.
+		os << runparams.post_macro;
+		runparams.post_macro.clear();
+	}
 	// Backwards compatibility: We always had a linebreak after
 	// the caption (see #8514)
 	os << breakln;
@@ -284,24 +299,19 @@ int InsetCaption::plaintext(odocstringstream & os,
 }
 
 
-int InsetCaption::docbook(odocstream & os,
-			  OutputParams const & runparams) const
+void InsetCaption::docbook(XMLStream &, OutputParams const &) const
 {
-	int ret;
-	os << "<title>";
-	ret = InsetText::docbook(os, runparams);
-	os << "</title>\n";
-	return ret;
+	// This function should never be called (rather InsetFloat::docbook, the titles should be skipped in floats).
 }
 
 
-docstring InsetCaption::xhtml(XHTMLStream & xs, OutputParams const & rp) const
+docstring InsetCaption::xhtml(XMLStream & xs, OutputParams const & rp) const
 {
 	if (rp.html_disable_captions)
 		return docstring();
 	InsetLayout const & il = getLayout();
 	string const & tag = il.htmltag();
-	string attr = il.htmlattr();
+	string attr = il.htmlGetAttrString();
 	if (!type_.empty()) {
 		string const our_class = "float-caption-" + type_;
 		size_t const loc = attr.find("class='");
@@ -310,10 +320,19 @@ docstring InsetCaption::xhtml(XHTMLStream & xs, OutputParams const & rp) const
 		else
 			attr = attr + " class='" + our_class + "'";
 	}
-	xs << html::StartTag(tag, attr);
+	xs << xml::StartTag(tag, attr);
 	docstring def = getCaptionAsHTML(xs, rp);
-	xs << html::EndTag(tag);
+	xs << xml::EndTag(tag);
 	return def;
+}
+
+
+docstring InsetCaption::toolTip(BufferView const & bv, int x, int y) const
+{
+	if (non_float_)
+		return _("Standard captions are not allowed outside floats. You will get a LaTeX error.\n"
+			 "For captions outside floats, you can use the 'nonfloat' LaTeX package.");
+	return InsetText::toolTip(bv, x, y);
 }
 
 
@@ -330,6 +349,8 @@ void InsetCaption::getArgument(otexstream & os,
 		rp.pass_thru = true;
 	if (il.isNeedProtect())
 		rp.moving_arg = true;
+	if (il.isNeedMBoxProtect())
+		++rp.inulemcmd;
 	rp.par_begin = 0;
 	rp.par_end = paragraphs().size();
 
@@ -355,7 +376,19 @@ int InsetCaption::getCaptionAsPlaintext(odocstream & os,
 }
 
 
-docstring InsetCaption::getCaptionAsHTML(XHTMLStream & xs,
+void InsetCaption::getCaptionAsDocBook(XMLStream & xs,
+				       OutputParams const & runparams) const
+{
+	if (runparams.docbook_in_float)
+		return;
+
+	// Ignore full_label_, as the DocBook processor will deal with the numbering.
+	InsetText::XHTMLOptions opts = InsetText::WriteInnerTag;
+	InsetText::docbook(xs, runparams, opts);
+}
+
+
+docstring InsetCaption::getCaptionAsHTML(XMLStream & xs,
 			OutputParams const & runparams) const
 {
 	xs << full_label_ << ' ';
@@ -365,7 +398,7 @@ docstring InsetCaption::getCaptionAsHTML(XHTMLStream & xs,
 }
 
 
-void InsetCaption::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetCaption::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
 	Buffer const & master = *buffer().masterBuffer();
 	DocumentClass const & tclass = master.params().documentClass();
@@ -376,11 +409,13 @@ void InsetCaption::updateBuffer(ParIterator const & it, UpdateType utype)
 		// counters are local to the caption
 		cnts.saveLastCounter();
 	}
+	is_deleted_ = deleted;
 	// Memorize type for addToToc().
 	floattype_ = type;
-	if (type.empty() || type == "senseless")
-		full_label_ = master.B_("Senseless!!! ");
-	else {
+	if (type.empty() || type == "senseless") {
+		full_label_ = master.B_("Orphaned caption:");
+		non_float_ = true;
+	} else {
 		// FIXME: life would be _much_ simpler if listings was
 		// listed in Floating.
 		docstring name;
@@ -389,7 +424,8 @@ void InsetCaption::updateBuffer(ParIterator const & it, UpdateType utype)
 		else
 			name = master.B_(tclass.floats().getType(type).name());
 		docstring counter = from_utf8(type);
-		if ((is_subfloat_ = cnts.isSubfloat())) {
+		is_subfloat_ = cnts.isSubfloat();
+		if (is_subfloat_) {
 			// only standard captions allowed in subfloats
 			type_ = "Standard";
 			counter = "sub-" + from_utf8(type);
@@ -401,24 +437,28 @@ void InsetCaption::updateBuffer(ParIterator const & it, UpdateType utype)
 		docstring const labelstring = isAscii(lstring) ?
 				master.B_(to_ascii(lstring)) : lstring;
 		if (cnts.hasCounter(counter)) {
+			int val = cnts.value(counter);
 			// for longtables, we step the counter upstream
 			if (!cnts.isLongtable())
 				cnts.step(counter, utype);
 			sec = cnts.theCounter(counter, lang);
+			if (deleted && !cnts.isLongtable())
+				// un-step after deleted counter
+				cnts.set(counter, val);
 		}
 		if (labelstring != master.B_("standard")) {
 			if (!sec.empty())
 				sec += from_ascii(" ");
 			sec += bformat(from_ascii("(%1$s)"), labelstring);
 		}
-		if (!sec.empty())
-			full_label_ = bformat(from_ascii("%1$s %2$s: "), name, sec);
-		else
-			full_label_ = bformat(from_ascii("%1$s #: "), name);
+		if (sec.empty())
+			sec = from_ascii("#");
+		full_label_ = bformat(master.B_("%1$s %2$s: [[Caption label (ex. Figure 1: )]]"), name, sec);
+		non_float_ = false;
 	}
 
 	// Do the real work now.
-	InsetText::updateBuffer(it, utype);
+	InsetText::updateBuffer(it, utype, deleted);
 	if (utype == OutputUpdate)
 		cnts.restoreLastCounter();
 }

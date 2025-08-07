@@ -86,3 +86,19 @@
 \kmap B ֲ	#	Hataf patah
 \kmap N ֳ	#	Hataf qamats
 \kmap M ֵ	# Shift+Tsadi = Tsere
+
+# mirroring delimiters
+\kmap ( )
+\kmap ) (
+\kmap [ ]
+\kmap ] [
+\kmap { }
+\kmap } {
+\kmap < >
+\kmap > <
+
+# Add missing symbols:
+\kmap D ־	# Shift+Gimel = Maqqaf
+\kmap F ֿ	# Shift+Kaf = Rafe
+\kmap K ׳	# Shift+Lamed = Geresh
+\kmap L ״ 	# Shift+Kaf Sofit = Gershayim

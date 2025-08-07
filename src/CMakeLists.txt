@@ -1,7 +1,7 @@
 # This file is part of LyX, the document processor.
 # Licence details can be found in the file COPYING.
 #
-# Copyright (c) 2006-2011 Peter Kümmel, <syntheticpp@gmx.net>
+# Copyright (c) 2006-2011 Peter Kï¿½mmel, <syntheticpp@gmx.net>
 #
 
 project(${_lyx})
@@ -94,14 +94,11 @@ if (LYX_VLD)
 	lyx_add_info_files(VLD ${vld_files})
 endif()
 
-if(WIN32)
-    if (MINGW)
-        set(FILE_RC_COMPILED ${TOP_CMAKE_PATH}/lyx.coff)
-        message(STATUS "Using icon defined in resource file: ${FILE_RC_COMPILED}")
-    else()
-        set(FILE_RC ${TOP_CMAKE_PATH}/lyx.rc)
-        message(STATUS "Using icon defined in resource file: ${FILE_RC}")
-    endif()
+if(WIN32 AND NOT MINGW)
+  set(FILE_RC ${TOP_SRC_DIR}/src/lyxwinres.rc)
+  file(COPY ${TOP_SRC_DIR}/development/Win32/packaging/icons/lyx.ico DESTINATION ${CMAKE_BINARY_DIR})
+  file(COPY ${TOP_SRC_DIR}/development/Win32/packaging/icons/lyx_doc.ico DESTINATION ${CMAKE_BINARY_DIR})
+  message(STATUS "Using icon defined in resource file: ${FILE_RC}")
 endif()
 
 lyx_find_info_files(LyXInfoFiles ${TOP_SRC_DIR}/*)
@@ -127,8 +124,10 @@ add_executable(${_lyx}
 
 add_dependencies(${_lyx} lyx_version)
 
-set_target_properties(${_lyx} PROPERTIES FOLDER "applications/LyX")
-
+set_target_properties(${_lyx} PROPERTIES
+  QT_NO_UNICODE_DEFINES TRUE
+	FOLDER "applications/LyX"
+	INTERPROCEDURAL_OPTIMIZATION ${LYX_IPO_SUPPORTED})
 lyx_add_gcc_pch(${_lyx})
 
 target_link_libraries(${_lyx}
@@ -138,19 +137,17 @@ target_link_libraries(${_lyx}
 	frontend_qt
 	graphics
 	support
-	${FILE_RC_COMPILED}
 	${MYTHESLIB_LIBRARY}
 	${ICONV_LIBRARY}
 	${LYX_QTMAIN_LIBRARY}
 	${vld_dll})
 
-qt_use_modules(${_lyx} Core Gui)
+qt_use_modules(${_lyx} Core Gui ${QtCore5CompatModule})
 
 if(QT_USES_X11)
   find_package(X11 REQUIRED)
   target_link_libraries(${_lyx} ${X11_X11_LIB}) # we need it because we use XSendEvent
   if(HAVE_QT5_X11_EXTRAS)
-    find_library(XCB_LIBRARY NAMES xcb)
     if (XCB_LIBRARY MATCHES "NOTFOUND")
       message(FATAL_ERROR "Need xcb library to use with QT5_X11_EXTRAS")
     endif()

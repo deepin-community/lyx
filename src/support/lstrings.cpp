@@ -146,7 +146,7 @@ bool isSpace(char_type c)
 {
 	if (!is_utf16(c)) {
 		// assume that no non-utf16 character is a space
-		// c outside the UCS4 range is catched as well
+		// c outside the UCS4 range is caught as well
 		return false;
 	}
 	QChar const qc = ucs4_to_qchar(c);
@@ -158,7 +158,7 @@ bool isNumber(char_type c)
 {
 	if (!is_utf16(c))
 		// assume that no non-utf16 character is a numeral
-		// c outside the UCS4 range is catched as well
+		// c outside the UCS4 range is caught as well
 		return false;
 	return ucs4_to_qchar(c).isNumber();
 }
@@ -168,7 +168,7 @@ bool isCommonNumberSeparator(char_type c)
 {
 	if (!is_utf16(c))
 		// assume that no non-utf16 character is a numeral
-		// c outside the UCS4 range is catched as well
+		// c outside the UCS4 range is caught as well
 		return false;
 	return ucs4_to_qchar(c).direction() == QChar::DirCS;
 }
@@ -178,7 +178,7 @@ bool isEuropeanNumberTerminator(char_type c)
 {
 	if (!is_utf16(c))
 		// assume that no non-utf16 character is a numeral
-		// c outside the UCS4 range is catched as well
+		// c outside the UCS4 range is caught as well
 		return false;
 	return ucs4_to_qchar(c).direction() == QChar::DirET;
 }
@@ -189,6 +189,13 @@ bool isDigitASCII(char_type c)
 	return '0' <= c && c <= '9';
 }
 
+bool isNumberChar(char_type c)
+{
+	if (c > ucs4_max)
+		// outside the UCS4 range
+		return false;
+	return ucs4_to_qchar(c).isNumber();
+}
 
 bool isAlnumASCII(char_type c)
 {
@@ -206,7 +213,7 @@ bool isOpenPunctuation(char_type c)
 {
 	if (!is_utf16(c)) {
 		// assume that no non-utf16 character is an op
-		// c outside the UCS4 range is catched as well
+		// c outside the UCS4 range is caught as well
 		return false;
 	}
 	QChar const qc = ucs4_to_qchar(c);
@@ -406,13 +413,13 @@ bool isHexChar(char_type c)
 
 bool isHex(docstring const & str)
 {
-	int index = 0;
+	size_t index = 0;
 
 	if (str.length() > 2 && str[0] == '0' &&
 	    (str[1] == 'x' || str[1] == 'X'))
 		index = 2;
 
-	int const len = str.length();
+	size_t const len = str.length();
 
 	for (; index < len; ++index) {
 		if (!isHexChar(str[index]))
@@ -422,10 +429,10 @@ bool isHex(docstring const & str)
 }
 
 
-int hexToInt(docstring const & str)
+unsigned int hexToInt(docstring const & str)
 {
 	string s = to_ascii(str);
-	int h;
+	unsigned int h;
 	sscanf(s.c_str(), "%x", &h);
 	return h;
 }
@@ -433,8 +440,8 @@ int hexToInt(docstring const & str)
 
 bool isAscii(docstring const & str)
 {
-	int const len = str.length();
-	for (int i = 0; i < len; ++i)
+	size_t const len = str.length();
+	for (size_t i = 0; i < len; ++i)
 		if (str[i] >= 0x80)
 			return false;
 	return true;
@@ -443,8 +450,8 @@ bool isAscii(docstring const & str)
 
 bool isAscii(string const & str)
 {
-	int const len = str.length();
-	for (int i = 0; i < len; ++i)
+	size_t const len = str.length();
+	for (size_t i = 0; i < len; ++i)
 		if (static_cast<unsigned char>(str[i]) >= 0x80)
 			return false;
 	return true;
@@ -540,6 +547,14 @@ docstring const uppercase(docstring const & a)
 	docstring tmp(a);
 	transform(tmp.begin(), tmp.end(), tmp.begin(), local_uppercase());
 	return tmp;
+}
+
+
+docstring capitalize(docstring const & s) {
+	docstring ret = s;
+	char_type t = uppercase(ret[0]);
+	ret[0] = t;
+	return ret;
 }
 
 
@@ -890,7 +905,7 @@ String const subst_string(String const & a,
 	size_t const olen = oldstr.length();
 	while ((i = lstr.find(oldstr, i)) != string::npos) {
 		lstr.replace(i, olen, newstr);
-		i += newstr.length(); // We need to be sure that we dont
+		i += newstr.length(); // We need to be sure that we don't
 		// use the same i over and over again.
 	}
 	return lstr;
@@ -898,16 +913,27 @@ String const subst_string(String const & a,
 
 
 docstring const subst_string(docstring const & a,
-		docstring const & oldstr, docstring const & newstr)
+		docstring const & oldstr, docstring const & newstr,
+		bool const case_sens)
 {
 	LASSERT(!oldstr.empty(), return a);
 	docstring lstr = a;
 	size_t i = 0;
 	size_t const olen = oldstr.length();
-	while ((i = lstr.find(oldstr, i)) != string::npos) {
-		lstr.replace(i, olen, newstr);
-		i += newstr.length(); // We need to be sure that we dont
-		// use the same i over and over again.
+	if (case_sens)
+		while ((i = lstr.find(oldstr, i)) != string::npos) {
+			lstr.replace(i, olen, newstr);
+			i += newstr.length(); // We need to be sure that we don't
+			// use the same i over and over again.
+		}
+	else {
+		docstring lcstr = lowercase(lstr);
+		while ((i = lcstr.find(oldstr, i)) != string::npos) {
+			lstr.replace(i, olen, newstr);
+			i += newstr.length(); // We need to be sure that we don't
+			// use the same i over and over again.
+			lcstr = lowercase(lstr);
+		}
 	}
 	return lstr;
 }
@@ -936,9 +962,10 @@ string const subst(string const & a,
 
 
 docstring const subst(docstring const & a,
-		docstring const & oldstr, docstring const & newstr)
+		docstring const & oldstr, docstring const & newstr,
+		bool case_sens)
 {
-	return subst_string(a, oldstr, newstr);
+	return subst_string(a, oldstr, newstr, case_sens);
 }
 
 
@@ -965,6 +992,21 @@ int count_char(docstring const & str, docstring::value_type chr)
 			count++;
 	return count;
 }
+
+
+int wordCount(docstring const & d)
+{
+	docstring dt = trim(d);
+	if (dt.empty())
+		return 0;
+	int words = 1;
+	for (auto const & c : dt) {
+		if (isSpace(c))
+			words++;
+	}
+	return words;
+}
+
 
 
 int count_bin_chars(string const & str)
@@ -1197,11 +1239,11 @@ docstring const escape(docstring const & lab)
 	char_type hexdigit[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
 				   '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 	docstring enc;
-	for (size_t i = 0; i < lab.length(); ++i) {
-		char_type c = lab[i];
+	for (char_type const c : lab) {
 		if (c >= 128 || c == '=' || c == '%' || c == '#' || c == '$'
 		    || c == '}' || c == '{' || c == ']' || c == '[' || c == '&'
-		    || c == '\\') {
+		    || c == '\\')
+		{
 			// Although char_type is a 32 bit type we know that
 			// UCS4 occupies only 21 bits, so we don't need to
 			// encode bigger values. Test for 2^24 because we
@@ -1233,13 +1275,21 @@ docstring const protectArgument(docstring & arg, char const l,
 }
 
 
-bool truncateWithEllipsis(docstring & str, size_t const len)
+bool truncateWithEllipsis(docstring & str, size_t const len, bool const mid)
 {
 	if (str.size() <= len)
 		return false;
-	str.resize(len);
-	if (len > 0)
-		str[len - 1] = 0x2026;// HORIZONTAL ELLIPSIS
+	if (mid && len > 0) {
+		size_t const hlen = len / 2;
+		docstring suffix = str.substr(str.size() - hlen);
+		str.resize(hlen);
+		str[hlen - 1] = 0x2026;// HORIZONTAL ELLIPSIS
+		str += suffix;
+	} else {
+		str.resize(len);
+		if (len > 0)
+			str[len - 1] = 0x2026;// HORIZONTAL ELLIPSIS
+	}
 	return true;
 }
 
@@ -1439,8 +1489,8 @@ std::string formatFPNumber(double x)
 	os << std::fixed;
 	// Prevent outputs of 23.4200000000000017 but output small numbers
 	// with at least 6 significant digits.
-	double const logarithm = log10(fabs(x));
-	os << std::setprecision(max(6 - iround(logarithm), 0)) << x;
+	int const precision = (x == 0.0) ? 0 : max(6 - iround(log10(fabs(x))), 0);
+	os << std::setprecision(precision) << x;
 	string result = os.str();
 	if (result.find('.') != string::npos) {
 		result = rtrim(result, "0");
@@ -1453,9 +1503,29 @@ std::string formatFPNumber(double x)
 
 docstring to_percent_encoding(docstring const & in, docstring const & ex)
 {
-	QByteArray input = toqstr(in).toUtf8();
-	QByteArray excludes = toqstr(ex).toUtf8();
-	return qstring_to_ucs4(QString(input.toPercentEncoding(excludes)));
+	QByteArray input = to_utf8(in).c_str();
+	QByteArray excludes = to_utf8(ex).c_str();
+	return from_utf8(string(input.toPercentEncoding(excludes).data()));
+}
+
+
+string from_percent_encoding(string const & in)
+{
+	return QByteArray::fromPercentEncoding(in.c_str()).data();
+}
+
+
+int countExpanders(docstring const & str)
+{
+	// Numbers of characters that are expanded by inter-word spacing.  These
+	// characters are spaces, except for characters 09-0D which are treated
+	// specially.  (From a combination of testing with the notepad found in qt's
+	// examples, and reading the source code.)
+	int nexp = 0;
+	for (char_type c : str)
+		if (c > 0x0d && isSpace(c))
+			++nexp;
+	return nexp;
 }
 
 
@@ -1475,7 +1545,7 @@ docstring bformat(docstring const & fmt, long arg1)
 }
 
 
-#ifdef LYX_USE_LONG_LONG
+#ifdef HAVE_LONG_LONG_INT
 docstring bformat(docstring const & fmt, long long arg1)
 {
 	LATTEST(contains(fmt, from_ascii("%1$d")));
@@ -1531,11 +1601,7 @@ docstring bformat(docstring const & fmt, docstring const & arg1, int arg2)
 
 docstring bformat(docstring const & fmt, char const * arg1, docstring const & arg2)
 {
-	LATTEST(contains(fmt, from_ascii("%1$s")));
-	LATTEST(contains(fmt, from_ascii("%2$s")));
-	docstring str = subst(fmt, from_ascii("%1$s"), from_ascii(arg1));
-	str = subst(str, from_ascii("%2$s"), arg2);
-	return subst(str, from_ascii("%%"), from_ascii("%"));
+	return bformat(fmt, from_ascii(arg1), arg2);
 }
 
 
@@ -1572,6 +1638,23 @@ docstring bformat(docstring const & fmt,
 	str = subst(str, from_ascii("%2$s"), arg2);
 	str = subst(str, from_ascii("%3$s"), arg3);
 	str = subst(str, from_ascii("%4$s"), arg4);
+	return subst(str, from_ascii("%%"), from_ascii("%"));
+}
+
+docstring bformat(docstring const & fmt, docstring const & arg1,
+				  docstring const & arg2, docstring const & arg3,
+				  docstring const & arg4, docstring const & arg5)
+{
+	LATTEST(contains(fmt, from_ascii("%1$s")));
+	LATTEST(contains(fmt, from_ascii("%2$s")));
+	LATTEST(contains(fmt, from_ascii("%3$s")));
+	LATTEST(contains(fmt, from_ascii("%4$s")));
+	LATTEST(contains(fmt, from_ascii("%5$s")));
+	docstring str = subst(fmt, from_ascii("%1$s"), arg1);
+	str = subst(str, from_ascii("%2$s"), arg2);
+	str = subst(str, from_ascii("%3$s"), arg3);
+	str = subst(str, from_ascii("%4$s"), arg4);
+	str = subst(str, from_ascii("%5$s"), arg5);
 	return subst(str, from_ascii("%%"), from_ascii("%"));
 }
 

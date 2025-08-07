@@ -22,7 +22,7 @@ namespace lyx {
 
 
 RenderButton::RenderButton()
-	: editable_(false), inherit_font_(false)
+	: editable_(false), broken_(false), inherit_font_(false)
 {}
 
 
@@ -33,11 +33,12 @@ RenderBase * RenderButton::clone(Inset const *) const
 
 
 void RenderButton::update(docstring const & text, bool editable,
-                          bool inherit_font)
+                          bool inherit, bool broken)
 {
 	text_ = text;
 	editable_ = editable;
-	inherit_font_ = inherit_font;
+	inherit_font_ = inherit;
+	broken_ = broken;
 }
 
 
@@ -47,27 +48,32 @@ void RenderButton::metrics(MetricsInfo & mi, Dimension & dim) const
 	font.decSize();
 	frontend::FontMetrics const & fm = theFontMetrics(font);
 
-	fm.buttonText(text_, Inset::TEXT_TO_INSET_OFFSET, dim.wid, dim.asc, dim.des);
+	fm.buttonText(text_, Inset::textOffset(mi.base.bv), dim.wid, dim.asc, dim.des);
 
 	dim_ = dim;
 }
 
 
-void RenderButton::draw(PainterInfo & pi, int x, int y) const
+void RenderButton::draw(PainterInfo & pi, int x, int y, bool) const
 {
 	// Draw it as a box with the LaTeX text
 	FontInfo font = inherit_font_ ? pi.base.font : sane_font;
 	font.setColor(Color_command);
 	font.decSize();
 
-	if (editable_) {
+	if (broken_) {
+		font.setColor(Color_command_broken);
+		pi.pain.buttonText(x, y, text_, font,
+				   renderState() ? Color_buttonhoverbg_broken : Color_buttonbg_broken,
+				   Color_buttonframe_broken, Inset::textOffset(pi.base.bv));
+	} else if (editable_) {
 		pi.pain.buttonText(x, y, text_, font,
 		                   renderState() ? Color_buttonhoverbg : Color_buttonbg,
-		                   Color_buttonframe, Inset::TEXT_TO_INSET_OFFSET);
+		                   Color_buttonframe, Inset::textOffset(pi.base.bv));
 	} else {
 		pi.pain.buttonText(x, y, text_, font,
 		                   Color_commandbg, Color_commandframe,
-		                   Inset::TEXT_TO_INSET_OFFSET);
+		                   Inset::textOffset(pi.base.bv));
 	}
 }
 

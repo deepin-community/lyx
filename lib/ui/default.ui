@@ -14,7 +14,7 @@
 # The interface is designed (partially) following the KDE Human Interface
 # Guidelines (http://techbase.kde.org/Projects/Usability/HIG)
 
-Format 4
+Format 5
 
 Include "stdmenus.inc"
 
@@ -34,7 +34,7 @@ Include "stdtoolbars.inc"
 # math: the toolbar is visible only when in math
 # mathmacrotemplate: the toolbar is visible only when in a macro definition
 # table: the toolbar is visible only when in a table
-# review: the toolbar is visible only when tracked changes are present or
+# review: the toolbar is visible only when inside a tracked change or
 #         change tracking is enabled
 # ipa: the toolbar is only visible when inside an ipa inset
 #
@@ -58,5 +58,4 @@ Toolbars
 	"mathmacrotemplate" "auto,mathmacrotemplate,bottom"
 	"ipa" "auto,ipa,bottom"
 	"minibuffer" "auto,minibuffer,bottom"
-	"documentation" "off,top"
 End

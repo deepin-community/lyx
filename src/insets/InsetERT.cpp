@@ -13,31 +13,26 @@
 
 #include "InsetERT.h"
 
-#include "Buffer.h"
-#include "BufferParams.h"
-#include "BufferView.h"
 #include "Cursor.h"
-#include "CutAndPaste.h"
-#include "DispatchResult.h"
-#include "Format.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
+#include "InsetLayout.h"
 #include "Language.h"
-#include "Layout.h"
 #include "Lexer.h"
-#include "LyXAction.h"
-#include "OutputParams.h"
+#include "xml.h"
 #include "ParagraphParameters.h"
 #include "Paragraph.h"
-#include "TextClass.h"
+#include "output_docbook.h"
 
 #include "support/docstream.h"
-#include "support/FileName.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
 #include "support/TempFile.h"
+#include "Encoding.h"
 
 #include <sstream>
+#include <regex>
+#include <iostream>
 
 using namespace std;
 using namespace lyx::support;
@@ -51,19 +46,9 @@ InsetERT::InsetERT(Buffer * buf, CollapseStatus status)
 }
 
 
-// Do not copy the temp file on purpose: If a copy of an inset which is
-// currently being edited is made, then we simply copy the current contents.
-InsetERT::InsetERT(InsetERT const & that) : InsetCollapsible(that)
+InsetERT::InsetERT(InsetERT const & old)
+	: InsetCollapsible(old)
 {}
-
-
-InsetERT & InsetERT::operator=(InsetERT const & that)
-{
-	if (&that == this)
-		return *this;
-	tempfile_.reset();
-	return *this;
-}
 
 
 void InsetERT::write(ostream & os) const
@@ -104,65 +89,124 @@ int InsetERT::plaintext(odocstringstream & os,
 }
 
 
-int InsetERT::docbook(odocstream & os, OutputParams const &) const
+void InsetERT::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	// FIXME can we do the same thing here as for LaTeX?
-	ParagraphList::const_iterator par = paragraphs().begin();
-	ParagraphList::const_iterator end = paragraphs().end();
+	auto const begin = paragraphs().begin();
+	auto par = begin;
+	auto const end = paragraphs().end();
 
-	int lines = 0;
-	while (par != end) {
-		pos_type siz = par->size();
-		for (pos_type i = 0; i < siz; ++i)
-			os.put(par->getChar(i));
+	odocstringstream os; // No need for XML handling here.
+
+	// Recreate the logic of makeParagraph in output_docbook.cpp, but much simplified: never open <para>
+	// in an ERT, use simple line breaks.
+	// New line after each paragraph of the ERT, save the last one.
+	while (true) { // For each paragraph in the ERT...
+        std::vector<docstring> pars_prepend;
+        std::vector<docstring> pars;
+        std::vector<docstring> pars_append;
+        tie(pars_prepend, pars, pars_append) = par->simpleDocBookOnePar(buffer(), runparams, text().outerFont(distance(begin, par)), 0, false, true);
+
+        for (docstring const & parXML : pars_prepend)
+            xs << XMLStream::ESCAPE_NONE << parXML;
+		auto p = pars.begin();
+		while (true) { // For each line of this ERT paragraph...
+			os << *p;
+			++p;
+			if (p != pars.end())
+				os << "\n";
+			else
+				break;
+		}
+        for (docstring const & parXML : pars_append)
+            xs << XMLStream::ESCAPE_NONE << parXML;
+
 		++par;
-		if (par != end) {
+		if (par != end)
 			os << "\n";
-			++lines;
+		else
+			break;
+	}
+
+//	// Implement the special case of \and: split the current item.
+//	if (os.str() == "\\and" || os.str() == "\\and ") {
+//		auto lay = getLayout();
+//	}
+
+	// Try to recognise some commands to have a nicer DocBook output.
+	bool output_as_comment = true;
+
+	// First step: some commands have a direct mapping to DocBook, mostly because the mapping is simply text or
+	// an XML entity.
+	// Logic is similar to that of convertLaTeXCommands in BiblioInfo.cpp.
+	// TODO: make the code even more similar by looping over the string and applying all conversions. (What is not
+	//  recognised should simply be put in comments: have a list of elements that are either already recognised or are
+	//  not yet recognised? Global transformations like \string should then come first.)
+	{
+		docstring os_trimmed = trim(os.str());
+
+		// Rewrite \"u to \"{u}.
+		static regex const regNoBraces(R"(^\\\W\w)");
+		if (regex_search(to_utf8(os_trimmed), regNoBraces)) {
+			os_trimmed.insert(3, from_ascii("}"));
+			os_trimmed.insert(2, from_ascii("{"));
+		}
+
+		// Rewrite \" u to \"{u}.
+		static regex const regSpace(R"(^\\\W \w)");
+		if (regex_search(to_utf8(os_trimmed), regSpace)) {
+			os_trimmed[2] = '{';
+			os_trimmed.insert(4, from_ascii("}"));
+		}
+
+		// Look into the global table of Unicode characters if there is a match.
+		bool termination;
+		docstring rem;
+		docstring const converted = Encodings::fromLaTeXCommand(os_trimmed,
+		                                                        Encodings::TEXT_CMD, termination, rem);
+		if (!converted.empty()) {
+			// Don't output the characters directly, even if the document should be encoded in UTF-8, for editors that
+			// do not support all these funky characters.
+			for (const char_type& character : converted) {
+				xs << XMLStream::ESCAPE_NONE << from_ascii("&#" + std::to_string(character) + ';');
+			}
+			output_as_comment = false;
 		}
 	}
 
-	return lines;
+	// Second step: the command \string can be ignored. If that's the only command in the ERT, then done.
+	// There may be several occurrences. (\string is 7 characters long.)
+	if (os.str().length() >= 7) {
+		docstring os_str = os.str();
+
+		while (os_str.length() >= 7) {
+			auto os_text = os_str.find(from_ascii("\\string"));
+
+			if (os_text != lyx::docstring::npos && !std::isalpha(static_cast<int>(os_str[os_text + 7]))) {
+				os_str = os_str.substr(0, os_text) + os_str.substr(os_text + 7, os_str.length());
+
+				if (os_str.find('\\') == std::string::npos) {
+					xs << os_str;
+					output_as_comment = false;
+					break;
+				}
+			} else {
+				break;
+			}
+		}
+	}
+
+	// Otherwise, output the ERT as a comment with the appropriate escaping if the command is not recognised.
+	if (output_as_comment) {
+		xs << XMLStream::ESCAPE_NONE << "<!-- ";
+		xs << XMLStream::ESCAPE_COMMENTS << os.str();
+		xs << XMLStream::ESCAPE_NONE << " -->";
+	}
 }
 
 
 void InsetERT::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
 	switch (cmd.action()) {
-	case LFUN_INSET_EDIT: {
-		cur.push(*this);
-		text().selectAll(cur);
-		string const format =
-			cur.buffer()->params().documentClass().outputFormat();
-		string const ext = theFormats().extension(format);
-		tempfile_.reset(new TempFile("ert_editXXXXXX." + ext));
-		FileName const tempfilename = tempfile_->name();
-		string const name = tempfilename.toFilesystemEncoding();
-		ofdocstream os(name.c_str());
-		os << cur.selectionAsString(false);
-		os.close();
-		// Since we lock the inset while the external file is edited,
-		// we need to move the cursor outside and clear any selection inside
-		cur.clearSelection();
-		cur.pop();
-		cur.leaveInset(*this);
-		theFormats().edit(buffer(), tempfilename, format);
-		break;
-	}
-	case LFUN_INSET_END_EDIT: {
-		FileName const tempfilename = tempfile_->name();
-		docstring const s = tempfilename.fileContents("UTF-8");
-		cur.recordUndoInset(this);
-		cur.push(*this);
-		text().selectAll(cur);
-		cap::replaceSelection(cur);
-		cur.text()->insertStringAsLines(cur, s, cur.current_font);
-		// FIXME it crashes without this
-		cur.fixIfBroken();
-		tempfile_.reset();
-		cur.pop();
-		break;
-	}
 	case LFUN_INSET_MODIFY:
 		if (cmd.getArg(0) == "ert") {
 			cur.recordUndoInset(this);
@@ -182,11 +226,8 @@ bool InsetERT::getStatus(Cursor & cur, FuncRequest const & cmd,
 	FuncStatus & status) const
 {
 	switch (cmd.action()) {
-	case LFUN_INSET_EDIT:
-		status.setEnabled(tempfile_ == 0);
-		return true;
-	case LFUN_INSET_END_EDIT:
-		status.setEnabled(tempfile_ != 0);
+	case LFUN_INSET_INSERT:
+		status.setEnabled(false);
 		return true;
 	case LFUN_INSET_MODIFY:
 		if (cmd.getArg(0) == "ert") {
@@ -201,28 +242,14 @@ bool InsetERT::getStatus(Cursor & cur, FuncRequest const & cmd,
 }
 
 
-bool InsetERT::editable() const
-{
-	if (tempfile_)
-		return false;
-	return InsetCollapsible::editable();
-}
-
-
-bool InsetERT::descendable(BufferView const & bv) const
-{
-	if (tempfile_)
-		return false;
-	return InsetCollapsible::descendable(bv);
-}
-
 
 docstring const InsetERT::buttonLabel(BufferView const & bv) const
 {
-	if (decoration() == InsetLayout::CLASSIC)
-		return isOpen(bv) ? _("ERT") : getNewLabel(_("ERT"));
-	else
-		return getNewLabel(_("ERT"));
+	// U+1F512 LOCK
+	docstring const locked = tempfile_ ? docstring(1, 0x1F512) : docstring();
+	if (decoration() == InsetDecoration::CLASSIC)
+		return locked + (isOpen(bv) ? _("ERT") : getNewLabel(_("ERT")));
+	return locked + getNewLabel(_("ERT"));
 }
 
 
@@ -249,7 +276,7 @@ string InsetERT::params2string(CollapseStatus status)
 }
 
 
-docstring InsetERT::xhtml(XHTMLStream &, OutputParams const &) const
+docstring InsetERT::xhtml(XMLStream &, OutputParams const &) const
 {
 	return docstring();
 }

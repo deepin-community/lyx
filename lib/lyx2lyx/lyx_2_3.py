@@ -24,17 +24,16 @@ import sys, os
 
 # Uncomment only what you need to import, please.
 
-from parser_tools import find_end_of, find_token_backwards, find_end_of_layout, \
-    find_token, find_end_of_inset, get_value,  get_bool_value, \
-    get_containing_layout, get_quoted_value, del_token, find_re
-#  find_tokens, find_token_exact, is_in_inset, \
-#  check_token, get_option_value
+from parser_tools import (del_token, del_value, del_complete_lines,
+    find_complete_lines, find_end_of, find_end_of_layout, find_end_of_inset,
+    find_re, find_substring, find_token, find_token_backwards, find_across_lines,
+    get_containing_inset, get_containing_layout, get_bool_value, get_value,
+    get_quoted_value, is_in_inset, set_bool_value)
+#  find_tokens, find_token_exact, check_token, get_option_value
 
-from lyx2lyx_tools import add_to_preamble, put_cmd_in_ert, revert_font_attrs, \
-    insert_to_preamble
-#  get_ert, lyx2latex, \
-#  lyx2verbatim, length_in_bp, convert_info_insets
-#  latex_length, revert_flex_inset, hex2ratio, str2bool
+from lyx2lyx_tools import (add_to_preamble, put_cmd_in_ert, revert_font_attrs,
+    insert_to_preamble, latex_length, is_document_option,
+    insert_document_option, remove_document_option, revert_language)
 
 ####################################################################
 # Private helper functions
@@ -49,26 +48,20 @@ from lyx2lyx_tools import add_to_preamble, put_cmd_in_ert, revert_font_attrs, \
 
 def convert_microtype(document):
     " Add microtype settings. "
-    i = find_token(document.header, "\\font_tt_scale" , 0)
-    if i == -1:
-        document.warning("Malformed LyX document: Can't find \\font_tt_scale.")
-        i = len(document.header) - 1
-
-    j = find_token(document.preamble, "\\usepackage{microtype}", 0)
+    i = find_token(document.header, "\\font_tt_scale")
+    j = find_token(document.preamble, "\\usepackage{microtype}")
     if j == -1:
         document.header.insert(i + 1, "\\use_microtype false")
     else:
         document.header.insert(i + 1, "\\use_microtype true")
         del document.preamble[j]
+        if j and document.preamble[j-1] == "% Added by lyx2lyx":
+            del document.preamble[j-1]
 
 
 def revert_microtype(document):
     " Remove microtype settings. "
-    i = find_token(document.header, "\\use_microtype", 0)
-    if i == -1:
-        return
-    use_microtype = get_bool_value(document.header, "\\use_microtype" , i)
-    del document.header[i]
+    use_microtype = get_bool_value(document.header, "\\use_microtype", delete=True)
     if use_microtype:
         add_to_preamble(document, ["\\usepackage{microtype}"])
 
@@ -77,26 +70,22 @@ def convert_dateinset(document):
     ' Convert date external inset to ERT '
     i = 0
     while True:
-        i = find_token(document.body, "\\begin_inset External", i)
+        i = find_token(document.body, "\\begin_inset External", i+1)
         if i == -1:
             return
         j = find_end_of_inset(document.body, i)
         if j == -1:
             document.warning("Malformed lyx document: Missing '\\end_inset' in convert_dateinset.")
-            i += 1
             continue
         if get_value(document.body, 'template', i, j) == "Date":
             document.body[i : j + 1] = put_cmd_in_ert("\\today ")
-        i += 1
-        continue
+        i = j # skip inset
 
 
 def convert_inputenc(document):
-    " Replace no longer supported input encoding settings. "
-    i = find_token(document.header, "\\inputenc", 0)
-    if i == -1:
-        return
-    if get_value(document.header, "\\inputencoding", i) == "pt254":
+    """Replace no longer supported input encoding setting."""
+    i = find_token(document.header, "\\inputencoding pt254")
+    if i != -1:
         document.header[i] = "\\inputencoding pt154"
 
 
@@ -104,11 +93,10 @@ def convert_ibranches(document):
     ' Add "inverted 0" to branch insets'
     i = 0
     while True:
-        i = find_token(document.body, "\\begin_inset Branch", i)
+        i = find_token(document.body, "\\begin_inset Branch", i+1)
         if i == -1:
             return
         document.body.insert(i + 1, "inverted 0")
-        i += 1
 
 
 def revert_ibranches(document):
@@ -117,56 +105,43 @@ def revert_ibranches(document):
     ourbranches = {}
     i = 0
     while True:
-        i = find_token(document.header, "\\branch", i)
+        i = find_token(document.header, "\\branch", i+1)
         if i == -1:
             break
         branch = document.header[i][8:].strip()
-        if document.header[i+1].startswith("\\selected "):
-            #document.warning(document.header[i+1])
-            #document.warning(document.header[i+1][10])
-            selected = int(document.header[i+1][10])
-        else:
-            document.warning("Malformed LyX document: No selection indicator for branch " + branch)
-            selected = 1
-
+        selected = get_bool_value(document.header, "\\selected", i+1, i+2)
+        if selected is None:
+            document.warning("Malformed LyX document: No selection indicator "
+                             "for branch %s." % branch)
+            selected = True
         # the value tells us whether the branch is selected
-        ourbranches[document.header[i][8:].strip()] = selected
-        i += 1
+        ourbranches[branch] = selected
 
-    # Figure out what inverted branches, if any, have been used
-    # and convert them to "Anti-OldBranch"
-    ibranches = {}
+    # Find branch insets, remove "inverted" tag and
+    # convert inverted insets to "Anti-OldBranch" insets
+    antibranches = {}
     i = 0
     while True:
-        i = find_token(document.body, "\\begin_inset Branch", i)
+        i = find_token(document.body, "\\begin_inset Branch", i+1)
         if i == -1:
             break
-        if not document.body[i+1].startswith("inverted "):
-            document.warning("Malformed LyX document: Missing 'inverted' tag!")
-            i += 1
+        inverted = get_bool_value(document.body, "inverted", i+1, i+2, delete=True)
+        if inverted is None:
+            document.warning("Malformed LyX document: Missing 'inverted' tag in branch inset.")
             continue
-        inverted = document.body[i+1][9]
-        #document.warning(document.body[i+1])
-
-        if inverted == "1":
+        if inverted:
             branch = document.body[i][20:].strip()
-            #document.warning(branch)
-            if not branch in ibranches:
+            if not branch in antibranches:
                 antibranch = "Anti-" + branch
-                while antibranch in ibranches:
+                while antibranch in antibranches:
                     antibranch = "x" + antibranch
-                ibranches[branch] = antibranch
+                antibranches[branch] = antibranch
             else:
-                antibranch = ibranches[branch]
-            #document.warning(antibranch)
+                antibranch = antibranches[branch]
             document.body[i] = "\\begin_inset Branch " + antibranch
 
-        # remove "inverted" key
-        del document.body[i+1]
-        i += 1
-
     # now we need to add the new branches to the header
-    for old, new in ibranches.items():
+    for old, new in antibranches.items():
         i = find_token(document.header, "\\branch " + old, 0)
         if i == -1:
             document.warning("Can't find branch %s even though we found it before!" % (old))
@@ -175,13 +150,37 @@ def revert_ibranches(document):
         if j == -1:
             document.warning("Malformed LyX document! Can't find end of branch " + old)
             continue
-        # ourbranches[old] - 1 inverts the selection status of the old branch
         lines = ["\\branch " + new,
-                 "\\selected " + str(ourbranches[old] - 1)]
+                 "\\selected %d" % (not ourbranches[old])]
         # these are the old lines telling us color, etc.
         lines += document.header[i+2 : j+1]
         document.header[i:i] = lines
 
+
+beamer_article_styles = [
+    "### Inserted by lyx2lyx (more [scr]article styles) ###",
+    "Input article.layout",
+    "Input beamer.layout",
+    "Provides geometry 0",
+    "Provides hyperref 0",
+    "DefaultFont",
+    "     Family                Roman",
+    "     Series                Medium",
+    "     Shape                 Up",
+    "     Size                  Normal",
+    "     Color                 None",
+    "EndFont",
+    "Preamble",
+    "     \\usepackage{beamerarticle,pgf}",
+    "     % this default might be overridden by plain title style",
+    "     \\newcommand\\makebeamertitle{\\frame{\\maketitle}}%",
+    "     \\AtBeginDocument{",
+    "             \\let\\origtableofcontents=\\tableofcontents",
+    "             \\def\\tableofcontents{\\@ifnextchar[{\\origtableofcontents}{\\gobbletableofcontents}}",
+    "             \\def\\gobbletableofcontents#1{\\origtableofcontents}",
+    "     }",
+    "EndPreamble",
+    "### End of insertion by lyx2lyx (more [scr]article styles) ###"]
 
 def revert_beamer_article_styles(document):
     " Include (scr)article styles in beamer article "
@@ -190,52 +189,9 @@ def revert_beamer_article_styles(document):
     if document.textclass not in beamer_articles:
         return
 
-    inclusion = "article.layout"
     if document.textclass == "scrarticle-beamer":
-        inclusion = "scrartcl.layout"
-
-    i = find_token(document.header, "\\begin_local_layout", 0)
-    if i == -1:
-        k = find_token(document.header, "\\language", 0)
-        if k == -1:
-            # this should not happen
-            document.warning("Malformed LyX document! No \\language header found!")
-            return
-        document.header[k-1 : k-1] = ["\\begin_local_layout", "\\end_local_layout"]
-        i = k - 1
-
-    j = find_end_of(document.header, i, "\\begin_local_layout", "\\end_local_layout")
-    if j == -1:
-        # this should not happen
-        document.warning("Malformed LyX document: Can't find end of local layout!")
-        return
-
-    document.header[i+1 : i+1] = [
-        "### Inserted by lyx2lyx (more [scr]article styles) ###",
-        "Input " + inclusion,
-        "Input beamer.layout",
-        "Provides geometry 0",
-        "Provides hyperref 0",
-        "DefaultFont",
-        "     Family                Roman",
-        "     Series                Medium",
-        "     Shape                 Up",
-        "     Size                  Normal",
-        "     Color                 None",
-        "EndFont",
-        "Preamble",
-        "     \\usepackage{beamerarticle,pgf}",
-        "     % this default might be overridden by plain title style",
-        "     \\newcommand\makebeamertitle{\\frame{\\maketitle}}%",
-        "     \\AtBeginDocument{",
-        "             \\let\\origtableofcontents=\\tableofcontents",
-        "             \\def\\tableofcontents{\\@ifnextchar[{\\origtableofcontents}{\\gobbletableofcontents}}",
-        "             \\def\\gobbletableofcontents#1{\\origtableofcontents}",
-        "     }",
-        "EndPreamble",
-        "### End of insertion by lyx2lyx (more [scr]article styles) ###"
-    ]
-
+        beamer_article_styles[1] = "Input scrartcl.layout"
+    document.append_local_layout(beamer_article_styles)
 
 def convert_beamer_article_styles(document):
     " Remove included (scr)article styles in beamer article "
@@ -244,250 +200,68 @@ def convert_beamer_article_styles(document):
     if document.textclass not in beamer_articles:
         return
 
-    i = find_token(document.header, "\\begin_local_layout", 0)
-    if i == -1:
-        return
+    if document.textclass == "scrarticle-beamer":
+        beamer_article_styles[1] = "Input scrartcl.layout"
+    document.del_local_layout(beamer_article_styles)
 
-    j = find_end_of(document.header, i, "\\begin_local_layout", "\\end_local_layout")
-    if j == -1:
-        # this should not happen
-        document.warning("Malformed LyX document: Can't find end of local layout!")
-        return
 
-    k = find_token(document.header, "### Inserted by lyx2lyx (more [scr]article styles) ###", i, j)
-    if k != -1:
-        l = find_token(document.header, "### End of insertion by lyx2lyx (more [scr]article styles) ###", i, j)
-        if l == -1:
-            # this should not happen
-            document.warning("End of lyx2lyx local layout insertion not found!")
-            return
+def revert_new_babel_languages(document):
+    """Revert "bosnian", "friulan", "macedonian", "piedmontese", "romansh".
 
-        if k == i + 1 and l == j - 1:
-            # that was all the local layout there was
-            document.header[i : j + 1] = []
+    Set the document language to English but use correct babel setting.
+    """
+
+    nblanguages = ["bosnian", "friulan", "macedonian", "piedmontese", "romansh"]
+
+    for lang in nblanguages:
+        if lang == "bosnian" or lang == "macedonian":
+            # These are only supported by babel
+            revert_language(document, lang, lang, "")
         else:
-            document.header[k : l + 1] = []
+            # These are supported by babel and polyglossia
+            revert_language(document, lang, lang, lang)
 
-
-def revert_bosnian(document):
-    "Set the document language to English but assure Bosnian output"
-
-    if document.language == "bosnian":
-        document.language = "english"
-        i = find_token(document.header, "\\language bosnian", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package babel"
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-            document.header[k] = document.header[k].replace("\\options", "\\options bosnian,")
-        else:
-            l = find_token(document.header, "\\use_default_options", 0)
-            document.header.insert(l + 1, "\\options bosnian")
-
-
-def revert_friulan(document):
-    "Set the document language to English but assure Friulan output"
-
-    if document.language == "friulan":
-        document.language = "english"
-        i = find_token(document.header, "\\language friulan", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package babel"
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-            document.header[k] = document.header[k].replace("\\options", "\\options friulan,")
-        else:
-            l = find_token(document.header, "\\use_default_options", 0)
-            document.header.insert(l + 1, "\\options friulan")
-
-
-def revert_macedonian(document):
-    "Set the document language to English but assure Macedonian output"
-
-    if document.language == "macedonian":
-        document.language = "english"
-        i = find_token(document.header, "\\language macedonian", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package babel"
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-            document.header[k] = document.header[k].replace("\\options", "\\options macedonian,")
-        else:
-            l = find_token(document.header, "\\use_default_options", 0)
-            document.header.insert(l + 1, "\\options macedonian")
-
-
-def revert_piedmontese(document):
-    "Set the document language to English but assure Piedmontese output"
-
-    if document.language == "piedmontese":
-        document.language = "english"
-        i = find_token(document.header, "\\language piedmontese", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package babel"
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-            document.header[k] = document.header[k].replace("\\options", "\\options piedmontese,")
-        else:
-            l = find_token(document.header, "\\use_default_options", 0)
-            document.header.insert(l + 1, "\\options piedmontese")
-
-
-def revert_romansh(document):
-    "Set the document language to English but assure Romansh output"
-
-    if document.language == "romansh":
-        document.language = "english"
-        i = find_token(document.header, "\\language romansh", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package babel"
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-            document.header[k] = document.header[k].replace("\\options", "\\options romansh,")
-        else:
-            l = find_token(document.header, "\\use_default_options", 0)
-            document.header.insert(l + 1, "\\options romansh")
+# TODO:
+# def convert_new_babel_languages(document)
+# set to native support if get_value(document.header, "\\options") in
+# ["bosnian", "friulan", "macedonian", "piedmontese", "romansh"]
+# and Babel is used.
 
 
 def revert_amharic(document):
     "Set the document language to English but assure Amharic output"
 
-    if document.language == "amharic":
-        document.language = "english"
-        i = find_token(document.header, "\\language amharic", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package default"
-        add_to_preamble(document, ["\\AtBeginDocument{\setotherlanguage{amharic}}"])
-        document.body[2 : 2] = ["\\begin_layout Standard",
-                                "\\begin_inset ERT", "status open", "",
-                                "\\begin_layout Plain Layout", "", "",
-                                "\\backslash",
-                                "resetdefaultlanguage{amharic}",
-                                "\\end_layout", "", "\\end_inset", "", "",
-                                "\\end_layout", ""]
+    revert_language(document, "amharic", "", "amharic")
 
 
 def revert_asturian(document):
     "Set the document language to English but assure Asturian output"
 
-    if document.language == "asturian":
-        document.language = "english"
-        i = find_token(document.header, "\\language asturian", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package default"
-        add_to_preamble(document, ["\\AtBeginDocument{\setotherlanguage{asturian}}"])
-        document.body[2 : 2] = ["\\begin_layout Standard",
-                                "\\begin_inset ERT", "status open", "",
-                                "\\begin_layout Plain Layout", "", "",
-                                "\\backslash",
-                                "resetdefaultlanguage{asturian}",
-                                "\\end_layout", "", "\\end_inset", "", "",
-                                "\\end_layout", ""]
+    revert_language(document, "asturian", "", "asturian")
 
 
 def revert_kannada(document):
     "Set the document language to English but assure Kannada output"
 
-    if document.language == "kannada":
-        document.language = "english"
-        i = find_token(document.header, "\\language kannada", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package default"
-        add_to_preamble(document, ["\\AtBeginDocument{\setotherlanguage{kannada}}"])
-        document.body[2 : 2] = ["\\begin_layout Standard",
-                                "\\begin_inset ERT", "status open", "",
-                                "\\begin_layout Plain Layout", "", "",
-                                "\\backslash",
-                                "resetdefaultlanguage{kannada}",
-                                "\\end_layout", "", "\\end_inset", "", "",
-                                "\\end_layout", ""]
+    revert_language(document, "kannada", "", "kannada")
 
 
 def revert_khmer(document):
     "Set the document language to English but assure Khmer output"
 
-    if document.language == "khmer":
-        document.language = "english"
-        i = find_token(document.header, "\\language khmer", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package default"
-        add_to_preamble(document, ["\\AtBeginDocument{\setotherlanguage{khmer}}"])
-        document.body[2 : 2] = ["\\begin_layout Standard",
-                                "\\begin_inset ERT", "status open", "",
-                                "\\begin_layout Plain Layout", "", "",
-                                "\\backslash",
-                                "resetdefaultlanguage{khmer}",
-                                "\\end_layout", "", "\\end_inset", "", "",
-                                "\\end_layout", ""]
+    revert_language(document, "khmer", "", "khmer")
 
 
 def revert_urdu(document):
     "Set the document language to English but assure Urdu output"
 
-    if document.language == "urdu":
-        document.language = "english"
-        i = find_token(document.header, "\\language urdu", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package default"
-        add_to_preamble(document, ["\\AtBeginDocument{\setotherlanguage{urdu}}"])
-        document.body[2 : 2] = ["\\begin_layout Standard",
-                                "\\begin_inset ERT", "status open", "",
-                                "\\begin_layout Plain Layout", "", "",
-                                "\\backslash",
-                                "resetdefaultlanguage{urdu}",
-                                "\\end_layout", "", "\\end_inset", "", "",
-                                "\\end_layout", ""]
+    revert_language(document, "urdu", "", "urdu")
 
 
 def revert_syriac(document):
     "Set the document language to English but assure Syriac output"
 
-    if document.language == "syriac":
-        document.language = "english"
-        i = find_token(document.header, "\\language syriac", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-        j = find_token(document.header, "\\language_package default", 0)
-        if j != -1:
-            document.header[j] = "\\language_package default"
-        add_to_preamble(document, ["\\AtBeginDocument{\setotherlanguage{syriac}}"])
-        document.body[2 : 2] = ["\\begin_layout Standard",
-                                "\\begin_inset ERT", "status open", "",
-                                "\\begin_layout Plain Layout", "", "",
-                                "\\backslash",
-                                "resetdefaultlanguage{syriac}",
-                                "\\end_layout", "", "\\end_inset", "", "",
-                                "\\end_layout", ""]
+    revert_language(document, "syriac", "", "syriac")
 
 
 def revert_quotes(document):
@@ -501,6 +275,7 @@ def revert_quotes(document):
         if len(words) > 1 and words[0] == "\\begin_inset" and \
            ( words[1] in ["ERT", "listings"] or ( len(words) > 2 and words[2] in ["URL", "Chunk", "Sweave", "S/R"]) ):
             j = find_end_of_inset(document.body, i)
+
             if j == -1:
                 document.warning("Malformed LyX document: Can't find end of " + words[1] + " inset at line " + str(i))
                 i += 1
@@ -515,10 +290,10 @@ def revert_quotes(document):
                     document.warning("Malformed LyX document: Can't find end of Quote inset at line " + str(k))
                     i = k
                     continue
-                replace = "\""
+                replace = '"'
                 if document.body[k].endswith("s"):
                     replace = "'"
-                document.body[k:l+1] = [replace]
+                document.body[k:l+2] = [replace]
         else:
             i += 1
             continue
@@ -548,7 +323,7 @@ def revert_quotes(document):
                 replace = "\""
                 if document.body[k].endswith("s"):
                     replace = "'"
-                document.body[k:l+1] = [replace]
+                document.body[k:l+2] = [replace]
         else:
             i += 1
             continue
@@ -579,65 +354,26 @@ def revert_quotes(document):
             replace = "\""
             if document.body[k].endswith("s"):
                 replace = "'"
-            document.body[k:l+1] = [replace]
+            document.body[k:l+2] = [replace]
         i = l
 
+
+iopart_local_layout = ["### Inserted by lyx2lyx (stdlayouts) ###",
+                       "Input stdlayouts.inc",
+                       "### End of insertion by lyx2lyx (stdlayouts) ###"""]
 
 def revert_iopart(document):
     " Input new styles via local layout "
     if document.textclass != "iopart":
         return
-
-    i = find_token(document.header, "\\begin_local_layout", 0)
-    if i == -1:
-        k = find_token(document.header, "\\language", 0)
-        if k == -1:
-            # this should not happen
-            document.warning("Malformed LyX document! No \\language header found!")
-            return
-        document.header[k-1 : k-1] = ["\\begin_local_layout", "\\end_local_layout"]
-        i = k-1
-
-    j = find_end_of(document.header, i, "\\begin_local_layout", "\\end_local_layout")
-    if j == -1:
-        # this should not happen
-        document.warning("Malformed LyX document! Can't find end of local layout!")
-        return
-
-    document.header[i+1 : i+1] = [
-        "### Inserted by lyx2lyx (stdlayouts) ###",
-        "Input stdlayouts.inc",
-        "### End of insertion by lyx2lyx (stdlayouts) ###"
-    ]
+    document.append_local_layout(iopart_local_layout)
 
 
 def convert_iopart(document):
     " Remove local layout we added, if it is there "
     if document.textclass != "iopart":
         return
-
-    i = find_token(document.header, "\\begin_local_layout", 0)
-    if i == -1:
-        return
-
-    j = find_end_of(document.header, i, "\\begin_local_layout", "\\end_local_layout")
-    if j == -1:
-        # this should not happen
-        document.warning("Malformed LyX document! Can't find end of local layout!")
-        return
-
-    k = find_token(document.header, "### Inserted by lyx2lyx (stdlayouts) ###", i, j)
-    if k != -1:
-        l = find_token(document.header, "### End of insertion by lyx2lyx (stdlayouts) ###", i, j)
-        if l == -1:
-            # this should not happen
-            document.warning("End of lyx2lyx local layout insertion not found!")
-            return
-        if k == i + 1 and l == j - 1:
-            # that was all the local layout there was
-            document.header[i : j + 1] = []
-        else:
-            document.header[k : l + 1] = []
+    document.del_local_layout(iopart_local_layout)
 
 
 def convert_quotestyle(document):
@@ -683,7 +419,7 @@ def revert_plainquote(document):
         replace = "\""
         if document.body[k].endswith("s"):
             replace = "'"
-        document.body[k:l+1] = [replace]
+        document.body[k:l+2] = [replace]
         i = l
 
 
@@ -1029,24 +765,57 @@ def revert_cjkquotes(document):
         i = l
 
 
+def convert_crimson(document):
+    """Transform preamble code to native font setting."""
+    # Quick-check:
+    i = find_substring(document.preamble, "{cochineal}")
+    if i == -1:
+        return
+    # Find and delete user-preamble code:
+    if document.preamble[i] == "\\usepackage[proportional,osf]{cochineal}":
+        osf = True
+    elif document.preamble[i] == "\\usepackage{cochineal}":
+        osf = False
+    else:
+        return
+    del document.preamble[i]
+    if i and document.preamble[i-1] == "% Added by lyx2lyx":
+        del document.preamble[i-1]
+
+    # Convert to native font setting:
+    j = find_token(document.header, '\\font_roman')
+    if j == -1:
+        romanfont = ['\font_roman', '"cochineal"', '"default"']
+    else:
+        romanfont = document.header[j].split()
+        romanfont[1] = '"cochineal"'
+    document.header[j] = " ".join(romanfont)
+    try:
+        set_bool_value(document.header, '\\font_osf', osf)
+    except ValueError: # no \\font_osf setting in document.header
+        if osf:
+            document.header.insert(-1, "\\font_osf true")
+
+
 def revert_crimson(document):
     " Revert native Cochineal/Crimson font definition to LaTeX "
 
-    if find_token(document.header, "\\use_non_tex_fonts false", 0) != -1:
-        preamble = ""
-        i = find_token(document.header, "\\font_roman \"cochineal\"", 0)
-        if i != -1:
-            osf = False
-            j = find_token(document.header, "\\font_osf true", 0)
-            if j != -1:
-                osf = True
-            preamble = "\\usepackage"
-            if osf:
-                document.header[j] = "\\font_osf false"
-                preamble += "[proportional,osf]"
-            preamble += "{cochineal}"
-            add_to_preamble(document, [preamble])
-            document.header[i] = document.header[i].replace("cochineal", "default")
+    i = find_token(document.header, '\\font_roman "cochineal"')
+    if i == -1:
+        return
+    # replace unsupported font setting
+    document.header[i] = document.header[i].replace("cochineal", "default")
+    # no need for preamble code with system fonts
+    if get_bool_value(document.header, "\\use_non_tex_fonts"):
+        return
+    # transfer old style figures setting to package options
+    j = find_token(document.header, "\\font_osf true")
+    if j != -1:
+        options = "[proportional,osf]"
+        document.header[j] = "\\font_osf false"
+    else:
+        options = ""
+    add_to_preamble(document, ["\\usepackage%s{cochineal}"%options])
 
 
 def revert_cochinealmath(document):
@@ -1295,14 +1064,14 @@ def revert_biblatex(document):
         }
 
     # All commands accepted by LyX < 2.3. Everything else throws an error.
-    old_citations = [ "cite", "nocite", "citet", "citep", "citealt", "citealp",\
-		      "citeauthor", "citeyear", "citeyearpar", "citet*", "citep*",\
-                      "citealt*", "citealp*", "citeauthor*", "Citet",  "Citep",\
-                      "Citealt",  "Citealp",  "Citeauthor", "Citet*", "Citep*",\
-                      "Citealt*", "Citealp*", "Citeauthor*", "fullcite", "footcite",\
-                      "footcitet", "footcitep", "footcitealt", "footcitealp",\
-                      "footciteauthor", "footciteyear", "footciteyearpar",\
-		      "citefield", "citetitle", "cite*" ]
+    old_citations = ["cite", "nocite", "citet", "citep", "citealt", "citealp",
+                     "citeauthor", "citeyear", "citeyearpar", "citet*", "citep*",
+                     "citealt*", "citealp*", "citeauthor*", "Citet",  "Citep",
+                     "Citealt",  "Citealp",  "Citeauthor", "Citet*", "Citep*",
+                     "Citealt*", "Citealp*", "Citeauthor*", "fullcite", "footcite",
+                     "footcitet", "footcitep", "footcitealt", "footcitealp",
+                     "footciteauthor", "footciteyear", "footciteyearpar",
+                     "citefield", "citetitle", "cite*" ]
 
     i = 0
     while (True):
@@ -1346,27 +1115,12 @@ def revert_biblatex(document):
 
     # Emulate the old biblatex-workaround (pretend natbib in order to use the styles)
     if biblatex:
-        i = find_token(document.header, "\\begin_local_layout", 0)
-        if i == -1:
-            k = find_token(document.header, "\\language", 0)
-            if k == -1:
-                # this should not happen
-                document.warning("Malformed LyX document! No \\language header found!")
-                return
-            document.header[k-1 : k-1] = ["\\begin_local_layout", "\\end_local_layout"]
-            i = k-1
-
-        j = find_end_of(document.header, i, "\\begin_local_layout", "\\end_local_layout")
-        if j == -1:
-            # this should not happen
-            document.warning("Malformed LyX document! Can't find end of local layout!")
-            return
-
-        document.header[i+1 : i+1] = [
+        biblatex_emulation = [
             "### Inserted by lyx2lyx (biblatex emulation) ###",
             "Provides natbib 1",
             "### End of insertion by lyx2lyx (biblatex emulation) ###"
         ]
+        document.append_local_layout(biblatex_emulation)
 
 
 def revert_citekeyonly(document):
@@ -1427,28 +1181,12 @@ def revert_bibpackopts(document):
         # Nothing to do for empty options
         return
 
-    i = find_token(document.header, "\\begin_local_layout", 0)
-    if i == -1:
-        k = find_token(document.header, "\\language", 0)
-        if k == -1:
-            # this should not happen
-            document.warning("Malformed LyX document! No \\language header found!")
-            return
-        document.header[k-1 : k-1] = ["\\begin_local_layout", "\\end_local_layout"]
-        i = k - 1
-
-    j = find_end_of(document.header, i, "\\begin_local_layout", "\\end_local_layout")
-    if j == -1:
-        # this should not happen
-        document.warning("Malformed LyX document! Can't find end of local layout!")
-        return
-
-    document.header[i+1 : i+1] = [
+    bibliography_package_options = [
         "### Inserted by lyx2lyx (bibliography package options) ###",
         "PackageOptions " + engine + " " + biblio_options,
         "### End of insertion by lyx2lyx (bibliography package options) ###"
     ]
-
+    document.append_local_layout(bibliography_package_options)
 
 def revert_qualicites(document):
     " Revert qualified citation list commands to ERT "
@@ -1570,11 +1308,10 @@ def convert_literalparam(document):
             i += 1
         # href is already fully latexified. Here we can switch off literal.
         if inset == "href":
-            document.body.insert(i, "literal \"false\"")
+            document.body.insert(i, 'literal "false"')
         else:
-            document.body.insert(i, "literal \"true\"")
+            document.body.insert(i, 'literal "true"')
         i = j + 1
-
 
 
 def revert_literalparam(document):
@@ -1583,20 +1320,14 @@ def revert_literalparam(document):
     for inset in command_insets:
         i = 0
         while True:
-            i = find_token(document.body, '\\begin_inset CommandInset %s' % inset, i)
+            i = find_token(document.body, '\\begin_inset CommandInset %s' % inset, i+1)
             if i == -1:
                 break
             j = find_end_of_inset(document.body, i)
             if j == -1:
                 document.warning("Malformed LyX document: Can't find end of %s inset at line %d" % (inset, i))
-                i += 1
                 continue
-            k = find_token(document.body, 'literal', i, j)
-            if k == -1:
-                i += 1
-                continue
-            del document.body[k]
-
+            del_token(document.body, 'literal', i, j)
 
 
 def revert_multibib(document):
@@ -1696,7 +1427,7 @@ def revert_multibib(document):
         }
 
     if multibib not in units.keys():
-        document.warning("Unknown multibib value `%s'!" % nultibib)
+        document.warning("Unknown multibib value `%s'!" % multibib)
         return
     unit = units[multibib]
     btunit = False
@@ -1846,109 +1577,124 @@ def revert_chapterbib(document):
 
 
 def convert_dashligatures(document):
-    "Set 'use_dash_ligatures' according to content."
-    use_dash_ligatures = None
-    # eventually remove preamble code from 2.3->2.2 conversion:
-    for i, line in enumerate(document.preamble):
-        if i > 1 and line == r'\renewcommand{\textemdash}{---}':
-            if (document.preamble[i-1] == r'\renewcommand{\textendash}{--}'
-                and document.preamble[i-2] == '% Added by lyx2lyx'):
-                del document.preamble[i-2:i+1]
-                use_dash_ligatures = True
+    """Set 'use_dash_ligatures' according to content.
+    """
+    # Look for and remove dashligatures workaround from 2.3->2.2 reversion,
+    # set use_dash_ligatures to True if found, to None else.
+    use_dash_ligatures = del_complete_lines(document.preamble,
+                                ['% Added by lyx2lyx',
+                                 r'\renewcommand{\textendash}{--}',
+                                 r'\renewcommand{\textemdash}{---}']) or None
+
     if use_dash_ligatures is None:
-        # Look for dashes:
-        # (Documents by LyX 2.1 or older have "\twohyphens\n" or "\threehyphens\n"
-        # as interim representation for dash ligatures in 2.2.)
-        has_literal_dashes = False
-        has_ligature_dashes = False
-        j = 0
-        for i, line in enumerate(document.body):
-            # Skip some document parts where dashes are not converted
-            if (i < j) or line.startswith("\\labelwidthstring"):
+        # Look for dashes (Documents by LyX 2.1 or older have "\twohyphens\n"
+        # or "\threehyphens\n" as interim representation for -- an ---.)
+        lines = document.body
+        has_literal_dashes = has_ligature_dashes = False
+        dash_pattern = re.compile(u".*[\u2013\u2014]|\\twohyphens|\\threehyphens")
+        i = j = 0
+        while True:
+            # skip lines without dashes:
+            i = find_re(lines, dash_pattern, i+1)
+            if i == -1:
+                break
+            line = lines[i]
+            # skip label width string (see bug 10243):
+            if line.startswith("\\labelwidthstring"):
                 continue
-            words = line.split()
-            if (len(words) > 1 and words[0] == "\\begin_inset"
-                and (words[1] in ["CommandInset", "ERT", "External", "Formula",
-                                 "FormulaMacro", "Graphics", "IPA", "listings"]
-                     or ' '.join(words[1:]) == "Flex Code")):
-                j = find_end_of_inset(document.body, i)
-                if j == -1:
-                    document.warning("Malformed LyX document: "
-                        "Can't find end of %s inset at line %d" % (words[1],i))
+            # do not touch hyphens in some insets (cf. lyx_2_2.convert_dashes):
+            try:
+                inset_type, start, end = get_containing_inset(lines, i)
+            except TypeError: # no containing inset
+                inset_type, start, end = "no inset", -1, -1
+            if (inset_type.split()[0] in
+                ["CommandInset", "ERT", "External", "Formula",
+                 "FormulaMacro", "Graphics", "IPA", "listings"]
+                or inset_type == "Flex Code"):
+                i = end
                 continue
-            if line == "\\begin_layout LyX-Code":
-                j = find_end_of_layout(document.body, i)
-                if j == -1:
-                    document.warning("Malformed LyX document: "
-                       "Can't find end of %s layout at line %d" % (words[1],i))
+            try:
+                layoutname, start, end, j = get_containing_layout(lines, i)
+            except TypeError: # no (or malformed) containing layout
+                document.warning("Malformed LyX document: "
+                                "Can't find layout at line %d" % i)
                 continue
-            # literal dash followed by a word or no-break space:
-            if re.search(u"[\u2013\u2014]([\w\u00A0]|$)", line,
-                         flags=re.UNICODE):
+            if not layoutname:
+                document.warning("Malformed LyX document: "
+                                 "Missing layout name on line %d"%start)
+            if layoutname == "LyX-Code":
+                i = end
+                continue
+
+            # literal dash followed by a non-white-character or no-break space:
+            if re.search(u"[\u2013\u2014]([\\S\u00A0\u202F\u2060]|$)",
+                         line, flags=re.UNICODE):
                 has_literal_dashes = True
-            # ligature dash followed by word or no-break space on next line:
-            if re.search(u"(\\\\twohyphens|\\\\threehyphens)", line,
-                            flags=re.UNICODE) and re.match(u"[\w\u00A0]",
-                            document.body[i+1], flags=re.UNICODE):
+            # ligature dash followed by non-white-char or no-break space on next line:
+            if (re.search(r"(\\twohyphens|\\threehyphens)", line) and
+                re.match(u"[\\S\u00A0\u202F\u2060]", lines[i+1], flags=re.UNICODE)):
                 has_ligature_dashes = True
-        if has_literal_dashes and has_ligature_dashes:
-            # TODO: insert a warning note in the document?
-            document.warning('This document contained both literal and '
-                '"ligature" dashes.\n Line breaks may have changed. '
-                'See UserGuide chapter 3.9.1 for details.')
-        elif has_literal_dashes:
+            if has_literal_dashes and has_ligature_dashes:
+                # TODO: insert a warning note in the document?
+                document.warning('This document contained both literal and '
+                                 '"ligature" dashes.\n Line breaks may have changed. '
+                                 'See UserGuide chapter 3.9.1 for details.')
+                break
+
+        if has_literal_dashes and not has_ligature_dashes:
             use_dash_ligatures = False
-        elif has_ligature_dashes:
+        elif has_ligature_dashes and not has_literal_dashes:
             use_dash_ligatures = True
+
     # insert the setting if there is a preferred value
-    if use_dash_ligatures is not None:
-        i = find_token(document.header, "\\use_microtype", 0)
-        if i != -1:
-            document.header.insert(i+1, "\\use_dash_ligatures %s"
-                                % str(use_dash_ligatures).lower())
+    if use_dash_ligatures is True:
+        document.header.insert(-1, "\\use_dash_ligatures true")
+    elif use_dash_ligatures is False:
+        document.header.insert(-1, "\\use_dash_ligatures false")
+
 
 def revert_dashligatures(document):
     """Remove font ligature settings for en- and em-dashes.
-    Revert conversion of \twodashes or \threedashes to literal dashes."""
-    i = find_token(document.header, "\\use_dash_ligatures", 0)
-    if i == -1:
+    Revert conversion of \twodashes or \threedashes to literal dashes.
+    """
+    use_dash_ligatures = del_value(document.header, "\\use_dash_ligatures")
+    if use_dash_ligatures != "true" or document.backend != "latex":
         return
-    use_dash_ligatures = get_bool_value(document.header, "\\use_dash_ligatures", i)
-    del document.header[i]
-    if not use_dash_ligatures or document.backend != "latex":
-        return
-
-    j = 0
-    new_body = []
-    for i, line in enumerate(document.body):
-        # Skip some document parts where dashes are not converted
-        if (i < j) or line.startswith("\\labelwidthstring"):
-            new_body.append(line)
+    i = 0
+    dash_pattern = re.compile(u".*[\u2013\u2014]")
+    while True:
+        # skip lines without dashes:
+        i = find_re(document.body, dash_pattern, i+1)
+        if i == -1:
+            break
+        line = document.body[i]
+        # skip label width string (see bug 10243):
+        if line.startswith("\\labelwidthstring"):
             continue
-        words = line.split()
-        if (len(words) > 1 and words[0] == "\\begin_inset"
-            and (words[1] in ["CommandInset", "ERT", "External", "Formula",
-                              "FormulaMacro", "Graphics", "IPA", "listings"]
-                 or ' '.join(words[1:]) == "Flex Code")):
-            j = find_end_of_inset(document.body, i)
-            if j == -1:
-                document.warning("Malformed LyX document: Can't find end of "
-                                 + words[1] + " inset at line " + str(i))
-            new_body.append(line)
+        # do not touch hyphens in some insets (cf. lyx_2_2.convert_dashes):
+        try:
+            inset_type, start, end = get_containing_inset(document.body, i)
+        except TypeError: # no containing inset
+            inset_type, start, end = "no inset", -1, -1
+        if (inset_type.split()[0] in
+            ["CommandInset", "ERT", "External", "Formula",
+                "FormulaMacro", "Graphics", "IPA", "listings"]
+            or inset_type == "Flex Code"):
+            i = end
             continue
-        if line == "\\begin_layout LyX-Code":
-            j = find_end_of_layout(document.body, i)
-            if j == -1:
-                document.warning("Malformed LyX document: "
-                    "Can't find end of %s layout at line %d" % (words[1],i))
-            new_body.append(line)
+        try:
+            layoutname, start, end, j = get_containing_layout(document.body, i)
+        except TypeError: # no (or malformed) containing layout
+            document.warning("Malformed LyX document: "
+                            "Can't find layout at body line %d" % i)
+            continue
+        if layoutname == "LyX-Code":
+            i = end
             continue
         # TODO: skip replacement in typewriter fonts
         line = line.replace(u'\u2013', '\\twohyphens\n')
         line = line.replace(u'\u2014', '\\threehyphens\n')
-        lines = line.split('\n')
-        new_body.extend(line.split('\n'))
-    document.body = new_body
+        document.body[i:i+1] = line.split('\n')
     # redefine the dash LICRs to use ligature dashes:
     add_to_preamble(document, [r'\renewcommand{\textendash}{--}',
                                r'\renewcommand{\textemdash}{---}'])
@@ -1984,112 +1730,73 @@ def revert_xout(document):
 
 
 def convert_mathindent(document):
-    " add the \\is_math_indent tag "
+    """Add the \\is_math_indent tag.
+    """
+    k = find_token(document.header, "\\quotes_style") # where to insert
     # check if the document uses the class option "fleqn"
-    k = find_token(document.header, "\\quotes_style", 0)
-    regexp = re.compile(r'^.*fleqn.*')
-    i = find_re(document.header, regexp, 0)
-    if i != -1:
+    options = get_value(document.header, "\\options")
+    if 'fleqn' in options:
         document.header.insert(k, "\\is_math_indent 1")
-        # delete the found option
-        document.header[i] = document.header[i].replace(",fleqn", "")
-        document.header[i] = document.header[i].replace(", fleqn", "")
-        document.header[i] = document.header[i].replace("fleqn,", "")
-        j = find_re(document.header, regexp, 0)
-        if i == j:
-            # then we have fleqn as the only option
+        # delete the fleqn option
+        i = find_token(document.header, "\\options")
+        options = [option for option in options.split(",")
+                   if option.strip() != "fleqn"]
+        if options:
+            document.header[i] = "\\options " + ",".join(options)
+        else:
             del document.header[i]
     else:
         document.header.insert(k, "\\is_math_indent 0")
 
-
 def revert_mathindent(document):
     " Define mathindent if set in the document "
-    # first output the length
-    regexp = re.compile(r'(\\math_indentation)')
-    i = find_re(document.header, regexp, 0)
+    # emulate and delete \math_indentation
+    value = get_value(document.header, "\\math_indentation",
+                      default="default", delete=True)
+    if value != "default":
+        add_to_preamble(document, [r"\setlength{\mathindent}{%s}"%value])
+    # delete \is_math_indent and emulate via document class option
+    if not get_bool_value(document.header, "\\is_math_indent", delete=True):
+        return
+    i = find_token(document.header, "\\options")
     if i != -1:
-        value = get_value(document.header, "\\math_indentation" , i).split()[0]
-        if value != "default":
-            add_to_preamble(document, ["\\setlength{\\mathindent}{" + value + '}'])
-        del document.header[i]
-    # now set the document class option
-    regexp = re.compile(r'(\\is_math_indent 1)')
-    i = find_re(document.header, regexp, 0)
-    if i == -1:
-        regexp = re.compile(r'(\\is_math_indent)')
-        j = find_re(document.header, regexp, 0)
-        del document.header[j]
+        document.header[i] = document.header[i].replace("\\options ",
+                                                        "\\options fleqn,")
     else:
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-    	    document.header[k] = document.header[k].replace("\\options", "\\options fleqn,")
-    	    del document.header[i]
-        else:
-            l = find_token(document.header, "\\use_default_options", 0)
-            document.header.insert(l, "\\options fleqn")
-            del document.header[i + 1]
+        l = find_token(document.header, "\\use_default_options")
+        document.header.insert(l, "\\options fleqn")
 
 
 def revert_baselineskip(document):
-  " Revert baselineskips to TeX code "
-  i = 0
-  vspaceLine = 0
-  hspaceLine = 0
-  while True:
-    regexp = re.compile(r'^.*baselineskip%.*$')
-    i = find_re(document.body, regexp, i)
-    if i == -1:
-      return
-    vspaceLine = find_token(document.body, "\\begin_inset VSpace", i)
-    if  vspaceLine == i:
-      # output VSpace inset as TeX code
-      # first read out the values
-      beg = document.body[i].rfind("VSpace ");
-      end = document.body[i].rfind("baselineskip%");
-      baselineskip = float(document.body[i][beg + 7:end]);
-      # we store the value in percent, thus divide by 100
-      baselineskip = baselineskip/100;
-      baselineskip = str(baselineskip);
-      # check if it is the starred version
-      if document.body[i].find('*') != -1:
-        star = '*'
-      else:
-        star = ''
-      # now output TeX code
-      endInset = find_end_of_inset(document.body, i)
-      if endInset == -1:
-        document.warning("Malformed LyX document: Missing '\\end_inset' of VSpace inset.")
-        return
-      else:
-        document.body[vspaceLine: endInset + 1] = put_cmd_in_ert("\\vspace" + star + '{' + baselineskip + "\\baselineskip}")
-    hspaceLine = find_token(document.body, "\\begin_inset space \\hspace", i - 1)
-    document.warning("hspaceLine: " + str(hspaceLine))
-    document.warning("i: " + str(i))
-    if  hspaceLine == i - 1:
-      # output space inset as TeX code
-      # first read out the values
-      beg = document.body[i].rfind("\\length ");
-      end = document.body[i].rfind("baselineskip%");
-      baselineskip = float(document.body[i][beg + 7:end]);
-      document.warning("baselineskip: " + str(baselineskip))
-      # we store the value in percent, thus divide by 100
-      baselineskip = baselineskip/100;
-      baselineskip = str(baselineskip);
-      # check if it is the starred version
-      if document.body[i-1].find('*') != -1:
-        star = '*'
-      else:
-        star = ''
-      # now output TeX code
-      endInset = find_end_of_inset(document.body, i)
-      if endInset == -1:
-        document.warning("Malformed LyX document: Missing '\\end_inset' of space inset.")
-        return
-      else:
-        document.body[hspaceLine: endInset + 1] = put_cmd_in_ert("\\hspace" + star + '{' + baselineskip + "\\baselineskip}")
-
-    i = i + 1
+    " Revert baselineskips to TeX code "
+    i = 0
+    while True:
+        i = find_substring(document.body, "baselineskip%", i+1)
+        if i == -1:
+            return
+        if  document.body[i].startswith("\\begin_inset VSpace"):
+            # output VSpace inset as TeX code
+            end = find_end_of_inset(document.body, i)
+            if end == -1:
+                document.warning("Malformed LyX document: "
+                        "Can't find end of VSpace inset at line %d." % i)
+                continue
+            # read out the value
+            baselineskip = document.body[i].split()[-1]
+            # check if it is the starred version
+            star = '*' if '*' in document.body[i] else ''
+            # now output TeX code
+            cmd = "\\vspace%s{%s}" %(star, latex_length(baselineskip)[1])
+            document.body[i:end+1] = put_cmd_in_ert(cmd)
+            i += 8
+            continue
+        begin, end = is_in_inset(document.body, i, "\\begin_inset space \\hspace")
+        if  begin != - 1:
+            # output space inset as TeX code
+            baselineskip = document.body[i].split()[-1]
+            star = '*' if '*' in document.body[i-1] else ''
+            cmd = "\\hspace%s{%s}" %(star, latex_length(baselineskip)[1])
+            document.body[begin:end+1] = put_cmd_in_ert(cmd)
 
 
 def revert_rotfloat(document):
@@ -2099,16 +1806,11 @@ def revert_rotfloat(document):
   k = 0
   while True:
     i = find_token(document.body, "sideways true", i)
-    if i != -1:
-      regexp = re.compile(r'^.*placement.*$')
-      j = find_re(document.body, regexp, i-2)
-      if j == -1:
-          return
-      if j != i-2:
-          i = i + 1
-          continue
-    else:
+    if i == -1:
       return
+    if not document.body[i-2].startswith('placement '):
+        i = i + 1
+        continue
     # we found a sideways float with placement options
     # at first store the placement
     beg = document.body[i-2].rfind(" ");
@@ -2137,128 +1839,105 @@ def revert_rotfloat(document):
     i = i + 1
 
 
+allowbreak_emulation =  [r"\begin_inset space \hspace{}",
+                         r"\length 0dd",
+                         r"\end_inset",
+                         r""]
+
 def convert_allowbreak(document):
-    " Zero widths Space-inset -> \SpecialChar allowbreak. "
-    body = "\n".join(document.body)
-    body = body.replace("\\begin_inset space \hspace{}\n"
-                        "\\length 0dd\n"
-                        "\\end_inset\n\n",
-                        "\\SpecialChar allowbreak\n")
-    document.body = body.split("\n")
+    r" Zero widths Space-inset -> \SpecialChar allowbreak. "
+    lines = document.body
+    i = find_complete_lines(lines, allowbreak_emulation, 2)
+    while i != -1:
+        lines[i-1:i+4] = [lines[i-1] + r"\SpecialChar allowbreak"]
+        i = find_complete_lines(lines, allowbreak_emulation, i+3)
 
 
 def revert_allowbreak(document):
-    " \SpecialChar allowbreak -> Zero widths Space-inset. "
-    body = "\n".join(document.body)
-    body = body.replace("\\SpecialChar allowbreak\n",
-                        "\n\\begin_inset space \hspace{}\n"
-                        "\\length 0dd\n"
-                        "\\end_inset\n\n")
-    document.body = body.split("\n")
+    r" \SpecialChar allowbreak -> Zero widths Space-inset. "
+    i = 1
+    lines = document.body
+    while i < len(lines):
+        if lines[i].endswith(r"\SpecialChar allowbreak"):
+            lines[i:i+1] = [lines[i].replace(r"\SpecialChar allowbreak", "")
+                           ] + allowbreak_emulation
+            i += 5
+        else:
+            i += 1
 
 
 def convert_mathnumberpos(document):
     " add the \\math_number_before tag "
+    i = find_token(document.header, "\\quotes_style")
     # check if the document uses the class option "leqno"
-    k = find_token(document.header, "\\quotes_style", 0)
-    m = find_token(document.header, "\\options", 0)
-    regexp = re.compile(r'^.*leqno.*')
-    i = find_re(document.header, regexp, 0)
-    if i != -1 and i == m:
-        document.header.insert(k, "\\math_number_before 1")
-        # delete the found option
-        document.header[i] = document.header[i].replace(",leqno", "")
-        document.header[i] = document.header[i].replace(", leqno", "")
-        document.header[i] = document.header[i].replace("leqno,", "")
-        j = find_re(document.header, regexp, 0)
-        if i == j:
-            # then we have leqno as the only option
-            del document.header[i]
+    if is_document_option(document, "leqno"):
+        remove_document_option(document, "leqno")
+        document.header.insert(i, "\\math_number_before 1")
     else:
-        document.header.insert(k, "\\math_number_before 0")
+        document.header.insert(i, "\\math_number_before 0")
 
 
 def revert_mathnumberpos(document):
-    " add the document class option leqno"
-    regexp = re.compile(r'(\\math_number_before 1)')
-    i = find_re(document.header, regexp, 0)
-    if i == -1:
-        regexp = re.compile(r'(\\math_number_before)')
-        j = find_re(document.header, regexp, 0)
-        del document.header[j]
-    else:
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-    	    document.header[k] = document.header[k].replace("\\options", "\\options leqno,")
-    	    del document.header[i]
-        else:
-            l = find_token(document.header, "\\use_default_options", 0)
-            document.header.insert(l, "\\options leqno")
-            del document.header[i + 1]
+    """Remove \\math_number_before tag,
+    add the document class option leqno if required.
+    """
+    math_number_before = get_bool_value(document.header, '\\math_number_before',
+                                        delete=True)
+    if math_number_before:
+        insert_document_option(document, "leqno")
 
 
 def convert_mathnumberingname(document):
     " rename the \\math_number_before tag to \\math_numbering_side "
-    regexp = re.compile(r'(\\math_number_before 1)')
-    i = find_re(document.header, regexp, 0)
-    if i != -1:
+    i = find_token(document.header, "\\math_number_before")
+    math_number_before = get_bool_value(document.header, '\\math_number_before', i)
+    if math_number_before:
         document.header[i] = "\\math_numbering_side left"
-    regexp = re.compile(r'(\\math_number_before 0)')
-    i = find_re(document.header, regexp, 0)
-    if i != -1:
-        document.header[i] = "\\math_numbering_side default"
+        return
     # check if the document uses the class option "reqno"
-    k = find_token(document.header, "\\math_numbering_side", 0)
-    m = find_token(document.header, "\\options", 0)
-    regexp = re.compile(r'^.*reqno.*')
-    i = find_re(document.header, regexp, 0)
-    if i != -1 and i == m:
-        document.header[k] = "\\math_numbering_side right"
+    k = find_token(document.header, "\\options")
+    if 'reqno' in document.header[k]:
+        document.header[i] = "\\math_numbering_side right"
         # delete the found option
-        document.header[i] = document.header[i].replace(",reqno", "")
-        document.header[i] = document.header[i].replace(", reqno", "")
-        document.header[i] = document.header[i].replace("reqno,", "")
-        j = find_re(document.header, regexp, 0)
-        if i == j:
+        document.header[k] = document.header[k].replace(",reqno", "")
+        document.header[k] = document.header[k].replace(", reqno", "")
+        document.header[k] = document.header[k].replace("reqno,", "")
+        if 'reqno' in document.header[k]:
             # then we have reqno as the only option
-            del document.header[i]
+            del document.header[k]
+    else:
+        document.header[i] = "\\math_numbering_side default"
 
 
 def revert_mathnumberingname(document):
     " rename the \\math_numbering_side tag back to \\math_number_before "
-    # just rename
-    regexp = re.compile(r'(\\math_numbering_side left)')
-    i = find_re(document.header, regexp, 0)
-    if i != -1:
+    i = find_token(document.header, "\\math_numbering_side")
+    math_numbering_side = get_value(document.header, '\\math_numbering_side', i)
+    # rename tag and set boolean value:
+    if math_numbering_side == "left":
         document.header[i] = "\\math_number_before 1"
-    # add the option reqno and delete the tag
-    regexp = re.compile(r'(\\math_numbering_side right)')
-    i = find_re(document.header, regexp, 0)
-    if i != -1:
+    elif math_numbering_side == "right":
+        # also add the option reqno:
         document.header[i] = "\\math_number_before 0"
-        k = find_token(document.header, "\\options", 0)
-        if k != -1:
-    	    document.header[k] = document.header[k].replace("\\options", "\\options reqno,")
+        k = find_token(document.header, "\\options")
+        if k != -1  and 'reqno' not in document.header[k]:
+            document.header[k] = document.header[k].replace("\\options", "\\options reqno,")
         else:
             l = find_token(document.header, "\\use_default_options", 0)
             document.header.insert(l, "\\options reqno")
-    # add the math_number_before tag
-    regexp = re.compile(r'(\\math_numbering_side default)')
-    i = find_re(document.header, regexp, 0)
-    if i != -1:
+    else:
         document.header[i] = "\\math_number_before 0"
 
 
 def convert_minted(document):
     " add the \\use_minted tag "
-    document.header.insert(-1, "\\use_minted 0")
+    i = find_token(document.header, "\\index ")
+    document.header.insert(i, "\\use_minted 0")
 
 
 def revert_minted(document):
     " remove the \\use_minted tag "
-    i = find_token(document.header, "\\use_minted", 0)
-    if i != -1:
-        document.header.pop(i)
+    del_token(document.header, "\\use_minted")
 
 
 def revert_longtable_lscape(document):
@@ -2306,7 +1985,7 @@ convert = [
            [521, [convert_frenchquotes]],
            [522, []],
            [523, []],
-           [524, []],
+           [524, [convert_crimson]],
            [525, []],
            [526, []],
            [527, []],
@@ -2361,7 +2040,7 @@ revert =  [
            [515, []],
            [514, [revert_urdu, revert_syriac]],
            [513, [revert_amharic, revert_asturian, revert_kannada, revert_khmer]],
-           [512, [revert_bosnian, revert_friulan, revert_macedonian, revert_piedmontese, revert_romansh]],
+           [512, [revert_new_babel_languages]],
            [511, [revert_beamer_article_styles]],
            [510, [revert_ibranches]],
            [509, []],

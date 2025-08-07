@@ -14,7 +14,6 @@
 
 #include <utility>
 
-#include "support/docstream.h"
 #include "Layout.h"
 #include "ParagraphList.h"
 
@@ -24,7 +23,6 @@ namespace lyx {
 class Buffer;
 class BufferParams;
 class Encoding;
-class Layout;
 class Paragraph;
 class OutputParams;
 class Text;
@@ -38,6 +36,9 @@ void pushLanguageName(std::string const & lang, bool localswitch = false);
     or begin/end commands.
  */
 void popLanguageName();
+
+// Check if we have an empty language stack
+bool languageStackEmpty();
 
 /** Return a reference to the last active language opened with
     polyglossia or when using begin/end commands. If none or when
@@ -82,7 +83,7 @@ void latexParagraphs(Buffer const & buf,
 std::pair<bool, int> switchEncoding(odocstream & os,
 		     BufferParams const & bparams,
 		     OutputParams const &, Encoding const & newEnc,
-		     bool force = false);
+		     bool force = false, bool noswitchmacro = false);
 
 /// FIXME: this should not be visible.
 void TeXOnePar(Buffer const & buf,

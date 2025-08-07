@@ -10,18 +10,17 @@
 
 #include <config.h>
 
-#include "support/lassert.h"
-
 #include "InsetMathXArrow.h"
 
 #include "MathData.h"
-#include "MathStream.h"
 #include "MathStream.h"
 #include "MathSupport.h"
 
 #include "LaTeXFeatures.h"
 #include "MetricsInfo.h"
 
+#include "support/debug.h"
+#include "support/lassert.h"
 
 #include <algorithm>
 
@@ -69,7 +68,7 @@ void InsetMathXArrow::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-void InsetMathXArrow::write(WriteStream & os) const
+void InsetMathXArrow::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	os << '\\' << name_;
@@ -85,92 +84,55 @@ void InsetMathXArrow::normalize(NormalStream & os) const
 }
 
 
-void InsetMathXArrow::mathmlize(MathStream & ms) const
-{
-	char const * arrow;
+static std::map<string, string> latex_to_xml_entities = {
+		{"xleftarrow", "&#x2190;"},
+		{"xrightarrow", "&#x2192;"},
+		{"xhookleftarrow", "&#x21a9;"},
+		{"xhookrightarrow", "&#x21aa;"},
+		{"xLeftarrow", "&#x21d0;"},
+		{"xRightarrow", "&#x21d2;"},
+		{"xleftrightarrow", "&#x2194;"},
+		{"xLeftrightarrow", "&#x21d4;"},
+		{"xleftharpoondown", "&#x21bd;"},
+		{"xleftharpoonup", "&#x21bc;"},
+		{"xleftrightharpoons", "&#x21cb;"},
+		{"xrightharpoondown", "&#x21c1;"},
+		{"xrightharpoonup", "&#x21c0;"},
+		{"xrightleftharpoons", "&#x21cc;"},
+		{"xmapsto", "&#x21a6;"},
+};
 
-	if (name_ == "xleftarrow")
-		arrow = "&larr;";
-	else if (name_ == "xrightarrow")
-		arrow = "&rarr;";
-	else if (name_ == "xhookleftarrow")
-		arrow = "&larrhk;";
-	else if (name_ == "xhookrightarrow")
-		arrow = "&rarrhk;";
-	else if (name_ == "xLeftarrow")
-		arrow = "&lArr;";
-	else if (name_ == "xRightarrow")
-		arrow = "&rArr;";
-	else if (name_ == "xleftrightarrow")
-		arrow = "&leftrightarrow;";
-	else if (name_ == "xLeftrightarrow")
-		arrow = "&Leftrightarrow;";
-	else if (name_ == "xleftharpoondown")
-		arrow = "&leftharpoondown;";
-	else if (name_ == "xleftharpoonup")
-		arrow = "&leftharpoonup;";
-	else if (name_ == "xleftrightharpoons")
-		arrow = "&leftrightharpoons;";
-	else if (name_ == "xrightharpoondown")
-		arrow = "&rightharpoondown;";
-	else if (name_ == "xrightharpoonup")
-		arrow = "&rightharpoonup;";
-	else if (name_ == "xrightleftharpoons")
-		arrow = "&rightleftharpoons;";
-	else if (name_ == "xmapsto")
-		arrow = "&mapsto;";
-	else {
-		lyxerr << "mathmlize conversion for '" << name_ << "' not implemented" << endl;
-		LASSERT(false, arrow = "&rarr;");
+
+docstring map_latex_to(docstring latex)
+{
+	auto mapping = latex_to_xml_entities.find(to_ascii(latex));
+	if (mapping != latex_to_xml_entities.end()) {
+		return from_ascii(mapping->second);
+	} else {
+		lyxerr << "mathmlize conversion for '" << latex << "' not implemented" << endl;
+		LASSERT(false, return from_ascii(latex_to_xml_entities["xrightarrow"]));
+		return docstring();
 	}
-	ms << "<munderover accent='false' accentunder='false'>"
-	   << arrow << cell(1) << cell(0)
-	   << "</munderover>";
+}
+
+
+void InsetMathXArrow::mathmlize(MathMLStream & ms) const
+{
+	docstring arrow = map_latex_to(name_);
+	ms << MTag("munderover", "accent='false' accentunder='false'")
+	   << MTagInline("mo") << arrow << ETagInline("mo")
+	   << cell(1) << cell(0)
+	   << ETag("munderover");
 }
 
 
 void InsetMathXArrow::htmlize(HtmlStream & os) const
 {
-	char const * arrow;
-
-	if (name_ == "xleftarrow")
-		arrow = "&larr;";
-	else if (name_ == "xrightarrow")
-		arrow = "&rarr;";
-	else if (name_ == "xhookleftarrow")
-		arrow = "&larrhk;";
-	else if (name_ == "xhookrightarrow")
-		arrow = "&rarrhk;";
-	else if (name_ == "xLeftarrow")
-		arrow = "&lArr;";
-	else if (name_ == "xRightarrow")
-		arrow = "&rArr;";
-	else if (name_ == "xleftrightarrow")
-		arrow = "&leftrightarrow;";
-	else if (name_ == "xLeftrightarrow")
-		arrow = "&Leftrightarrow;";
-	else if (name_ == "xleftharpoondown")
-		arrow = "&leftharpoondown;";
-	else if (name_ == "xleftharpoonup")
-		arrow = "&leftharpoonup;";
-	else if (name_ == "xleftrightharpoons")
-		arrow = "&leftrightharpoons;";
-	else if (name_ == "xrightharpoondown")
-		arrow = "&rightharpoondown;";
-	else if (name_ == "xrightharpoonup")
-		arrow = "&rightharpoonup;";
-	else if (name_ == "xrightleftharpoons")
-		arrow = "&rightleftharpoons;";
-	else if (name_ == "xmapsto")
-		arrow = "&mapsto;";
-	else {
-		lyxerr << "htmlize conversion for '" << name_ << "' not implemented" << endl;
-		LASSERT(false, arrow = "&rarr;");
-	}
+	docstring arrow = map_latex_to(name_);
 	os << MTag("span", "class='xarrow'")
-		 << MTag("span", "class='xatop'") << cell(0) << ETag("span")
-		 << MTag("span", "class='xabottom'") << arrow << ETag("span")
-		 << ETag("span");
+	   << MTag("span", "class='xatop'") << cell(0) << ETag("span")
+	   << MTag("span", "class='xabottom'") << arrow << ETag("span")
+	   << ETag("span");
 }
 
 
@@ -180,6 +142,7 @@ void InsetMathXArrow::validate(LaTeXFeatures & features) const
 		features.require("amsmath");
 	else
 		features.require("mathtools");
+
 	if (features.runparams().math_flavor == OutputParams::MathAsHTML)
 		// CSS adapted from eLyXer
 		features.addCSSSnippet(

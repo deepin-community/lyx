@@ -29,21 +29,26 @@ liblyxsupport_a_DEPENDENCIES = $(MOCEDFILES)
 
 AM_CPPFLAGS += -I$(srcdir)/.. \
 	$(BOOST_INCLUDES) $(ICONV_INCLUDES) $(ZLIB_INCLUDES) \
-	$(QT_CPPFLAGS) $(QT_INCLUDES)
+	$(NOD_INCLUDES) $(QT_CPPFLAGS) $(QT_INCLUDES)
 
 liblyxsupport_a_SOURCES = \
 	FileMonitor.h \
 	FileMonitor.cpp \
 	RandomAccessList.h \
+	any.h \
 	bind.h \
 	Cache.h \
 	Changer.h \
+	checksum.cpp \
+	checksum.h \
 	ConsoleApplication.cpp \
 	ConsoleApplication.h \
 	ConsoleApplicationPrivate.h \
 	convert.cpp \
 	convert.h \
 	copied_ptr.h \
+	counter_reps.cpp \
+	counter_reps.h \
 	debug.cpp \
 	debug.h \
 	docstream.cpp \
@@ -69,13 +74,18 @@ liblyxsupport_a_SOURCES = \
 	kill.cpp \
 	lassert.h \
 	lassert.cpp \
+	Length.cpp \
+	Length.h \
+	lengthcommon.cpp \
 	limited_stack.h \
 	lstrings.cpp \
 	lstrings.h \
 	lyxalgo.h \
 	lyxlib.h \
+	lyxmagic.h \
 	lyxtime.cpp \
 	lyxtime.h \
+	mute_warning.h \
 	mutex.h \
 	mutex.cpp \
 	Messages.cpp \
@@ -91,8 +101,6 @@ liblyxsupport_a_SOURCES = \
 	pmprof.h \
 	qstring_helpers.cpp \
 	qstring_helpers.h \
-	regex.h \
-	RefChanger.h \
 	signals.h \
 	socktools.cpp \
 	socktools.h \
@@ -116,12 +124,6 @@ liblyxsupport_a_SOURCES = \
 	unicode.h \
 	weighted_btree.h
 
-#if INSTALL_MACOSX
-#liblyxsupport_a_SOURCES += \
-#	AppleSpellChecker.h \
-#	AppleSpellChecker.mm
-#endif
-
 if INSTALL_MACOSX
 liblyxsupport_a_SOURCES += \
 	AppleSpeller.h \
@@ -129,6 +131,8 @@ liblyxsupport_a_SOURCES += \
 	AppleScript.h \
 	AppleScript.m \
 	AppleScriptProxy.cpp \
+	AppleSupport.h \
+	AppleSupport.m \
 	linkback/LinkBack.h \
 	linkback/LinkBack.m \
 	linkback/LinkBackProxy.h \
@@ -170,28 +174,28 @@ ADD_FRAMEWORKS = \
 	-Wl,-headerpad_max_install_names
 endif
 
-check_convert_LDADD = liblyxsupport.a $(LIBICONV) $(BOOST_LIBS) $(QT_CORE_LIBS) $(LIBSHLWAPI) @LIBS@
+check_convert_LDADD = liblyxsupport.a $(LIBICONV) $(ZLIB_LIBS) $(QT_CORE_LIBS) $(LIBSHLWAPI) @LIBS@
 check_convert_LDFLAGS = $(QT_CORE_LDFLAGS) $(ADD_FRAMEWORKS)
 check_convert_SOURCES = \
 	tests/check_convert.cpp \
 	tests/dummy_functions.cpp \
 	tests/boost.cpp
 
-check_filetools_LDADD = liblyxsupport.a $(LIBICONV) $(BOOST_LIBS) $(QT_CORE_LIBS) $(LIBSHLWAPI) @LIBS@
+check_filetools_LDADD = liblyxsupport.a $(LIBICONV) $(ZLIB_LIBS) $(QT_CORE_LIBS) $(LIBSHLWAPI) @LIBS@
 check_filetools_LDFLAGS = $(QT_CORE_LDFLAGS) $(ADD_FRAMEWORKS)
 check_filetools_SOURCES = \
 	tests/check_filetools.cpp \
 	tests/dummy_functions.cpp \
 	tests/boost.cpp
 
-check_lstrings_LDADD = liblyxsupport.a $(LIBICONV) $(BOOST_LIBS) $(QT_CORE_LIBS) $(LIBSHLWAPI) @LIBS@
+check_lstrings_LDADD = liblyxsupport.a $(LIBICONV) $(ZLIB_LIBS) $(QT_CORE_LIBS) $(LIBSHLWAPI) @LIBS@
 check_lstrings_LDFLAGS = $(QT_CORE_LDFLAGS) $(ADD_FRAMEWORKS)
 check_lstrings_SOURCES = \
 	tests/check_lstrings.cpp \
 	tests/dummy_functions.cpp \
 	tests/boost.cpp
 
-check_trivstring_LDADD = liblyxsupport.a $(LIBICONV) $(BOOST_LIBS) $(QT_CORE_LIBS) $(LIBSHLWAPI) @LIBS@
+check_trivstring_LDADD = liblyxsupport.a $(LIBICONV) $(ZLIB_LIBS) $(QT_CORE_LIBS) $(LIBSHLWAPI) @LIBS@
 check_trivstring_LDFLAGS = $(QT_CORE_LDFLAGS) $(ADD_FRAMEWORKS)
 check_trivstring_SOURCES = \
 	tests/check_trivstring.cpp \

@@ -29,8 +29,8 @@
 namespace lyx {
 
 
-InsetMathSpecialChar::InsetMathSpecialChar(docstring const & name)
-	: name_(name), kerning_(0)
+InsetMathSpecialChar::InsetMathSpecialChar(Buffer * buf, docstring const & name)
+	: InsetMath(buf), name_(name), kerning_(0)
 {
 	if (name.size() != 1) {
 		if (name == "textasciicircum" || name == "mathcircumflex")
@@ -56,7 +56,7 @@ Inset * InsetMathSpecialChar::clone() const
 void InsetMathSpecialChar::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	if (mi.base.fontname == "mathnormal") {
-		Changer dummy = mi.base.font.changeShape(UP_SHAPE);;
+		Changer dummy = mi.base.font.changeShape(UP_SHAPE);
 		dim = theFontMetrics(mi.base.font).dimension(char_);
 	} else {
 		frontend::FontMetrics const & fm = theFontMetrics(mi.base.font);
@@ -91,7 +91,7 @@ void InsetMathSpecialChar::drawT(TextPainter & pain, int x, int y) const
 }
 
 
-void InsetMathSpecialChar::write(WriteStream & os) const
+void InsetMathSpecialChar::write(TeXMathStream & os) const
 {
 	os << '\\' << name_;
 	if (name_.size() != 1)
@@ -132,14 +132,14 @@ void InsetMathSpecialChar::octave(OctaveStream & os) const
 }
 
 
-void InsetMathSpecialChar::mathmlize(MathStream & ms) const
+void InsetMathSpecialChar::mathmlize(MathMLStream & ms) const
 {
 	switch (char_) {
 	case '&':
 		ms << "&amp;";
 		break;
 	default:
-		ms.os().put(char_);
+		ms << char_;
 		break;
 	}
 }

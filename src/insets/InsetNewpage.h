@@ -29,7 +29,9 @@ public:
 		///
 		CLEARPAGE,
 		///
-		CLEARDOUBLEPAGE
+		CLEARDOUBLEPAGE,
+		///
+		NOPAGEBREAK
 	};
 	///
 	InsetNewpageParams() : kind(NEWPAGE) {}
@@ -55,40 +57,38 @@ public:
 	static std::string params2string(InsetNewpageParams const &);
 private:
 	///
-	InsetNewpageParams params() const { return params_; }
+	InsetCode lyxCode() const override { return NEWPAGE_CODE; }
 	///
-	InsetCode lyxCode() const { return NEWPAGE_CODE; }
+	void metrics(MetricsInfo &, Dimension &) const override;
 	///
-	void metrics(MetricsInfo &, Dimension &) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
-	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 	///
-	DisplayType display() const { return AlignCenter; }
+	int rowFlags() const override { return (params_.kind == InsetNewpageParams::NOPAGEBREAK) ? Inline : Display; }
 	///
 	docstring insetLabel() const;
 	///
 	ColorCode ColorName() const;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	///
-	Inset * clone() const { return new InsetNewpage(*this); }
+	Inset * clone() const override { return new InsetNewpage(*this); }
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const override;
 
 	///
 	InsetNewpageParams params_;

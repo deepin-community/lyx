@@ -13,12 +13,12 @@
 #ifndef LATEXFEATURES_H
 #define LATEXFEATURES_H
 
-#include "OutputParams.h"
 #include "support/docstring.h"
 
 #include <set>
 #include <list>
 #include <map>
+#include <vector>
 
 
 namespace lyx {
@@ -27,6 +27,8 @@ class Buffer;
 class BufferParams;
 class InsetLayout;
 class Language;
+class otexstream;
+class OutputParams;
 struct TexString;
 
 /** The packages and commands that a buffer needs. This class
@@ -66,8 +68,6 @@ public:
 	docstring const getBabelPresettings() const;
 	/// Extra preamble code after babel is called
 	docstring const getBabelPostsettings() const;
-	/// Do we need to pass the languages to babel directly?
-	bool needBabelLangOptions() const;
 	/// Load AMS packages when appropriate
 	std::string const loadAMSPackages() const;
 	/// The definitions needed by the document's textclass
@@ -79,10 +79,6 @@ public:
 	docstring const getTClassHTMLStyles() const;
 	///
 	docstring const getTClassHTMLPreamble() const;
-	/// The sgml definitions needed by the document (docbook)
-	docstring const getLyXSGMLEntities() const;
-	/// The SGML Required to include the files added with includeFile();
-	docstring const getIncludedFiles(std::string const & fname) const;
 	/// Include a file for use with the SGML entities
 	void includeFile(docstring const & key, std::string const & name);
 	/// The float definitions.
@@ -104,8 +100,14 @@ public:
 	void require(std::string const & name);
 	/// Add a set of feature names requirements
 	void require(std::set<std::string> const & names);
+	/// Add a feature name provision
+	void provide(std::string const & name);
 	/// Is the (required) package available?
 	static bool isAvailable(std::string const & name);
+	/// Is the (required) package available at least as of version
+	/// y/m/d?
+	static bool isAvailableAtLeastFrom(std::string const & name,
+					   int const y, int const m, int const d = 1);
 	/// Has the package been required?
 	bool isRequired(std::string const & name) const;
 	/** Is this feature already provided
@@ -135,11 +137,14 @@ public:
 	///
 	std::set<std::string> getPolyglossiaLanguages() const;
 	///
+	std::string getActiveChars() const;
+	///
 	std::set<std::string> getEncodingSet(std::string const & doc_encoding) const;
 	///
-	void getFontEncodings(std::vector<std::string> & encodings) const;
+	void getFontEncodings(std::vector<std::string> & encodings,
+			      bool const onlylangs = false) const;
 	///
-	void useLayout(docstring const & lyt);
+	void useLayout(docstring const & layoutname);
 	///
 	void useInsetLayout(InsetLayout const & lay);
 	///
@@ -167,7 +172,7 @@ public:
 	/// set savenote environment (footnote package)
 	std::string saveNoteEnv() const { return savenote_env_; }
 	/// return savenote environment
-	void saveNoteEnv(std::string const s) { savenote_env_ = s; }
+	void saveNoteEnv(std::string const & s) { savenote_env_ = s; }
 	/// Runparams that will be used for exporting this file.
 	OutputParams const & runparams() const { return runparams_; }
 	/// Resolve alternatives like "esint|amsmath|wasysym"
@@ -188,10 +193,12 @@ private:
 	std::list<docstring> usedLayouts_;
 	///
 	std::list<docstring> usedInsetLayouts_;
-	/// The features that are needed by the document
-	typedef std::set<std::string> Features;
 	///
+	typedef std::set<std::string> Features;
+	/// The features that are needed by the document
 	Features features_;
+	/// Features that are provided
+	Features provides_;
 	/// Static preamble bits, from external templates, or anywhere else
 	typedef std::list<TexString> SnippetList;
 	///

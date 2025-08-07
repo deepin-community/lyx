@@ -59,7 +59,7 @@ enum {
 	FLAG_END        = 1 << 3,  //  next \\end ends the parsing process
 	FLAG_BRACK_LAST = 1 << 4,  //  next closing bracket ends the parsing
 	FLAG_TEXTMODE   = 1 << 5,  //  we are in a box
-	FLAG_ITEM       = 1 << 6,  //  read a (possibly braced token)
+	FLAG_ITEM       = 1 << 6,  //  read a (possibly braced) token
 	FLAG_LEAVE      = 1 << 7,  //  leave the loop at the end
 	FLAG_SIMPLE     = 1 << 8,  //  next $ leaves the loop
 	FLAG_EQUATION   = 1 << 9,  //  next \] leaves the loop
@@ -139,7 +139,7 @@ public:
 
 	// add to the list of characters to read before actually reading
 	// the stream
-	void putback(docstring s);
+	void putback(const docstring &s);
 
 	/// Like std::istream::get()
 	iparserdocstream & get(char_type &c);
@@ -187,7 +187,7 @@ public:
 
 	/// change the encoding of the input stream according to \p encoding
 	/// (latex name) and package \p package
-	bool setEncoding(std::string const & encoding, int const & package);
+	bool setEncoding(std::string const & encoding, int package);
 	/// change the encoding of the input stream to \p encoding (iconv name)
 	bool setEncoding(std::string const & encoding);
 	/// get the current iconv encoding of the input stream
@@ -214,18 +214,23 @@ public:
 	void dump() const;
 
 	/// Does an optional argument follow after the current token?
-	bool hasOpt(std::string const l = "[");
+	bool hasOpt(std::string const & l = "[");
+	/// Does this index entry has levels?
+	bool hasIdxMacros(std::string const & c,
+			  std::string const & e = std::string());
 	///
 	typedef std::pair<bool, std::string> Arg;
 	/*!
 	 * Get an argument enclosed by \p left and \p right.
 	 * If \p allow_escaping is true, a right delimiter escaped by a
 	 * backslash does not count as delimiter, but is included in the
-	 * argument.
-	 * \returns wether an argument was found in \p Arg.first and the
+	 * argument. The \p e allows for a different escape character
+	 * (used in index insets)
+	 * \returns whether an argument was found in \p Arg.first and the
 	 * argument in \p Arg.second. \see getArg().
 	 */
-	Arg getFullArg(char left, char right, bool allow_escaping = true);
+	Arg getFullArg(char left, char right, bool allow_escaping = true,
+		       char e = char());
 	/*!
 	 * Get an argument enclosed by \p left and \p right.
 	 * If \p allow_escaping is true, a right delimiter escaped by a
@@ -233,10 +238,11 @@ public:
 	 * argument.
 	 * \returns the argument (without \p left and \p right) or the empty
 	 * string if the next non-space token is not \p left. Use
-	 * getFullArg() if you need to know wether there was an empty
+	 * getFullArg() if you need to know whether there was an empty
 	 * argument or no argument at all.
 	 */
-	std::string getArg(char left, char right, bool allow_escaping = true);
+	std::string getArg(char left, char right, bool allow_escaping = true,
+			   char e = char());
 	/*!
 	 * Like getOpt(), but distinguishes between a missing argument ""
 	 * and an empty argument "[]".
@@ -259,6 +265,8 @@ public:
 	 * empty string if there is no such argument.
 	 */
 	std::string getFullParentheseArg();
+	/// Check if we have a list preamble
+	bool hasListPreamble(std::string const & itemcmd);
 	/*!
 	 * \returns the contents of the environment \p name.
 	 * <tt>\begin{name}</tt> must be parsed already, <tt>\end{name}</tt>
@@ -308,7 +316,7 @@ public:
 	///
 	std::string verbatimOption();
 	///
-	void error(std::string const & msg);
+	void error(std::string const & msg) const;
 	/// The previous token.
 	Token const prev_token() const;
 	/// The current token.
@@ -332,7 +340,7 @@ public:
 	/// Is any further input pending()? This is not like
 	/// std::istream::good(), which returns true if all available input
 	/// was read, and the next attempt to read would return EOF.
-	bool good();
+	bool good() const;
 	/// resets the parser to initial state
 	void reset();
 

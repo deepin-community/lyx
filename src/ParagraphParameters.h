@@ -15,21 +15,18 @@
 #define PARAGRAPHPARAMETERS_H
 
 #include "LayoutEnums.h"
-#include "Length.h"
 #include "Spacing.h"
 
 #include "support/types.h"
-#include "support/docstring.h"
+#include "support/strfwd.h"
+#include "support/Length.h"
 
 
 namespace lyx {
 
-class BufferView;
 class Layout;
-class Length;
 class Lexer;
 class Paragraph;
-class Spacing;
 
 
 ///
@@ -79,7 +76,7 @@ public:
 	void leftIndent(Length const &);
 
 	/// read the parameters from a string
-	void read (std::string str, bool merge = true);
+	void read (std::string const & str, bool merge = true);
 
 	/// read the parameters from a lex
 	void read(Lexer & lex, bool merge = true);

@@ -13,13 +13,13 @@
 
 # Casing Rules:
 # Capitalize all words in the element, with the following exceptions: 
-# * Articles: a, an, the. 
-# * Conjunctions: and, but, for, not, so, yet ...  
+# * Articles: a, an, the.
+# * Conjunctions: and, but, for, not, so, yet ...
 # * Prepositions of three or fewer letters: at, for, by, in, to ...
 #   (except when the preposition is part of a verb phrase, such as "Check In")
 # (http://library.gnome.org/devel/hig-book/stable/design-text-labels.html.en)
 
-Format 4
+Format 5
 
 Menuset
 
@@ -86,6 +86,26 @@ Menuset
 
 
 #
+# InsetMathRef context menu
+#
+	Menu "context-mathref"
+		Item "Next Cross-Reference|N" "reference-next"
+		Item "Go to Label|G" "label-goto"
+		Separator
+		Item "<Reference>|R" "inset-modify changetype ref"
+		Item "(<Reference>)|e" "inset-modify changetype eqref"
+		Item "<Page>|P" "inset-modify changetype pageref"
+		Item "On Page <Page>|O" "inset-modify changetype vpageref"
+		Item "<Reference> on Page <Page>|f" "inset-modify changetype vref"
+		Item "Formatted Reference|t" "inset-modify changetype formatted"
+		Item "Textual Reference|x" "inset-modify changetype nameref"
+		Item "Label Only|L" "inset-modify changetype labelonly"
+		Separator
+		Item "Settings...|S" "inset-settings"
+	End
+
+
+#
 # InsetRef context menu
 #
 	Menu "context-ref"
@@ -103,7 +123,8 @@ Menuset
 		Separator
 		OptItem "Plural|a" "inset-modify ref toggle-plural"
 		OptItem "Capitalize|C" "inset-modify ref toggle-caps"
-		Item "No Prefix" "inset-modify ref toggle-noprefix"
+		OptItem "No Prefix" "inset-modify ref toggle-noprefix"
+		OptItem "No Hyperlink" "inset-modify ref toggle-nolink"
 		Separator
 		Item "Settings...|S" "inset-settings"
 	End
@@ -128,6 +149,7 @@ Menuset
 		CiteStyles
 		Separator
 		Item "Settings...|S" "inset-settings"
+		OptItem "Try to Open Citation Content...|O" "inset-edit"
 	End
 
 
@@ -212,7 +234,7 @@ Menuset
 	Menu "context-note"
 		Item "LyX Note|N" "inset-modify note Note Note"
 		Item "Comment|m" "inset-modify note Note Comment"
-		Item "Greyed Out|G" "inset-modify note Note Greyedout"
+		Item "Greyed Out|y" "inset-modify note Note Greyedout"
 		Separator
 		Item "Open All Notes|A" "inset-forall Note inset-toggle open"
 		Item "Close All Notes|l" "inset-forall Note inset-toggle close"
@@ -240,20 +262,24 @@ Menuset
 # InsetSpace context menu
 #
 	Menu "context-space"
-		Item "Interword Space|w" "inset-modify space \space{}"
-		Item "Protected Space|o" "inset-modify space ~"
+		Item "Normal Space|e" "inset-modify space \space{}"
+		Item "Non-Breaking Normal Space|o" "inset-modify space ~"
 		Item "Visible Space|a" "inset-modify space \textvisiblespace{}"
-		Item "Thin Space|T" "inset-modify space \thinspace{}"
-		Item "Negative Thin Space|N" "inset-modify space \negthinspace{}"
-		Item "Half Quad Space (Enskip)|k" "inset-modify space \enskip{}"
-		Item "Protected Half Quad Space (Enspace)|E" "inset-modify space \enspace{}"
-		Item "Quad Space|Q" "inset-modify space \quad{}"
-		Item "Double Quad Space|u" "inset-modify space \qquad{}"
+		Item "Non-Breaking Thin Space (1/6 em)|T" "inset-modify space \thinspace{}"
+		Item "Non-Breaking Medium Space (3/9 em)|M" "inset-modify space \medspace{}"
+		Item "Non-Breaking Thick Space (5/18 em)|i" "inset-modify space \thickspace{}"
+		Item "Non-Breaking Negative Thin Space (-1/6 em)|N" "inset-modify space \negthinspace{}"
+		Item "Non-Breaking Negative Medium Space (-2/9 em)|v" "inset-modify space \negmedspace{}"
+		Item "Non-Breaking Negative Thick Space (-5/18 em)|h" "inset-modify space \negthickspace{}"
+		Item "Half Quad Space (1/2 em)|l" "inset-modify space \enskip{}"
+		Item "Non-Breaking Half Quad Space (1/2 em)|k" "inset-modify space \enspace{}"
+		Item "Quad Space (1 em)|Q" "inset-modify space \quad{}"
+		Item "Double Quad Space (2 em)|u" "inset-modify space \qquad{}"
 		Item "Horizontal Fill|F" "inset-modify space \hfill{}"
-		Item "Protected Horizontal Fill|i" "inset-modify space \hspace*{\fill}"
+		Item "Non-Breaking Horizontal Fill|z" "inset-modify space \hspace*{\fill}"
 		Item "Horizontal Fill (Dots)|D" "inset-modify space \dotfill{}"
 		Item "Horizontal Fill (Rule)|R" "inset-modify space \hrulefill{}"
-		Item "Horizontal Fill (Left Arrow)|L" "inset-modify space \leftarrowfill{}"
+		Item "Horizontal Fill (Left Arrow)|w" "inset-modify space \leftarrowfill{}"
 		Item "Horizontal Fill (Right Arrow)|g" "inset-modify space \rightarrowfill{}"
 		Item "Horizontal Fill (Up Brace)|p" "inset-modify space \upbracefill{}"
 		Item "Horizontal Fill (Down Brace)|B" "inset-modify space \downbracefill{}"
@@ -268,10 +294,10 @@ Menuset
 	Menu "context-mathspace"
 		Item "Thin Space|T" "inset-modify mathspace \thinspace{}"
 		Item "Medium Space|M" "inset-modify mathspace \medspace{}"
-		Item "Thick Space|h" "inset-modify mathspace \thickspace{}"
+		Item "Thick Space|i" "inset-modify mathspace \thickspace{}"
 		Item "Negative Thin Space|N" "inset-modify mathspace \negthinspace{}"
-		Item "Negative Medium Space|u" "inset-modify mathspace \negmedspace{}"
-		Item "Negative Thick Space|i" "inset-modify mathspace \negthickspace{}"
+		Item "Negative Medium Space|v" "inset-modify mathspace \negmedspace{}"
+		Item "Negative Thick Space|h" "inset-modify mathspace \negthickspace{}"
 		Item "Half Quad Space (Enskip)|k" "inset-modify mathspace \enskip{}"
 		Item "Quad Space|Q" "inset-modify mathspace \quad{}"
 		Item "Double Quad Space|u" "inset-modify mathspace \qquad{}"
@@ -284,11 +310,13 @@ Menuset
 # InsetVSpace context menu
 #
 	Menu "context-vspace"
-		Item "DefSkip|D" "inset-modify vspace defskip"
-		Item "SmallSkip|S" "inset-modify vspace smallskip"
-		Item "MedSkip|M" "inset-modify vspace medskip"
-		Item "BigSkip|B" "inset-modify vspace bigskip"
-		Item "VFill|F" "inset-modify vspace vfill"
+		Item "Default Skip|D" "inset-modify vspace defskip"
+		Item "Small Skip|S" "inset-modify vspace smallskip"
+		Item "Medium Skip|M" "inset-modify vspace medskip"
+		Item "Big Skip|B" "inset-modify vspace bigskip"
+		Item "Half line height|H" "inset-modify vspace halfline"
+		Item "Line height|L" "inset-modify vspace fullline"
+		Item "Vertical Fill|F" "inset-modify vspace vfill"
 		Item "Custom|C" "command-sequence inset-modify vspace custom; inset-settings"
 		Separator
 		Item "Settings...|e" "inset-settings"
@@ -315,6 +343,7 @@ Menuset
 	Menu "context-newpage"
 		Item "New Page|N" "inset-modify newpage newpage"
 		Item "Page Break|a" "inset-modify newpage pagebreak"
+		Item "No Page Break|g" "inset-modify newpage nopagebreak"
 		Item "Clear Page|C" "inset-modify newpage clearpage"
 		Item "Clear Double Page|D" "inset-modify newpage cleardoublepage"
 	End
@@ -341,15 +370,20 @@ Menuset
 	Menu "context-edit"
 		spellingsuggestions
 		Separator
+		OptItem "Edit Externally..." "inset-edit"
+		OptItem "End Editing Externally" "inset-end-edit"
+		Separator
 		Item "Cut" "cut"
 		Item "Copy" "copy"
 		Item "Paste" "paste"
 		Submenu "Paste Recent|e" "edit_pasterecent"
 		Separator
+		OptItem "Split Inset|i" "inset-split"
+		Separator
 		Item "Jump Back to Saved Bookmark|B" "bookmark-goto 0"
 		OptItem "Forward Search|F" "forward-search"
 		Separator
-		Item "Move Paragraph Up|o" "paragraph-move-up"
+		Item "Move Paragraph Up|h" "paragraph-move-up"
 		Item "Move Paragraph Down|v" "paragraph-move-down"
 		Separator
 		EnvironmentSeparatorsContext
@@ -364,8 +398,8 @@ Menuset
 		OptItem "Accept Change|c" "change-accept"
 		OptItem "Reject Change|j" "change-reject"
 		Separator
-		Item "Apply Last Text Style|A" "textstyle-apply"
-		Submenu "Text Style|x" "edit_textstyles"
+		Submenu "Text Properties|x" "edit_textprops"
+		OptSubmenu "Custom Text Styles|y" "edit_textstyles"
 		Item "Paragraph Settings...|P" "layout-paragraph"
 		OptItem "Unify Graphics Groups|U" "graphics-unify"
 		LanguageSelector
@@ -381,7 +415,7 @@ Menuset
 	Menu "context-edit-regexp"
 		Item "Anything|A" "command-sequence regexp-mode; self-insert .*"
 		Item "Anything Non-Empty|o" "command-sequence regexp-mode; self-insert .+"
-		Item "Any Word|W" "command-sequence regexp-mode; self-insert [a-z]+"
+		Item "Any Word|W" "command-sequence regexp-mode; self-insert \w+"
 		Item "Any Number|N" "command-sequence regexp-mode; self-insert [0-9]+"
 		Item "User Defined|U" "regexp-mode"
 	End
@@ -437,6 +471,7 @@ Menuset
 		Item "Bottom|B" "tabular-feature toggle-line-bottom"
 		Item "Left|L" "tabular-feature toggle-line-left"
 		Item "Right|R" "tabular-feature toggle-line-right"
+		OptItem "Reset Formal Defaults|F" "tabular-feature reset-formal-default"
 	End
 
 	Menu "table-alignment"
@@ -482,23 +517,10 @@ Menuset
 # InsetInfo context menu
 #
 
-	Menu "buffer-info"
-		Item "File|F" "inset-modify buffer name"
-		Item "Path|P" "inset-modify buffer path"
-		Item "Class|C" "inset-modify buffer class"
-		Separator
-		Item "File Revision|R" "inset-modify buffer vcs-revision"
-		Item "Tree Revision|T" "inset-modify buffer vcs-tree-revision"
-		Item "Revision Author|A" "inset-modify buffer vcs-author"
-		Item "Revision Date|D" "inset-modify buffer vcs-date"
-		Item "Revision Time|i" "inset-modify buffer vcs-time"
-		Separator
-		Item "LyX Version|X" "inset-modify lyxinfo version"
-	End
-
 	Menu "context-info"
-		Submenu "Document Info|D" "buffer-info"
+		InfoArguments
 		Separator
+		Item "Transform Field to Static Text|T" "inset-dissolve"
 		Item "Copy Text|o" "inset-copy-as"
 		Item "Settings...|S" "inset-settings info"
 	End
@@ -562,6 +584,17 @@ Menuset
 
 	Menu "context-toc-figure"
 		Item "Settings...|S" "inset-settings"
+		Separator
+		SubMenu "Insert Cross-Reference to this Item|C" "context-toc-ref-to-par"
+	End
+
+
+#
+# Toc Footnotes context menu
+#
+
+	Menu "context-toc-footnote"
+		SubMenu "Insert Cross-Reference to this Item|C" "context-toc-ref-to-par"
 	End
 
 #
@@ -578,6 +611,8 @@ Menuset
 
 	Menu "context-toc-table"
 		Item "Settings...|S" "inset-settings"
+		Separator
+		SubMenu "Insert Cross-Reference to this Item|C" "context-toc-ref-to-par"
 	End
 
 #
@@ -600,6 +635,8 @@ Menuset
 #
 
 	Menu "context-toc-index"
+		OptItem "Insert Copy at Cursor Position|I" "inset-insert-copy"
+		Separator
 		OptItem "Settings...|S" "inset-settings"
 	End
 
@@ -609,7 +646,36 @@ Menuset
 
 	Menu "context-index"
 		IndicesContext
+		Separator
+		Item "Index All Occurrences of this Word|W" "index-tag-all"
+		Separator
+		OptItem "Single Page (No Page Range)|P" "inset-modify changeparam range none"
+		OptItem "Start Page Range|t" "inset-modify changeparam range start"
+		OptItem "End Page Range|E" "inset-modify changeparam range end"
+		Separator
+		OptItem "No Page Formatting|N" "inset-modify changeparam pagefmt default"
+		OptItem "Bold Page Formatting|B" "inset-modify changeparam pagefmt textbf"
+		OptItem "Italic Page Formatting|I" "inset-modify changeparam pagefmt textit"
+		OptItem "Emphasized Page Formatting|z" "inset-modify changeparam pagefmt emph"
+		OptItem "Custom Page Formatting...|u" "inset-modify changeparam pagefmt custom"
 	End
+	
+	Menu "context-edit-index"
+		OptItem "Insert Subentry|n" "indexmacro-insert subentry"
+		OptItem "Insert Sortkey|k" "indexmacro-insert sortkey"
+		OptItem "Insert See Reference|c" "indexmacro-insert see"
+		OptItem "Insert See also Reference|a" "indexmacro-insert seealso"
+	End
+
+#
+# IndexMacro context menu
+#
+
+	Menu "context-indexmacro"
+		OptItem "See|e" "inset-modify changetype see"
+		OptItem "See also|a" "inset-modify changetype seealso"
+	End
+
 
 #
 # Index Lists context menu
@@ -648,11 +714,23 @@ Menuset
 	Menu "context-toc-change"
 		Item "Accept Change|c" "change-accept"
 		Item "Reject Change|R" "change-reject"
-	End	
+	End
 	
 #
 # Toc Table of Context context menu
 #
+
+        Menu "context-toc-ref-to-par"
+        	Item "<Reference>|R" "reference-to-paragraph ref"
+		Item "(<Reference>)|e" "reference-to-paragraph eqref"
+		Item "<Page>|P" "reference-to-paragraph pageref"
+		Item "On Page <Page>|O" "reference-to-paragraph vpageref"
+		Item "<Reference> on Page <Page>|f" "reference-to-paragraph vref"
+		Item "Formatted Reference|t" "reference-to-paragraph formatted"
+		Item "Textual Reference|x" "reference-to-paragraph nameref"
+		Item "Label Only|L" "reference-to-paragraph labelonly"
+        
+        End
 
 	Menu "context-toc-tableofcontents"
 		Item "Promote Section|P" "outline-out"
@@ -661,7 +739,9 @@ Menuset
 		Item "Move Section Down|w" "outline-down"
 		Separator
 		Item "Select Section|S" "section-select"
-	End	
+		Separator
+		SubMenu "Insert Cross-Reference to this Item|C" "context-toc-ref-to-par"
+	End
 
 #
 # InsetERT context menu
@@ -669,15 +749,23 @@ Menuset
 	Menu "context-ert"
 		# repeat 1 is added as a work-around to not indicate this action as toggable
 		Item "Wrap by Preview|y" "command-sequence repeat 1;inset-toggle;char-forward;char-backward;char-forward-select;preview-insert;char-backward;char-backward;inset-toggle"
-		Separator 
-		Item "Edit Externally...|x" "inset-edit" 
-		Item "End Editing Externally...|e" "inset-end-edit"
+		OptItem "Edit Externally..." "inset-edit"
+		OptItem "End Editing Externally" "inset-end-edit"
 	End
 
 #
 # InsetHyperlink context menu
 #
 	Menu "context-hyperlink"
+		Item "Settings...|S" "inset-settings"
+		Separator
+		Item "Open Target...|O" "inset-edit"
+	End
+
+#
+# InsetCounter context menu
+#
+	Menu "context-counter"
 		Item "Settings...|S" "inset-settings"
 	End
 
@@ -694,6 +782,27 @@ Menuset
 		Item "Big-sized Icons" "icon-size big"
 		Item "Huge-sized Icons" "icon-size huge"
 		Item "Giant-sized Icons" "icon-size giant"
+	End
+
+#
+# Status bar zoom context menu
+#
+	Menu "context-zoom"
+		ZoomOptions
+	End
+
+#
+# Status bar context menu
+#
+	Menu "context-statusbar"
+		Item "Zoom Level|Z" "ui-toggle zoomlevel"
+		Item "Zoom Slider|S" "ui-toggle zoomslider"
+		Separator
+		Item "Word Count|W" "ui-toggle statistics-w"
+		Item "Character Count|C" "ui-toggle statistics-cb"
+		Item "Character Count (No Blanks)|h" "ui-toggle statistics-c"
+		Item "Start Statistics Relative to Current Count|R" "statistics-reference-clamp"
+		OptItem "Reset to Absolute Statistics Count|A" "statistics-reference-clamp reset"
 	End
 
 End

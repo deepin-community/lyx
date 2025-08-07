@@ -19,22 +19,23 @@
 
 namespace lyx {
 
-class Buffer;
 class BufferParams;
 class BufferView;
+class Change;
 class CompletionList;
 class Cursor;
+class CursorData;
 class CursorSlice;
-class DocIterator;
 class ErrorList;
 class Font;
 class FontInfo;
 class FuncRequest;
 class FuncStatus;
 class Inset;
+class InsetText;
 class Lexer;
-class PainterInfo;
-class Spacing;
+class Paragraph;
+class ParagraphParameters;
 
 /// This class encapsulates the main text data and operations in LyX.
 /// This is more or less the private implementation of InsetText.
@@ -49,7 +50,7 @@ private:
 public:
 	/// \return true if there's no content at all.
 	/// \warning a non standard layout on an empty paragraph doesn't
-	// count as empty.
+	/// count as empty.
 	bool empty() const;
 	/// Access to owner InsetText.
 	InsetText const & inset() const;
@@ -97,7 +98,7 @@ public:
 
 	/// Returns whether something would be changed by changeDepth
 	/// FIXME: replace Cursor with DocIterator.
-	bool changeDepthAllowed(Cursor & cur, DEPTH_CHANGE type) const;
+	bool changeDepthAllowed(Cursor const & cur, DEPTH_CHANGE type) const;
 
 	/// Set font over selection paragraphs and rebreak.
 	/// FIXME: replace Cursor with DocIterator.
@@ -108,10 +109,12 @@ public:
 
 	///
 	void toggleFree(Cursor & cur, Font const &, bool toggleall = false);
+	/// Stack to save recent text propterty applications
+	std::vector<docstring> getFreeFonts() const;
 
 	/// ???
 	/// FIXME: replace Cursor with DocIterator.
-	docstring getStringToIndex(Cursor const & cur);
+	docstring getStringForDialog(Cursor & cur);
 
 	/// Convert the paragraphs to a string.
 	/// \param AsStringParameter options. This can contain any combination of
@@ -138,12 +141,13 @@ public:
 	void forOutliner(docstring & os, size_t maxlen, pit_type start, pit_type end,
 	                 bool shorten = true) const;
 
-	/// insert a character at cursor position
+	/// FIXME: investigate why those two function behave differently wrt cursor.
+	/// insert a character at cursor position and move cursor forward
 	/// FIXME: replace Cursor with DocIterator.
 	void insertChar(Cursor & cur, char_type c);
-	/// insert an inset at cursor position
+	/// insert an inset at cursor position; do not move cursor
 	/// FIXME: replace Cursor with DocIterator.
-	void insertInset(Cursor & cur, Inset * inset);
+	bool insertInset(Cursor & cur, Inset * inset);
 
 	/// try to handle that request
 	/// FIXME: replace Cursor with DocIterator.
@@ -158,7 +162,7 @@ public:
 	Paragraph & getPar(pit_type pit) { return pars_[pit]; }
 	// Returns the current font and depth as a message.
 	// When \param devel_mode is true, add more precise information
-	docstring currentState(Cursor const & cur, bool devel_mode) const;
+	docstring currentState(CursorData const & cur, bool devel_mode) const;
 
 	/** Find the word under \c from in the relative location
 	 *  defined by \c word_location.
@@ -168,10 +172,10 @@ public:
 	void getWord(CursorSlice & from, CursorSlice & to, word_location const) const;
 	/// just selects the word the cursor is in
 	void selectWord(Cursor & cur, word_location loc);
+	/// expands the selection to the word the cursor is in
+	void expandWordSel(Cursor & cur);
 	/// select all text
 	void selectAll(Cursor & cur);
-	/// convenience function get the previous word or an empty string
-	docstring previousWord(CursorSlice const & sl) const;
 
 	/// what type of change operation to make
 	enum ChangeOp {
@@ -244,6 +248,8 @@ public:
 	// Dissolve the inset under cursor
 	/// FIXME: replace Cursor with DocIterator.
 	bool dissolveInset(Cursor & cur);
+	/// FIXME: replace Cursor with DocIterator.
+	bool splitInset(Cursor & cur);
 	///
 	bool selectWordWhenUnderCursor(Cursor & cur, word_location);
 	/// Change the case of the word at cursor position.
@@ -257,9 +263,9 @@ public:
 	 settings are given to the new one.
 	 This function will handle a multi-paragraph selection.
 	 */
-	void setParagraphs(Cursor & cur, docstring arg, bool modify = false);
+	void setParagraphs(Cursor const & cur, docstring const & arg, bool merge = false);
 	/// Sets parameters for current or selected paragraphs
-	void setParagraphs(Cursor & cur, ParagraphParameters const & p);
+	void setParagraphs(Cursor const & cur, ParagraphParameters const & p);
 
 	/* these things are for search and replace */
 
@@ -280,9 +286,9 @@ public:
 	double spacing(Paragraph const & par) const;
 	/// make a suggestion for a label
 	/// FIXME: replace Cursor with DocIterator.
-	docstring getPossibleLabel(Cursor const & cur) const;
+	docstring getPossibleLabel(DocIterator const & cur) const;
 	/// is this paragraph right-to-left?
-	bool isRTL(Paragraph const & par) const;
+	bool isRTL(pit_type pit) const;
 
 	///
 	bool checkAndActivateInset(Cursor & cur, bool front);
@@ -298,14 +304,21 @@ public:
 
 	/// delete double spaces, leading spaces, and empty paragraphs around old cursor.
 	/// \retval true if a change has happened and we need a redraw.
-	/// FIXME: replace Cursor with DocIterator. This is not possible right
-	/// now because recordUndo() is called which needs a Cursor.
+	/// Handles undo.
 	static bool deleteEmptyParagraphMechanism(Cursor & cur,
 		Cursor & old, bool & need_anchor_change);
 
 	/// delete double spaces, leading spaces, and empty paragraphs
 	/// from \first to \last paragraph
+	/// Does NOT handle undo (responsibility of the caller)
 	void deleteEmptyParagraphMechanism(pit_type first, pit_type last, bool trackChanges);
+
+	/// delete double spaces, leading spaces, and empty paragraphs
+	/// from \first to \last paragraph and \first_pos to \last_pos
+	/// Does NOT handle undo (responsibility of the caller)
+	void deleteEmptyParagraphMechanism(pit_type first, pit_type last,
+					   pos_type first_pos, pos_type last_pos,
+					   bool trackChanges);
 
 	/// To resolve macros properly the texts get their DocIterator.
 	/// Every macro definition is stored with its DocIterator
@@ -319,8 +332,9 @@ public:
 	bool completionSupported(Cursor const & cur) const;
 	///
 	CompletionList const * createCompletionList(Cursor const & cur) const;
-	///
-	bool insertCompletion(Cursor & cur, docstring const & s, bool /*finished*/);
+	/// Do a completion at the cursor position. Return true on success.
+	/// The completion does not contain the prefix. Handles undo.
+	bool insertCompletion(Cursor & cur, docstring const & s);
 	///
 	docstring completionPrefix(Cursor const & cur) const;
 	/// find a paragraph before \p par with the given \p depth, if such
@@ -342,6 +356,8 @@ public:
 	/// Get the font of the "environment" of paragraph \p par_offset in \p pars.
 	/// All font changes of the paragraph are relative to this font.
 	Font const outerFont(pit_type pit_offset) const;
+	/// Return the label type at the end of paragraph \c pit.
+	int getEndLabel(pit_type pit) const;
 
 private:
 	/// The InsetText owner shall have access to everything.
@@ -353,7 +369,7 @@ private:
 	/// handle the case where bibitems were deleted
 	bool handleBibitems(Cursor & cur);
 	/// are we in a list item (description etc.)?
-	bool inDescriptionItem(Cursor & cur) const;
+	bool inDescriptionItem(Cursor const & cur) const;
 	///
 	void charInserted(Cursor & cur);
 	/// set 'number' font property

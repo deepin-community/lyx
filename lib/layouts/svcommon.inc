@@ -5,7 +5,7 @@
 #     Taken from initial LyX source code
 #     Author : Matthias Ettrich <ettrich@informatik.uni-tuebingen.de>
 #     Transposed by Pascal André <andre@via.ecp.fr>
-#     Heavily modified and enhanced by serveral developers.
+#     Heavily modified and enhanced by several developers.
 #     --------
 #     ejour2 made originally by Martin Vermeer based on article.layout.
 #     Modified for LyX 1.2 by Jean-Marc Lasgouttes and MV.
@@ -19,7 +19,7 @@
 # see http://www.springer.com/authors for class files and further instructions
 
 
-Format 66
+Format 104
 PageStyle		Plain
 
 
@@ -33,6 +33,7 @@ Style Standard
 	Align		Block
 	AlignPossible	Block, Left, Right, Center
 	LabelType	No_Label
+	DocBookTag             para
 End
 
 Input stdcounters.inc
@@ -61,6 +62,9 @@ Style Title
 	  Family	Sans
 	  Series	Bold
 	EndFont
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -87,7 +91,7 @@ Style Front_Matter
 	  Family	Sans
 	  Series	Bold
 	  Size		Largest
-	  Color		Blue
+	  Color		textlabel1
 	EndFont
 End
 
@@ -108,6 +112,11 @@ End
 Style Part
 	Margin		Static
 	Align		Right
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookSectionTag     part
+	DocBookInInfo         maybe
+	DocBookForceAbstractTag	partintro
 End
 
 ## The following is a variant of style Part.  It allows to place some
@@ -139,18 +148,28 @@ Style PartBacktext
 	Argument 1
 	  Mandatory	1
 	  LabelString	"Part Title"
-	  Tooltip	"Title of this part"
+	  Tooltip	    "Title of this part"
 	  IsTocCaption  1
+	  DocBookTag    title
 	EndArgument
 	Preamble
 	  \newenvironment{svmultpartbacktext}[1]{\begin{partbacktext}
 	  \part{#1}}{\end{partbacktext}}
 	EndPreamble
 	HTMLTag		h1
+	DocBookTag            NONE
+	DocBookSection        true
+	DocBookSectionTag     part
+	# A second paragraph of PartBacktext can only wreak havok: it should start a section, and nothing else (otherwise, it's a real nightmare to implement). This ought to be enough for now, even though the document cannot be valid.
 End
 
 Style Chapter
 	Align		Left
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+	DocBookSectionTag     chapter
+	TocLevel 0
 End
 
 Style ChapSubtitle
@@ -163,6 +182,7 @@ Style ChapSubtitle
 	  Shape		Up
 	  Size		large
 	EndFont
+	DocBookTag            subtitle
 
 End
 
@@ -176,6 +196,10 @@ Style ChapAuthor
 	  Shape		Up
 	  Size		normal
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookInInfo         always
 End
 
 Style ChapMotto
@@ -339,6 +363,9 @@ Style Subtitle
 	Font
 	  Size		Large
 	EndFont
+	DocBookTag            subtitle
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 Style Author
@@ -348,6 +375,11 @@ Style Author
 	  Series	Bold
 	  Shape		Italic
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 Style Institute
@@ -361,10 +393,15 @@ Style Institute
 	LabelString	"Author data:"
 	LabelFont
 	  Family	Typewriter
-	  Color		Blue
+	  Color		textlabel1
 	EndFont
 	Requires	url
 	Align 		Left
+	# TODO: should rather be merged with the list of authors, but this would require a lot of specific code...
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookInInfo         always
 End
 
 Style Date
@@ -388,7 +425,7 @@ Style TOC_Title
 	LabelString	"TOC title:"
 	LabelFont
 	  Family	Typewriter
-	  Color		Blue
+	  Color		textlabel1
 	EndFont  
 End
 
@@ -403,12 +440,21 @@ Style Running_Title
 	LatexName	titlerunning
 	InTitle		1
 	LabelString	"Running title:"
+	DocBookTag            titleabbrev
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 Style Running_Author
 	CopyStyle	Running_Title
 	LatexName	authorrunning
 	LabelString	"Running author:"
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperAttr    role='abbrev'
+	DocBookWrapperTagType block
+	DocBookInInfo         always
 End
 
 Style Running_Chapter
@@ -417,12 +463,19 @@ Style Running_Chapter
 	InTitle		0
 	LatexName	chaptermark
 	LabelString	"Running chapter:"
+	DocBookTag            titleabbrev
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+	DocBookSection        false
 End
 
 Style Running_Section
 	CopyStyle	Running_Chapter
 	LatexName	sectionmark
 	LabelString	"Running section:"
+	DocBookTag            titleabbrev
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 Style Abstract
@@ -444,6 +497,11 @@ Style Abstract
 	ParSep		0
 	Align		Block
 	AlignPossible	Block, Left
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 Style Abstract*
@@ -452,11 +510,17 @@ Style Abstract*
 	LatexName	abstract*
 	LabelString	"Abstract* (not printed)"
 	LabelFont
-	  Color		Blue
+	  Color		textlabel1
 	EndFont
 	TextFont	
-	  Color		Blue
+	  Color		textlabel1
 	EndFont
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperAttr    role='not-printed'
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 Style Keywords
@@ -478,6 +542,10 @@ Style Keywords
 	LabelFont
 	  Series	Bold
 	EndFont
+	DocBookTag          keyword
+	DocBookTagType      paragraph
+	DocBookWrapperTag   keywordset
+	DocBookInInfo       always
 End
 
 Style Dedication
@@ -498,6 +566,12 @@ Style Dedication
 	  Shape		Italic
 	  Size		large
 	EndFont
+	DocBookTag             para
+	DocBookTagType         paragraph
+	DocBookWrapperTag      dedication
+	DocBookWrapperTagType  block
+	DocBookWrapperMergeWithPrevious    true
+	DocBookInInfo          never
 End
 
 Style Foreword
@@ -524,7 +598,10 @@ Style Foreword
 	  Series	Bold
 	  Size		Huge
 	EndFont
-	HTMLTag		h1
+	DocBookTag             title
+	DocBookTagType         paragraph
+	DocBookSection         true
+	DocBookSectionTag      preface
 End
 
 Style Preface
@@ -539,9 +616,13 @@ Style Preface
 	LabelString	"Preface"
 	LabelSep	xx
 	Align		Left
+	DocBookTag             title
+	DocBookTagType         paragraph
+	DocBookSection         true
+	DocBookSectionTag      preface
 End
 
-Style Acknowledgement
+Style Acknowledgment
 	Category	BackMatter
 	Margin		First_Dynamic
 	LatexType	Environment
@@ -556,7 +637,7 @@ Style Acknowledgement
 	Align		Block
 	AlignPossible	Block, Left
 	LabelType	Static
-	LabelString	"Acknowledgements"
+	LabelString	"Acknowledgments"
 	Font
 	  Size		Small
 	EndFont
@@ -565,10 +646,12 @@ Style Acknowledgement
 	  Shape		Up
 	  Size		Small
 	EndFont
+	DocBookTag  para
+	DocBookWrapperTag  acknowledgements
 End
 
-Style Acknowledgements
-	CopyStyle	Acknowledgement
+Style Acknowledgments
+	CopyStyle	Acknowledgment
 	LatexName	acknowledgements
 End
 
@@ -595,6 +678,16 @@ Style Bibliography
 	EndFont
 	TocLevel        0
 	IsTocCaption    0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
 End
 
 Style Description
@@ -605,6 +698,12 @@ Style Description
 	LabelFont
 	  Series	Medium
 	EndFont
+	DocBookTag            variablelist
+	DocBookItemWrapperTag varlistentry
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
+	DocBookItemLabelTag   term
+	DocBookItemLabelTagType   paragraph
 End
 
 Style Petit

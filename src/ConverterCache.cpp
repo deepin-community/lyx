@@ -25,8 +25,8 @@
 #include "support/lyxtime.h"
 #include "support/Package.h"
 
+#include "support/checksum.h"
 #include "support/lassert.h"
-#include <boost/crc.hpp>
 
 #include <algorithm>
 #include <fstream>
@@ -41,14 +41,6 @@ namespace lyx {
 
 namespace {
 
-unsigned long do_crc(string const & s)
-{
-	boost::crc_32_type crc;
-	crc = for_each(s.begin(), s.end(), crc);
-	return crc.checksum();
-}
-
-
 // FIXME THREAD
 // This should be OK because it is only assigned during init()
 static FileName cache_dir;
@@ -62,7 +54,8 @@ public:
 		: timestamp(t), checksum(c)
 	{
 		ostringstream os;
-		os << setw(10) << setfill('0') << do_crc(orig_from.absFileName())
+		os << setw(10) << setfill('0')
+		   << support::checksum(orig_from.absFileName())
 		   << '-' << to_format;
 		cache_name = FileName(addName(cache_dir.absFileName(), os.str()));
 		LYXERR(Debug::FILES, "Add file cache item " << orig_from
@@ -198,14 +191,14 @@ CacheItem * ConverterCache::Impl::find(FileName const & from,
 		string const & format)
 {
 	if (!lyxrc.use_converter_cache)
-		return 0;
+		return nullptr;
 	CacheType::iterator const it1 = cache.find(from);
 	if (it1 == cache.end())
-		return 0;
+		return nullptr;
 	FormatCacheType & format_cache = it1->second.cache;
 	FormatCacheType::iterator const it2 = format_cache.find(format);
 	if (it2 == format_cache.end())
-		return 0;
+		return nullptr;
 	return &(it2->second);
 }
 
@@ -244,6 +237,8 @@ void ConverterCache::init()
 	cache_dir = FileName(addName(package().user_support().absFileName(), "cache"));
 	if (!cache_dir.exists())
 		if (!cache_dir.createDirectory(0700)) {
+			// FIXME This should really be displayed as a message. But the GUI
+			// does not exist yet.
 			lyxerr << "Could not create cache directory `"
 			       << cache_dir << "'." << endl;
 			exit(EXIT_FAILURE);

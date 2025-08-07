@@ -1,271 +1,409 @@
-!Important Change in LyX 2.3.1
-
-* A change to how math macros are output can break some documents that use
-  ERT to comment out macros. Please see bug #11216 if you experience this
-  sort of problem.
-
-
-!Important Changes in LyX 2.3.0
+!Important Changes in LyX 2.4.0
 
 
 !!Interface changes
 
-* LyX now has "inverted" branch insets, which output their contents just in
-  case a given branch is not "activated". This makes inclusion of alternate
-  material in different versions easier.
+* It is now possible to cancel background export processes at any time. A menu
+  entry to do so will appear on the Document menu when such a process is
+  underway.  The LFUN for this is export-cancel. One can also click on the red
+  'x' next to the spinner to cancel export. Thanks to this functionality, we now
+  remove the "Stop command?" prompt, which polled users whether to stop a long
+  process.
 
-* When inserting a command or symbol in mathed, it is now automatically
-  wrapped in a real inset (either \text or \ensuremath) assuring the correct
-  mode, instead of being wrapped only in the output. The wrapping inset can
-  be safely dissolved, as it will be automatically inserted at export time
-  if needed, as usual.
+* The items on the Edit menu have been reordered, and many of the shortcuts
+  have been changed so that they are more intuitive in the case of often
+  used items. We understand that this may frustrate some users and apologize,
+  while noting that menu shortcuts can always be customized by copying the
+  stdmenus.inc file to the user directory and editing it.
 
-* The new setting
-  "Document->Settings->Fonts->Disallow line breaks after dashes"
-  turns off the conversion of em- and en-dash characters to --- and --
-  respectively for LaTeX export. It is is "false" by default.
-  See chapter 3.9.1.1 "Dashes and Line Breaks" of the User Guide and
-  "Caveats when upgrading from earlier versions to 2.3.x" below.
+* Backspace and other forms of deletion will now merge paragraphs even when they 
+  have different layouts.
 
-* The preference "Tools->Preferences->Look&Feel->Screen Fonts->Use
-  pixmap cache to speed up font rendering" is not available anymore.
-  It was of dubious value and led to rendering issues.
+* Ctrl-click on a cross-reference will now take you to its label.
 
-* The following UI translations were dropped, because of the lack of translation
-  maintenance:  Catalan, Danish, Dutch, Galician, Romanian, Serbian.
+* Default shortcuts for saving bookmarks have been changed to Alt-NUM, where
+  NUM is the number of the bookmark. (They were previously Shift-F1, etc.)
+
+* Shift-F3 can be used for word-find-backwards (i.e., find previous) on Linux
+  and Windows.
+
+* The shortcut to use the selection for a find on macOS is now Cmd-E, as is the
+  Apple standard.  The shortcut for find the next occurrence of the current
+  find buffer text is Cmd-G.  The shortcut for toggle of font emphasis has been
+  changed to Cmd-Ctrl-E.
+
+* Continuous spellcheck is now on by default, but only if the user does not have
+  an existing preferences file. In that case, the old setting is preserved.
+
+* Document (or selection) statistics is now shown in status bar and can be
+  disabled by the context menu.
+
+* The actual enabled state of the synchronize TeX output option of the document
+  is used to enable or disable the menu item for forward-search.
+
+* When using the document compare function, there is now an option to display the
+  differences using a special "Document Compare" author.
+
+* The cross reference inset now supports starred commands. The starred commands 
+  stop hyperref from creating a link (and are only available when hyperref is used).
+  There is a checkbox "No Hyperlink" for this purpose.
+
+* Alt-Escape can be used to 'float' and redock widgets such as the table of contents
+  or source view.
+
+* Edit > Paste operation now preserves newlines in text by default.
+  The same default applies for mouse middle-button pasting in Linux.
+
+* Dark mode on Windows is possible now by choosing "fusion" user interface style
+  in the user interface preferences dialog, your system style has to be set to dark.
+
+* One can now use the Text Properties dialog in mathed to not only change
+  colors but also other text properties, except strikethrough and language
+  settings.
+
 
 !!Documents compilation process and images conversion
 
-* It is now possible to enable the -shell-escape option only for specific
-  documents, rather than having to enable it globally in preferences.
-  This is achieved by checking "Allow running external programs" in
-  Document->Settings->Formats. LyX will now check whether -shell-escape
-  has been added to a LaTeX converter and invites the user to remove it
-  in favor of the new mechanism when that LaTeX converter is used.
+* LyX now uses utf8 encoding per default for all languages. This does
+  not affect existing documents. Note that LyX also does not touch
+  personal defaults and templates. That is to say, if you still see
+  traditional encoding preset for new documents, you can change that
+  by selecting "Unicode (utf8) [default]" and hitting "Save as
+  Documents Defaults" afterwards. Your personal templates need to be
+  changed manually if desired.
 
-* The converters definition syntax (LYX_HOME/lyxrc*) now supports a
-  new option, 'needauth', to prevent completely automated execution of
-  the converter, unless LyX acquired explicit consent by the
-  user. This is a new security feature, useful for converters that are
-  capable of executing arbitrary code, such as R scripts (used with
-  sweave/knitr), embedded within LyX documents. The user needs to
-  explicitly grant per-document permission on the first need for using
-  the converter on each document, unless he/she checks the "Don't ask
-  again for this document" checkbox in the permission dialog. The new
-  behavior can be fine-tuned from two new options in the preferences
-  dialog (see their description below). These also allow for disabling
-  'needauth' converters altogether, if desired (default behavior).
+* LyX defaults to the "HE8" LaTeX font encoding with Hebrew if the
+  "Culmus" LaTeX fonts are installed.
 
-* LyX now supports insertion and automated conversion of Gnuplot scripts,
-  recognized by their typical extension ".gp" or ".gnuplot". These can
-  directly be inserted in a LyX document using the "Insert->Graphics..."
-  dialog, then selecting the Gnuplot script. LyX automatically adds a
-  proper "set terminal ..." and "set output ..." line to convert the
-  file to the needed output format (e.g., .eps, .pdf), depending on
-  whether the document is being previewed on screen or compiled as PDF
-  or other formats. Terminal options cannot be fine-tuned at the moment,
-  but that's a capability that may come soon, also according to the
-  received feedback from users.
+* Documents that use TeX fonts can only be compiled with XeTeX if the input
+  encoding is set to "utf8-plain" or "ascii".
 
+* With LyXHTML output, there are now different CSS classes generated for
+  different depths: enumi, enumii, enumiii, and enumiv, and similarly for
+  itemize: lyxitemi, etc. There is also a new HTMLClass tag, which makes it
+  easier to provide specific classes for paragraphs.
 
-!!!The following pref variables were added in 2.3:
+* HTML support has been updated to output XHTML5 files. A major change is the
+  use of XML entities instead of HTML ones (e.g., LyX now outputs &#45;
+  instead of &quot;).
 
-* \default_platex_view_format
-  Determine the default output format for Japanese documents that use the
-  pLaTeX backend [default: "pdf3" == "PDF (dvipdfm)"]
+* DocBook support has been revamped and now targets DocBook 5 (i.e.
+  only XML, SGML is gone). Some supporting files for the previous
+  implementation have been removed: all examples (lib/examples),
+  some layouts (existing documents should still work, but with a
+  DocBook 5 output instead of DocBook 4 SGML). The dependency on
+  sgmltools has been removed, this new support is always enabled.
+  Having sgmltools installed or not will not change anything in LyX.
 
-* \jbibtex_alternatives
-  Alternative bibliography converters for Japanese.
+* Postscript -> PDF convertor (ps2pdf) uses -dALLOWPSTRANSPARENCY by
+  default now (implemented since ghostscript 9.53.3, see bug #12303).
 
-* \pygmentize_command
-  holds the name of the driver command used by the Pygments python module.
+* There is a widespread ban on postscript conversions across different
+  linux distributions and there are currently two way how to address
+  various image conversion errors when typesetting your documents: 
+  - either manually remove the bans of EPS/PDF coders in ImageMagick
+    policy.xml configuration file
+  - or install alternative converters for bitmap <-> postscript.
+    In particular pdftoppm (poppler-utils) and tiff2ps (libtiff-tools)
+    are now recognized and activated in case LyX detects ImageMagick
+    policy ban. These will allow eps<->png(jpg) conversion chain to
+    be found when processing your documents. 
+  Package maintainers of distributions (e.g. openSUSE or Debian derivates)
+  where ghostscript conversions of ImageMagick are banned can simply 
+  add dependencies for poppler-utils and libtiff-tools to work around
+  the problem.
 
-* \use_converter_needauth
-  when enabled, user is asked before calling any (possibly dangerous)
-  external converter with the 'needauth' option
+* LyX now supports Hebrew and Hungarian quotation styles.
 
-* \use_converter_needauth_forbidden
-  when enabled, use of external converters with the 'needauth' option is
-  forbidden
-
-
-!!!The following pref variables were changed in 2.3:
-
-* \bibtex_command
-  New (default) value "auto".
-
-* \screen_zoom
-  This is now independent of the value set via buffer-zoom[-in|-out].
-
-* \use_pixmap_cache
-  The value of this variable is now ignored.
-
-!!!The following new LyX functions have been introduced in 2.3:
-
-* buffer-external-modification-clear
-  Clear the external modification flag on the current buffer
-
-* buffer-zoom
-  Zooms the screen fonts to a given value or resets to the default zoom
-  when no argument is given.
-
-* branch-invert
-  Toggles inversion status of branch inset.
-
-* devel-mode-toggle
-  Activate/deactivate the developer mode, which consists mainly in:
-  (1) more information shown in the status bar and (2) help file
-  opened in editable mode. This state used to be hardcoded at compile
-  time.
-
-* buffer-anonymize (2.3.2)
-  Replace all text n the document by streams of `a'. This is useful
-  for sharing private documents in a bug report.
-
-* font-crossout
-  Cross out characters.
-
-* icon-size [size in px]
-  Set the icon size in the toolbar
-
-* lyx-activate
-  Activates the LyX window. Useful in combination with reverse search.
-
-* toolbar-movable
-  Toggles movability of a given toolbar.
+* cprotect.sty is now generally needed and should be required as 
+  a dependency for installation.
+  
 
 
-!!!The following LyX functions have been changed in 2.3:
+!!!The following pref variables were added in 2.4:
 
-* buffer-export
-  If no or "default" argument is given, the function now exports to the default
-  output format.
+* \ct_additions_underlined true|false: determines whether additions in change tracking
+  are underlined in the workarea (default: true).
 
-* buffer-zoom-in, buffer-zoom-out
-  The Zoom value set by these is now relative to the default zoom value set in
-  preferences.
+* \ct_markup_copied true|false: determines whether change tracking markup should be
+  preserved on copy/paste (default: false).
 
-* environment-split
-  The new arguments "before" and "previous" can be used for finer control on
-  where/how the new environment is created.
+* \citation_search_view lyxpaperview: determines whether external script "lyxpaperview"
+  should be used for looking up citation source.
 
-* inset-modify
-  This function now also applies to quote insets. It takes a three-character
-  string as an argument, referring (1.) to the style (e = ``english'',
-  s = ''swedish'', g = ,,german``, p = ,,polish'', f = <<french>>, a = >>danish<<),
-  (2.) to the side (l = left, r = right) and (3.) to the quotation level
-  (s = single, d = double). So "eld" means "English left double quotation mark".
-  A dot in the string means: take the current value. So "inset-modify changetype e.."
-  will only change the style to English, while letting side and level as is,
-  "inset-modify changetype f.s" will change the style to French and the level to
-  single, leaving the side value.
+* \draw_strategy partial|backingstore: when this is set to
+  "backingstore", the drawing code will force the use of an
+  intermediate surface, instead of just drawing changed regions on
+  screen. Note that "backingstore" is actually always enforced on
+  macOS and Wayland (default: partial).
 
-  This function is most useful when combined with inset-forall. E.g.,
-  "inset-forall Quotes inset-modify changetype f.."
-   => change all quote insets to French style, maintaining current side and level
-  "inset-forall Quotes inset-modify changetype ..s"
-   => change all quote insets to single quotes, keeping style and level
-  "inset-forall Quotes inset-modify changetype g.s"
-   => change all quote insets to German single quotes, keeping left/right setting
+* \screen_limit true|false: determines whether the text width on screen is limited
+  (both fullscreen and normal view).
 
-* layout
-  The new argument "ignorenests" can be used to ignore nesting advice contained
-  in the layout tag "AutoNests".
+* \screen_width <length>: sets the width of the text on screen if \screen_limit is true.
 
-* paragraph-break
-  The new argument "ignoresep" can be used to break without accounting for
-  separators.
+!!!The following pref variables were changed in 2.4:
 
-* paragraph-goto
-  The function has now two further optional arguments that determine end positions.
-  If specified, a selection is performed.
+* none.
 
-* quote-insert
-  The function now has a second and third optional argument to specify
-  the side (left, right, auto) and quotation mark style (english, swedish,
-  german, polish, french, danish).
 
-* specialchar-insert
-  New option allowbreak that adds an invisible line break option,
+!!!The following pref variables are obsoleted in 2.4:
+
+* \font_encoding
+  The font encoding is now automatically set depending on the document
+  fonts and languages.
+
+* \fullscreen_limit
+  Removed in favor of \screen_limit
+
+* \fullscreen_width
+  Removed in favor of \screen_width
+
+* \use_qimage
+  This is no longer necessary due to the rewrite of the painter.
+
+* \use_pixmap_cacheqimage
+  There is no evidence that this painting mode was useful anymore.
+
+* \date_insert_format
+  The function date-insert has been removed and superseded by info-insert date.
+  The latter does not need a pref value anymore.
+
+
+!!!The following new LyX functions have been introduced in 2.4:
+
+* bibtex-database-list: output a list of all bibtex files used in the current buffer.
+  The function outputs absolute paths in the OS style and separated by the os-specific
+  path separator. This function is intended for bibliography managers.
+
+* branch-sync-all: Open/close all insets of selected branch (depending on its activation status).
+
+* buffer-reset-export advises LyX to remove the auxiliary files before doing the next
+  export.
+
+* buffer-write-as-template is a new convenience function to ease saving a document
+  in the (personal) templates folder.
+
+* export-cancel: Used to cancel background export processes.
+
+* font-nospellcheck marks the word under cursor or selection to the effect that the
+  spellchecker ignores it.
+
+* ifrelatives is a helper function to check whether a buffer has a master or children.
+
+* lyxfiles-open opens the new examples or templates dialog.
+
+* master-buffer-forall executes an lfun in the master and all children of a document.
+
+* paragraph-select is a new convenience function to select the paragraph
+  surrounding the actual cursor position.
+
+* search-string-set [arg] stores the <arg>, the currently selected text or the word under
+  cursor in the search cache that is used by word-find[-backward|-forward] if no argument
+  is given to those.
+
+* spelling-add-local adds words for a given language to the document's local spelling
+  dictionary.
+
+* spelling-remove-local removes words for a given language from the document's local
+  spelling dictionary.
+
+* index-tag-all adds a copy of the index entry under cursor to after all occurrences of the
+  word that precedes the index inset.
+
+* inset-insert-copy inserts the inset's content (in ToC pane) at the position of the cursor.
+
+* inset-split is a new convenience function that splits an inset into two at the given
+  cursor position. This is only implemented for text insets currently.
+
+* tabular-style-insert: Insert a table in a specified style.
+
+* tab-group-next, tab-group-previous: Activate another tab group in split view.
+  The new functions bound to F6/S-F6 in CUA bindings.
+
+
+!!!The following LyX functions have been changed in 2.4:
+
+* citation-insert now returns a list of undefined citations if passed through the LyX Server.
+
+* file-insert: optional second parameter "ignorelang" to make the insertion
+  ignore the inserted file's main language (and rather adapt it to the insertion
+  context's language).
+
+* info-insert buffer vcs-*: renamed to info-insert vcs *
+
+* inset-edit recognizes optional argument "nogui" - no editor will be launched in
+  such case, only filename will be returned (for use in scripts).
+
+* outline-in/out can now take argument "local", that restricts their
+  action to the current paragraph.
+
+* set-graphics-group was renamed to graphics-set-group.
+
+* tabular-feature: added toggle parameters "toggle-all-lines", "toggle-border-lines"
+  and "toggle-inner-lines"
 
 * word-delete-forward, word-delete-backward, char-delete-forward,
   char-delete-backward
-  The pre-2.3 behavior of these functions is equivalent to the 2.3 behavior with
-  the "force" option appended. The new default behavior (without "force") is
-  to select big insets on the first call and delete them only on the second.
-  This new behavior is consistent with how delete works in LyX's math editor.
+
+  The 2.4 behavior of these functions is almost equivalent to the
+  pre-2.3 behavior: without argument, it just deletes the
+  next/previous element; with the "confirm" argument however, big
+  insets are selected on the first call and deleted only on the
+  second. This new behavior allow scripts to work intuitively and
+  require the argument only for interactive use.
 
 
-!!!The following new folders have been added to the LyX directory
+!!!The following LyX functions have been removed in 2.4:
 
-* citeengines: Contains the *.citeengine files that determine the citation
-  formatting and features.
-
-* xtemplates: Contains the *.xtemplate files that define the external templates
-  (previously in the external_templates file).
+* date-insert: obsoleted by info-insert date.
 
 
-!!!The following preferences files have been removed from the tarball in 2.3:
+!!!The following LyX function has been added and then removed in 2.4 development cycle.
 
-* external_templates. This files has been split into multiple *.xtemplate
-  files that are now shipped as content of the xtemplates directory.
-
-
-!!Changes with respect to external programs and libraries in 2.3:
-
-* LyX now supports only macOS 10.9 and higher (due to using Qt 5.9).
-
-* Inkscape SVG with separate LaTeX + PDF or PS output is supported via External
-  Material.
-
-* Add some editor/viewer applications to (re)configure checks.
-
-* The included Hunspell has been upgraded to version 1.6.2.
-
-* The included libiconv has been upgraded to version 1.15.
-
-* LyX now includes a Qt-based fallback-converter for Mac to compensate missing
-  ImageMagick convert utility.
+* bidi: used as a first solution to provide icons that change
+  direction with language.
 
 
-!!Known issues in version 2.3.0
+!!!The following LyX documents have been moved in 2.4:
 
-* See http://www.lyx.org/trac/wiki/BugTrackerHome .
-
-
-!!Caveats when upgrading from earlier versions to 2.3.x
-
-* The external_templates file has been split into one file per template,
-  which are now located in lib/xtemplates/*.xtemplate. This makes it easier
-  to add new templates or modify existing ones. If you have modified
-  the external_templates file, you will have to move the modifications to
-  the respective *.xtemplate file manually.
-
-* By default, LyX 2.3 outputs en- and em-dashes as -- and --- respectively,
-  so that a line break can occur in the output immediately after the dash.
-  Sometimes, this results in undesired line breaks or overfull lines due to
-  suppression of hyphenation in the word preceding the dash.
-  Select "Document->Settings->Fonts->Disallow line breaks after dashes"
-  to keep the LyX 2.2 behaviour.
-  See chapter 3.9.1.1, "Dashes and Line Breaks", of the User Guide
-  for details.
-
-* If trying to compile documents using R scripts and sweave/knitr, LyX
-  2.3.x would not allow for re-running the R scripts, unless the user:
-  1) explicitly disables the "Forbid use of needauth converters"
-  option in the LyX preferences;
-  2) provides explicit consent to the use of the converter on the first
-  compilation of the R-enhanced document.
-
-* LyX now gives a warning if a document mixes title and non-title layouts.
-  In some cases, this warning is harmless, but in other cases the document has
-  a serious problem even though the LaTeX command does not exit with error. For
-  example, create a document with a title layout, then a standard layout, and
-  then an author layout, and you will see in the PDF that the author is not
-  typeset as an author.
+* As a result of a major restructuring of the templates and example
+  directories, almost all examples and templates files have been renamed and
+  moved to subfolders that reflect the layout category.
+  The files now have much more decriptive (and longer) names, and they use
+  URL encoding for specific special characters such as '(', ')' and '&'.
+  Notably also the file that opens for new users has been renamed (from
+  splash.lyx to Welcome.lyx).
 
 
-!! If upgrading from a LyX version before 2.2.0
+!!!The following new files and folders have been added to the LyX directory
+
+* The examples and templates directories have been completely re-organized.
+  They are now much more structured (by means of layout categories) and thus
+  consist of many new subfolders.
+
+* The file images/icon.aliases provides simple string substitution
+  rules that can be used when searching for an icon. This mechanism
+  can be used to handle icons for renamed lfuns or new arguments.
+
+
+!!!The following preferences files have been removed from the tarball in 2.4:
+
+* none.
+
+
+!!!The following metadata files have been added to the tarball in 2.4:
+
+* Metainfo was updated from appdata.xml to org.lyx.LyX.metainfo.xml
+  and is by default installed to /usr/share/metainfo/ per freedesktop.org
+  recommendation.
+
+
+!!Changes with respect to external programs and libraries in 2.4:
+
+* The Qt5 libraries are now used by default. In order to link against
+  Qt6 the configure option --enable-qt6 has to be used. Qt4 is not 
+  supported anymore.
+
+* The dependency on pplatex/dvipost was dropped.
+
+* The dependency on sgmltools was dropped, see DocBook 5 section.
+
+
+!!! Dependencies to generate ePub files:
+
+* The DocBook XSLT 1.0 style sheets are a required dependency to generate
+  ePub files. All versions since 1.76.0 are supported.
+
+  Version 1.79.2 is bundled with LyX. If your system already provides xslt
+  style sheets you can use configure parameter --without-xslt-stylesheets to
+  avoid installing them.
+
+
+* XSLT processor is needed, two options were successfully tested
+  a) xsltproc
+     - Works on Linux and OSX (tested with xsltproc 1.1.32).
+     - Fails on Windows.
+  b) Saxon
+     - Tested on Linux, OSX and Windows.
+     - Java is a required dependency. Any JVM for Java 1.4 should be supported.
+     - Only Saxon versions 6.5.4 and 6.5.5 are supported.
+     - Version 6.5.5 is bundled with LyX. If your system already provides Saxon
+       (or xsltproc) you can use configure parameter --without-saxon to avoid
+       installation of this library.
+
+* bash_completion script was updated for a newer syntax.
+
+
+!!Known issues in version 2.4.0
+
+* Various versions of Qt6 (> 6.2) have problems with key events handling on MacOS.
+  In LyX, this results in Control-Command keyboard shortcuts not working if
+  LyX is compiled against such a version for MacOS (see bug #12641).
+  This is a Qt bug (QTBUG-123848) which will be fixed in Qt 6.8.0 and 6.7.1.
+  The fix might also be backported to Qt 6.5.6 and 6.2.13.
+
+* Gnome environments defaulting to Wayland + mutter compositor might be missing
+  proper window decorations. This is a generic problem which can be for Qt-based
+  applications (including LyX) alleviated by setting QT_QPA_PLATFORMTHEME=gnome
+  environment variable prior to running LyX.
+
+* For others see http://www.lyx.org/trac/wiki/BugTrackerHome
+
+
+!!Caveats when upgrading from earlier versions to 2.4.x
+
+* LyX now uses the parskip package for vertical paragraph separation. Since the
+  output differs from the previous (sub-optimal) approach which applied paragraph
+  separation to sections, lists etc. as well, existing documents
+  are converted to use preamble code that maintains the previous layout.
+  The downside is that the workarea looks as if paragraph indendation rather
+  than paragraph separation was used (output is correct). We encourage you
+  to try if the new layout suits you, remove the respective preamble code
+  and re-set the paragraph separation to use the new layout.
+
+* Autotools monolithic build option for building LyX binaries was removed,
+  for compilation speedup use parallel building on multiple cores instead.
+
+* Several ttf fonts (esint10.ttf, stmary10.ttf, wasy10.ttf) were changed
+  to reflect the fact that newer Qt libraries do not support displaying certain
+  codepoints anymore (bug #8493, #10161).
+  Distribution packagers need to repack those font files in case they are
+  delivering the fonts as a separated package dependent from core LyX
+  in order to display correctly math symbols like \oint.
+
+* Parentheses inside custom insets (defined in the local layout or in a  
+  custom module) which has the "PassThru" tag set to true, in a hebrew text  
+  will be reversed after conversion of existing documents.  
+ 
+  To avoid that remove the "PassThru" tag, and restore it after  
+  the conversion, or add the name of the inset, inset and the argument, 
+  or layout and argument to the appropriate list, or dictionary in  
+  the function "convert_hebrew_parentheses(document)" in lyx_2_4.py.
+
+* Hyperlink inset, which is set to the type "file" now exports as
+  file: target in href in xHTML export, not the web link as in 2.3.
+  This will break export of the old documents containing this type of
+  hyperlink as the web browser will not be able to locate the referenced
+  file anymore.
+
+  Possible way how to detect affected files in your directory (on linux systems):
+  find -type f -name "*.lyx"|xargs grep -E '^type..file:'
+
+  For fixing you need to either manually change the hyperlink inset from "File"
+  to "Web" type inside LyX, or simply delete the lines
+  type "file:"
+  inside .lyx file in your favorite plain text editor.
+
+
+!! If upgrading from a LyX version before 2.3.0
 
 * Please additionally see the release notes from the versions in-between:
   https://wiki.lyx.org/LyX/ReleaseNotes
+
+
+!!Detailed list of 2.4 changes
+
+* For more comprehensive list of changes and new features in LyX 2.4 see
+  https://wiki.lyx.org/LyX/NewInLyX24
+

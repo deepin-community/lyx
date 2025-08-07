@@ -10,7 +10,7 @@
 
 #include <config.h>
 
-#include "mutex.h"
+#include "support/mutex.h"
 
 #include <QMutex>
 
@@ -20,12 +20,20 @@ namespace lyx {
 
 struct Mutex::Private
 {
+#if (QT_VERSION < QT_VERSION_CHECK(5, 15, 0))
 	// QMutex::Recursive: less risks for dead-locks
 	Private() : qmutex_(QMutex::Recursive)
 	{
 	}
 
 	QMutex qmutex_;
+#else
+	Private() : qmutex_()
+	{
+	}
+
+	QRecursiveMutex qmutex_;
+#endif
 };
 
 

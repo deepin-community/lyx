@@ -10,7 +10,7 @@
 
 /**
  * This file contains dummy implementation of some methods that are
- * needed byclasses used by tex2lyx. This allows to reduce the number
+ * needed by classes used by tex2lyx. This allows to reduce the number
  * of classes we have to link against.
 */
 
@@ -18,9 +18,11 @@
 
 #include <config.h>
 
-#include "Format.h"
+#include "tex2lyx.h"
 #include "LaTeXFeatures.h"
+#include "LyXRC.h"
 #include "output_xhtml.h"
+#include "xml.h"
 
 #include "support/Messages.h"
 
@@ -37,28 +39,20 @@ namespace lyx {
 
 namespace frontend {
 namespace Alert {
-	void warning(docstring const & title, docstring const & message,
-				 bool const &)
+	void warning(docstring const & title, docstring const & message, bool)
 	{
-		cerr << to_utf8(title) << "\n" << to_utf8(message) << endl;
+		warning_message(to_utf8(title) + "\n" + to_utf8(message));
 	}
 } // namespace Alert
 } // namespace frontend
 
 
 //
-// Dummy verbose support
+// Required global variables
 //
 
 bool verbose = false;
-
-
-//
-// Dummy LyXRC support
-//
-
-
-class LyXRC {} lyxrc;
+LyXRC lyxrc;
 
 
 //
@@ -80,23 +74,6 @@ Messages const & getGuiMessages()
 
 
 //
-// Dummy formats support (needed by Lexer)
-//
-
-
-Formats & theFormats()
-{
-	static Formats dummy_formats;
-	return dummy_formats;
-}
-
-bool Formats::isZippedFile(support::FileName const&) const
-{
-	return false;
-}
-
-
-//
 // Dummy features support (needed by ModuleList)
 //
 
@@ -112,22 +89,6 @@ string alignmentToCSS(LyXAlignment)
 	return string();
 }
 
-//
-// Dummy FontMetrics (needed by Length)
-//
-
-namespace frontend {
-class FontMetrics {
-	int em() const { return 0; };
-};
-} // namespace frontend
-
-class FontInfo;
-
-frontend::FontMetrics const & theFontMetrics(FontInfo const &) {
-	static frontend::FontMetrics dummy;
-	return dummy;
-}
 
 //
 // Keep the linker happy on Windows
@@ -135,5 +96,10 @@ frontend::FontMetrics const & theFontMetrics(FontInfo const &) {
 
 void lyx_exit(int)
 {}
+
+namespace xml {
+docstring StartTag::writeTag() const { return docstring(); }
+docstring StartTag::writeEndTag() const { return docstring(); }
+}
 
 } // namespace lyx

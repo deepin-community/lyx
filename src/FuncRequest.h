@@ -24,6 +24,10 @@ namespace lyx {
 
 class LyXErr;
 
+namespace frontend {
+	class GuiView;
+}
+
 /**
  * This class encapsulates a LyX action and its argument
  * in order to pass it around easily.
@@ -70,6 +74,10 @@ public:
 	///
 	void setOrigin(Origin o) { origin_ = o; }
 	///
+	frontend::GuiView* view_origin() const { return view_origin_; }
+	///
+	void setViewOrigin(frontend::GuiView* o) { view_origin_ = o; }
+	///
 	int x() const { return x_; }
 	///
 	int y() const { return y_; }
@@ -78,7 +86,7 @@ public:
 	///
 	mouse_button::state button() const { return button_; }
 	///
-	KeyModifier modifier() { return modifier_; }
+	KeyModifier modifier() const { return modifier_; }
 
 	/// argument parsing, extract argument i as std::string
 	std::string getArg(unsigned int i) const;
@@ -91,31 +99,40 @@ public:
 	///
 	static FuncRequest const noaction;
 	///
+	static FuncRequest const prefix;
+
+	///
 	bool allowAsync() const { return allow_async_; }
 	///
 	void allowAsync(bool allow_async) { allow_async_ = allow_async; }
-	
+
 private:
 	/// the action
-	FuncCode action_;
+	FuncCode action_ = LFUN_NOACTION;
 	/// the action's string argument
 	docstring argument_;
 	/// who initiated the action
-	Origin origin_;
+	Origin origin_ = INTERNAL;
+	/// to which view should be this command sent (see bug #11004)
+	/// NULL=current view
+	frontend::GuiView* view_origin_ = nullptr;
 	/// the x coordinate of a mouse press
-	int x_;
+	int x_ = 0;
 	/// the y coordinate of a mouse press
-	int y_;
+	int y_ = 0;
 	/// some extra information (like button number)
-	mouse_button::state button_;
+	mouse_button::state button_ = mouse_button::none;
 	///
-	KeyModifier modifier_;
-	///
-	bool allow_async_;
+	KeyModifier modifier_ = NoModifier;
+	/// Commands should be run synchronously when they
+	/// are launched via "command-sequence" or "repeat" or "buffer-forall"
+	bool allow_async_ = true;
 };
 
 
 bool operator==(FuncRequest const & lhs, FuncRequest const & rhs);
+
+bool operator!=(FuncRequest const & lhs, FuncRequest const & rhs);
 
 std::ostream & operator<<(std::ostream &, FuncRequest const &);
 

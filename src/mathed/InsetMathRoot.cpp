@@ -22,6 +22,8 @@
 
 #include "frontends/Painter.h"
 
+#include "support/lassert.h"
+#include "support/lstrings.h"
 
 using namespace std;
 
@@ -46,7 +48,7 @@ void mathed_root_metrics(MetricsInfo & mi, MathData const & nucleus,
 	Changer dummy = mi.base.changeEnsureMath();
 	Dimension dimr;
 	if (root) {
-		Changer script = mi.base.font.changeStyle(LM_ST_SCRIPTSCRIPT);
+		Changer script = mi.base.font.changeStyle(SCRIPTSCRIPT_STYLE);
 		// make sure that the dim is high enough for any character
 		root->metrics(mi, dimr, false);
 	}
@@ -69,7 +71,7 @@ void mathed_root_metrics(MetricsInfo & mi, MathData const & nucleus,
 	 */
 	int const t = mi.base.solidLineThickness();
 	int const x_height = mathed_font_x_height(mi.base.font);
-	int const phi = (mi.base.font.style() == LM_ST_DISPLAY) ? x_height : t;
+	int const phi = (mi.base.font.style() == DISPLAY_STYLE) ? x_height : t;
 	// first part is the spacing, second part is the line width
 	// itself, and last one is the spacing above.
 	int const space_above = (t + phi / 4) + t + t;
@@ -84,7 +86,7 @@ void mathed_root_metrics(MetricsInfo & mi, MathData const & nucleus,
 
 void InsetMathRoot::metrics(MetricsInfo & mi, Dimension & dim) const
 {
-	mathed_root_metrics(mi, cell(1), &cell(0), dim);
+	mathed_root_metrics(mi, cell(0), &cell(1), dim);
 }
 
 
@@ -99,13 +101,13 @@ void mathed_draw_root(PainterInfo & pi, int x, int y, MathData const & nucleus,
 	int const a = dim.ascent();
 	int const d = dim.descent();
 	int const t = pi.base.solidLineThickness();
-	Dimension const dimn = nucleus.dimension(*pi.base.bv);
+	Dimension const & dimn = nucleus.dimension(*pi.base.bv);
 	// the width of the left part of the root
 	int const wl = dim.width() - dimn.width();
 	// the "exponent"
 	if (root) {
-		Changer script = pi.base.font.changeStyle(LM_ST_SCRIPTSCRIPT);
-		Dimension const dimr = root->dimension(*pi.base.bv);
+		Changer script = pi.base.font.changeStyle(SCRIPTSCRIPT_STYLE);
+		Dimension const & dimr = root->dimension(*pi.base.bv);
 		int const root_offset = wl - 3 * w / 8 - dimr.width();
 		root->draw(pi, x + root_offset, y + (d - a)/2);
 	}
@@ -127,26 +129,30 @@ void mathed_draw_root(PainterInfo & pi, int x, int y, MathData const & nucleus,
 
 void InsetMathRoot::draw(PainterInfo & pi, int x, int y) const
 {
-	mathed_draw_root(pi, x, y, cell(1), &cell(0), dimension(*pi.base.bv));
+	mathed_draw_root(pi, x, y, cell(0), &cell(1), dimension(*pi.base.bv));
 }
 
 
-void InsetMathRoot::write(WriteStream & os) const
+void InsetMathRoot::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
-	os << "\\sqrt[" << cell(0) << "]{" << cell(1) << '}';
+	if (os.latex() && !cell(1).empty() && !cell(1).front()->asBraceInset()
+	    && support::contains(asString(cell(1)), '['))
+		os << "\\sqrt[{" << cell(1) << "}]{" << cell(0) << '}';
+	else
+		os << "\\sqrt[" << cell(1) << "]{" << cell(0) << '}';
 }
 
 
 void InsetMathRoot::normalize(NormalStream & os) const
 {
-	os << "[root " << cell(0) << ' ' << cell(1) << ']';
+	os << "[root " << cell(1) << ' ' << cell(0) << ']';
 }
 
 
 bool InsetMathRoot::idxUpDown(Cursor & cur, bool up) const
 {
-	Cursor::idx_type const target = up ? 0 : 1;
+	idx_type const target = up; //up ? 1 : 0;
 	if (cur.idx() == target)
 		return false;
 	cur.idx() = target;
@@ -155,36 +161,78 @@ bool InsetMathRoot::idxUpDown(Cursor & cur, bool up) const
 }
 
 
+bool InsetMathRoot::idxForward(Cursor & cur) const
+{
+	// nucleus is 0 and is on the right
+	if (cur.idx() == 0)
+		return false;
+
+	cur.idx() = 0;
+	cur.pos() = 0;
+	return true;
+}
+
+
+bool InsetMathRoot::idxBackward(Cursor & cur) const
+{
+	// nucleus is 0 and is on the right
+	if (cur.idx() == 1)
+		return false;
+
+	cur.idx() = 1;
+	cur.pos() = cur.lastpos();
+	return true;
+}
+
+
+bool InsetMathRoot::idxFirst(Cursor & cur) const
+{
+	LASSERT(&cur.inset() == this, return false);
+	cur.idx() = 1;
+	cur.pos() = 0;
+	return true;
+}
+
+
+bool InsetMathRoot::idxLast(Cursor & cur) const
+{
+	LASSERT(&cur.inset() == this, return false);
+	cur.idx() = 0;
+	cur.pos() = cur.lastpos();
+	return true;
+}
+
+
 void InsetMathRoot::maple(MapleStream & os) const
 {
-	os << '(' << cell(1) << ")^(1/(" << cell(0) <<"))";
+	os << '(' << cell(0) << ")^(1/(" << cell(1) <<"))";
 }
 
 
 void InsetMathRoot::mathematica(MathematicaStream & os) const
 {
-	os << '(' << cell(1) << ")^(1/(" << cell(0) <<"))";
+	os << '(' << cell(0) << ")^(1/(" << cell(1) <<"))";
 }
 
 
 void InsetMathRoot::octave(OctaveStream & os) const
 {
-	os << '(' << cell(1) << ")^(1/(" << cell(0) <<"))";
+	os << '(' << cell(0) << ")^(1/(" << cell(1) <<"))";
 }
 
 
-void InsetMathRoot::mathmlize(MathStream & os) const
+void InsetMathRoot::mathmlize(MathMLStream & ms) const
 {
-	os << MTag("mroot") << cell(1) << cell(0) << ETag("mroot");
+	ms << MTag("mroot") << cell(0) << cell(1) << ETag("mroot");
 }
 
 
 void InsetMathRoot::htmlize(HtmlStream & os) const
 {
 	os << MTag("span", "class='root'")
-	   << MTag("sup") << cell(0) << ETag("sup")
-	   << from_ascii("&radic;")
-	   << MTag("span", "class='rootof'")	<< cell(1) << ETag("span")
+	   << MTag("sup") << cell(1) << ETag("sup")
+	   << from_ascii("&#8730;")
+	   << MTag("span", "class='rootof'")	<< cell(0) << ETag("span")
 		 << ETag("span");
 }
 

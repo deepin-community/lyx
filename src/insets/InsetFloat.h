@@ -25,7 +25,8 @@ class InsetFloatParams
 {
 public:
 	///
-	InsetFloatParams() : type("senseless"), wide(false), sideways(false), subfloat(false) {}
+	InsetFloatParams() : type("senseless"), placement("document"), alignment("document"),
+		wide(false), sideways(false), subfloat(false) {}
 	///
 	void write(std::ostream & os) const;
 	///
@@ -34,6 +35,8 @@ public:
 	std::string type;
 	///
 	std::string placement;
+	///
+	std::string alignment;
 	/// span columns
 	bool wide;
 	///
@@ -54,7 +57,7 @@ public:
 class InsetFloat : public InsetCaptionable
 {
 public:
-	InsetFloat(Buffer * buffer, std::string params_str);
+	InsetFloat(Buffer * buffer, std::string const & params_str);
 	///
 	static void string2params(std::string const &, InsetFloatParams &);
 	///
@@ -70,49 +73,55 @@ public:
 	///
 	InsetFloatParams const & params() const { return params_; }
 	///
-	bool allowsCaptionVariation(std::string const &) const;
+	bool allowsCaptionVariation(std::string const &) const override;
+	///
+	LyXAlignment contentAlignment() const override;
+	///
+	bool forceParDirectionSwitch() const override { return true; }
 private:
 	///
-	void setCaptionType(std::string const & type);
+	void setCaptionType(std::string const & type) override;
 	///
-	docstring layoutName() const;
+	docstring layoutName() const override;
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 	///
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	InsetCode lyxCode() const { return FLOAT_CODE; }
+	InsetCode lyxCode() const override { return FLOAT_CODE; }
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	bool insetAllowed(InsetCode) const;
-	/** returns false if, when outputing LaTeX, font changes should
-	    be closed before generating this inset. This is needed for
-	    insets that may contain several paragraphs */
-	bool inheritFont() const { return false; }
+	bool insetAllowed(InsetCode) const override;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 	///
-	bool hasSubCaptions(ParIterator const & it) const;
+	bool hasSubCaptions(ParIterator const & it) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false) override;
 	///
-	Inset * clone() const { return new InsetFloat(*this); }
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
+	///
+	Inset * clone() const override { return new InsetFloat(*this); }
 	/// Is the content of this inset part of the immediate (visible) text sequence?
-	bool isPartOfTextSequence() const { return false; }
+	bool isPartOfTextSequence() const override { return false; }
 	///
 	TexString getCaption(OutputParams const &) const;
+	///
+	std::string getAlignment() const;
+	///
+	CtObject getCtObject(OutputParams const &) const override;
 
 	InsetFloatParams params_;
 };

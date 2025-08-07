@@ -19,6 +19,7 @@
 #include "MathCompletionList.h"
 #include "MathExtern.h"
 #include "MathFactory.h"
+#include "MathRow.h"
 #include "MathStream.h"
 #include "MathSupport.h"
 
@@ -26,6 +27,7 @@
 #include "BufferView.h"
 #include "CoordCache.h"
 #include "Cursor.h"
+#include "Encoding.h"
 #include "FuncStatus.h"
 #include "FuncRequest.h"
 #include "LaTeXFeatures.h"
@@ -33,13 +35,14 @@
 #include "LyXRC.h"
 #include "MetricsInfo.h"
 
+#include "frontends/alert.h"
 #include "frontends/Painter.h"
 
 #include "support/debug.h"
 #include "support/gettext.h"
 #include "support/lassert.h"
 #include "support/lstrings.h"
-#include "support/RefChanger.h"
+#include "support/Changer.h"
 #include "support/textutils.h"
 
 #include <ostream>
@@ -56,21 +59,29 @@ class InsetArgumentProxy : public InsetMath {
 public:
 	///
 	InsetArgumentProxy(InsetMathMacro * mathMacro, size_t idx)
-		: mathMacro_(mathMacro), idx_(idx) {}
+		: InsetMath(&mathMacro->buffer()), mathMacro_(mathMacro), idx_(idx),
+		  def_(&mathMacro->buffer()) {}
 	///
 	InsetArgumentProxy(InsetMathMacro * mathMacro, size_t idx, docstring const & def)
-		: mathMacro_(mathMacro), idx_(idx)
+		: InsetMath(&mathMacro->buffer()), mathMacro_(mathMacro), idx_(idx),
+		  def_(&mathMacro->buffer())
 	{
 			asArray(def, def_);
+	}
+	///
+	void setBuffer(Buffer & buffer) override
+	{
+		Inset::setBuffer(buffer);
+		def_.setBuffer(buffer);
 	}
 	///
 	void setOwner(InsetMathMacro * mathMacro) { mathMacro_ = mathMacro; }
 	///
 	InsetMathMacro const * owner() { return mathMacro_; }
 	///
-	marker_type marker(BufferView const *) const { return NO_MARKER; }
+	marker_type marker(BufferView const *) const override { return marker_type::NO_MARKER; }
 	///
-	InsetCode lyxCode() const { return ARGUMENT_PROXY_CODE; }
+	InsetCode lyxCode() const override { return ARGUMENT_PROXY_CODE; }
 	/// The math data to use for display
 	MathData const & displayCell(BufferView const * bv) const
 	{
@@ -80,12 +91,12 @@ public:
 		return use_def_arg ? def_ : mathMacro_->cell(idx_);
 	}
 	///
-	bool addToMathRow(MathRow & mrow, MetricsInfo & mi) const
+	bool addToMathRow(MathRow & mrow, MetricsInfo & mi) const override
 	{
 		// macro arguments are in macros
 		LATTEST(mathMacro_->nesting() > 0);
 		/// The macro nesting can change display of insets. Change it locally.
-		Changer chg = make_change(mi.base.macro_nesting,
+		Changer chg = changeVar(mi.base.macro_nesting,
 		                          mathMacro_->nesting() == 1 ? 0 : mathMacro_->nesting());
 
 		MathRow::Element e_beg(mi, MathRow::BEGIN);
@@ -115,17 +126,17 @@ public:
 		return has_contents;
 	}
 	///
-	void beforeMetrics() const
+	void beforeMetrics() const override
 	{
 		mathMacro_->macro()->unlock();
 	}
 	///
-	void afterMetrics() const
+	void afterMetrics() const override
 	{
 		mathMacro_->macro()->lock();
 	}
 	///
-	void beforeDraw(PainterInfo const & pi) const
+	void beforeDraw(PainterInfo const & pi) const override
 	{
 		// if the macro is being edited, then the painter is in
 		// monochrome mode.
@@ -133,42 +144,42 @@ public:
 			pi.pain.leaveMonochromeMode();
 	}
 	///
-	void afterDraw(PainterInfo const & pi) const
+	void afterDraw(PainterInfo const & pi) const override
 	{
 		if (mathMacro_->editMetrics(pi.base.bv))
-			pi.pain.enterMonochromeMode(Color_mathbg, Color_mathmacroblend);
+			pi.pain.enterMonochromeMode(Color_mathmacroblend);
 	}
 	///
-	void metrics(MetricsInfo &, Dimension &) const {
+	void metrics(MetricsInfo &, Dimension &) const override {
 		// This should never be invoked, since InsetArgumentProxy insets are linearized
 		LATTEST(false);
 	}
 	///
-	void draw(PainterInfo &, int, int) const {
+	void draw(PainterInfo &, int, int) const override {
 		// This should never be invoked, since InsetArgumentProxy insets are linearized
 		LATTEST(false);
 	}
 	///
-	int kerning(BufferView const * bv) const
+	int kerning(BufferView const * bv) const override
 	{
 		return displayCell(bv).kerning(bv);
 	}
 	// write(), normalize(), infoize() and infoize2() are not needed since
 	// InsetMathMacro uses the definition and not the expanded cells.
 	///
-	void maple(MapleStream & ms) const { ms << mathMacro_->cell(idx_); }
+	void maple(MapleStream & ms) const override { ms << mathMacro_->cell(idx_); }
 	///
-	void maxima(MaximaStream & ms) const { ms << mathMacro_->cell(idx_); }
+	void maxima(MaximaStream & ms) const override { ms << mathMacro_->cell(idx_); }
 	///
-	void mathematica(MathematicaStream & ms) const { ms << mathMacro_->cell(idx_); }
+	void mathematica(MathematicaStream & ms) const override { ms << mathMacro_->cell(idx_); }
 	///
-	void mathmlize(MathStream & ms) const { ms << mathMacro_->cell(idx_); }
+	void mathmlize(MathMLStream & ms) const override { ms << mathMacro_->cell(idx_); }
 	///
-	void htmlize(HtmlStream & ms) const { ms << mathMacro_->cell(idx_); }
+	void htmlize(HtmlStream & ms) const override { ms << mathMacro_->cell(idx_); }
 	///
-	void octave(OctaveStream & os) const { os << mathMacro_->cell(idx_); }
+	void octave(OctaveStream & os) const override { os << mathMacro_->cell(idx_); }
 	///
-	MathClass mathClass() const
+	MathClass mathClass() const override
 	{
 		return MC_UNKNOWN;
 		// This can be refined once the pointer issues are fixed. I did not
@@ -179,7 +190,7 @@ public:
 
 private:
 	///
-	Inset * clone() const
+	Inset * clone() const override
 	{
 		return new InsetArgumentProxy(*this);
 	}
@@ -199,8 +210,8 @@ public:
 		: name_(name), displayMode_(DISPLAY_INIT),
 		  expanded_(buf), definition_(buf), attachedArgsNum_(0),
 		  optionals_(0), nextFoldMode_(true), macroBackup_(buf),
-		  macro_(0), needsUpdate_(false), isUpdating_(false),
-		  appetite_(9), nesting_(0)
+		  macro_(nullptr), needsUpdate_(false), isUpdating_(false),
+		  appetite_(9), nesting_(0), limits_(AUTO_LIMITS)
 	{
 	}
 	/// Update the pointers to our owner of all expanded macros.
@@ -233,7 +244,7 @@ public:
 	///
 	mutable std::map<BufferView const *, bool> editing_;
 	///
-	std::string requires_;
+	std::string required_;
 	/// update macro representation
 	bool needsUpdate_;
 	///
@@ -242,6 +253,8 @@ public:
 	size_t appetite_;
 	/// Level of nesting in macros (including this one)
 	int nesting_;
+	///
+	Limits limits_;
 };
 
 
@@ -299,7 +312,11 @@ InsetMathMacro::InsetMathMacro(Buffer * buf, docstring const & name)
 InsetMathMacro::InsetMathMacro(InsetMathMacro const & that)
 	: InsetMathNest(that), d(new Private(*that.d))
 {
-	setBuffer(*that.buffer_);
+	// FIXME This should not really be necessary, but when we are
+	// initializing the table of global macros, we create macros
+	// with no associated Buffer.
+	if (that.buffer_)
+		setBuffer(*that.buffer_);
 	d->updateChildren(this);
 }
 
@@ -336,11 +353,11 @@ bool InsetMathMacro::addToMathRow(MathRow & mrow, MetricsInfo & mi) const
 		return InsetMath::addToMathRow(mrow, mi);
 
 	/// The macro nesting can change display of insets. Change it locally.
-	Changer chg = make_change(mi.base.macro_nesting, d->nesting_);
+	Changer chg = changeVar(mi.base.macro_nesting, d->nesting_);
 
 	MathRow::Element e_beg(mi, MathRow::BEGIN);
 	e_beg.inset = this;
-	e_beg.marker = (d->nesting_ == 1) ? marker(mi.base.bv) : NO_MARKER;
+	e_beg.marker = (d->nesting_ == 1) ? marker(mi.base.bv) : marker_type::NO_MARKER;
 	mrow.push_back(e_beg);
 
 	d->macro_->lock();
@@ -359,11 +376,56 @@ bool InsetMathMacro::addToMathRow(MathRow & mrow, MetricsInfo & mi) const
 
 	MathRow::Element e_end(mi, MathRow::END);
 	e_end.inset = this;
-	e_end.marker = (d->nesting_ == 1) ? marker(mi.base.bv) : NO_MARKER;
+	e_end.marker = (d->nesting_ == 1) ? marker(mi.base.bv) : marker_type::NO_MARKER;
 	mrow.push_back(e_end);
 
 	return has_contents;
 }
+
+
+/// Whether the inset allows \(no)limits
+bool InsetMathMacro::allowsLimitsChange() const
+{
+	// similar to the code in mathClass(), except that we search for
+	// the right-side class.
+	MathClass mc = MC_UNKNOWN;
+	if (MacroData const * m = macroBackup()) {
+		// If it is a global macro and is defined explicitly
+		if (m->symbol())
+			mc = string_to_class(m->symbol()->extra);
+	}
+	// Otherwise guess from the expanded macro
+	if (mc == MC_UNKNOWN)
+		mc = d->expanded_.lastMathClass();
+
+	return mc == MC_OP;
+}
+
+
+Limits InsetMathMacro::defaultLimits(bool display) const
+{
+	if (d->expanded_.empty())
+		return NO_LIMITS;
+	// Guess from the expanded macro
+	InsetMath const * in = d->expanded_.back().nucleus();
+	Limits const lim = in->limits() == AUTO_LIMITS
+		? in->defaultLimits(display) : in->limits();
+	LATTEST(lim != AUTO_LIMITS);
+	return lim;
+}
+
+
+Limits InsetMathMacro::limits() const
+{
+	return d->limits_;
+}
+
+
+void InsetMathMacro::limits(Limits lim)
+{
+	d->limits_ = lim;
+}
+
 
 void InsetMathMacro::beforeMetrics() const
 {
@@ -380,7 +442,7 @@ void InsetMathMacro::afterMetrics() const
 void InsetMathMacro::beforeDraw(PainterInfo const & pi) const
 {
 	if (d->editing_[pi.base.bv])
-		pi.pain.enterMonochromeMode(Color_mathbg, Color_mathmacroblend);
+		pi.pain.enterMonochromeMode(Color_mathmacroblend);
 }
 
 
@@ -453,7 +515,10 @@ void InsetMathMacro::cursorPos(BufferView const & bv,
 
 bool InsetMathMacro::editMode(BufferView const * bv) const {
 	// find this in cursor trace
-	Cursor const & cur = bv->cursor();
+	DocIterator const & cur =
+		// Do not move the reference while selecting with the mouse to avoid
+		// flicker due to changing metrics
+		bv->mouseSelecting() ? bv->cursor().realAnchor() : bv->cursor();
 	for (size_t i = 0; i != cur.depth(); ++i)
 		if (&cur[i].inset() == this) {
 			// look if there is no other macro in edit mode above
@@ -487,36 +552,36 @@ bool InsetMathMacro::editMetrics(BufferView const * bv) const
 }
 
 
-InsetMath::marker_type InsetMathMacro::marker(BufferView const * bv) const
+marker_type InsetMathMacro::marker(BufferView const * bv) const
 {
 	if (nargs() == 0)
-		return NO_MARKER;
+		return marker_type::NO_MARKER;
 
 	switch (d->displayMode_) {
 	case DISPLAY_INIT:
 	case DISPLAY_INTERACTIVE_INIT:
-		return NO_MARKER;
+		return marker_type::NO_MARKER;
 	case DISPLAY_UNFOLDED:
-		return MARKER;
+		return marker_type::MARKER;
 	case DISPLAY_NORMAL:
 		switch (lyxrc.macro_edit_style) {
 		case LyXRC::MACRO_EDIT_INLINE:
-			return MARKER2;
+			return marker_type::MARKER2;
 		case LyXRC::MACRO_EDIT_INLINE_BOX:
-			return d->editing_[bv] ? BOX_MARKER : MARKER2;
+			return d->editing_[bv] ? marker_type::BOX_MARKER : marker_type::MARKER2;
 		case LyXRC::MACRO_EDIT_LIST:
-			return MARKER2;
+			return marker_type::MARKER2;
 		}
 	}
 	// please gcc 4.6
-	return NO_MARKER;
+	return marker_type::NO_MARKER;
 }
 
 
 void InsetMathMacro::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	/// The macro nesting can change display of insets. Change it locally.
-	Changer chg = make_change(mi.base.macro_nesting, d->nesting_);
+	Changer chg = changeVar(mi.base.macro_nesting, d->nesting_);
 
 	// set edit mode for which we will have calculated metrics. But only
 	d->editing_[mi.base.bv] = editMode(mi.base.bv);
@@ -596,7 +661,7 @@ void InsetMathMacro::updateMacro(MacroContext const & mc)
 			d->needsUpdate_ = true;
 		}
 	} else {
-		d->macro_ = 0;
+		d->macro_ = nullptr;
 	}
 }
 
@@ -631,14 +696,14 @@ void InsetMathMacro::updateRepresentation(Cursor * cur, MacroContext const & mc,
 	UpdateLocker locker(*this);
 
 	// known macro?
-	if (d->macro_ == 0)
+	if (d->macro_ == nullptr)
 		return;
 
 	// remember nesting level of this macro
 	d->nesting_ = nesting;
 
 	// update requires
-	d->requires_ = d->macro_->requires();
+	d->required_ = d->macro_->required();
 
 	if (!d->needsUpdate_
 		// non-normal mode? We are done!
@@ -651,7 +716,7 @@ void InsetMathMacro::updateRepresentation(Cursor * cur, MacroContext const & mc,
 	vector<docstring> const & defaults = d->macro_->defaults();
 
 	// create MathMacroArgumentValue objects pointing to the cells of the macro
-	vector<MathData> values(nargs());
+	vector<MathData> values(nargs(), MathData(buffer_));
 	for (size_t i = 0; i < nargs(); ++i) {
 		InsetArgumentProxy * proxy;
 		if (i < defaults.size())
@@ -669,8 +734,9 @@ void InsetMathMacro::updateRepresentation(Cursor * cur, MacroContext const & mc,
 	// than the one protected by UpdateLocker.
 	docstring const & display = d->macro_->display();
 	docstring const latexname = from_ascii("\\") + macroName();
-	if (d->macro_->expand(values, d->expanded_)
-	    && !support::contains(display, latexname)) {
+	bool const ret = d->macro_->expand(values, d->expanded_);
+	d->expanded_.setBuffer(buffer());
+	if (ret && !support::contains(display, latexname)) {
 		if (utype == OutputUpdate && !d->expanded_.empty())
 			d->expanded_.updateMacros(cur, mc, utype, nesting);
 	}
@@ -737,7 +803,7 @@ void InsetMathMacro::draw(PainterInfo & pi, int x, int y) const
 			pi.pain.text(x, y, from_ascii(":"), labelFont);
 			x += strw2;
 
-			// draw paramter
+			// draw parameter
 			cell(i).draw(pi, x, y);
 
 			// next line
@@ -762,11 +828,11 @@ void InsetMathMacro::setDisplayMode(InsetMathMacro::DisplayMode mode, int appeti
 	if (d->displayMode_ != mode) {
 		// transfer name if changing from or to DISPLAY_UNFOLDED
 		if (mode == DISPLAY_UNFOLDED) {
-			cells_.resize(1);
+			cells_.resize(1, MathData(buffer_));
 			asArray(d->name_, cell(0));
 		} else if (d->displayMode_ == DISPLAY_UNFOLDED) {
 			d->name_ = asString(cell(0));
-			cells_.resize(0);
+			cells_.clear();
 		}
 
 		d->displayMode_ = mode;
@@ -783,7 +849,7 @@ void InsetMathMacro::setDisplayMode(InsetMathMacro::DisplayMode mode, int appeti
 
 InsetMathMacro::DisplayMode InsetMathMacro::computeDisplayMode() const
 {
-	if (d->nextFoldMode_ == true && d->macro_ && !d->macro_->locked())
+	if (d->nextFoldMode_ && d->macro_ && !d->macro_->locked())
 		return DISPLAY_NORMAL;
 	else
 		return DISPLAY_UNFOLDED;
@@ -805,10 +871,10 @@ bool InsetMathMacro::validName() const
 
 	// valid characters?
 	if (n.size() > 1) {
-		for (size_t i = 0; i<n.size(); ++i) {
-			if (!(n[i] >= 'a' && n[i] <= 'z')
-			    && !(n[i] >= 'A' && n[i] <= 'Z')
-			    && n[i] != '*')
+		for (char_type c : n) {
+			if (!(c >= 'a' && c <= 'z')
+			    && !(c >= 'A' && c <= 'Z')
+			    && c != '*')
 				return false;
 		}
 	}
@@ -899,23 +965,46 @@ void InsetMathMacro::validate(LaTeXFeatures & features) const
 	// instant preview is on for math, in which case we will be missing
 	// the corresponding requirements.
 	// In this case, we get the required info from the global macro table.
-	if (!d->requires_.empty())
-		features.require(d->requires_);
+	if (!d->required_.empty())
+		features.require(d->required_);
 	else if (!d->macro_) {
 		// Update requires for known global macros.
 		MacroData const * data = MacroTable::globalMacros().get(name());
-		if (data && !data->requires().empty())
-			features.require(data->requires());
+		if (data && !data->required().empty())
+			features.require(data->required());
 	}
 
-	if (name() == "binom")
-		features.require("binom");
-
-	// validate the cells and the definition
-	if (displayMode() == DISPLAY_NORMAL) {
-		d->definition_.validate(features);
-		InsetMathNest::validate(features);
+	// Validate the cells and the definition.
+	// However, don't validate the definition if the macro is
+	// from the symbols file and has not been redefined, because
+	// in this case the definition is only used for screen display.
+	MathWordList const & words = mathedWordList();
+	MathWordList::const_iterator it = words.find(name());
+	MacroNameSet macros;
+	buffer().listMacroNames(macros);
+	if (it == words.end() || it->second.inset != "macro"
+	    || macros.find(name()) != macros.end()) {
+		if (displayMode() == DISPLAY_NORMAL) {
+				d->definition_.validate(features);
+		} else if (displayMode() == DISPLAY_INIT) {
+			MathData ar(const_cast<Buffer *>(&buffer()));
+			MacroData const * data = buffer().getMacro(name());
+			if (data) {
+				// Avoid recursion on a recursive macro definition
+				docstring const & def = data->definition();
+				int pos = tokenPos(def, '\\', name());
+				char_type c = pos + name().size() < def.size()
+					      ? def.at(pos + name().size()) : 0;
+				if (pos < 0 || (name().size() > 1 &&
+						((c >= 'a' && c <= 'z') ||
+						 (c >= 'A' && c <= 'Z')))) {
+					asArray(def, ar);
+					ar.validate(features);
+				}
+			}
+		}
 	}
+	InsetMathNest::validate(features);
 }
 
 
@@ -937,7 +1026,7 @@ Inset * InsetMathMacro::editXY(Cursor & cur, int x, int y)
 }
 
 
-void InsetMathMacro::removeArgument(Inset::pos_type pos) {
+void InsetMathMacro::removeArgument(pos_type pos) {
 	if (d->displayMode_ == DISPLAY_NORMAL) {
 		LASSERT(size_t(pos) < cells_.size(), return);
 		cells_.erase(cells_.begin() + pos);
@@ -952,10 +1041,10 @@ void InsetMathMacro::removeArgument(Inset::pos_type pos) {
 }
 
 
-void InsetMathMacro::insertArgument(Inset::pos_type pos) {
+void InsetMathMacro::insertArgument(pos_type pos) {
 	if (d->displayMode_ == DISPLAY_NORMAL) {
 		LASSERT(size_t(pos) <= cells_.size(), return);
-		cells_.insert(cells_.begin() + pos, MathData());
+		cells_.insert(cells_.begin() + pos, MathData(buffer_));
 		if (size_t(pos) < d->attachedArgsNum_)
 			++d->attachedArgsNum_;
 		if (size_t(pos) < d->optionals_)
@@ -976,12 +1065,12 @@ void InsetMathMacro::detachArguments(vector<MathData> & args, bool strip)
 		size_t i;
 		for (i = cells_.size(); i > d->attachedArgsNum_; --i)
 			if (!cell(i - 1).empty()) break;
-		args.resize(i);
+		args.erase(args.begin() + i, args.end());
 	}
 
 	d->attachedArgsNum_ = 0;
-	d->expanded_ = MathData();
-	cells_.resize(0);
+	d->expanded_ = MathData(buffer_);
+	cells_.clear();
 
 	d->needsUpdate_ = true;
 }
@@ -991,9 +1080,11 @@ void InsetMathMacro::attachArguments(vector<MathData> const & args, size_t arity
 {
 	LASSERT(d->displayMode_ == DISPLAY_NORMAL, return);
 	cells_ = args;
+	for (auto & cell : cells_)
+		cell.setBuffer(*buffer_);
 	d->attachedArgsNum_ = args.size();
-	cells_.resize(arity);
-	d->expanded_ = MathData();
+	cells_.resize(arity, MathData(buffer_));
+	d->expanded_ = MathData(buffer_);
 	d->optionals_ = optionals;
 
 	d->needsUpdate_ = true;
@@ -1065,15 +1156,60 @@ bool InsetMathMacro::folded() const
 }
 
 
-void InsetMathMacro::write(WriteStream & os) const
+void InsetMathMacro::write(TeXMathStream & os) const
 {
 	mode_type mode = currentMode();
 	MathEnsurer ensurer(os, mode == MATH_MODE, true, mode == TEXT_MODE);
 
+	// Check if the macro name is encodable. Otherwise we might crash (#11855).
+	docstring const name_in = name();
+	docstring name_recoded;
+	docstring uncodable;
+	for (char_type c : name_in) {
+		if (!os.encoding()) {
+			name_recoded += c;
+			continue;
+		}
+		if (os.encoding()->encodable(c) || os.output() == TeXMathStream::wsSearchAdv)
+			name_recoded += c;
+		else {
+			switch (os.output()) {
+			case TeXMathStream::wsDryrun: {
+				os << "<" << _("LyX Warning: ")
+				   << _("uncodable character") << " '";
+				os << docstring(1, c);
+				os << "'>";
+				break;
+			}
+			case TeXMathStream::wsPreview: {
+				// indicate the encoding error by a boxed '?'
+				os << "{\\fboxsep=1pt\\fbox{?}}";
+				LYXERR0("Uncodable character" << " '"
+					<< docstring(1, c)
+					<< "'");
+				break;
+			}
+			case TeXMathStream::wsDefault:
+			default:
+				// record for error message
+				uncodable += c;
+				break;
+			}
+		}
+	}
+	
+	if (!uncodable.empty()) {
+		frontend::Alert::warning(
+			_("Uncodable characters in math macro"),
+			support::bformat(_("The macro name '%1$s' contains a character\n"
+					   "that is not encodable in the current encoding (%2$s).\n"
+					   "Please fix this macro."), name_in, uncodable));
+	}
+
 	// non-normal mode
 	if (d->displayMode_ != DISPLAY_NORMAL) {
-		os << "\\" << name();
-		if (name().size() != 1 || isAlphaASCII(name()[0]))
+		os << "\\" << name_recoded;
+		if (name_recoded.size() != 1 || isAlphaASCII(name_recoded[0]))
 			os.pendingSpace(true);
 		return;
 	}
@@ -1086,7 +1222,7 @@ void InsetMathMacro::write(WriteStream & os) const
 	if (os.fragile())
 		os << "\\protect";
 
-	os << "\\" << name();
+	os << "\\" << name_recoded;
 	bool first = true;
 
 	// Optional arguments:
@@ -1109,10 +1245,10 @@ void InsetMathMacro::write(WriteStream & os) const
 		// contains macros with optionals.
 		bool braced = false;
 		size_type last = cell(i).size() - 1;
-		if (cell(i).size() && cell(i)[last]->asUnknownInset()) {
+		if (!cell(i).empty() && cell(i)[last]->asUnknownInset()) {
 			latexkeys const * l = in_word_set(cell(i)[last]->name());
 			braced = (l && l->inset == "big");
-		} else if (cell(i).size() && cell(i)[0]->asScriptInset()) {
+		} else if (!cell(i).empty() && cell(i)[0]->asScriptInset()) {
 			braced = cell(i)[0]->asScriptInset()->nuc().empty();
 		} else {
 			for (size_type j = 0; j < cell(i).size(); ++j) {
@@ -1146,8 +1282,14 @@ void InsetMathMacro::write(WriteStream & os) const
 	}
 
 	// add space if there was no argument
-	if (first)
+	// or add braces if we have optionals but none are present and [ follows
+	if (first) {
 		os.pendingSpace(true);
+		os.useBraces(d->optionals_ > 0);
+	}
+
+	// write \(no)limits modifiers if relevant
+	writeLimits(os);
 }
 
 
@@ -1169,7 +1311,7 @@ void InsetMathMacro::mathematica(MathematicaStream & os) const
 }
 
 
-void InsetMathMacro::mathmlize(MathStream & os) const
+void InsetMathMacro::mathmlize(MathMLStream & ms) const
 {
 	// macro_ is 0 if this is an unknown macro
 	LATTEST(d->macro_ || d->displayMode_ != DISPLAY_NORMAL);
@@ -1177,8 +1319,7 @@ void InsetMathMacro::mathmlize(MathStream & os) const
 		docstring const xmlname = d->macro_->xmlname();
 		if (!xmlname.empty()) {
 			char const * type = d->macro_->MathMLtype();
-			os << '<' << type << "> " << xmlname << " </"
-			   << type << '>';
+			ms << MTagInline(type) << xmlname << ETagInline(type);
 			return;
 		}
 	}
@@ -1186,7 +1327,7 @@ void InsetMathMacro::mathmlize(MathStream & os) const
 		// this means that we do not recognize the macro
 		throw MathExportException();
 	}
-	os << d->expanded_;
+	ms << d->expanded_;
 }
 
 
@@ -1229,22 +1370,26 @@ void InsetMathMacro::infoize2(odocstream & os) const
 
 bool InsetMathMacro::completionSupported(Cursor const & cur) const
 {
+	if (cur.buffer()->isReadonly())
+		return false;
+
 	if (displayMode() != DISPLAY_UNFOLDED)
 		return InsetMathNest::completionSupported(cur);
 
 	return lyxrc.completion_popup_math
-		&& displayMode() == DISPLAY_UNFOLDED
 		&& cur.bv().cursor().pos() == int(name().size());
 }
 
 
 bool InsetMathMacro::inlineCompletionSupported(Cursor const & cur) const
 {
+	if (cur.buffer()->isReadonly())
+		return false;
+
 	if (displayMode() != DISPLAY_UNFOLDED)
 		return InsetMathNest::inlineCompletionSupported(cur);
 
 	return lyxrc.completion_inline_math
-		&& displayMode() == DISPLAY_UNFOLDED
 		&& cur.bv().cursor().pos() == int(name().size());
 }
 
@@ -1282,21 +1427,23 @@ docstring InsetMathMacro::completionPrefix(Cursor const & cur) const
 	if (displayMode() != DISPLAY_UNFOLDED)
 		return InsetMathNest::completionPrefix(cur);
 
-	if (!completionSupported(cur))
-		return docstring();
-
 	return "\\" + name();
 }
 
 
-bool InsetMathMacro::insertCompletion(Cursor & cur, docstring const & s,
-					bool finished)
+bool InsetMathMacro::insertCompletion(Cursor & cur, docstring const & s, bool finished)
 {
+	if (cur.buffer()->isReadonly())
+		return false;
+
 	if (displayMode() != DISPLAY_UNFOLDED)
 		return InsetMathNest::insertCompletion(cur, s, finished);
 
 	if (!completionSupported(cur))
 		return false;
+
+	// Contrary to Text, the whole inset should be recorded (#12581).
+	cur.recordUndoInset();
 
 	// append completion
 	docstring newName = name() + s;

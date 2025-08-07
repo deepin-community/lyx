@@ -1,0 +1,305 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/ca/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language catalan
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "palatino" "default"
+\font_sans "helvet" "default"
+\font_typewriter "courier" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 95 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\use_lineno 0
+\index Índex
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style french
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Benvingut al \SpecialChar LyX
+ !
+\end_layout
+
+\begin_layout Section*
+El més important a saber quan utilitzeu el \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Enumerate
+El \SpecialChar LyX
+ inclou una documentació excel·lent:
+ utilitzeu-la,
+ si us plau!
+ Podeu començar per 
+\family sans
+Ajuda\SpecialChar menuseparator
+Introducció
+\family default
+,
+ que proporciona una breu introducció a la documentació disponible.
+ A continuació podeu aprendre a utilitzar el \SpecialChar LyX
+ mitjançant 
+\family sans
+Ajuda\SpecialChar menuseparator
+Tutorial
+\family default
+.
+\end_layout
+
+\begin_layout Enumerate
+El \SpecialChar LyX
+ és el que s'anomena un 
+\emph on
+processador de documents
+\emph default
+,
+ però està fet diferent dels processadors de text normals per a fer més senzill escriure documents.
+ Això sí,
+ només una mica diferent,
+ que ningú no s'espanti!
+ La documentació us ho aclarirà tot.
+\end_layout
+
+\begin_layout Enumerate
+Els documents fets amb el \SpecialChar LyX
+ tenen un aspecte formidable!
+ Podeu comprovar\SpecialChar nobreakdash
+ho ara mateix,
+ amb aquest document,
+ fent clic en 
+\family sans
+\lang english
+Document\SpecialChar menuseparator
+View
+\begin_inset space ~
+\end_inset
+
+[PDF
+\begin_inset space ~
+\end_inset
+
+(pdflatex)]
+\family default
+\lang catalan
+ o en la icona 
+\begin_inset Info
+type  "icon"
+arg   "buffer-view"
+\end_inset
+
+ de la barra d'eines.
+\end_layout
+
+\begin_layout Enumerate
+El \SpecialChar LyX
+ pot imitar (gairebé) tota la funcionalitat de \SpecialChar LaTeX
+ i també importar fitxers \SpecialChar LaTeX
+.
+ Els usuaris de \SpecialChar LaTeX
+ amb experiència poden fer una lectura més superficial del 
+\emph on
+Tutorial
+\emph default
+,
+ llevat de la secció 
+\emph on
+\SpecialChar LyX
+ per a usuaris de \SpecialChar LaTeX
+
+\emph default
+,
+ que haurien de llegir amb més atenció.
+ (Per a tots els altres:
+ no us preocupeu,
+ no cal saber \SpecialChar LaTeX
+ per a utilitzar el \SpecialChar LyX
+).
+\end_layout
+
+\begin_layout Enumerate
+El \SpecialChar LyX
+ té moltes utilitats per als qui fan servir idiomes diferents de l'anglès.
+ A més,
+ les associacions de tecles (
+\emph on
+keybindings
+\emph default
+),
+ barres d'eines (
+\emph on
+toolbars
+\emph default
+) i moltes altres característiques i funcionalitats son configurables en gran manera.
+ Vegeu 
+\family sans
+Ajuda\SpecialChar menuseparator
+Personalització
+\family default
+ per a més detalls.
+\end_layout
+
+\begin_layout Enumerate
+El lloc web del \SpecialChar LyX
+ és 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org
+\end_layout
+
+\end_inset
+
+.
+ Allà podeu obtenir informació sobre el \SpecialChar LyX
+,
+ subscriure\SpecialChar nobreakdash
+vos a les llistes de correu,
+ veure la introducció en imatges del \SpecialChar LyX
+ (
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org/Walkthrough
+\end_layout
+
+\end_inset
+
+) i molt més.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Nota per als usuaris de GNU/Linux
+\series default
+:
+ assegureu-vos de tenir instal·lats els paquets d'idiomes necessaris de la vostra distribució \SpecialChar LaTeX
+ (
+\family sans
+\SpecialChar TeX
+
+\begin_inset space ~
+\end_inset
+
+Live
+\family default
+),
+ sinó \SpecialChar LaTeX
+ us donarà errors.
+\begin_inset Newline newline
+\end_inset
+
+Per exemple,
+ en els sistemes operatius 
+\family sans
+Kubuntu
+\family default
+,
+ 
+\family sans
+Xubuntu
+\family default
+ i 
+\family sans
+Debian
+\family default
+ el paquet d'idioma del castellà és 
+\family typewriter
+texlive-lang-spanish
+\family default
+.
+ El català,
+ en canvi,
+ no té un paquet propi i la compatibilitat de \SpecialChar LaTeX
+ amb el català s'aconsegueix instal·lant el paquet del castellà.
+\begin_inset Newline newline
+\end_inset
+
+Un cop instal·lats els paquets d'diomes,
+ heu d'actualitzar la base de dades del \SpecialChar LyX
+ via 
+\family sans
+Eines\SpecialChar menuseparator
+Reconfigura
+\family default
+.
+\end_layout
+
+\end_body
+\end_document

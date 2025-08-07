@@ -17,7 +17,7 @@
 # Author: Uwe Stöhr (uwestoehr@web.de)
 
 
-Format 66
+Format 104
 
 Sides		1
 Columns		1
@@ -35,6 +35,7 @@ Style Standard
   Align		Block
   AlignPossible	Block, Left, Right, Center
   LabelType	No_Label
+  DocBookTag para
 End
 
 Input stdcounters.inc
@@ -88,6 +89,9 @@ Style MarkBoth
   \DeclareRobustCommand{\foreign@language}[1]{%
     \lowercase{\oldforeign@language{#1}}}
   EndPreamble
+  DocBookTag    IGNORE
+  # TODO: a mix of titleabbrev and authorinitials... 
+  DocBookInInfo always
 End
 
 Style Catchline
@@ -105,8 +109,10 @@ Style Catchline
   LabelString	"Catchline"
   LabelFont
     Series	Bold
-    Color	Green
+    Color	textlabel2
   EndFont
+  DocBookTag    IGNORE
+  DocBookInInfo always
 End
 
 Style Title
@@ -126,6 +132,9 @@ Style Title
   Font
     Size	Largest
   EndFont
+  DocBookTag      title
+  DocBookTagType  paragraph
+  DocBookInInfo   maybe
 End
 
 Style Author
@@ -144,6 +153,20 @@ Style Author
   Font
     Size	Large
   EndFont
+  DocBookTag            personname
+  DocBookTagType        paragraph
+  DocBookWrapperTag     author
+  DocBookWrapperTagType inline
+  DocBookInInfo         always
+End
+
+Style Address
+  DocBookTag            address
+  DocBookTagType        paragraph
+  DocBookWrapperTag     author
+  DocBookWrapperTagType inline
+  DocBookWrapperMergeWithPrevious true
+  DocBookInInfo         always
 End
 
 Style History
@@ -158,6 +181,8 @@ Style History
   Font
     Size	Small
   EndFont
+  DocBookTag     releaseinfo
+  DocBookInInfo  always
 End
 
 InsetLayout Flex:Received
@@ -172,10 +197,14 @@ InsetLayout Flex:Received
     Misc	No_Bar
   EndFont
   LabelFont
-    Color	green
+    Color	textlabel2
     Size	Small
   EndFont
-	ResetsFont true
+  ResetsFont true
+  DocBookTag      date
+  DocBookAttr     role='received'
+  DocBookTagType  inline
+  DocBookNoFontInside   true
 End
 
 InsetLayout Flex:Revised
@@ -190,10 +219,14 @@ InsetLayout Flex:Revised
     Misc	No_Bar
   EndFont
   LabelFont
-    Color	green
+    Color	textlabel2
     Size	Small
   EndFont
-	ResetsFont true
+  ResetsFont true
+  DocBookTag      date
+  DocBookAttr     role='revised'
+  DocBookTagType  inline
+  DocBookNoFontInside   true
 End
 
 InsetLayout Flex:Comby
@@ -208,10 +241,10 @@ InsetLayout Flex:Comby
     Misc	No_Bar
   EndFont
   LabelFont
-    Color	green
+    Color	textlabel2
     Size	Small
   EndFont
-	ResetsFont true
+  ResetsFont true
 End
 
 Style Abstract
@@ -225,6 +258,11 @@ Style Abstract
   Font
     Size	Small
   EndFont
+  DocBookAbstract       true
+  DocBookInInfo         always
+  DocBookWrapperTag     abstract
+  DocBookWrapperMergeWithPrevious    true
+  DocBookTag            para
 End
 
 Style Keywords
@@ -245,6 +283,10 @@ Style Keywords
    Shape	Italic
    Size		Small
   EndFont
+  DocBookTag         keyword
+  DocBookTagType     paragraph
+  DocBookWrapperTag  keywordset
+  DocBookInInfo      always
 End
 
 InsetLayout Flex:TableCaption
@@ -259,10 +301,12 @@ InsetLayout Flex:TableCaption
     Misc	No_Bar
   EndFont
   LabelFont
-    Color	green
+    Color	textlabel2
     Size	Small
   EndFont
-	ResetsFont true
+  ResetsFont true
+  DocBookTag      caption
+  DocBookTagType  paragraph
 End
 
 InsetLayout Flex:Refcite
@@ -277,10 +321,10 @@ InsetLayout Flex:Refcite
     Misc	No_Bar
   EndFont
   LabelFont
-    Color	green
+    Color	textlabel2
     Size	Small
   EndFont
-	ResetsFont true
+  ResetsFont true
 End
 
 Style ItemList
@@ -288,6 +332,16 @@ Style ItemList
   Margin	Static
   LatexType	Item_Environment
   LatexName	itemlist
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
   NextNoIndent	1
   ToggleIndent	Never
   LeftMargin	MMN
@@ -302,6 +356,9 @@ Style ItemList
   HTMLTag	ul
   HTMLItem	li
   HTMLLabel	NONE
+  DocBookTag            itemizedlist
+  DocBookItemTag        listitem
+  DocBookItemInnerTag   para
 End
 
 Style RomanList
@@ -313,6 +370,16 @@ Style RomanList
     LabelString	"Numbering Scheme"
     Tooltip	"Use the largest item number in your list, e.g. '(iv)' for 4 Roman numbered items"
     PassThru	1
+  EndArgument
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
   EndArgument
   NextNoIndent	1
   LeftMargin	MMN
@@ -326,10 +393,17 @@ Style RomanList
   AlignPossible	Block, Left
   LabelType	Enumerate
   LabelCounter	"enum"
+  HTMLClass   LyXRomanList
   HTMLTag	ol
   HTMLItem	li
   HTMLLabel	NONE
   RefPrefix	enu
+  DocBookTag            orderedlist
+  DocBookItemTag        listitem
+  DocBookItemInnerTag   para
+  HTMLStyle
+    ol.LyXRomanList { list-style-type: lower-roman; }
+  EndHTMLStyle
 End
 
 Style Proof
@@ -350,10 +424,14 @@ Style Proof
    Series	Bold
   EndFont
   EndLabelType	Box
+  DocBookTag            para
+  DocBookAttr           role='proof'
 End
 
 Counter theorem
+	GuiName Theorem
   Within	section
+  PrettyFormat "Theorem ##"
 End
 Style Theorem
   ResetArgs      1
@@ -364,10 +442,14 @@ Style Theorem
   LabelFont
    Series	Bold
   EndFont
+  DocBookTag            para
+  DocBookAttr           role='theorem'
 End
 
 Counter remark
+	GuiName Remark
   Within	section
+  PrettyFormat "Remark ##"
 End
 Style Remark
   LabelString	"Remark \theremark."
@@ -378,20 +460,25 @@ Style Remark
 End
 
 Counter corollary
+	GuiName Corollary
   Within	section
+  PrettyFormat "Corollary ##"
 End
 Style Corollary
   LabelString	"Corollary \thecorollary."
 End
 
 Counter lemma
+	GuiName Lemma
   Within	section
+  PrettyFormat "Lemma ##"
 End
 Style Lemma
   LabelString	"Lemma \thelemma."
 End
 
 Counter proposition
+	GuiName Proposition
   Within	section
 End
 Style Proposition
@@ -399,7 +486,9 @@ Style Proposition
 End
 
 Counter question
+	GuiName Question
   Within	section
+  PrettyFormat "Question ##"
 End
 Style Question
   LabelString	"Question \thequestion."
@@ -409,7 +498,9 @@ Style Question
 End
 
 Counter claim
+	GuiName Claim
   Within	section
+  PrettyFormat "Claim ##"
 End
 Style Claim
   LabelCounter	claim
@@ -420,7 +511,9 @@ Style Claim
 End
 
 Counter conjecture
+	GuiName Conjecture
   Within	section
+  PrettyFormat "Conjecture ##"
 End
 Style Conjecture
   LabelString	"Conjecture \theconjecture."
@@ -430,10 +523,13 @@ Style Conjecture
 End
 
 Counter prop
+	GuiName Prop(osition)
   Within	section
+  PrettyFormat "Proposition ##"
 End
 
 Counter appendix
+	GuiName Appendix
 End
 Style Appendix
   LatexType	Command
@@ -456,6 +552,9 @@ Style Appendix
   Font
    Series	Bold
   EndFont
+  DocBookTag      title
+  DocBookTagType  paragraph
+  DocBookSection  true
 End
 
 Style Bibliography
@@ -482,4 +581,14 @@ Style Bibliography
   EndFont
   TocLevel      1
   IsTocCaption  0
+  Argument listpreamble:1
+    LabelString    "Bib preamble"
+    MenuString     "Bibliography Preamble"
+    Tooltip        "LaTeX code to be inserted before the first bibliography item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
 End

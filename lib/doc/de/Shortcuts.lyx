@@ -1,16 +1,16 @@
-#LyX 2.3 created this file. For more info see http://www.lyx.org/
-\lyxformat 544
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
 \begin_document
 \begin_header
 \save_transient_properties true
 \origin /systemlyxdir/doc/de/
 \textclass article
 \use_default_options false
-\maintain_unincluded_children false
+\maintain_unincluded_children no
 \language ngerman
 \language_package default
-\inputencoding auto
-\fontencoding global
+\inputencoding utf8
+\fontencoding auto
 \font_roman "default" "default"
 \font_sans "default" "default"
 \font_typewriter "default" "default"
@@ -18,7 +18,9 @@
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
-\font_osf false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
 \font_sf_scale 100 100
 \font_tt_scale 100 100
 \use_microtype false
@@ -61,7 +63,9 @@
 \suppress_date false
 \justification true
 \use_refstyle 0
+\use_formatted_ref 0
 \use_minted 0
+\use_lineno 0
 \index Stichwortverzeichnis
 \shortcut idx
 \color #008000
@@ -77,11 +81,16 @@
 \papercolumns 1
 \papersides 1
 \paperpagestyle empty
+\tablestyle default
 \tracking_changes false
 \output_changes false
+\change_bars false
+\postpone_fragile_content false
 \html_math_output 0
 \html_css_as_file 0
 \html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
 \end_header
 
 \begin_body
@@ -98,8 +107,7 @@ vom \SpecialChar LyX
 
 \begin_layout Standard
 \noindent
-Diese Datei listet die derzeit definierten Tastenkürzel der Tastenkürzeldatei
- 
+Diese Datei listet die wichtigsten der derzeit definierten Tastenkürzel der Tastenkürzeldatei 
 \family sans
 cua
 \family default
@@ -111,7 +119,8 @@ Einstellungen\SpecialChar menuseparator
 Bearbeiten\SpecialChar menuseparator
 Tastenkürzel
 \family default
- geändert werden, wie es im Abschnitt 
+ geändert werden,
+ wie es im Abschnitt 
 \begin_inset Quotes gld
 \end_inset
 
@@ -122,7 +131,7 @@ Tastenkürzel
  des Benutzerhandbuchs beschrieben ist.
 \end_layout
 
-\begin_layout Subsection*
+\begin_layout Section*
 Speicher
 \end_layout
 
@@ -483,7 +492,7 @@ arg   "buffer-previous"
 
 \end_layout
 
-\begin_layout Subsection*
+\begin_layout Section*
 Editieren
 \end_layout
 
@@ -1207,7 +1216,7 @@ arg   "bookmark-goto 0"
 
 \end_layout
 
-\begin_layout Subsection*
+\begin_layout Section*
 Griechische Symbole
 \end_layout
 
@@ -2327,7 +2336,7 @@ arg   "math-insert \\Psi"
 
 \end_layout
 
-\begin_layout Subsection*
+\begin_layout Section*
 Mathematische Symbole
 \end_layout
 
@@ -3520,7 +3529,7 @@ arg   "math-insert \\superseteq"
 \end_layout
 
 \begin_layout Section*
-Delimiters
+Trennzeichen
 \end_layout
 
 \begin_layout Standard
@@ -3538,7 +3547,7 @@ Delimiters
 \begin_inset Text
 
 \begin_layout Plain Layout
-Delimiter
+Trennzeichen
 \end_layout
 
 \end_inset
@@ -3556,7 +3565,7 @@ Tastenkürzel
 \begin_inset Text
 
 \begin_layout Plain Layout
-Delimiter
+Trennzeichen
 \end_layout
 
 \end_inset
@@ -3574,7 +3583,7 @@ Tastenkürzel
 \begin_inset Text
 
 \begin_layout Plain Layout
-Delimiter
+Trennzeichen
 \end_layout
 
 \end_inset

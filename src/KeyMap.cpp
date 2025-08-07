@@ -68,7 +68,7 @@ size_t KeyMap::bind(string const & seq, FuncRequest const & func)
 	LYXERR(Debug::KBMAP, "BIND: Sequence `" << seq << "' Action `"
 	       << func.action() << '\'');
 
-	KeySequence k(0, 0);
+	KeySequence k(nullptr, nullptr);
 
 	string::size_type const res = k.parse(seq);
 	if (res == string::npos) {
@@ -84,7 +84,7 @@ size_t KeyMap::bind(string const & seq, FuncRequest const & func)
 
 size_t KeyMap::unbind(string const & seq, FuncRequest const & func)
 {
-	KeySequence k(0, 0);
+	KeySequence k(nullptr, nullptr);
 
 	string::size_type const res = k.parse(seq);
 	if (res == string::npos)
@@ -160,29 +160,30 @@ void KeyMap::unbind(KeySequence * seq, FuncRequest const & func, unsigned int r)
 	KeyModifier const mod2 = seq->modifiers[r].second;
 
 	// check if key is already there
+	vector <Table::iterator> removes;
 	Table::iterator end = table.end();
-	Table::iterator remove = end;
 	for (Table::iterator it = table.begin(); it != end; ++it) {
 		if (code == it->code
 		    && mod1 == it->mod.first
 		    && mod2 == it->mod.second) {
 			// remove
 			if (r + 1 == seq->length()) {
-				if (it->func == func) {
-					remove = it;
+				if (it->func == func || func == FuncRequest::unknown) {
+					removes.push_back(it);
 					if (it->prefixes)
 						it->prefixes.reset();
 				}
 			} else if (it->prefixes) {
 				it->prefixes->unbind(seq, func, r + 1);
 				if (it->prefixes->empty())
-					remove = it;
+					removes.push_back(it);
 				return;
 			}
 		}
 	}
-	if (remove != end)
-		table.erase(remove);
+
+	for (unsigned i = removes.size(); i > 0; --i)
+		table.erase(removes[i-1]);
 }
 
 
@@ -202,7 +203,7 @@ FuncRequest KeyMap::getBinding(KeySequence const & seq, unsigned int r)
 		    && mod1 == it->mod.first
 		    && mod2 == it->mod.second) {
 			if (r + 1 == seq.length())
-				return it->func;
+				return (it->prefixes) ? FuncRequest::prefix : it->func;
 			else if (it->prefixes)
 				return it->prefixes->getBinding(seq, r + 1);
 		}
@@ -217,9 +218,10 @@ void KeyMap::clear()
 }
 
 
-bool KeyMap::read(string const & bind_file, KeyMap * unbind_map, BindReadType rt)
+bool KeyMap::read(string const & bind_file, KeyMap * unbind_map, BindReadType rt, bool i18n)
 {
-	FileName bf = i18nLibFileSearch("bind", bind_file, "bind");
+	FileName bf = i18n ? i18nLibFileSearch("bind", bind_file, "bind")
+			   : libFileSearch("bind", bind_file, "bind");
 	if (bf.empty()) {
 		if (rt == MissingOK)
 			return true;
@@ -299,7 +301,7 @@ KeyMap::ReturnValues KeyMap::readWithoutConv(FileName const & bind_file, KeyMap 
 	LYXERR(Debug::KBMAP, "Reading bind file:" << bind_file.absFileName());
 
 	// format of pre-2.0 bind files, before this tag was introduced.
-	unsigned int format = 0;
+	int format = 0;
 	bool error = false;
 	while (lexrc.isOK()) {
 		switch (lexrc.lex()) {
@@ -333,7 +335,7 @@ KeyMap::ReturnValues KeyMap::readWithoutConv(FileName const & bind_file, KeyMap 
 			string cmd = lexrc.getString();
 
 			FuncRequest func = lyxaction.lookupFunc(cmd);
-			if (func.action() == LFUN_UNKNOWN_ACTION) {
+			if (func == FuncRequest::unknown) {
 				lexrc.printError("BN_BIND: Unknown LyX function `$$Token'");
 				error = true;
 				break;
@@ -357,13 +359,16 @@ KeyMap::ReturnValues KeyMap::readWithoutConv(FileName const & bind_file, KeyMap 
 				break;
 			}
 			string cmd = lexrc.getString();
-
-			FuncRequest func = lyxaction.lookupFunc(cmd);
-			if (func.action() == LFUN_UNKNOWN_ACTION) {
-				lexrc.printError("BN_UNBIND: Unknown LyX"
-						 " function `$$Token'");
-				error = true;
-				break;
+			FuncRequest func;
+			if (cmd == "*")
+				func = FuncRequest::unknown;
+			else {
+				func = lyxaction.lookupFunc(cmd);
+				if (func == FuncRequest::unknown) {
+					lexrc.printError("BN_UNBIND: Unknown LyX function `$$Token'");
+					error = true;
+					break;
+				}
 			}
 
 			if (unbind_map)
@@ -379,8 +384,14 @@ KeyMap::ReturnValues KeyMap::readWithoutConv(FileName const & bind_file, KeyMap 
 				error = true;
 				break;
 			}
-			string const tmp = lexrc.getString();
-			error |= !read(tmp, unbind_map);
+			string tmp = lexrc.getString();
+			if (prefixIs(tmp, "../")) {
+				tmp = split(tmp, '/');
+				// look in top dir
+				error |= !read(tmp, unbind_map, Default, false);
+			} else
+				// i18n search
+				error |= !read(tmp, unbind_map);
 			break;
 		}
 
@@ -409,17 +420,17 @@ void KeyMap::write(string const & bind_file, bool append, bool unbind) const
 		   << "Format " << LFUN_FORMAT << "\n\n";
 
 	string tag = unbind ? "\\unbind" : "\\bind";
-	BindingList const list = listBindings(false);
-	BindingList::const_iterator it = list.begin();
-	BindingList::const_iterator it_end = list.end();
-	for (; it != it_end; ++it) {
-		FuncCode action = it->request.action();
-		string arg = to_utf8(it->request.argument());
+	for (auto const & bnd : listBindings(false)) {
+		FuncCode const action = bnd.request.action();
+		string const arg = to_utf8(bnd.request.argument());
 
-		string const cmd = lyxaction.getActionName(action)
-			+ (arg.empty() ? string() : " " + arg) ;
+		string cmd;
+		if (unbind && bnd.request == FuncRequest::unknown)
+			cmd = "*";
+		else
+			cmd = lyxaction.getActionName(action) + (arg.empty() ? string() : " " + arg);
 		os << tag << " \""
-		   << to_utf8(it->sequence.print(KeySequence::BindFile))
+		   << to_utf8(bnd.sequence.print(KeySequence::BindFile))
 		   << "\" " << Lexer::quoteString(cmd)
 		   << "\n";
 	}
@@ -446,8 +457,7 @@ FuncRequest const & KeyMap::lookup(KeySymbol const &key,
 			if (cit->prefixes) {
 				// this is a prefix key - set new map
 				seq->curmap = cit->prefixes.get();
-				static const FuncRequest prefix(LFUN_COMMAND_PREFIX);
-				return prefix;
+				return FuncRequest::prefix;
 			} else {
 				// final key - reset map
 				seq->reset();
@@ -476,7 +486,8 @@ docstring const KeyMap::print(bool forgui) const
 
 
 docstring KeyMap::printBindings(FuncRequest const & func,
-				KeySequence::outputFormat format) const
+				KeySequence::outputFormat format,
+				bool const untranslated) const
 {
 	Bindings bindings = findBindings(func);
 	if (bindings.empty())
@@ -486,17 +497,17 @@ docstring KeyMap::printBindings(FuncRequest const & func,
 	Bindings::const_iterator cit = bindings.begin();
 	Bindings::const_iterator cit_end = bindings.end();
 	// print the first item
-	res << cit->print(format);
+	res << cit->print(format, untranslated);
 	// more than one shortcuts?
 	for (++cit; cit != cit_end; ++cit)
-		res << ", " << cit->print(format);
+		res << ", " << cit->print(format, untranslated);
 	return res.str();
 }
 
 
 KeyMap::Bindings KeyMap::findBindings(FuncRequest const & func) const
 {
-	return findBindings(func, KeySequence(0, 0));
+	return findBindings(func, KeySequence(nullptr, nullptr));
 }
 
 
@@ -528,12 +539,10 @@ KeyMap::Bindings KeyMap::findBindings(FuncRequest const & func,
 KeyMap::BindingList KeyMap::listBindings(bool unbound, KeyMap::ItemType tag) const
 {
 	BindingList list;
-	listBindings(list, KeySequence(0, 0), tag);
+	listBindings(list, KeySequence(nullptr, nullptr), tag);
 	if (unbound) {
-		LyXAction::const_iterator fit = lyxaction.func_begin();
-		LyXAction::const_iterator const fen = lyxaction.func_end();
-		for (; fit != fen; ++fit) {
-			FuncCode action = fit->second;
+		for (auto const & name_code : lyxaction) {
+			FuncCode action = name_code.second;
 			bool has_action = false;
 			BindingList::const_iterator bit = list.begin();
 			BindingList::const_iterator const ben = list.end();
@@ -543,7 +552,7 @@ KeyMap::BindingList KeyMap::listBindings(bool unbound, KeyMap::ItemType tag) con
 					break;
 				}
 			if (!has_action)
-				list.push_back(Binding(FuncRequest(action), KeySequence(0, 0), tag));
+				list.push_back(Binding(FuncRequest(action), KeySequence(nullptr, nullptr), tag));
 		}
 	}
 	return list;
@@ -559,11 +568,11 @@ void KeyMap::listBindings(BindingList & list,
 		// a LFUN_COMMAND_PREFIX
 		if (it->prefixes) {
 			KeySequence seq = prefix;
-			seq.addkey(it->code, it->mod.first);
+			seq.addkey(it->code, it->mod.first, it->mod.second);
 			it->prefixes->listBindings(list, seq, tag);
 		} else {
 			KeySequence seq = prefix;
-			seq.addkey(it->code, it->mod.first);
+			seq.addkey(it->code, it->mod.first, it->mod.second);
 			list.push_back(Binding(it->func, seq, tag));
 		}
 	}

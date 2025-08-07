@@ -1,6 +1,6 @@
 # -*- text -*-
 
-# file de_menus.bind
+# file de/menus.bind
 # This file is part of LyX, the document processor.
 # Licence details can be found in the file COPYING.
 
@@ -38,7 +38,7 @@
 #
 # Menü Schriftgröße
 #
-Format 4
+Format 5
 
 \bind "M-s t"			"font-size tiny"
 \bind "M-s S-S"			"font-size footnotesize"
@@ -94,7 +94,7 @@ Format 4
 \bind "M-a f"			"layout ShortFoilhead"	# Foils!!
 \bind "M-a S-F"			"layout Foilhead"	# Foils!!
 \bind "M-a i"			"layout Itemize"	# bulleted list
-\bind "M-a l"			"layout List"
+\bind "M-a l"			"layout Labeling"
 \bind "M-a S-L"			"layout LaTeX"
 \bind "M-a n"			"layout Enumerate"	# numbered list
 \bind "M-a q"			"layout Quote"

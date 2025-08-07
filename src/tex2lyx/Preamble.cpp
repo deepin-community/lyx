@@ -17,8 +17,8 @@
 #include "tex2lyx.h"
 
 #include "Encoding.h"
+#include "LaTeXPackages.h"
 #include "LayoutFile.h"
-#include "Layout.h"
 #include "Lexer.h"
 #include "TextClass.h"
 #include "version.h"
@@ -28,10 +28,9 @@
 #include "support/filetools.h"
 #include "support/lstrings.h"
 
-#include "support/regex.h"
-
 #include <algorithm>
 #include <iostream>
+#include <regex>
 
 using namespace std;
 using namespace lyx::support;
@@ -51,7 +50,7 @@ namespace {
  * please keep this in sync with known_coded_languages line by line!
  */
 const char * const known_languages[] = {"acadian", "afrikaans", "albanian",
-"american", "arabic", "arabtex", "australian", "austrian", "bahasa", "bahasai",
+"american", "arabic", "arabtex", "australian", "austrian", "azerbaijani", "bahasa", "bahasai",
 "bahasam", "basque", "belarusian", "bosnian", "brazil", "brazilian", "breton", "british",
 "bulgarian", "canadian", "canadien", "catalan", "croatian", "czech", "danish",
 "dutch", "english", "esperanto", "estonian", "farsi", "finnish", "francais",
@@ -72,7 +71,7 @@ const char * const known_languages[] = {"acadian", "afrikaans", "albanian",
  * please keep this in sync with known_languages line by line!
  */
 const char * const known_coded_languages[] = {"french", "afrikaans", "albanian",
-"american", "arabic_arabi", "arabic_arabtex", "australian", "austrian", "bahasa", "bahasa",
+"american", "arabic_arabi", "arabic_arabtex", "australian", "austrian", "azerbaijani", "bahasa", "bahasa",
 "bahasam", "basque", "belarusian", "bosnian", "brazilian", "brazilian", "breton", "british",
 "bulgarian", "canadian", "canadien", "catalan", "croatian", "czech", "danish",
 "dutch", "english", "esperanto", "estonian", "farsi", "finnish", "french",
@@ -103,7 +102,7 @@ const char * const known_danish_quotes_languages[] = {"danish", 0};
 
 /// languages with english quotes (.lyx names)
 const char * const known_english_quotes_languages[] = {"american", "australian",
-"bahasa", "bahasam", "brazilian", "canadian", "chinese-simplified", "english",
+"bahasa", "bahasam", "bengali", "brazilian", "canadian", "chinese-simplified", "english",
 "esperanto", "farsi", "interlingua", "irish", "newzealand", "scottish",
 "thai", "turkish", "vietnamese", 0};
 
@@ -123,16 +122,23 @@ const char * const known_german_quotes_languages[] = {"austrian", "bulgarian",
 const char * const known_polish_quotes_languages[] = {"afrikaans", "bosnian", "croatian",
 "dutch", "magyar", "polish", "romanian", "serbian", "serbian-latin", 0};
 
+/// languages with hungarian quotes (.lyx names)
+const char * const known_hungarian_quotes_languages[] = {"magyar", 0};
+
 /// languages with russian quotes (.lyx names)
-const char * const known_russian_quotes_languages[] = {"russian", "ukrainian", 0};
+const char * const known_russian_quotes_languages[] = {"azerbaijani", "oldrussian",
+"russian", "ukrainian", 0};
 
 /// languages with swedish quotes (.lyx names)
 const char * const known_swedish_quotes_languages[] = {"finnish", "swedish", 0};
 
 /// languages with swiss quotes (.lyx names)
 const char * const known_swiss_quotes_languages[] = {"albanian",
-"armenian", "basque", "german-ch", "german-ch-old",
+"armenian", "basque", "churchslavonic", "german-ch", "german-ch-old",
 "norsk", "nynorsk", "turkmen", "ukrainian", "vietnamese", 0};
+
+/// languages with hebrew quotes (.lyx names)
+const char * const known_hebrew_quotes_languages[] = {"hebrew", 0};
 
 /// known language packages from the times before babel
 const char * const known_old_language_packages[] = {"french", "frenchle",
@@ -140,31 +146,28 @@ const char * const known_old_language_packages[] = {"french", "frenchle",
 
 char const * const known_fontsizes[] = { "10pt", "11pt", "12pt", 0 };
 
-const char * const known_roman_fonts[] = { "ae", "beraserif", "bookman",
-"ccfonts", "chancery", "charter", "cmr", "cochineal", "crimson", "fourier",
-"garamondx", "libertine", "libertineRoman", "libertine-type1", "lmodern", "mathdesign",
-"mathpazo", "mathptmx", "MinionPro", "newcent", "NotoSerif-TLF", "tgbonum", "tgchorus",
-"tgpagella", "tgschola", "tgtermes", "utopia", 0 };
+const char * const known_roman_font_packages[] = { "ae", "beraserif", "bookman",
+"ccfonts", "chancery", "charter", "cmr", "cochineal", "crimson", "CrimsonPro", "DejaVuSerif",
+"DejaVuSerifCondensed", "fourier", "garamondx", "libertine", "libertineRoman", "libertine-type1",
+"lmodern", "mathdesign", "mathpazo", "mathptmx", "MinionPro", "newcent", "noto", "noto-serif",
+"PTSerif", "tgbonum", "tgchorus", "tgpagella", "tgschola", "tgtermes", "utopia", "xcharter", 0 };
 
-const char * const known_sans_fonts[] = { "avant", "berasans", "biolinum",
-"biolinum-type1", "cmbr", "cmss", "helvet", "iwona", "iwonac", "iwonal", "iwonalc",
-"kurier", "kurierc", "kurierl", "kurierlc", "lmss", "NotoSans-TLF",
+const char * const known_sans_font_packages[] = { "avant", "berasans", "biolinum",
+"biolinum-type1", "cantarell", "Chivo", "cmbr", "cmss", "DejaVuSans", "DejaVuSansCondensed", "FiraSans", "helvet", "iwona",
+"iwonac", "iwonal", "iwonalc", "kurier", "kurierc", "kurierl", "kurierlc", "LibertinusSans-LF", "lmss", "noto-sans", "PTSans",
 "tgadventor", "tgheros", "uop", 0 };
 
-const char * const known_typewriter_fonts[] = { "beramono", "cmtl", "cmtt",
-"courier", "lmtt", "luximono", "fourier", "libertineMono", "libertineMono-type1", "lmodern",
-"mathpazo", "mathptmx", "newcent", "NotoMono-TLF", "tgcursor", "txtt", 0 };
+const char * const known_typewriter_font_packages[] = { "beramono", "cmtl", "cmtt", "courier", "DejaVuSansMono",
+"FiraMono", "lmtt", "luximono", "libertineMono", "libertineMono-type1", "LibertinusMono-TLF", "lmodern",
+"mathpazo", "mathptmx", "newcent", "noto-mono", "PTMono", "tgcursor", "txtt", 0 };
 
-const char * const known_math_fonts[] = { "eulervm", "newtxmath", 0};
+const char * const known_math_font_packages[] = { "eulervm", "newtxmath", 0};
 
-const char * const known_paper_sizes[] = { "a0paper", "b0paper", "c0paper",
+const char * const known_latex_paper_sizes[] = { "a0paper", "b0paper", "c0paper",
 "a1paper", "b1paper", "c1paper", "a2paper", "b2paper", "c2paper", "a3paper",
 "b3paper", "c3paper", "a4paper", "b4paper", "c4paper", "a5paper", "b5paper",
 "c5paper", "a6paper", "b6paper", "c6paper", "executivepaper", "legalpaper",
 "letterpaper", "b0j", "b1j", "b2j", "b3j", "b4j", "b5j", "b6j", 0};
-
-const char * const known_class_paper_sizes[] = { "a4paper", "a5paper",
-"executivepaper", "legalpaper", "letterpaper", 0};
 
 const char * const known_paper_margins[] = { "lmargin", "tmargin", "rmargin",
 "bmargin", "headheight", "headsep", "footskip", "columnsep", 0};
@@ -205,9 +208,9 @@ const char * const known_xetex_packages[] = {"arabxetex", "fixlatvian",
 const char * const known_lyx_packages[] = {"amsbsy", "amsmath", "amssymb",
 "amstext", "amsthm", "array", "babel", "booktabs", "calc", "CJK", "color",
 "float", "fontspec", "framed", "graphicx", "hhline", "ifthen", "longtable",
-"makeidx", "minted", "multirow", "nomencl", "pdfpages", "prettyref", "refstyle",
-"rotating", "rotfloat", "splitidx", "setspace", "subscript", "textcomp", "tipa",
-"tipx", "tone", "ulem", "url", "varioref", "verbatim", "wrapfig", "xcolor",
+"makeidx", "minted", "multirow", "nomencl", "parskip", "pdfpages", "prettyref", "refstyle",
+"rotating", "rotfloat", "splitidx", "setspace", "subscript", "tabularx","textcomp", "tipa",
+"tipx", "tone", "ulem", "url", "varioref", "verbatim", "wrapfig", "xcolor", "xltabular",
 "xunicode", 0};
 
 // codes used to remove packages that are loaded automatically by LyX.
@@ -297,7 +300,7 @@ vector<string> split_options(string const & input)
  * \p options and return the value.
  * The found option is also removed from \p options.
  */
-string process_keyval_opt(vector<string> & options, string name)
+string process_keyval_opt(vector<string> & options, string const & name)
 {
 	for (size_t i = 0; i < options.size(); ++i) {
 		vector<string> option;
@@ -323,12 +326,12 @@ string process_keyval_opt(vector<string> & options, string name)
 const char * const Preamble::polyglossia_languages[] = {
 "albanian", "american", "amharic", "ancient", "arabic", "armenian", "asturian", "australian",
 "bahasai", "bahasam", "basque", "bengali", "brazil", "brazilian", "breton", "british", "bulgarian",
-"catalan", "coptic", "croatian", "czech", "danish", "divehi", "dutch",
+"catalan", "churchslavonic", "coptic", "croatian", "czech", "danish", "divehi", "dutch",
 "english", "esperanto", "estonian", "farsi", "finnish", "french", "friulan",
 "galician", "greek", "monotonic", "hebrew", "hindi",
-"icelandic", "interlingua", "irish", "italian", "kannada", "khmer",
+"icelandic", "interlingua", "irish", "italian", "kannada", "khmer", "korean",
 "lao", "latin", "latvian", "lithuanian", "lsorbian", "magyar", "malayalam", "marathi",
-"austrian", "newzealand", "german", "norsk", "nynorsk", "occitan",
+"austrian", "newzealand", "german", "norsk", "nynorsk", "occitan", "oldrussian",
 "piedmontese", "polish", "polytonic", "portuges", "romanian", "romansh", "russian",
 "samin", "sanskrit", "scottish", "serbian", "slovak", "slovenian", "spanish", "swedish", "syriac",
 "tamil", "telugu", "thai", "tibetan", "turkish", "turkmen",
@@ -342,12 +345,12 @@ const char * const Preamble::polyglossia_languages[] = {
 const char * const Preamble::coded_polyglossia_languages[] = {
 "albanian", "american", "amharic", "ancientgreek", "arabic_arabi", "armenian", "asturian", "australian",
 "bahasa", "bahasam", "basque", "bengali", "brazilian", "brazilian", "breton", "british", "bulgarian",
-"catalan", "coptic", "croatian", "czech", "danish", "divehi", "dutch",
+"catalan", "churchslavonic", "coptic", "croatian", "czech", "danish", "divehi", "dutch",
 "english", "esperanto", "estonian", "farsi", "finnish", "french", "friulan",
 "galician", "greek", "greek", "hebrew", "hindi",
-"icelandic", "interlingua", "irish", "italian", "kannada", "khmer",
+"icelandic", "interlingua", "irish", "italian", "kannada", "khmer", "korean",
 "lao", "latin", "latvian", "lithuanian", "lowersorbian", "magyar", "malayalam", "marathi",
-"naustrian","newzealand", "ngerman", "norsk", "nynorsk", "occitan",
+"naustrian","newzealand", "ngerman", "norsk", "nynorsk", "occitan", "oldrussian",
 "piedmontese", "polish", "polutonikogreek", "portuges", "romanian", "romansh", "russian",
 "samin", "sanskrit", "scottish", "serbian", "slovak", "slovene", "spanish", "swedish", "syriac",
 "tamil", "telugu", "thai", "tibetan", "turkish", "turkmen",
@@ -399,7 +402,7 @@ void Preamble::addModule(string const & module)
 	for (auto const & m : used_modules) {
 		if (m == module)
 			return;
-	}		
+	}
 	used_modules.push_back(module);
 }
 
@@ -413,9 +416,9 @@ void Preamble::suppressDate(bool suppress)
 }
 
 
-void Preamble::registerAuthor(std::string const & name)
+void Preamble::registerAuthor(std::string const & name, string const & initials)
 {
-	Author author(from_utf8(name), empty_docstring());
+	Author author(from_utf8(name), empty_docstring(), from_utf8(initials));
 	author.setUsed(true);
 	authors_.record(author);
 	h_tracking_changes = "true";
@@ -425,7 +428,7 @@ void Preamble::registerAuthor(std::string const & name)
 
 Author const & Preamble::getAuthor(std::string const & name) const
 {
-	Author author(from_utf8(name), empty_docstring());
+	Author author(from_utf8(name), empty_docstring(), empty_docstring());
 	for (AuthorList::Authors::const_iterator it = authors_.begin();
 	     it != authors_.end(); ++it)
 		if (*it == author)
@@ -447,8 +450,7 @@ int Preamble::getSpecialTableColumnArguments(char c) const
 void Preamble::add_package(string const & name, vector<string> & options)
 {
 	// every package inherits the global options
-	if (used_packages.find(name) == used_packages.end())
-		used_packages[name] = split_options(h_options);
+	used_packages.insert({name, split_options(h_options)});
 
 	// Insert options passed via PassOptionsToPackage
 	for (auto const & p : extra_package_options_) {
@@ -471,15 +473,24 @@ void Preamble::add_package(string const & name, vector<string> & options)
 	}
 }
 
+void Preamble::setTextClass(string const & tclass, TeX2LyXDocClass & tc)
+{
+	h_textclass = tclass;
+	tc.setName(h_textclass);
+	if (!LayoutFileList::get().haveClass(h_textclass) || !tc.load()) {
+		error_message("Could not read layout file for textclass \"" + h_textclass + "\".");
+		exit(EXIT_FAILURE);
+	}
+}
+
 
 namespace {
 
-// Given is a string like "scaled=0.9" or "Scale=0.9", return 0.9 * 100
+// Given is a string like "scaled=0.9" or "scale=0.9", return 0.9 * 100
 bool scale_as_percentage(string const & scale, string & percentage)
 {
-	string::size_type pos = scale.find('=');
-	if (pos != string::npos) {
-		string value = scale.substr(pos + 1);
+	if (contains(scale, '=')) {
+		string const value = support::split(scale, '=');
 		if (isStrDbl(value)) {
 			percentage = convert<string>(
 				static_cast<int>(100 * convert<double>(value)));
@@ -503,8 +514,7 @@ string remove_braces(string const & value)
 
 
 Preamble::Preamble() : one_language(true), explicit_babel(false),
-	title_layout_found(false), index_number(0), h_font_cjk_set(false),
-	h_use_microtype("false")
+	title_layout_found(false), index_number(0), h_font_cjk_set(false)
 {
 	//h_backgroundcolor;
 	//h_boxbgcolor;
@@ -529,11 +539,16 @@ Preamble::Preamble() : one_language(true), explicit_babel(false),
 	h_font_default_family     = "default";
 	h_use_non_tex_fonts       = false;
 	h_font_sc                 = "false";
-	h_font_osf                = "false";
+	h_font_roman_osf          = "false";
+	h_font_sans_osf           = "false";
+	h_font_typewriter_osf     = "false";
 	h_font_sf_scale[0]        = "100";
 	h_font_sf_scale[1]        = "100";
 	h_font_tt_scale[0]        = "100";
 	h_font_tt_scale[1]        = "100";
+	// h_font_roman_opts;
+	// h_font_sans_opts;
+	// h_font_typewriter_opts;
 	//h_font_cjk
 	h_is_mathindent           = "0";
 	h_math_numbering_side     = "default";
@@ -542,18 +557,21 @@ Preamble::Preamble() : one_language(true), explicit_babel(false),
 	h_html_be_strict          = "false";
 	h_html_css_as_file        = "0";
 	h_html_math_output        = "0";
+	h_docbook_table_output    = "0";
+	h_docbook_mathml_prefix   = "1";
 	h_index[0]                = "Index";
 	h_index_command           = "default";
-	h_inputencoding           = "auto";
+	h_inputencoding           = "auto-legacy";
 	h_justification           = "true";
 	h_language                = "english";
 	h_language_package        = "none";
 	//h_listings_params;
-	h_maintain_unincluded_children = "false";
+	h_maintain_unincluded_children = "no";
 	//h_margins;
 	//h_notefontcolor;
 	//h_options;
 	h_output_changes          = "false";
+	h_change_bars             = "false";
 	h_output_sync             = "0";
 	//h_output_sync_macro
 	h_papercolumns            = "1";
@@ -595,6 +613,7 @@ Preamble::Preamble() : one_language(true), explicit_babel(false),
 	h_use_default_options     = "false";
 	h_use_hyperref            = "false";
 	h_use_microtype           = "false";
+	h_use_lineno              = "false";
 	h_use_refstyle            = false;
 	h_use_minted              = false;
 	h_use_packages["amsmath"]    = "1";
@@ -704,13 +723,18 @@ void Preamble::handle_geometry(vector<string> & options)
 		options.erase(it);
 	}
 	// paper size
-	// keyval version: "paper=letter"
+	// keyval version: "paper=letter" or "paper=letterpaper"
 	string paper = process_keyval_opt(options, "paper");
 	if (!paper.empty())
-		h_papersize = paper + "paper";
+		if (suffixIs(paper, "paper"))
+			paper = subst(paper, "paper", "");
 	// alternative version: "letterpaper"
-	handle_opt(options, known_paper_sizes, h_papersize);
-	delete_opt(options, known_paper_sizes);
+	handle_opt(options, known_latex_paper_sizes, paper);
+	if (suffixIs(paper, "paper"))
+		paper = subst(paper, "paper", "");
+	delete_opt(options, known_latex_paper_sizes);
+	if (!paper.empty())
+		h_papersize = paper;
 	// page margins
 	char const * const * margin = known_paper_margins;
 	for (; *margin; ++margin) {
@@ -735,37 +759,107 @@ void Preamble::handle_package(Parser &p, string const & name,
 		xetex = true;
 		h_use_non_tex_fonts = true;
 		registerAutomaticallyLoadedPackage("fontspec");
-		if (h_inputencoding == "auto")
+		if (h_inputencoding == "auto-legacy")
 			p.setEncoding("UTF-8");
+	} else if (h_inputencoding == "auto-legacy"
+		   && LaTeXPackages::isAvailableAtLeastFrom("LaTeX", 2018, 04))
+		// As of LaTeX 2018/04/01, utf8 is the default input encoding
+		// So use that if no inputencoding is set
+		h_inputencoding = "utf8";
+
+	// vector of all options for easier parsing and
+	// skipping
+	vector<string> allopts = getVectorFromString(opts);
+	// this stores the potential extra options
+	string xopts;
+
+	//
+	// roman fonts
+	//
+
+	// By default, we use the package name as LyX font name,
+	// so this only needs to be reset if these names differ
+	if (is_known(name, known_roman_font_packages))
+		h_font_roman[0] = name;
+
+	if (name == "ccfonts") {
+		for (auto const & opt : allopts) {
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
 	}
 
-	// roman fonts
-	if (is_known(name, known_roman_fonts))
-		h_font_roman[0] = name;
+	if (name == "lmodern") {
+		for (auto const & opt : allopts) {
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
+	}
 
 	if (name == "fourier") {
 		h_font_roman[0] = "utopia";
-		// when font uses real small capitals
-		if (opts == "expert")
-			h_font_sc = "true";
+		for (auto const & opt : allopts) {
+			if (opt == "osf") {
+				h_font_roman_osf = "true";
+				continue;
+			}
+			if (opt == "expert") {
+				h_font_sc = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
 	}
 
 	if (name == "garamondx") {
-		h_font_roman[0] = "garamondx";
-		if (opts == "osfI")
-			h_font_osf = "true";
+		for (auto const & opt : allopts) {
+			if (opt == "osfI") {
+				h_font_roman_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
 	}
 
 	if (name == "libertine") {
-		h_font_roman[0] = "libertine";
 		// this automatically invokes biolinum
 		h_font_sans[0] = "biolinum";
 		// as well as libertineMono
 		h_font_typewriter[0] = "libertine-mono";
-		if (opts == "osf")
-			h_font_osf = "true";
-		else if (opts == "lining")
-			h_font_osf = "false";
+		for (auto const & opt : allopts) {
+			if (opt == "osf") {
+				h_font_roman_osf = "true";
+				continue;
+			}
+			if (opt == "lining") {
+				h_font_roman_osf = "false";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
 	}
 
 	if (name == "libertineRoman" || name == "libertine-type1") {
@@ -774,98 +868,621 @@ void Preamble::handle_package(Parser &p, string const & name,
 		// and libertine-type1 do not automatically invoke
 		// biolinum and libertineMono
 		if (opts == "lining")
-			h_font_osf = "false";
+			h_font_roman_osf = "false";
 		else if (opts == "osf")
-			h_font_osf = "true";
+			h_font_roman_osf = "true";
+	}
+
+	if (name == "libertinus" || name == "libertinus-type1") {
+		bool sf = true;
+		bool tt = true;
+		bool rm = true;
+		bool osf = false;
+		string scalesf;
+		string scalett;
+		for (auto const & opt : allopts) {
+			if (opt == "rm" || opt == "serif") {
+				tt = false;
+				sf = false;
+				continue;
+			}
+			if (opt == "sf" || opt == "sans") {
+				tt = false;
+				rm = false;
+				continue;
+			}
+			if (opt == "tt=false" || opt == "mono=false") {
+				tt = false;
+				continue;
+			}
+			if (opt == "osf") {
+				osf = true;
+				continue;
+			}
+			if (opt == "scaleSF") {
+				scalesf = opt;
+				continue;
+			}
+			if (opt == "scaleTT") {
+				scalett = opt;
+				continue;
+			}
+			if (opt == "lining") {
+				h_font_roman_osf = "false";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (rm) {
+			h_font_roman[0] = "libertinus";
+			if (osf)
+				h_font_roman_osf = "true";
+			else
+				h_font_roman_osf = "false";
+		}
+		if (sf) {
+			h_font_sans[0] = "LibertinusSans-LF";
+			if (osf)
+				h_font_sans_osf = "true";
+			else
+				h_font_sans_osf = "false";
+			if (!scalesf.empty())
+				scale_as_percentage(scalesf, h_font_sf_scale[0]);
+		}
+		if (tt) {
+			h_font_typewriter[0] = "LibertinusMono-TLF";
+			if (!scalett.empty())
+				scale_as_percentage(scalett, h_font_tt_scale[0]);
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
 	}
 
 	if (name == "MinionPro") {
 		h_font_roman[0] = "minionpro";
-		if (opts.find("lf") != string::npos)
-			h_font_osf = "false";
-		else
-			h_font_osf = "true";
-		if (opts.find("onlytext") != string::npos)
-			h_font_math[0] = "default";
-		else
-			h_font_math[0] = "auto";
+		h_font_roman_osf = "true";
+		h_font_math[0] = "auto";
+		for (auto const & opt : allopts) {
+			if (opt == "lf") {
+				h_font_roman_osf = "false";
+				continue;
+			}
+			if (opt == "onlytext") {
+				h_font_math[0] = "default";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
 	}
 
 	if (name == "mathdesign") {
-		if (opts.find("charter") != string::npos)
-			h_font_roman[0] = "md-charter";
-		if (opts.find("garamond") != string::npos)
-			h_font_roman[0] = "md-garamond";
-		if (opts.find("utopia") != string::npos)
-			h_font_roman[0] = "md-utopia";
-		if (opts.find("expert") != string::npos) {
-			h_font_sc = "true";
-			h_font_osf = "true";
+		for (auto const & opt : allopts) {
+			if (opt == "charter") {
+				h_font_roman[0] = "md-charter";
+				continue;
+			}
+			if (opt == "garamond") {
+				h_font_roman[0] = "md-garamond";
+				continue;
+			}
+			if (opt == "utopia") {
+				h_font_roman[0] = "md-utopia";
+				continue;
+			}
+			if (opt == "expert") {
+				h_font_sc = "true";
+				h_font_roman_osf = "true";
+				continue;
+			}
 		}
 	}
 
-	else if (name == "mathpazo")
+	else if (name == "mathpazo") {
 		h_font_roman[0] = "palatino";
+		for (auto const & opt : allopts) {
+			if (opt == "osf") {
+				h_font_roman_osf = "true";
+				continue;
+			}
+			if (opt == "sc") {
+				h_font_sc = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
+	}
 
-	else if (name == "mathptmx")
+	else if (name == "mathptmx") {
 		h_font_roman[0] = "times";
+		for (auto const & opt : allopts) {
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
+	}
 
 	if (name == "crimson")
 		h_font_roman[0] = "cochineal";
 
 	if (name == "cochineal") {
-		h_font_roman[0] = "cochineal";
-		// cochineal can have several options, e.g. [proportional,osf]
-		string::size_type pos = opts.find("osf");
-		if (pos != string::npos)
-			h_font_osf = "true";
-	}
-
-	if (name == "noto") {
-		// noto can have several options
-		if (opts.empty())
-			h_font_roman[0] = "NotoSerif-TLF";
-		string::size_type pos = opts.find("rm");
-		if (pos != string::npos)
-			h_font_roman[0] = "NotoSerif-TLF";
-		pos = opts.find("sf");
-		if (pos != string::npos)
-			h_font_sans[0] = "NotoSans-TLF";
-		pos = opts.find("nott");
-		if (pos != string::npos) {
-			h_font_roman[0] = "NotoSerif-TLF";
-			h_font_sans[0] = "NotoSans-TLF";
+		for (auto const & opt : allopts) {
+			if (opt == "osf" || opt == "oldstyle") {
+				h_font_roman_osf = "true";
+				continue;
+			}
+			if (opt == "proportional" || opt == "p")
+				continue;
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
 		}
-		// noto as typewriter is handled in handling of \ttdefault
-		// special cases are handled in handling of \rmdefault and \sfdefault
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
 	}
 
+	if (name == "CrimsonPro") {
+		h_font_roman_osf = "true";
+		for (auto const & opt : allopts) {
+			if (opt == "lf" || opt == "lining") {
+				h_font_roman_osf = "false";
+				continue;
+			}
+			if (opt == "proportional" || opt == "p")
+				continue;
+			if (opt == "medium") {
+				h_font_roman[0] = "CrimsonProMedium";
+				continue;
+			}
+			if (opt == "extralight") {
+				h_font_roman[0] = "CrimsonProExtraLight";
+				continue;
+			}
+			if (opt == "light") {
+				h_font_roman[0] = "CrimsonProLight";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
+	}
+
+
+	if (name == "eco")
+		// font uses old-style figure
+		h_font_roman_osf = "true";
+
+	if (name == "paratype") {
+		// in this case all fonts are ParaType
+		h_font_roman[0] = "PTSerif-TLF";
+		h_font_sans[0] = "default";
+		h_font_typewriter[0] = "default";
+	}
+
+	if (name == "PTSerif")
+		h_font_roman[0] = "PTSerif-TLF";
+
+	if (name == "XCharter") {
+		h_font_roman[0] = "xcharter";
+		for (auto const & opt : allopts) {
+			if (opt == "osf") {
+				h_font_roman_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "plex-serif") {
+		h_font_roman[0] = "IBMPlexSerif";
+		for (auto const & opt : allopts) {
+			if (opt == "thin") {
+				h_font_roman[0] = "IBMPlexSerifThin";
+				continue;
+			}
+			if (opt == "extralight") {
+				h_font_roman[0] = "IBMPlexSerifExtraLight";
+				continue;
+			}
+			if (opt == "light") {
+				h_font_roman[0] = "IBMPlexSerifLight";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "noto-serif" || name == "noto") {
+		bool rm = false;
+		bool rmx = false;
+		bool sf = false;
+		bool sfx = false;
+		bool tt = false;
+		bool thin = false;
+		bool extralight = false;
+		bool light = false;
+		bool medium = false;
+		bool osf = false;
+		string scl;
+		if (name == "noto") {
+			rm = true;
+			sf = true;
+			tt = true;
+		}
+		// Since the options might apply to different shapes,
+		// we need to parse all options first and then handle them.
+		for (auto const & opt : allopts) {
+			if (opt == "regular")
+				// skip
+				continue;
+			if (opt == "rm") {
+				rm = true;
+				rmx = true;
+				sf = sfx;
+				tt = false;
+				continue;
+			}
+			if (opt == "thin") {
+				thin = true;
+				continue;
+			}
+			if (opt == "extralight") {
+				extralight = true;
+				continue;
+			}
+			if (opt == "light") {
+				light = true;
+				continue;
+			}
+			if (opt == "medium") {
+				medium = true;
+				continue;
+			}
+			if (opt == "sf") {
+				sfx = true;
+				sf = true;
+				rm = rmx;
+				tt = false;
+				continue;
+			}
+			if (opt == "nott") {
+				tt = false;
+				continue;
+			}
+			if (opt == "osf") {
+				osf = true;
+				continue;
+			}
+			if (prefixIs(opt, "scaled=")) {
+				scl = opt;
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		options.clear();
+		// handle options that might affect different shapes
+		if (name == "noto-serif" || rm) {
+			if (thin)
+				h_font_roman[0] = "NotoSerifThin";
+			else if (extralight)
+				h_font_roman[0] = "NotoSerifExtralight";
+			else if (light)
+				h_font_roman[0] = "NotoSerifLight";
+			else if (medium)
+				h_font_roman[0] = "NotoSerifMedium";
+			else
+				h_font_roman[0] = "NotoSerifRegular";
+			if (osf)
+				h_font_roman_osf = "true";
+			if (!xopts.empty())
+				h_font_roman_opts = xopts;
+		}
+		if (name == "noto" && sf) {
+			if (thin)
+				h_font_sans[0] = "NotoSansThin";
+			else if (extralight)
+				h_font_sans[0] = "NotoSansExtralight";
+			else if (light)
+				h_font_sans[0] = "NotoSansLight";
+			else if (medium)
+				h_font_sans[0] = "NotoSansMedium";
+			else
+				h_font_sans[0] = "NotoSansRegular";
+			if (osf)
+				h_font_sans_osf = "true";
+			if (!scl.empty())
+				scale_as_percentage(scl, h_font_sf_scale[0]);
+			if (!xopts.empty())
+				h_font_sans_opts = xopts;
+		}
+		if (name == "noto" && tt) {
+			h_font_typewriter[0] = "NotoMonoRegular";
+			if (osf)
+				h_font_typewriter_osf = "true";
+			if (!scl.empty())
+				scale_as_percentage(scl, h_font_tt_scale[0]);
+			if (!xopts.empty())
+				h_font_typewriter_opts = xopts;
+		}
+	}
+
+	if (name == "sourceserifpro") {
+		h_font_roman[0] = "ADOBESourceSerifPro";
+		for (auto const & opt : allopts) {
+			if (opt == "osf") {
+				h_font_roman_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_roman_opts = xopts;
+		options.clear();
+	}
+
+	//
 	// sansserif fonts
-	if (is_known(name, known_sans_fonts)) {
+	//
+
+	// By default, we use the package name as LyX font name,
+	// so this only needs to be reset if these names differ.
+	// Also, we handle the scaling option here generally.
+	if (is_known(name, known_sans_font_packages)) {
 		h_font_sans[0] = name;
-		if (options.size() >= 1) {
-			if (scale_as_percentage(opts, h_font_sf_scale[0]))
-				options.clear();
+		if (contains(opts, "scale")) {
+			vector<string>::iterator it = allopts.begin();
+			for (; it != allopts.end() ; ++it) {
+				string const opt = *it;
+				if (prefixIs(opt, "scaled=") || prefixIs(opt, "scale=")) {
+					if (scale_as_percentage(opt, h_font_sf_scale[0])) {
+						allopts.erase(it);
+						break;
+					}
+				}
+			}
 		}
 	}
 
 	if (name == "biolinum" || name == "biolinum-type1") {
 		h_font_sans[0] = "biolinum";
-		// biolinum can have several options, e.g. [osf,scaled=0.97]
-		string::size_type pos = opts.find("osf");
-		if (pos != string::npos)
-			h_font_osf = "true";
+		for (auto const & opt : allopts) {
+			if (prefixIs(opt, "osf")) {
+				h_font_sans_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_sans_opts = xopts;
+		options.clear();
 	}
 
+	if (name == "cantarell") {
+		for (auto const & opt : allopts) {
+			if (opt == "defaultsans")
+				continue;
+			if (prefixIs(opt, "oldstyle")) {
+				h_font_sans_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_sans_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "Chivo") {
+		for (auto const & opt : allopts) {
+			if (opt == "thin") {
+				h_font_roman[0] = "ChivoThin";
+				continue;
+			}
+			if (opt == "light") {
+				h_font_roman[0] = "ChivoLight";
+				continue;
+			}
+			if (opt == "regular") {
+				h_font_roman[0] = "Chivo";
+				continue;
+			}
+			if (opt == "medium") {
+				h_font_roman[0] = "ChivoMedium";
+				continue;
+			}
+			if (prefixIs(opt, "oldstyle")) {
+				h_font_sans_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_sans_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "PTSans")
+		h_font_sans[0] = "PTSans-TLF";
+
+	if (name == "classico")
+		h_font_sans[0] = "uop";
+
+	if (name == "FiraSans") {
+		h_font_sans_osf = "true";
+		for (auto const & opt : allopts) {
+			if (opt == "book") {
+				h_font_sans[0] = "FiraSansBook";
+				continue;
+			}
+			if (opt == "thin") {
+				continue;
+			}
+			if (opt == "extralight") {
+				h_font_sans[0] = "FiraSansExtralight";
+				continue;
+			}
+			if (opt == "light") {
+				h_font_sans[0] = "FiraSansLight";
+				continue;
+			}
+			if (opt == "ultralight") {
+				h_font_sans[0] = "FiraSansUltralight";
+				continue;
+			}
+			if (opt == "thin") {
+				h_font_sans[0] = "FiraSansThin";
+				continue;
+			}
+			if (opt == "lf" || opt == "lining") {
+				h_font_sans_osf = "false";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_sans_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "plex-sans") {
+		h_font_sans[0] = "IBMPlexSans";
+		for (auto const & opt : allopts) {
+			if (opt == "condensed") {
+				h_font_sans[0] = "IBMPlexSansCondensed";
+				continue;
+			}
+			if (opt == "thin") {
+				h_font_sans[0] = "IBMPlexSansThin";
+				continue;
+			}
+			if (opt == "extralight") {
+				h_font_sans[0] = "IBMPlexSansExtraLight";
+				continue;
+			}
+			if (opt == "light") {
+				h_font_sans[0] = "IBMPlexSansLight";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_sans_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "noto-sans") {
+		h_font_sans[0] = "NotoSansRegular";
+		for (auto const & opt : allopts) {
+			if (opt == "regular")
+				continue;
+			if (opt == "medium") {
+				h_font_sans[0] = "NotoSansMedium";
+				continue;
+			}
+			if (opt == "thin") {
+				h_font_sans[0] = "NotoSansThin";
+				continue;
+			}
+			if (opt == "extralight") {
+				h_font_sans[0] = "NotoSansExtralight";
+				continue;
+			}
+			if (opt == "light") {
+				h_font_sans[0] = "NotoSansLight";
+				continue;
+			}
+			if (opt == "osf") {
+				h_font_sans_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_sans_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "sourcesanspro") {
+		h_font_sans[0] = "ADOBESourceSansPro";
+		for (auto const & opt : allopts) {
+			if (opt == "osf") {
+				h_font_sans_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_sans_opts = xopts;
+		options.clear();
+	}
+
+	//
 	// typewriter fonts
-	if (is_known(name, known_typewriter_fonts)) {
-		// fourier can be set as roman font _only_
-		// fourier as typewriter is handled in handling of \ttdefault
-		if (name != "fourier") {
-			h_font_typewriter[0] = name;
-			if (options.size() >= 1) {
-				if (scale_as_percentage(opts, h_font_tt_scale[0]))
-					options.clear();
+	//
+
+	// By default, we use the package name as LyX font name,
+	// so this only needs to be reset if these names differ.
+	// Also, we handle the scaling option here generally.
+	if (is_known(name, known_typewriter_font_packages)) {
+		h_font_typewriter[0] = name;
+		if (contains(opts, "scale")) {
+			vector<string>::iterator it = allopts.begin();
+			for (; it != allopts.end() ; ++it) {
+				string const opt = *it;
+				if (prefixIs(opt, "scaled=") || prefixIs(opt, "scale=")) {
+					if (scale_as_percentage(opt, h_font_tt_scale[0])) {
+						allopts.erase(it);
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -873,12 +1490,86 @@ void Preamble::handle_package(Parser &p, string const & name,
 	if (name == "libertineMono" || name == "libertineMono-type1")
 		h_font_typewriter[0] = "libertine-mono";
 
-	// font uses old-style figure
-	if (name == "eco")
-		h_font_osf = "true";
+	if (name == "FiraMono") {
+		h_font_typewriter_osf = "true";
+		for (auto const & opt : allopts) {
+			if (opt == "lf" || opt == "lining") {
+				h_font_typewriter_osf = "false";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_typewriter_opts = xopts;
+		options.clear();
+	}
 
+	if (name == "PTMono")
+		h_font_typewriter[0] = "PTMono-TLF";
+
+	if (name == "plex-mono") {
+		h_font_typewriter[0] = "IBMPlexMono";
+		for (auto const & opt : allopts) {
+			if (opt == "thin") {
+				h_font_typewriter[0] = "IBMPlexMonoThin";
+				continue;
+			}
+			if (opt == "extralight") {
+				h_font_typewriter[0] = "IBMPlexMonoExtraLight";
+				continue;
+			}
+			if (opt == "light") {
+				h_font_typewriter[0] = "IBMPlexMonoLight";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_typewriter_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "noto-mono") {
+		h_font_typewriter[0] = "NotoMonoRegular";
+		for (auto const & opt : allopts) {
+			if (opt == "regular")
+				continue;
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_typewriter_opts = xopts;
+		options.clear();
+	}
+
+	if (name == "sourcecodepro") {
+		h_font_typewriter[0] = "ADOBESourceCodePro";
+		for (auto const & opt : allopts) {
+			if (opt == "osf") {
+				h_font_typewriter_osf = "true";
+				continue;
+			}
+			if (!xopts.empty())
+				xopts += ", ";
+			xopts += opt;
+		}
+		if (!xopts.empty())
+			h_font_typewriter_opts = xopts;
+		options.clear();
+	}
+
+	//
 	// math fonts
-	if (is_known(name, known_math_fonts))
+	//
+
+	// By default, we use the package name as LyX font name,
+	// so this only needs to be reset if these names differ.
+	if (is_known(name, known_math_font_packages))
 		h_font_math[0] = name;
 
 	if (name == "newtxmath") {
@@ -904,8 +1595,8 @@ void Preamble::handle_package(Parser &p, string const & name,
 
 	// after the detection and handling of special cases, we can remove the
 	// fonts, otherwise they would appear in the preamble, see bug #7856
-	if (is_known(name, known_roman_fonts) || is_known(name, known_sans_fonts)
-		||	is_known(name, known_typewriter_fonts) || is_known(name, known_math_fonts))
+	if (is_known(name, known_roman_font_packages) || is_known(name, known_sans_font_packages)
+		||	is_known(name, known_typewriter_font_packages) || is_known(name, known_math_font_packages))
 		;
 	//"On". See the enum Package in BufferParams.h if you thought that "2" should have been "42"
 	else if (name == "amsmath" || name == "amssymb" || name == "cancel" ||
@@ -974,15 +1665,15 @@ void Preamble::handle_package(Parser &p, string const & name,
 		h_use_non_tex_fonts = true;
 		xetex = true;
 		registerAutomaticallyLoadedPackage("xunicode");
-		if (h_inputencoding == "auto")
+		if (h_inputencoding == "auto-legacy")
 			p.setEncoding("UTF-8");
 	}
 
 	else if (name == "CJK") {
-		// set the encoding to "auto" because it might be set to "default" by the babel handling
+		// set the encoding to "auto-legacy" because it might be set to "auto-legacy-plain" by the babel handling
 		// and this would not be correct for CJK
-		if (h_inputencoding == "default")
-			h_inputencoding = "auto";
+		if (h_inputencoding == "auto-legacy-plain")
+			h_inputencoding = "auto-legacy";
 		registerAutomaticallyLoadedPackage("CJK");
 	}
 
@@ -994,18 +1685,13 @@ void Preamble::handle_package(Parser &p, string const & name,
 
 	else if (name == "fontenc") {
 		h_fontencoding = getStringFromVector(options, ",");
-		/* We could do the following for better round trip support,
-		 * but this makes the document less portable, so I skip it:
-		if (h_fontencoding == lyxrc.fontenc)
-			h_fontencoding = "global";
-		 */
 		options.clear();
 	}
 
 	else if (name == "inputenc" || name == "luainputenc") {
 		// h_inputencoding is only set when there is not more than one
 		// inputenc option because otherwise h_inputencoding must be
-		// set to "auto" (the default encoding of the document language)
+		// set to "auto-legacy" (the default encodings of the document's languages)
 		// Therefore check that exactly one option is passed to inputenc.
 		// It is also only set when there is not more than one babel
 		// language option.
@@ -1015,11 +1701,12 @@ void Preamble::handle_package(Parser &p, string const & name,
 				encoding, Encoding::inputenc, true);
 			if (!enc) {
 				if (!detectEncoding)
-					cerr << "Unknown encoding " << encoding
-					     << ". Ignoring." << std::endl;
+					warning_message("Unknown encoding " + encoding + ". Ignoring.");
 			} else {
-				if (!enc->unsafe() && options.size() == 1 && one_language == true)
+				if (!enc->unsafe() && options.size() == 1 && one_language == true) {
 					h_inputencoding = enc->name();
+					docencoding = enc->iconvName();
+				}
 				p.setEncoding(enc->iconvName());
 			}
 			options.clear();
@@ -1048,6 +1735,24 @@ void Preamble::handle_package(Parser &p, string const & name,
 		delete_opt(options, o);
 	}
 
+	else if (name == "parskip" && options.size() < 2 && (opts.empty() || prefixIs(opts, "skip="))) {
+		if (opts.empty())
+			h_paragraph_separation = "halfline";
+		else {
+			if (opts == "skip=\\smallskipamount")
+				h_defskip = "smallskip";
+			else if (opts == "skip=\\medskipamount")
+				h_defskip = "medskip";
+			else if (opts == "skip=\\bigskipamount")
+				h_defskip = "bigskip";
+			else if (opts == "skip=\\baselineskip")
+				h_defskip = "fullline";
+			else
+				h_defskip = "opts";
+			h_paragraph_separation = "skip";
+		}
+	}
+
 	else if (is_known(name, known_lyx_packages) && options.empty()) {
 		if (name == "splitidx")
 			h_use_indices = "true";
@@ -1057,6 +1762,7 @@ void Preamble::handle_package(Parser &p, string const & name,
 			h_use_refstyle = true;
 		else if (name == "prettyref")
 			h_use_refstyle = false;
+
 		if (!in_lyx_preamble) {
 			h_preamble << package_beg_sep << name
 			           << package_mid_sep << "\\usepackage{"
@@ -1131,9 +1837,11 @@ void Preamble::handle_package(Parser &p, string const & name,
 			    || opt == "subsection")
 				h_multibib = opt;
 			else
-				cerr << "Ignoring unkown refesection value '"
-				     << opt << "'.";
+				warning_message("Ignoring unknown refsection value '" + opt + "'.");
 		}
+		opt = process_keyval_opt(options, "bibencoding");
+		if (!opt.empty())
+			bibencoding = opt;
 		if (!options.empty()) {
 			h_biblio_options = join(options, ",");
 			options.clear();
@@ -1176,6 +1884,17 @@ void Preamble::handle_package(Parser &p, string const & name,
 			h_preamble << "\\usepackage[" << opts << "]{microtype}";
 	}
 
+	else if (name == "lineno") {
+		h_use_lineno = "true";
+		if (!options.empty()) {
+			h_lineno_options = join(options, ",");
+			options.clear();
+		}
+	}
+
+	else if (name == "changebar")
+		h_output_changes = "true";
+
 	else if (!in_lyx_preamble) {
 		if (options.empty())
 			h_preamble << "\\usepackage{" << name << '}';
@@ -1192,8 +1911,8 @@ void Preamble::handle_package(Parser &p, string const & name,
 
 	// We need to do something with the options...
 	if (!options.empty() && !detectEncoding)
-		cerr << "Ignoring options '" << join(options, ",")
-		     << "' of package " << name << '.' << endl;
+		warning_message("Ignoring options '" + join(options, ",")
+				+ "' of package " + name + '.');
 
 	// remove the whitespace
 	p.skip_spaces();
@@ -1241,6 +1960,11 @@ bool Preamble::writeLyXHeader(ostream & os, bool subdoc, string const & outfiled
 	   << "\\save_transient_properties " << h_save_transient_properties << "\n"
 	   << "\\origin " << origin << "\n"
 	   << "\\textclass " << h_textclass << "\n";
+	if (!h_doc_metadata.empty()) {
+		os << "\\begin_metadata\n"
+		   << h_doc_metadata
+		   << "\n\\end_metadata\n";
+	}
 	string const raw = subdoc ? empty_string() : h_preamble.str();
 	if (!raw.empty()) {
 		os << "\\begin_preamble\n";
@@ -1296,13 +2020,21 @@ bool Preamble::writeLyXHeader(ostream & os, bool subdoc, string const & outfiled
 	   << "\\font_default_family " << h_font_default_family << "\n"
 	   << "\\use_non_tex_fonts " << (h_use_non_tex_fonts ? "true" : "false") << '\n'
 	   << "\\font_sc " << h_font_sc << "\n"
-	   << "\\font_osf " << h_font_osf << "\n"
-	   << "\\font_sf_scale " << h_font_sf_scale[0]
-	   << ' ' << h_font_sf_scale[1] << '\n'
-	   << "\\font_tt_scale " << h_font_tt_scale[0]
+	   << "\\font_roman_osf " << h_font_roman_osf << "\n"
+	   << "\\font_sans_osf " << h_font_sans_osf << "\n"
+	   << "\\font_typewriter_osf " << h_font_typewriter_osf << "\n";
+	if (!h_font_roman_opts.empty())
+		os << "\\font_roman_opts \"" << h_font_roman_opts << "\"" << '\n';
+	os << "\\font_sf_scale " << h_font_sf_scale[0]
+	   << ' ' << h_font_sf_scale[1] << '\n';
+	if (!h_font_sans_opts.empty())
+		os << "\\font_sans_opts \"" << h_font_sans_opts << "\"" << '\n';
+	os << "\\font_tt_scale " << h_font_tt_scale[0]
 	   << ' ' << h_font_tt_scale[1] << '\n';
 	if (!h_font_cjk.empty())
 		os << "\\font_cjk " << h_font_cjk << '\n';
+	if (!h_font_typewriter_opts.empty())
+		os << "\\font_typewriter_opts \"" << h_font_typewriter_opts << "\"" << '\n';
 	os << "\\use_microtype " << h_use_microtype << '\n'
 	   << "\\use_dash_ligatures " << h_use_dash_ligatures << '\n'
 	   << "\\graphics " << h_graphics << '\n'
@@ -1362,7 +2094,10 @@ bool Preamble::writeLyXHeader(ostream & os, bool subdoc, string const & outfiled
 	   << "\\suppress_date " << h_suppress_date << '\n'
 	   << "\\justification " << h_justification << '\n'
 	   << "\\use_refstyle " << h_use_refstyle << '\n'
-	   << "\\use_minted " << h_use_minted << '\n';
+	   << "\\use_minted " << h_use_minted << '\n'
+	   << "\\use_lineno " << h_use_lineno << '\n';
+	if (!h_lineno_options.empty())
+		os << "\\lineno_options " << h_lineno_options << '\n';
 	if (!h_fontcolor.empty())
 		os << "\\fontcolor " << h_fontcolor << '\n';
 	if (!h_notefontcolor.empty())
@@ -1405,9 +2140,12 @@ bool Preamble::writeLyXHeader(ostream & os, bool subdoc, string const & outfiled
 		os << "\\listings_params " << h_listings_params << "\n";
 	os << "\\tracking_changes " << h_tracking_changes << "\n"
 	   << "\\output_changes " << h_output_changes << "\n"
+	   << "\\change_bars " << h_change_bars << "\n"
 	   << "\\html_math_output " << h_html_math_output << "\n"
 	   << "\\html_css_as_file " << h_html_css_as_file << "\n"
 	   << "\\html_be_strict " << h_html_be_strict << "\n"
+	   << "\\docbook_table_output " << h_docbook_table_output << "\n"
+	   << "\\docbook_mathml_prefix " << h_docbook_mathml_prefix << "\n"
 	   << authors_
 	   << "\\end_header\n\n"
 	   << "\\begin_body\n";
@@ -1430,6 +2168,7 @@ void Preamble::parse(Parser & p, string const & forceclass,
 	bool is_full_document = false;
 	bool is_lyx_file = false;
 	bool in_lyx_preamble = false;
+	bool class_set = false;
 
 	// determine whether this is a full document or a fragment for inclusion
 	while (p.good()) {
@@ -1445,17 +2184,21 @@ void Preamble::parse(Parser & p, string const & forceclass,
 	if (detectEncoding && !is_full_document)
 		return;
 
+	// Force textclass if the user wanted it
+	if (!forceclass.empty()) {
+		setTextClass(forceclass, tc);
+		class_set = true;
+	}
+
 	while (is_full_document && p.good()) {
-		if (detectEncoding && h_inputencoding != "auto" &&
-		    h_inputencoding != "default")
+		if (detectEncoding && h_inputencoding != "auto-legacy" &&
+		    h_inputencoding != "auto-legacy-plain")
 			return;
 
 		Token const & t = p.get_token();
 
-#ifdef FILEDEBUG
 		if (!detectEncoding)
-			cerr << "t: " << t << '\n';
-#endif
+			debug_message("t: " + t.asInput());
 
 		//
 		// cat codes
@@ -1492,9 +2235,9 @@ void Preamble::parse(Parser & p, string const & forceclass,
 				"% This document must be compiled with XeLaTeX ";
 			if (comment.size() > magicXeLaTeX.size()
 				  && comment.substr(0, magicXeLaTeX.size()) == magicXeLaTeX
-				  && h_inputencoding == "auto") {
+				  && h_inputencoding == "auto-legacy") {
 				if (!detectEncoding)
-					cerr << "XeLaTeX comment found, switching to UTF8\n";
+					warning_message("XeLaTeX comment found, switching to UTF8");
 				h_inputencoding = "utf8";
 			}
 			smatch sub;
@@ -1556,37 +2299,132 @@ void Preamble::parse(Parser & p, string const & forceclass,
 		}
 
 		if (t.cs() == "setmainfont") {
-			// we don't care about the option
-			p.hasOpt() ? p.getOpt() : string();
+			string fontopts = p.hasOpt() ? p.getArg('[', ']') : string();
 			h_font_roman[1] = p.getArg('{', '}');
+			if (!fontopts.empty()) {
+				vector<string> opts = getVectorFromString(fontopts);
+				fontopts.clear();
+				for (auto const & opt : opts) {
+					if (opt == "Mapping=tex-text" || opt == "Ligatures=TeX")
+						// ignore
+						continue;
+					if (!fontopts.empty())
+						fontopts += ", ";
+					fontopts += opt;
+				}
+				h_font_roman_opts = fontopts;
+			}
 			continue;
 		}
 
 		if (t.cs() == "setsansfont" || t.cs() == "setmonofont") {
 			// LyX currently only supports the scale option
-			string scale;
+			string scale, fontopts;
 			if (p.hasOpt()) {
-				string fontopts = p.getArg('[', ']');
-				// check if the option contains a scaling, if yes, extract it
-				string::size_type pos = fontopts.find("Scale");
-				if (pos != string::npos) {
-					string::size_type i = fontopts.find(',', pos);
-					if (i == string::npos)
-						scale_as_percentage(fontopts.substr(pos + 1), scale);
-					else
-						scale_as_percentage(fontopts.substr(pos, i - pos), scale);
+				fontopts = p.getArg('[', ']');
+				if (!fontopts.empty()) {
+					vector<string> opts = getVectorFromString(fontopts);
+					fontopts.clear();
+					for (auto const & opt : opts) {
+						if (opt == "Mapping=tex-text" || opt == "Ligatures=TeX")
+							// ignore
+							continue;
+						if (prefixIs(opt, "Scale=")) {
+							scale_as_percentage(opt, scale);
+							continue;
+						}
+						if (!fontopts.empty())
+							fontopts += ", ";
+						fontopts += opt;
+					}
 				}
 			}
 			if (t.cs() == "setsansfont") {
 				if (!scale.empty())
 					h_font_sf_scale[1] = scale;
 				h_font_sans[1] = p.getArg('{', '}');
+				if (!fontopts.empty())
+					h_font_sans_opts = fontopts;
 			} else {
 				if (!scale.empty())
 					h_font_tt_scale[1] = scale;
 				h_font_typewriter[1] = p.getArg('{', '}');
+				if (!fontopts.empty())
+					h_font_typewriter_opts = fontopts;
 			}
 			continue;
+		}
+
+		if (t.cs() == "babelfont") {
+			xetex = true;
+			h_use_non_tex_fonts = true;
+			h_language_package = "babel";
+			if (h_inputencoding == "auto-legacy")
+				p.setEncoding("UTF-8");
+			// we don't care about the lang option
+			string const lang = p.hasOpt() ? p.getArg('[', ']') : string();
+			string const family = p.getArg('{', '}');
+			string fontopts = p.hasOpt() ? p.getArg('[', ']') : string();
+			string const fontname = p.getArg('{', '}');
+			if (lang.empty() && family == "rm") {
+				h_font_roman[1] = fontname;
+				if (!fontopts.empty()) {
+					vector<string> opts = getVectorFromString(fontopts);
+					fontopts.clear();
+					for (auto const & opt : opts) {
+						if (opt == "Mapping=tex-text" || opt == "Ligatures=TeX")
+							// ignore
+							continue;
+						if (!fontopts.empty())
+							fontopts += ", ";
+						fontopts += opt;
+					}
+					h_font_roman_opts = fontopts;
+				}
+ 				continue;
+			} else if (lang.empty() && (family == "sf" || family == "tt")) {
+				string scale;
+				if (!fontopts.empty()) {
+					vector<string> opts = getVectorFromString(fontopts);
+					fontopts.clear();
+					for (auto const & opt : opts) {
+						if (opt == "Mapping=tex-text" || opt == "Ligatures=TeX")
+							// ignore
+							continue;
+						if (prefixIs(opt, "Scale=")) {
+							scale_as_percentage(opt, scale);
+							continue;
+						}
+						if (!fontopts.empty())
+							fontopts += ", ";
+						fontopts += opt;
+					}
+				}
+				if (family == "sf") {
+					if (!scale.empty())
+						h_font_sf_scale[1] = scale;
+					h_font_sans[1] = fontname;
+					if (!fontopts.empty())
+						h_font_sans_opts = fontopts;
+				} else {
+					if (!scale.empty())
+						h_font_tt_scale[1] = scale;
+					h_font_typewriter[1] = fontname;
+					if (!fontopts.empty())
+						h_font_typewriter_opts = fontopts;
+				}
+				continue;
+			} else {
+				// not rm, sf or tt or lang specific
+				h_preamble << '\\' << t.cs();
+				if (!lang.empty())
+					h_preamble << '[' << lang << ']';
+				h_preamble << '{' << family << '}';
+				if (!fontopts.empty())
+					h_preamble << '[' << fontopts << ']';
+				h_preamble << '{' << fontname << '}' << '\n';
+				continue;
+			}
 		}
 
 		if (t.cs() == "date") {
@@ -1672,7 +2510,28 @@ void Preamble::parse(Parser & p, string const & forceclass,
 		}
 
 		if (t.cs() == "addbibresource") {
-			biblatex_bibliographies.push_back(removeExtension(p.getArg('{', '}')));
+			string const options =  p.getArg('[', ']');
+			string const arg = removeExtension(p.getArg('{', '}'));
+			if (!options.empty()) {
+				// check if the option contains a bibencoding, if yes, extract it
+				string::size_type pos = options.find("bibencoding=");
+				string encoding;
+				if (pos != string::npos) {
+					string::size_type i = options.find(',', pos);
+					if (i == string::npos)
+						encoding = options.substr(pos + 1);
+					else
+						encoding = options.substr(pos, i - pos);
+					pos = encoding.find('=');
+					if (pos == string::npos)
+						encoding.clear();
+					else
+						encoding = encoding.substr(pos + 1);
+				}
+				if (!encoding.empty())
+					biblatex_encodings.push_back(normalize_filename(arg) + ' ' + encoding);
+			}
+			biblatex_bibliographies.push_back(arg);
 			continue;
 		}
 
@@ -1750,19 +2609,26 @@ void Preamble::parse(Parser & p, string const & forceclass,
 			bool const was_in_lyx_preamble = in_lyx_preamble;
 			// font settings
 			if (name == "\\rmdefault")
-				if (is_known(body, known_roman_fonts)) {
+				if (is_known(body, known_roman_font_packages)) {
 					h_font_roman[0] = body;
 					p.skip_spaces();
 					in_lyx_preamble = true;
 				}
-			if (name == "\\sfdefault")
-				if (is_known(body, known_sans_fonts)) {
+			if (name == "\\sfdefault") {
+				if (is_known(body, known_sans_font_packages)) {
 					h_font_sans[0] = body;
 					p.skip_spaces();
 					in_lyx_preamble = true;
 				}
+				if (body == "LibertinusSans-OsF") {
+					h_font_sans[0] = "LibertinusSans-LF";
+					h_font_sans_osf = "true";
+					p.skip_spaces();
+					in_lyx_preamble = true;
+				}
+			}
 			if (name == "\\ttdefault")
-				if (is_known(body, known_typewriter_fonts)) {
+				if (is_known(body, known_typewriter_font_packages)) {
 					h_font_typewriter[0] = body;
 					p.skip_spaces();
 					in_lyx_preamble = true;
@@ -1773,6 +2639,18 @@ void Preamble::parse(Parser & p, string const & forceclass,
 				h_font_default_family = family.erase(0,1);
 				p.skip_spaces();
 				in_lyx_preamble = true;
+			}
+			if (name == "\\LibertinusSans@scale") {
+				if (isStrDbl(body)) {
+					h_font_sf_scale[0] = convert<string>(
+						static_cast<int>(100 * convert<double>(body)));
+				}
+			}
+			if (name == "\\LibertinusMono@scale") {
+				if (isStrDbl(body)) {
+					h_font_tt_scale[0] = convert<string>(
+						static_cast<int>(100 * convert<double>(body)));
+				}
 			}
 
 			// remove LyX-specific definitions that are re-added by LyX
@@ -1812,12 +2690,49 @@ void Preamble::parse(Parser & p, string const & forceclass,
 		if (t.cs() == "documentclass") {
 			vector<string>::iterator it;
 			vector<string> opts = split_options(p.getArg('[', ']'));
+			// FIXME This does not work for classes that have a
+			//       different name in LyX than in LaTeX
+			string tclass = p.getArg('{', '}');
+			if (contains(tclass, '/')) {
+				// It's considered bad practice, but it is still
+				// sometimes done (and possible) to enter the documentclass
+				// as a path, e.g. \documentclass{subdir/class} (#12284)
+				// we strip the name in this case.
+				string dummy;
+				tclass = rsplit(tclass, dummy, '/');
+			}
+			p.skip_spaces();
+			// Only set text class if a class hasn't been forced
+			// (this was set above)
+			if (!class_set) {
+				// textclass needs to be set at this place (if not already done)
+				// as we need to know it for other parameters
+				// (such as class-dependent paper size)
+				setTextClass(tclass, tc);
+				class_set = true;
+			}
+
+			// Font sizes.
+			// Try those who are (most likely) known to all packages first
 			handle_opt(opts, known_fontsizes, h_paperfontsize);
 			delete_opt(opts, known_fontsizes);
 			// delete "pt" at the end
 			string::size_type i = h_paperfontsize.find("pt");
 			if (i != string::npos)
 				h_paperfontsize.erase(i);
+			// Now those known specifically to the class
+			vector<string> class_fsizes = getVectorFromString(tc.opt_fontsize(), "|");
+			string const fsize_format = tc.fontsizeformat();
+			for (auto const & fsize : class_fsizes) {
+				string latexsize = subst(fsize_format, "$$s", fsize);
+				vector<string>::iterator it = find(opts.begin(), opts.end(), latexsize);
+				if (it != opts.end()) {
+					h_paperfontsize = fsize;
+					opts.erase(it);
+					break;
+				}
+			}
+
 			// The documentclass options are always parsed before the options
 			// of the babel call so that a language cannot overwrite the babel
 			// options.
@@ -1870,16 +2785,37 @@ void Preamble::parse(Parser & p, string const & forceclass,
 				opts.erase(it);
 			}
 			// paper sizes
-			// some size options are known to any document classes, other sizes
+			// some size options are known by the document class, other sizes
 			// are handled by the \geometry command of the geometry package
-			handle_opt(opts, known_class_paper_sizes, h_papersize);
-			delete_opt(opts, known_class_paper_sizes);
+			vector<string> class_psizes = getVectorFromString(tc.opt_pagesize(), "|");
+			string const psize_format = tc.pagesizeformat();
+			for (auto const & psize : class_psizes) {
+				string latexsize = subst(psize_format, "$$s", psize);
+				vector<string>::iterator it = find(opts.begin(), opts.end(), latexsize);
+				if (it != opts.end()) {
+					h_papersize = psize;
+					opts.erase(it);
+					break;
+				}
+				if (psize_format == "$$spaper")
+					continue;
+				// Also try with the default format since this is understood by
+				// most classes
+				latexsize = psize + "paper";
+				it = find(opts.begin(), opts.end(), latexsize);
+				if (it != opts.end()) {
+					h_papersize = psize;
+					opts.erase(it);
+					break;
+				}
+			}
 			// the remaining options
 			h_options = join(opts, ",");
-			// FIXME This does not work for classes that have a
-			//       different name in LyX than in LaTeX
-			h_textclass = p.getArg('{', '}');
-			p.skip_spaces();
+			continue;
+		}
+
+		if (t.cs() == "DocumentMetadata") {
+			h_doc_metadata = trimSpaceAndEol(p.getArg('{', '}'));
 			continue;
 		}
 
@@ -1902,8 +2838,7 @@ void Preamble::parse(Parser & p, string const & forceclass,
 				encoding, Encoding::inputenc, true);
 			if (!enc) {
 				if (!detectEncoding)
-					cerr << "Unknown encoding " << encoding
-					     << ". Ignoring." << std::endl;
+					warning_message("Unknown encoding " + encoding + ". Ignoring.");
 			} else {
 				if (!enc->unsafe())
 					h_inputencoding = enc->name();
@@ -1998,18 +2933,17 @@ void Preamble::parse(Parser & p, string const & forceclass,
 			string const name = p.verbatim_item();
 			string const content = p.verbatim_item();
 			// the paragraphs are only not indented when \parindent is set to zero
-			if (name == "\\parindent" && content != "") {
-				if (content[0] == '0')
-					h_paragraph_separation = "skip";
-				else
-					h_paragraph_indentation = translate_len(content);
-			} else if (name == "\\parskip") {
+			if (name == "\\parindent" && content != "")
+				h_paragraph_indentation = translate_len(content);
+			else if (name == "\\parskip" && isPackageUsed("parskip")) {
 				if (content == "\\smallskipamount")
 					h_defskip = "smallskip";
 				else if (content == "\\medskipamount")
 					h_defskip = "medskip";
 				else if (content == "\\bigskipamount")
 					h_defskip = "bigskip";
+				else if (content == "\\baselineskip")
+					h_defskip = "fullline";
 				else
 					h_defskip = translate_len(content);
 			} else if (name == "\\mathindent") {
@@ -2138,8 +3072,8 @@ void Preamble::parse(Parser & p, string const & forceclass,
 				if (makeAbsPath(filename, path).exists())
 					fix_child_filename(filename);
 				else
-					cerr << "Warning: Could not find included file '"
-					     << filename << "'." << endl;
+					warning_message("Warning: Could not find included file '"
+							+ filename + "'.");
 				outname = changeExtension(filename, "lyx");
 				h_includeonlys.push_back(outname);
 			}
@@ -2201,17 +3135,13 @@ void Preamble::parse(Parser & p, string const & forceclass,
 		}
 	}
 
+	// set textclass if not yet done (snippets without \documentclass and forced class)
+	if (!class_set)
+		setTextClass(h_textclass, tc);
+
 	// remove the whitespace
 	p.skip_spaces();
 
-	// Force textclass if the user wanted it
-	if (!forceclass.empty())
-		h_textclass = forceclass;
-	tc.setName(h_textclass);
-	if (!LayoutFileList::get().haveClass(h_textclass) || !tc.load()) {
-		cerr << "Error: Could not read layout file for textclass \"" << h_textclass << "\"." << endl;
-		exit(EXIT_FAILURE);
-	}
 	if (h_papersides.empty()) {
 		ostringstream ss;
 		ss << tc.sides();
@@ -2248,7 +3178,7 @@ void Preamble::parse(Parser & p, string const & forceclass,
 	// Finally, set the quote style.
 	// LyX knows the following quotes styles:
 	// british, cjk, cjkangle, danish, english, french, german,
-	// polish, russian, swedish and swiss
+	// polish, russian, swedish, swiss, and hebrew
 	// conversion list taken from
 	// https://en.wikipedia.org/wiki/Quotation_mark,_non-English_usage
 	// (quotes for kazakh are unknown)
@@ -2273,6 +3203,9 @@ void Preamble::parse(Parser & p, string const & forceclass,
 	// polish
 	else if (is_known(h_language, known_polish_quotes_languages))
 		h_quotes_style = "polish";
+	// hungarian
+	else if (is_known(h_language, known_hungarian_quotes_languages))
+		h_quotes_style = "hungarian";
 	// russian
 	else if (is_known(h_language, known_russian_quotes_languages))
 		h_quotes_style = "russian";
@@ -2282,6 +3215,10 @@ void Preamble::parse(Parser & p, string const & forceclass,
 	// swiss
 	else if (is_known(h_language, known_swiss_quotes_languages))
 		h_quotes_style = "swiss";
+	// hebrew
+	else if (is_known(h_language, known_hebrew_quotes_languages))
+		h_quotes_style = "hebrew";
+	
 	// english
 	else if (is_known(h_language, known_english_quotes_languages))
 		h_quotes_style = "english";
@@ -2292,7 +3229,7 @@ string Preamble::parseEncoding(Parser & p, string const & forceclass)
 {
 	TeX2LyXDocClass dummy;
 	parse(p, forceclass, true, dummy);
-	if (h_inputencoding != "auto" && h_inputencoding != "default")
+	if (h_inputencoding != "auto-legacy" && h_inputencoding != "auto-legacy-plain")
 		return h_inputencoding;
 	return "";
 }

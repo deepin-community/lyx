@@ -1,37 +1,73 @@
-#\DeclareLyXModule[covington.sty,enumitem.sty,forest.sty]{Linguistics}
+#\DeclareLyXModule[covington.sty,drs.sty,forest.sty,pict2e.sty,varwidth.sty]{Linguistics}
+#\DeclareCategory{Academic Field Specifics}
 #DescriptionBegin
 #Defines some special environments useful for linguistics (numbered examples,
 #glosses, semantic markup, tableau floats).
-#See linguistics.lyx file in examples.
+#See Help > Specific Manuals > Linguistics.
 #DescriptionEnd
 
 # Author: Jürgen Spitzmüller <spitz@lyx.org>
 
-Format 66
+Format 104
+
+#
+# Counters
+#
 
 Counter example
+	GuiName Example
 	Within               chapter
 	LabelString          "(\arabic{example})"
+	PrettyFormat         "(\arabic{example})"
 End
 
 Counter examplei
+	GuiName              "Numbered Example (Multiline)"
 	Within               chapter
 	LabelString          "(\arabic{examplei})"
+	PrettyFormat         "(\arabic{examplei})"
 End
 
 Counter subexample
+	GuiName              Subexample
 	Within               examplei
 	LabelString          "\theexamplei (\alph{subexample})"
+	PrettyFormat         "\theexamplei (\alph{subexample})"
 End
 
 Counter subexamplei
+	GuiName              Subexample
 	Within               examplei
 	LabelString          "\theexamplei (\alph{subexamplei})"
+	PrettyFormat         "\theexamplei (\alph{subexamplei})"
 End
 
-OutlinerName tableau    "Tableaux" #no AddToToc (built-in)
+Counter subexampleii
+	GuiName              Subexample
+	Within               examplei
+	LabelString          "\theexamplei (\alph{subexampleii})"
+	PrettyFormat         "\theexamplei (\alph{subexampleii})"
+End
 
-# single numbered example with covington.sty
+Counter subexampleiii
+	GuiName              Subexample
+	Within               examplei
+	LabelString          "\theexamplei (\alph{subexampleiii})"
+	PrettyFormat         "\theexamplei (\alph{subexampleiii})"
+End
+
+Counter subexampleiv
+	GuiName              Subexample
+	Within               examplei
+	LabelString          "\theexamplei (\alph{subexampleiv})"
+	PrettyFormat         "\theexamplei (\alph{subexampleiv})"
+End
+
+#
+# Numbered Examples
+#
+
+# Single numbered example with covington.sty
 Style Numbered_Example_(multiline)
 	LatexType             Environment
 	LatexName             covexample
@@ -49,23 +85,24 @@ Style Numbered_Example_(multiline)
 	LabelType             Static
 	LabelCounter          "examplei"
 	LabelFont
-		Color         Blue
+		Color         textlabel1
 	EndFont
 	Requires	      covington
-	Preamble
-	% Backwards compatibility with covington < 1.1
-	% This code can be removed eventually
-	\AtBeginDocument{%
-		\@ifundefined{covexample}{%
-		    \newenvironment{covexample}{\begin{example}}{\end{example}}%
-		}{}
-	}
-	EndPreamble
+	Argument 1
+		LabelString   "Example options"
+		MenuString    "Examples options|s"
+		Tooltip       "Add examples options here"
+		PassThru       1
+	EndArgument
 	Category              Linguistics
+	DocBookWrapperTag     informalexample
+	DocBookWrapperAttr    role='numbered'
+	DocBookWrapperMergeWithPrevious  true
+	DocBookTag            para
 End
 
 
-# multiple numbered examples with covington.sty
+# Multiple numbered examples with covington.sty
 Style Numbered_Examples_(consecutive)
 	CopyStyle	      Numbered_Example_(multiline)
 	LatexType             Item_Environment
@@ -73,54 +110,100 @@ Style Numbered_Examples_(consecutive)
 	LabelType             Enumerate
 	LabelCounter          "example"
 	ResumeCounter         true
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
 	Argument item:1
+		LabelString   "Judgment|J"
+		Tooltip       "Grammaticality judgment marker"
+		LeftDelim     <
+		RightDelim    >
+	EndArgument
+	Argument item:2
 		LabelString   "Custom Numbering|s"
 		Tooltip       "Customize the numeration"
 	EndArgument
-	Preamble
-	% Backwards compatibility with covington < 1.1
-	% This code can be removed eventually
-	\AtBeginDocument{%
-		\@ifundefined{covexamples}{%
-		    \newenvironment{covexamples}{\begin{examples}}{\end{examples}}%
-		}{}
-	}
-	EndPreamble
+	DocBookWrapperTag     informalexample
+	DocBookWrapperAttr    role='consecutive'
+	DocBookWrapperMergeWithPrevious  true
+	DocBookTag            para
+	HTMLClass             NumberedExample
 End
 
 
-# multiple numbered examples with covington.sty
+# Sub-examples with covington.sty
 Style Subexample
 	CopyStyle	      Numbered_Examples_(consecutive)
 	LatexName             covsubexamples
 	LabelCounter          "subexample"
-	StepMasterCounter     true
+	StepParentCounter     true
 	Requires	      covington
-	Preamble
-		% Backwards compatibility with covington < 1.6
-		% This code can be removed eventually
-		\AtBeginDocument{%
-			\@ifundefined{covsubexamples}{%
-				\newenvironment{covsubexamples}{%
-					\addtolength{\examplenumbersep}{-0.5em}%
-					\begin{covexample}%
-					\begin{enumerate}
-					\renewcommand\theenumi{\alph{enumi}}
-					\renewcommand\labelenumi{(\theenumi)}
-					\renewcommand\p@enumi{\theequation\,}}%
-				{\end{enumerate}\end{covexample}}
-			}{}
-		}
-	EndPreamble
+	Argument 1
+		LabelString   "Subexamples options"
+		MenuString    "Subexamples options|s"
+		Tooltip       "Add subexamples options here"
+		PassThru       1
+	EndArgument
+	HTMLClass          SubExample
+End
+
+InsetLayout Flex:Example_Preamble
+	LyXType               custom
+	Decoration            classic
+	LatexType             command
+	LatexName             expreamble
+	LabelString           "Ex. Preamble"
+	ResetsFont            true
+	AllowedInLayouts
+	    Numbered_Example_(multiline), Numbered_Examples_(consecutive)
+	EndAllowedInLayouts
+	AllowedOccurrences   1
+	AllowedOccurrencesPerItem  true
+End
+
+InsetLayout Flex:Subexample_Preamble
+	CopyStyle	      Flex:Example_Preamble
+	LatexName             subexpreamble
+	LabelString           "Subex. Preamble"
+	AllowedInLayouts
+	    Subexample
+	EndAllowedInLayouts
 End
 
 
-# glosse (2 lines) with covington.sty
-InsetLayout Flex:Glosse
+InsetLayout Flex:Example_Postamble
+	CopyStyle             Flex:Example_Preamble
+	LatexName             expostamble
+	LabelString           "Ex. Postamble"
+End
+
+InsetLayout Flex:Subexample_Postamble
+	CopyStyle             Flex:Example_Preamble
+	LatexName             subexpostamble
+	LabelString           "Subex. Postamble"
+	AllowedInLayouts
+	    Subexample
+	EndAllowedInLayouts
+End
+
+
+#
+# Interlinear Glosses
+#
+
+# Two-Line gloss with covington.sty
+InsetLayout Flex:Interlinear_Gloss_(2_Lines)
 	LyXType               custom
-	LabelString           Glosse
-	LatexType             environment
-	LatexName             linggloss
+	LabelString           Gloss
+	LatexType             command
+	LatexName             digloss
 	Decoration            minimalistic
 	LabelFont
 	  Size                Small
@@ -128,34 +211,55 @@ InsetLayout Flex:Glosse
 	MultiPar              true
 	CustomPars            false
 	ForcePlain            true
-	ParbreakIsNewline     true
+	ParbreakIgnored       true
 	FreeSpacing           true
-	Requires	      covington
-	Preamble
-		\def\glosstr{}
-		\@ifundefined{linggloss}{%
-		\newenvironment{linggloss}[2][]{
-			\def\glosstr{\glt #1}%
-			\gll #2}
-		{\glosstr\glend}}{}
-	EndPreamble
+	Requires	      covington,csquotes
 	InToc                 true
 	ResetsFont            true
 	Argument 1
+		LabelString   "Gloss options"
+		MenuString    "Gloss Options|s"
+		Tooltip       "Add digloss options here"
+	EndArgument
+	Argument post:1
+		LabelString   "Sentence Comment"
+		MenuString    "Sentence Comment"
+		Tooltip       "Add an optional sentence comment here"
+	EndArgument
+	Argument post:2
+		Decoration    conglomerate
+		LabelString   "Interlinear Gloss"
+		MenuString    "Interlinear Gloss"
+		Tooltip       "Add the inter-linear gloss here"
+		AutoInsert    true
+		Mandatory     true
+		FreeSpacing   true
+		InsertOnNewline true
+	EndArgument
+	Argument post:3
+		LabelString   "Gloss Comment"
+		MenuString    "Gloss Comment"
+		Tooltip       "Add an optional gloss comment here"
+	EndArgument
+	Argument post:4
 		Decoration    conglomerate
 		LabelString   "Translation"
-		MenuString    "Glosse Translation|s"
-		Tooltip       "Add a translation for the glosse"
+		MenuString    "Gloss Translation"
+		Tooltip       "Add a free translation for the gloss"
+		AutoInsert    true
+		Mandatory     true
+		FreeSpacing   true
+		InsertOnNewline true
 	EndArgument
 End
 
 
-# glosse (3 lines) with covington.sty
-InsetLayout Flex:Tri-Glosse
+# Three-Line gloss with covington.sty
+InsetLayout Flex:Interlinear_Gloss_(3_Lines)
 	LyXType               custom
-	LabelString           Tri-Glosse
-	LatexType             environment
-	LatexName             lingglosss
+	LabelString           Tri-Gloss
+	LatexType             command
+	LatexName             trigloss
 	Decoration            minimalistic
 	LabelFont
 	  Size                Small
@@ -163,27 +267,81 @@ InsetLayout Flex:Tri-Glosse
 	MultiPar              true
 	CustomPars            false
 	ForcePlain            true
-	ParbreakIsNewline     true
+	ParbreakIgnored       true
 	FreeSpacing           true
 	InToc                 true
-	Requires	      covington
-	Preamble
-		\def\glosstr{}
-		\@ifundefined{lingglosss}{%
-		\newenvironment{lingglosss}[2][]{
-			\def\glosstr{\glt #1}%
-			\glll #2}
-		{\glosstr\glend}}{}
-	EndPreamble
+	Requires	      covington,csquotes
 	ResetsFont            true
 	Argument 1
+		LabelString   "Gloss options"
+		MenuString    "Gloss Options|s"
+		Tooltip       "Add trigloss options here"
+	EndArgument
+	Argument post:1
+		LabelString   "Sentence Comment"
+		MenuString    "Sentence Comment"
+		Tooltip       "Add an optional sentence comment here"
+	EndArgument
+	Argument post:2
+		Decoration    conglomerate
+		LabelString   "Interlinear Gloss (1)"
+		MenuString    "Interlinear Gloss (Line 1)|1"
+		Tooltip       "Add the first inter-linear gloss line here"
+		Mandatory     true
+		AutoInsert    true
+		FreeSpacing   true
+		InsertOnNewline true
+	EndArgument
+	Argument post:3
+		LabelString   "Gloss Comment (1)"
+		MenuString    "Gloss Comment (Line 1)"
+		Tooltip       "Add an optional gloss comment here"
+	EndArgument
+	Argument post:4
+		Decoration    conglomerate
+		LabelString   "Interlinear Gloss (2)"
+		MenuString    "Interlinear Gloss (Line 2)|2"
+		Tooltip       "Add the second inter-linear gloss line here"
+		Mandatory     true
+		AutoInsert    true
+		FreeSpacing   true
+		InsertOnNewline true
+	EndArgument
+	Argument post:5
+		LabelString   "Gloss Comment (2)"
+		MenuString    "Gloss Comment (Line 2)"
+		Tooltip       "Add an optional gloss comment here"
+	EndArgument
+	Argument post:6
 		Decoration    conglomerate
 		LabelString   "Translation"
-		MenuString    "Glosse Translation|s"
+		MenuString    "Gloss Translation"
 		Tooltip       "Add a translation for the glosse"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
 	EndArgument
 End
 
+
+# A helper to group words in glosses
+InsetLayout Flex:GroupGlossedWords
+	LyxType               charstyle
+	LabelString           Group
+	LeftDelim             {
+	RightDelim            }
+	ResetsFont            true
+	AllowedInInsets
+	   Flex:Interlinear_Gloss_(2_Lines), Flex:Interlinear_Gloss_(2_Lines)@post:2,
+	   Flex:Interlinear_Gloss_(3_Lines), Flex:Interlinear_Gloss_(3_Lines)@post:2,
+	   Flex:Interlinear_Gloss_(3_Lines)@post:4
+	EndAllowedInInsets
+End
+
+
+#
+# Trees
+#
 
 # Structure trees via the forest package
 InsetLayout Flex:Structure_Tree
@@ -208,21 +366,199 @@ InsetLayout Flex:Structure_Tree
 	\useforestlibrary*{linguistics}
 	}{}
 	EndPreamble
+    DocBookRenderAsImage  true
 End
 
 
-# Some semantik markup for Semantics
+#
+# Discourse Representation Structures
+#
+
+InsetLayout Flex:DRS
+	LyXType               custom
+	LabelString           DRS
+	MenuString            "Discourse Representation Structure|D"
+	LatexType             command
+	LatexName             drs
+	Decoration            classic
+	MultiPar              true
+	CustomPars            false
+	ParbreakIsNewline     true
+	FreeSpacing           true
+	Requires              drs
+	ResetsFont            true
+	Argument 1
+		Decoration    conglomerate
+		LabelString   "Referents"
+		MenuString    "DRS Referents"
+		Tooltip       "Add the DRS referents (universe) here"
+		Mandatory     true
+		AutoInsert    true
+	EndArgument
+End
+
+
+InsetLayout Flex:DRS*
+	CopyStyle             Flex:DRS
+	LabelString           DRS*
+	MenuString            "Discourse Representation Structure (unspaced)|u"
+	LatexName             drs*
+End
+
+
+InsetLayout Flex:IfThen-DRS
+	CopyStyle             Flex:DRS
+	LabelString           "If-Then DRS"
+	MenuString            "If-Then DRS"
+	LatexName             ifdrs
+	Argument post:1
+		Decoration    classic
+		LabelString   "Then-Referents"
+		MenuString    "DRS Then-Referents"
+		Tooltip       "Add the DRS then-referents (universe) here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+	Argument post:2
+		Decoration    classic
+		LabelString   "Then-Conditions"
+		MenuString    "DRS Then-Referents"
+		Tooltip       "Add the DRS then-conditions here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+End
+
+
+InsetLayout Flex:Cond-DRS
+	CopyStyle             Flex:DRS
+	LabelString           "Cond. DRS"
+	MenuString            "Conditional DRS"
+	LatexName             condrs
+	Argument post:1
+		Decoration    classic
+		LabelString   "Cond."
+		MenuString    "DRS Condition"
+		Tooltip       "Add the DRS condition here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+	Argument post:2
+		Decoration    classic
+		LabelString   "Then-Referents"
+		MenuString    "DRS Then-Referents"
+		Tooltip       "Add the DRS then-referents (universe) here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+	Argument post:3
+		Decoration    classic
+		LabelString   "Then-Conditions"
+		MenuString    "DRS Then-Referents"
+		Tooltip       "Add the DRS then-conditions here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+End
+
+
+InsetLayout Flex:QDRS
+	CopyStyle             Flex:DRS
+	LabelString           "Dupl. Cond. DRS"
+	MenuString            "Duplex Condition DRS"
+	LatexName             qdrs
+	Argument post:1
+		Decoration    classic
+		LabelString   "Quant."
+		MenuString    "DRS Quantifier"
+		Tooltip       "Add the DRS duplex quantifier here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+	Argument post:2
+		Decoration    classic
+		LabelString   "Quant. Var."
+		MenuString    "DRS Quantifier Variable"
+		Tooltip       "Add the DRS duplex quantifier variables here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+	Argument post:3
+		Decoration    classic
+		LabelString   "Then-Referents"
+		MenuString    "DRS Then-Referents"
+		Tooltip       "Add the DRS then-referents (universe) here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+	Argument post:4
+		Decoration    classic
+		LabelString   "Then-Conditions"
+		MenuString    "DRS Then-Referents"
+		Tooltip       "Add the DRS then-conditions here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+	Requires              drs,pict2e
+End
+
+
+InsetLayout Flex:NegDRS
+	CopyStyle             Flex:DRS
+	LabelString           "Neg. DRS"
+	MenuString            "Negated DRS"
+	LatexName             negdrs
+End
+
+
+InsetLayout Flex:SDRS
+	CopyStyle             Flex:DRS
+	LabelString           "Sent. DRS"
+	MenuString            "DRS with Sentence above"
+	LatexName             sdrs
+	Argument 1
+		Decoration    conglomerate
+		LabelString   "Sentence"
+		MenuString    "DRS Sentence"
+		Tooltip       "Add the sentence here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+	Argument 2
+		Decoration    conglomerate
+		LabelString   "Referents"
+		MenuString    "DRS Referents"
+		Tooltip       "Add the DRS referents (universe) here"
+		Mandatory     true
+		AutoInsert    true
+		InsertOnNewline true
+	EndArgument
+End
+
+
+#
+# Semantic Markup
+#
+
 InsetLayout Flex:Expression
 	LyxType               charstyle
 	LabelString           expr.
 	LatexType             command
-	LatexName             lingexpr
+	LatexName             lexp
+	Requires	      covington
 	Font
 	  Shape               Italic
 	EndFont
-	Preamble
-		\newcommand{\lingexpr}[1]{\emph{#1}}
-	EndPreamble
 	InToc                 true
 	ResetsFont            true
 End
@@ -232,13 +568,11 @@ InsetLayout Flex:Concepts
 	LyxType               charstyle
 	LabelString           concept
 	LatexType             command
-	LatexName             lingconcept
+	LatexName             lcon
+	Requires	      covington
 	Font
 	  Shape               Smallcaps
 	EndFont
-	Preamble
-		\newcommand{\lingconcept}[1]{\textsc{#1}}
-	EndPreamble
 	InToc                 true
 	ResetsFont            true
 End
@@ -248,27 +582,17 @@ InsetLayout Flex:Meaning
 	LyxType               charstyle
 	LabelString           meaning
 	LatexType             command
-	LatexName             lingmeaning
-	Requires              csquotes
-	Preamble
-		\newcommand{\lingmeaning}[1]{\enquote*{#1}}
-	EndPreamble
+	LatexName             lmean
+	Requires	      covington,csquotes
 	InToc                 true
 	ResetsFont            true
 End
 
 
-# A helper to group words in Glosses
-InsetLayout Flex:GroupGlossedWords
-	LyxType               charstyle
-	LabelString           Group
-	LeftDelim             {
-	RightDelim            }
-	ResetsFont            true
-End
+#
+# OT Tableaux
+#
 
-
-# Tableaux for Optimality Theory
 OutlinerName tableau        "Tableaux" #no AddToToc
 
 Float
@@ -281,5 +605,6 @@ Float
 	ListName              "List of Tableaux"
 	IsPredefined          false
 	UsesFloatPkg          true
+	PrettyFormat          "Tableau ##"
 End
 

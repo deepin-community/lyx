@@ -22,19 +22,20 @@
 
 namespace lyx {
 
-InsetMathKern::InsetMathKern()
+InsetMathKern::InsetMathKern(Buffer * buf)
+	: InsetMath(buf)
 {
 }
 
 
-InsetMathKern::InsetMathKern(Length const & w)
-	: wid_(w)
+InsetMathKern::InsetMathKern(Buffer * buf, Length const & w)
+	: InsetMath(buf), wid_(w)
 {
 }
 
 
-InsetMathKern::InsetMathKern(docstring const & s)
-	: wid_(to_utf8(s))
+InsetMathKern::InsetMathKern(Buffer * buf, docstring const & s)
+	: InsetMath(buf), wid_(to_utf8(s))
 {
 }
 
@@ -49,7 +50,7 @@ void InsetMathKern::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	dim.asc = 0;
 	dim.des = 0;
-	dim.wid = wid_.inPixels(mi.base);
+	dim.wid = mi.base.inPixels(wid_);
 }
 
 
@@ -57,7 +58,7 @@ void InsetMathKern::draw(PainterInfo &, int, int) const
 {}
 
 
-void InsetMathKern::write(WriteStream & os) const
+void InsetMathKern::write(TeXMathStream & os) const
 {
 	if (wid_.empty())
 		os << "\\kern" << ' ';

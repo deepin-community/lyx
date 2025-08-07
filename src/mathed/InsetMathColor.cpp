@@ -30,13 +30,15 @@ namespace lyx {
 
 InsetMathColor::InsetMathColor(Buffer * buf, bool oldstyle, ColorCode color)
 	: InsetMathNest(buf, 1), oldstyle_(oldstyle),
-	  color_(from_utf8(lcolor.getLaTeXName(color)))
+	  color_(from_utf8(lcolor.getLaTeXName(color))),
+	  current_mode_(UNDECIDED_MODE)
 {}
 
 
 InsetMathColor::InsetMathColor(Buffer * buf, bool oldstyle,
 		docstring const & color)
-	: InsetMathNest(buf, 1), oldstyle_(oldstyle), color_(color)
+	: InsetMathNest(buf, 1), oldstyle_(oldstyle), color_(color),
+	  current_mode_(UNDECIDED_MODE)
 {}
 
 
@@ -48,12 +50,18 @@ Inset * InsetMathColor::clone() const
 
 void InsetMathColor::metrics(MetricsInfo & mi, Dimension & dim) const
 {
+	current_mode_ = isTextFont(mi.base.fontname) ? TEXT_MODE : MATH_MODE;
+	Changer dummy = mi.base.changeEnsureMath(current_mode_);
+
 	cell(0).metrics(mi, dim);
 }
 
 
 void InsetMathColor::draw(PainterInfo & pi, int x, int y) const
 {
+	current_mode_ = isTextFont(pi.base.fontname) ? TEXT_MODE : MATH_MODE;
+	Changer dummy = pi.base.changeEnsureMath(current_mode_);
+
 	ColorCode origcol = pi.base.font.color();
 	pi.base.font.setColor(lcolor.getFromLaTeXName(to_utf8(color_)));
 	cell(0).draw(pi, x, y);
@@ -94,9 +102,44 @@ void InsetMathColor::validate(LaTeXFeatures & features) const
 }
 
 
-void InsetMathColor::write(WriteStream & os) const
+void InsetMathColor::write(TeXMathStream & os) const
 {
-	if (normalcolor(color_))
+	// We have to ensure correct spacing when the front and/or back
+	// atoms are not ordinary ones (bug 11827).
+	docstring const frontclass = class_to_string(cell(0).firstMathClass());
+	docstring const backclass = class_to_string(cell(0).lastMathClass());
+	bool adjchk = os.latex() && !os.inMathClass() && (normalcolor(color_) || oldstyle_);
+	bool adjust_front = frontclass != "mathord" && adjchk;
+	bool adjust_back = backclass != "mathord" && adjchk;
+	docstring const colswitch = normalcolor(color_)
+			? from_ascii("{\\normalcolor ")
+			: from_ascii("{\\color{") + color_ + from_ascii("}");
+
+	if (adjust_front && adjust_back) {
+		os << '\\' << frontclass << colswitch << cell(0).front() << '}';
+		if (cell(0).size() > 2) {
+			os << colswitch;
+			for (size_t i = 1; i < cell(0).size() - 1; ++i)
+				os << cell(0)[i];
+			os << '}';
+		}
+		if (cell(0).size() > 1)
+			os << '\\' << backclass << colswitch << cell(0).back() << '}';
+	} else if (adjust_front) {
+		os << '\\' << frontclass << colswitch << cell(0).front() << '}';
+		if (cell(0).size() > 1) {
+			os << colswitch;
+			for (size_t i = 1; i < cell(0).size(); ++i)
+				os << cell(0)[i];
+			os << '}';
+		}
+	} else if (adjust_back) {
+		os << colswitch;
+		for (size_t i = 0; i < cell(0).size() - 1; ++i)
+			os << cell(0)[i];
+		os << '}' << '\\' << backclass << colswitch << cell(0).back()
+		   << '}';
+	} else if (normalcolor(color_))
 		// reset to default color inside another color inset
 		os << "{\\normalcolor " << cell(0) << '}';
 	else if (oldstyle_)

@@ -12,12 +12,12 @@
 #ifndef BUFFER_H
 #define BUFFER_H
 
+#include "FuncCode.h"
 #include "OutputEnums.h"
 
 #include "support/unique_ptr.h"
 #include "support/strfwd.h"
 #include "support/types.h"
-#include "support/FileNameList.h"
 
 #include <map>
 #include <list>
@@ -39,9 +39,6 @@ class FuncRequest;
 class FuncStatus;
 class Inset;
 class InsetLabel;
-class InsetRef;
-class Font;
-class Format;
 class Lexer;
 class Text;
 class LyXVC;
@@ -52,10 +49,9 @@ class MacroNameSet;
 class MacroSet;
 class OutputParams;
 class otexstream;
-class Paragraph;
-class ParConstIterator;
-class ParIterator;
 class ParagraphList;
+class ParIterator;
+class ParConstIterator;
 class TeXErrors;
 class TexRow;
 class TocBackend;
@@ -70,6 +66,7 @@ class WorkAreaManager;
 namespace support {
 class DocFileName;
 class FileName;
+class FileNameList;
 } // namespace support
 
 namespace graphics {
@@ -82,6 +79,7 @@ class Buffer;
 typedef std::list<Buffer *> ListOfBuffers;
 /// a list of Buffers we cloned
 typedef std::set<Buffer *> CloneList;
+typedef std::shared_ptr<CloneList> CloneList_ptr;
 
 
 /** The buffer object.
@@ -95,8 +93,6 @@ typedef std::set<Buffer *> CloneList;
  * minimal, probably not.
  * \author Lars Gullik Bjønnes
  */
-
-class MarkAsExporting;
 
 class Buffer {
 public:
@@ -132,6 +128,7 @@ public:
 		// export
 		ExportSuccess,
 		ExportCancel,
+		ExportKilled,
 		ExportError,
 		ExportNoPathToFormat,
 		ExportTexPathHasSpaces,
@@ -152,18 +149,22 @@ public:
 
 	/// Constructor
 	explicit Buffer(std::string const & file, bool readonly = false,
-		Buffer const * cloned_buffer = 0);
+		Buffer const * cloned_buffer = nullptr);
 
 	/// Destructor
 	~Buffer();
 
-	/// Clones the entire structure of which this Buffer is part, 
+	/// Clones the entire structure of which this Buffer is part,
 	/// cloning all the children, too.
 	Buffer * cloneWithChildren() const;
 	/// Just clones this single Buffer. For autosave.
 	Buffer * cloneBufferOnly() const;
 	///
 	bool isClone() const;
+
+	/// Helper method: dispatch this branch activation LFUN
+	/// Retunrs true if the function has been dispatched
+	bool branchActivationDispatch(FuncCode act, docstring const & branch);
 
 	/** High-level interface to buffer functionality.
 	    This function parses a command string and executes it.
@@ -173,9 +174,12 @@ public:
 	/// Maybe we know the function already by number...
 	void dispatch(FuncRequest const & func, DispatchResult & result);
 
+	/// Helper method: Is this buffer activation LFUN enabled?
+	bool branchActivationEnabled(FuncCode act, docstring const & branch) const;
+
 	/// Can this function be exectued?
 	/// \return true if we made a decision
-	bool getStatus(FuncRequest const & cmd, FuncStatus & flag);
+	bool getStatus(FuncRequest const & cmd, FuncStatus & flag) const;
 
 	///
 	DocIterator getParFromID(int id) const;
@@ -225,12 +229,17 @@ public:
 	int readHeader(Lexer & lex);
 
 	double fontScalingFactor() const;
+	/// check for active synctex support:
+	/// - either the document has synchronize output enabled or
+	/// - there is a converter to dvi or pdf defined with synctex command line argument
+	///   this is the "expert mode", false positives are possible
+	bool isSyncTeXenabled() const;
 
 private:
 	///
 	typedef std::map<Buffer const *, Buffer *> BufferMap;
 	///
-	void cloneWithChildren(BufferMap &, CloneList *) const;
+	void cloneWithChildren(BufferMap &, CloneList_ptr) const;
 	/// save checksum of the given file.
 	void saveCheckSum() const;
 	/// read a new file
@@ -263,7 +272,7 @@ public:
 	bool autoSave() const;
 	/// save emergency file
 	/// \return a status message towards the user.
-	docstring emergencyWrite();
+	docstring emergencyWrite() const;
 
 //FIXME:The following function should be private
 //private:
@@ -286,6 +295,8 @@ private:
 public:
 	/// Fill in the ErrorList with the TeXErrors
 	void bufferErrors(TeXErrors const &, ErrorList &) const;
+	/// Fill in the Citation/Reference ErrorList from the TeXErrors
+	void bufferRefs(TeXErrors const &, ErrorList &) const;
 
 	enum OutputWhat {
 		FullSource,
@@ -296,13 +307,13 @@ public:
 	};
 
 	/// Just a wrapper for writeLaTeXSource, first creating the ofstream.
-	bool makeLaTeXFile(support::FileName const & filename,
+	ExportStatus makeLaTeXFile(support::FileName const & filename,
 			   std::string const & original_path,
 			   OutputParams const &,
 			   OutputWhat output = FullSource) const;
 	/** Export the buffer to LaTeX.
-	    If \p os is a file stream, and params().inputenc is "auto" or
-	    "default", and the buffer contains text in different languages
+	    If \p os is a file stream, and params().inputenc is "auto-legacy" or
+	    "auto-legacy-plain", and the buffer contains text in different languages
 	    with more than one encoding, then this method will change the
 	    encoding associated to \p os. Therefore you must not call this
 	    method with a string stream if the output is supposed to go to a
@@ -322,29 +333,29 @@ public:
 	    ofs.close();
 	    \endcode
 	 */
-	void writeLaTeXSource(otexstream & os,
+	ExportStatus writeLaTeXSource(otexstream & os,
 			   std::string const & original_path,
 			   OutputParams const &,
 			   OutputWhat output = FullSource) const;
 	///
-	void makeDocBookFile(support::FileName const & filename,
+	ExportStatus makeDocBookFile(support::FileName const & filename,
 			     OutputParams const & runparams_in,
 			     OutputWhat output = FullSource) const;
 	///
-	void writeDocBookSource(odocstream & os, std::string const & filename,
-			     OutputParams const & runparams_in,
-			     OutputWhat output = FullSource) const;
+	ExportStatus writeDocBookSource(odocstream & os,
+				 OutputParams const & runparams_in,
+				 OutputWhat output = FullSource) const;
 	///
-	void makeLyXHTMLFile(support::FileName const & filename,
+	ExportStatus makeLyXHTMLFile(support::FileName const & filename,
 			     OutputParams const & runparams_in) const;
 	///
-	void writeLyXHTMLSource(odocstream & os,
+	ExportStatus writeLyXHTMLSource(odocstream & os,
 			     OutputParams const & runparams_in,
 			     OutputWhat output = FullSource) const;
 	/// returns the main language for the buffer (document)
 	Language const * language() const;
 	/// get l10n translated to the buffers language
-	docstring const B_(std::string const & l10n) const;
+	docstring B_(std::string const & l10n) const;
 
 	///
 	int runChktex();
@@ -412,9 +423,9 @@ public:
 					std::string const &, bool nice) const;
 
 	/** Returns a vector of bibliography (*.bib) file paths suitable for the
-	 *  output in the respective BibTeX/Biblatex macro
+	 *  output in the respective BibTeX/Biblatex macro and potential individual encoding
 	 */
-	std::vector<docstring> const prepareBibFilePaths(OutputParams const &,
+	std::vector<std::pair<docstring, std::string>> const prepareBibFilePaths(OutputParams const &,
 				    const docstring_list & bibfilelist,
 				    bool const extension = true) const;
 
@@ -436,7 +447,7 @@ public:
 	std::string latexName(bool no_path = true) const;
 
 	/// Get the name and type of the log.
-	std::string logName(LogType * type = 0) const;
+	std::string logName(LogType * type = nullptr) const;
 
 	/// Set document's parent Buffer.
 	void setParent(Buffer const *);
@@ -458,10 +469,10 @@ public:
 	/// the children appear.
 	ListOfBuffers getChildren() const;
 
-	/// \return a list of all descendents of this Buffer (children,
+	/// \return a list of all descendants of this Buffer (children,
 	/// grandchildren, etc). this list has no duplicates and is in
 	/// the order in which the children appear.
-	ListOfBuffers getDescendents() const;
+	ListOfBuffers getDescendants() const;
 
 	/// Collect all relative buffers, in the order in which they appear.
 	/// I.e., the "root" Buffer is first, then its first child, then any
@@ -492,20 +503,10 @@ public:
 	*/
 	void validate(LaTeXFeatures &) const;
 
-	/// Reference information is cached in the Buffer, so we do not
+	/// Bibliography information is cached in the Buffer, so we do not
 	/// have to check or read things over and over.
-	///
-	/// There are two caches.
-	///
-	/// One is a cache of the BibTeX files from which reference info is
-	/// being gathered. This cache is PER BUFFER, and the cache for the
-	/// master essentially includes the cache for its children. This gets
-	/// invalidated when an InsetBibtex is created, deleted, or modified.
-	///
-	/// The other is a cache of the reference information itself. This
-	/// exists only in the master buffer, and when it needs to be updated,
+	/// The cache exists only in the master buffer. When it is updated,
 	/// the children add their information to the master's cache.
-
 	/// Calling this method invalidates the cache and so requires a
 	/// re-read.
 	void invalidateBibinfoCache() const;
@@ -515,7 +516,7 @@ public:
 	/// whether the cache is valid. If so, we do nothing. If not, then we
 	/// reload all the BibTeX info.
 	/// Note that this operates on the master document.
-	void reloadBibInfoCache() const;
+	void reloadBibInfoCache(bool const force = false) const;
 	/// \return the bibliography information for this buffer's master,
 	/// or just for it, if it isn't a child.
 	BiblioInfo const & masterBibInfo() const;
@@ -533,11 +534,9 @@ public:
 	void invalidateCiteLabels() const;
 	///
 	bool citeLabelsValid() const;
-	///
-	void getLabelList(std::vector<docstring> &) const;
-
-	/// This removes the .aux and .bbl files from the temp dir.
-	void removeBiblioTempFiles() const;
+	/// three strings: plain label name, label as gui string, and
+	/// dereferenced label name
+	void getLabelList(std::vector<std::tuple<docstring, docstring, docstring>> &) const;
 
 	///
 	void changeLanguage(Language const * from, Language const * to);
@@ -579,6 +578,8 @@ public:
 	ParIterator par_iterator_end();
 	///
 	ParConstIterator par_iterator_end() const;
+	/// Is document empty ?
+	bool empty() const;
 
 	// Position of the child buffer where it appears first in the master.
 	DocIterator firstChildPosition(Buffer const * child);
@@ -631,7 +632,7 @@ public:
 	mutable UserMacroSet usermacros;
 
 	/// Replace the inset contents for insets which InsetCode is equal
-	/// to the passed \p inset_code.
+	/// to the passed \p inset_code. Handles undo.
 	void changeRefsIfUnique(docstring const & from, docstring const & to);
 
 	/// get source code (latex/docbook) for some paragraphs, or all paragraphs
@@ -656,6 +657,14 @@ public:
 
 	///
 	Undo & undo();
+	///
+	Undo const & undo() const;
+
+	/// poor man versioning of the buffer (and its relatives).
+	int id() const;
+	/// change the id of this buffer and its relatives (indicating
+	/// something has changed). This is currently used by updateMacros().
+	void updateId();
 
 	/// This function is called when the buffer is changed.
 	void changed(bool update_metrics) const;
@@ -671,6 +680,8 @@ public:
 	void setBusy(bool on) const;
 	/// Update window titles of all users.
 	void updateTitles() const;
+	/// Schedule redraw of work areas
+	void scheduleRedrawWorkAreas() const;
 	/// Reset autosave timers for all users.
 	void resetAutosaveTimers() const;
 	///
@@ -688,12 +699,16 @@ public:
 	ExportStatus preview(std::string const & format) const;
 	/// true if there was a previous preview this session of this buffer and
 	/// there was an error on the previous preview of this buffer.
-	bool lastPreviewError() const;
+	bool freshStartRequired() const;
+	///
+	void requireFreshStart(bool const b) const;
 
 private:
 	///
 	ExportStatus doExport(std::string const & target, bool put_in_tempdir,
 		std::string & result_file) const;
+	/// This removes the .aux and .bbl files from the temp dir.
+	void removeBiblioTempFiles() const;
 	/// target is a format name optionally followed by a space
 	/// and a destination file-name
 	ExportStatus doExport(std::string const & target, bool put_in_tempdir,
@@ -733,20 +748,20 @@ public:
 	/// return a list of all used branches (also in children)
 	void getUsedBranches(std::list<docstring> &, bool const from_master = false) const;
 
-	/// sets the buffer_ member for every inset in this buffer.
-	// FIXME This really shouldn't be needed, but at the moment it's not
-	// clear how to do it just for the individual pieces we need.
-	void setBuffersForInsets() const;
 	/// Updates screen labels and some other information associated with
 	/// insets and paragraphs. Actually, it's more like a general "recurse
 	/// through the Buffer" routine, that visits all the insets and paragraphs.
-	void updateBuffer() const { updateBuffer(UpdateMaster, InternalUpdate); }
+	void updateBuffer() const;
 	/// \param scope: whether to start with the master document or just
 	/// do this one.
 	/// \param output: whether we are preparing for output.
 	void updateBuffer(UpdateScope scope, UpdateType utype) const;
 	///
-	void updateBuffer(ParIterator & parit, UpdateType utype) const;
+	void updateBuffer(ParIterator & parit, UpdateType utype, bool const deleted = false) const;
+	/// Forces an updateBuffer() call
+	void forceUpdate() const;
+	/// Do we need to call updateBuffer()?
+	bool needUpdate() const;
 
 	/// Spellcheck starting from \p from.
 	/// \p from initial position, will then points to the next misspelled
@@ -756,6 +771,8 @@ public:
 	/// \return progress if a new word was found.
 	int spellCheck(DocIterator & from, DocIterator & to,
 		WordLangTuple & word_lang, docstring_list & suggestions) const;
+	/// Marks the whole buffer to be checked (again)
+	void requestSpellcheck();
 	///
 	void checkChildBuffers();
 	///
@@ -783,20 +800,31 @@ public:
 	int wordCount() const;
 	int charCount(bool with_blanks) const;
 
-	// this is const because it does not modify the buffer's real contents,
-	// only the mutable flag.
-	void setChangesPresent(bool) const;
+	///
 	bool areChangesPresent() const;
-	void updateChangesPresent() const;
+
 	///
 	void registerBibfiles(docstring_list const & bf) const;
 	///
 	support::FileName getBibfilePath(docstring const & bibid) const;
-
+	/// Return the list with all bibfiles in use (including bibfiles
+	/// of loaded child documents).
+	docstring_list const &
+		getBibfiles(UpdateScope scope = UpdateMaster) const;
+	///
+	void scheduleBiblioTempRemoval() const { removeBiblioTemps = true; }
+	/// routines for dealing with possible self-inclusion
+	void pushIncludedBuffer(Buffer const * buf) const;
+	void popIncludedBuffer() const;
+	bool isBufferIncluded(Buffer const * buf) const;
 private:
+	void clearIncludeList() const;
+	///
 	friend class MarkAsExporting;
 	/// mark the buffer as busy exporting something, or not
 	void setExportStatus(bool e) const;
+	///
+	mutable bool removeBiblioTemps = false;
 
 	///
 	References & getReferenceCache(docstring const & label);
@@ -808,13 +836,6 @@ private:
 	/// last time we loaded the cache. Note that this does NOT update the
 	/// cached information.
 	void checkIfBibInfoCacheIsValid() const;
-	/// Update the list of all bibfiles in use (including bibfiles
-	/// of loaded child documents).
-	void updateBibfilesCache(UpdateScope scope = UpdateMaster) const;
-	/// Return the list with all bibfiles in use (including bibfiles
-	/// of loaded child documents).
-	docstring_list const &
-		getBibfiles(UpdateScope scope = UpdateMaster) const;
 	///
 	void collectChildren(ListOfBuffers & children, bool grand_children) const;
 

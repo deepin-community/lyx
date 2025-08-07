@@ -2,7 +2,7 @@
 # Probably broken by Jean-Marc Lasgouttes <Jean-Marc.Lasgouttes@inria.fr>
 # modified and modularized by Emmanuel GUREGHIAN <gureghia@boston.bertin.fr>
 # Tinkered with Sep. '07 by Paul Rubin <rubin@msu.edu>
-# Modularized Jan 08 by Richard Heck <rgheck@comcast.net>
+# Modularized Jan 08 by Richard Kimberly Heck <rikiheck@lyx.org>
 # Hacked June '09 by Paul Rubin <rubin@msu.edu> to use separate counters
 
 # The environments defined are :
@@ -21,34 +21,9 @@
 # - Claim
 # - Case (by inclusion)
 
-# We need separate counters for each theorem-like style.
-Format 66
-Counter theorem
-End
-Counter corollary
-End
-Counter lemma
-End
-Counter proposition
-End
-Counter conjecture
-End
-Counter fact
-End
-Counter definition
-End
-Counter example
-End
-Counter problem
-End
-Counter exercise
-End
-Counter solution
-End
-Counter remark
-End
-Counter claim
-End
+Format 104
+
+Input theorems-counters-bytype.inc
 
 OutlinerName thm "Definitions & Theorems"
 
@@ -97,6 +72,11 @@ Style Theorem
 		\addto\captions$$lang{\renewcommand{\theoremname}{_(Theorem)}}
 	EndBabelPreamble
 	Requires              amsthm
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='theorem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -115,6 +95,11 @@ Style Corollary
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\corollaryname}{_(Corollary)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='corollary'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -133,6 +118,11 @@ Style Lemma
 	  \addto\captions$$lang{\renewcommand{\lemmaname}{_(Lemma)}}
 	EndBabelPreamble
 	LabelCounter          lemma
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='lemma'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -151,6 +141,11 @@ Style Proposition
 	  \addto\captions$$lang{\renewcommand{\propositionname}{_(Proposition)}}
 	EndBabelPreamble
 	LabelCounter          proposition
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='proposition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -169,6 +164,11 @@ Style Conjecture
 	  \addto\captions$$lang{\renewcommand{\conjecturename}{_(Conjecture)}}
 	EndBabelPreamble
 	LabelCounter          conjecture
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='conjecture'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -187,6 +187,11 @@ Style Fact
 	  \addto\captions$$lang{\renewcommand{\factname}{_(Fact)}}
 	EndBabelPreamble
 	LabelCounter          fact
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='fact'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -212,6 +217,11 @@ Style Definition
 	  \addto\captions$$lang{\renewcommand{\definitionname}{_(Definition)}}
 	EndBabelPreamble
 	LabelCounter          definition
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='definition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -231,6 +241,9 @@ Style Example
 	  \addto\captions$$lang{\renewcommand{\examplename}{_(Example)}}
 	EndBabelPreamble
 	LabelCounter          example
+	DocBookWrapperTag     informalexample
+	DocBookTag            para
+	DocBookAttr           ""
 End
 
 
@@ -250,6 +263,11 @@ Style Problem
 	  \addto\captions$$lang{\renewcommand{\problemname}{_(Problem)}}
 	EndBabelPreamble
 	LabelCounter          problem
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='problem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -269,6 +287,11 @@ Style Exercise
 	  \addto\captions$$lang{\renewcommand{\exercisename}{_(Exercise)}}
 	EndBabelPreamble
 	LabelCounter          exercise
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='exercise'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -288,6 +311,11 @@ Style Solution
 		\addto\captions$$lang{\renewcommand{\solutionname}{_(Solution)}}
 	EndBabelPreamble
 	LabelCounter          solution
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='solution'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -314,6 +342,11 @@ Style Remark
 	  \addto\captions$$lang{\renewcommand{\remarkname}{_(Remark)}}
 	EndBabelPreamble
 	LabelCounter          remark
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='remark'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -333,6 +366,12 @@ Style Claim
 	  \addto\captions$$lang{\renewcommand{\claimname}{_(Claim)}}
 	EndBabelPreamble
 	LabelCounter          claim
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='claim'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 Input theorems-case.inc
+Input theorems-refprefix.inc

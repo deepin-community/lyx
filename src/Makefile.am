@@ -5,7 +5,7 @@ include $(top_srcdir)/config/common.am
 AM_CPPFLAGS += -I$(top_srcdir)/src
 AM_CPPFLAGS += $(BOOST_INCLUDES) $(ICONV_INCLUDES) $(ZLIB_INCLUDES)
 AM_CPPFLAGS += $(ENCHANT_CFLAGS) $(HUNSPELL_CFLAGS) $(MYTHES_INCLUDES)
-AM_CPPFLAGS += $(QT_CPPFLAGS) $(QT_CORE_INCLUDES)
+AM_CPPFLAGS += $(NOD_INCLUDES) $(QT_CPPFLAGS) $(QT_CORE_INCLUDES)
 
 if BUILD_CLIENT_SUBDIR
 CLIENT = client
@@ -20,33 +20,35 @@ EXTRA_DIST = lyx_commit_hash.h.in \
 	mathed/CMakeLists.txt \
 	tests/CMakeLists.txt
 
-OTHERLIBS = $(BOOST_LIBS) $(MYTHES_LIBS) $(ENCHANT_LIBS) $(HUNSPELL_LIBS) \
+OTHERLIBS = $(MYTHES_LIBS) $(ENCHANT_LIBS) $(HUNSPELL_LIBS) \
             @LIBS@ $(ICONV_LIBS) $(ZLIB_LIBS) $(SOCKET_LIBS) \
 	    $(LIBSHLWAPI) $(LIBPSAPI)
 
 noinst_LIBRARIES = liblyxcore.a
 bin_PROGRAMS = lyx
 
+lyx_LDFLAGS = $(AM_LDFLAGS) $(QT_LDFLAGS)
+
 lyx_LDADD = \
 	liblyxcore.a \
 	liblyxmathed.a \
 	liblyxinsets.a \
 	frontends/liblyxfrontends.a \
-	frontends/qt4/liblyxqt4.a \
+	frontends/qt/liblyxqt.a \
 	liblyxgraphics.a \
 	support/liblyxsupport.a \
 	$(OTHERLIBS) \
-	$(QT_LDFLAGS) \
 	$(QT_LIB)
 
 if LYX_WIN_RESOURCE
 .rc.o:
-	cp $(top_srcdir)/development/Win32/packaging/icons/lyx_*32x32.ico .
+	cp $(top_srcdir)/development/Win32/packaging/icons/lyx.ico .
+	cp $(top_srcdir)/development/Win32/packaging/icons/lyx_doc.ico .
 	$(RC) -I$(top_builddir) --preprocessor "$(CPP) -xc-header -DRC_INVOKED" $< -o $@
 endif
 
 if INSTALL_MACOSX
-lyx_LDFLAGS = -framework AppKit -framework ApplicationServices \
+lyx_LDFLAGS += -framework AppKit -framework ApplicationServices \
 	-Wl,-rpath,@loader_path/../Frameworks \
 	-Wl,-rpath,@executable_path/../Frameworks \
 	-Wl,-headerpad_max_install_names
@@ -88,8 +90,6 @@ lyx_SOURCES = \
 	$(PWL) \
 	LaTeXFonts.cpp \
 	LaTeXFonts.h \
-	PrinterParams.cpp \
-	PrinterParams.h \
 	Thesaurus.cpp \
 	Thesaurus.h
 
@@ -147,8 +147,6 @@ SOURCEFILESCORE = \
 	LaTeXPackages.cpp \
 	LayoutFile.cpp \
 	LayoutModuleList.cpp \
-	Length.cpp \
-	lengthcommon.cpp \
 	Lexer.cpp \
 	LyX.cpp \
 	LyXAction.cpp \
@@ -173,14 +171,12 @@ SOURCEFILESCORE = \
 	RowPainter.cpp \
 	Server.cpp \
 	ServerSocket.cpp \
-	sgml.cpp \
+	xml.cpp \
 	Session.cpp \
 	Spacing.cpp \
 	TexRow.cpp \
 	texstream.cpp \
 	Text.cpp \
-	Text2.cpp \
-	Text3.cpp \
 	TextClass.cpp \
 	TextMetrics.cpp \
 	TocBackend.cpp \
@@ -251,7 +247,6 @@ HEADERFILESCORE = \
 	LayoutEnums.h \
 	LayoutFile.h \
 	LayoutModuleList.h \
-	Length.h \
 	Lexer.h \
 	LyXAction.h \
 	lyxfind.h \
@@ -276,11 +271,12 @@ HEADERFILESCORE = \
 	ParIterator.h \
 	PDFOptions.h \
 	Row.h \
+	RowFlags.h \
 	RowPainter.h \
 	Server.h \
 	ServerSocket.h \
 	Session.h \
-	sgml.h \
+	xml.h \
 	Spacing.h \
 	SpellChecker.h \
 	TexRow.h \
@@ -323,22 +319,8 @@ lyx_commit_hash.h: update_commit_hash
 BUILT_SOURCES = lyx_commit_hash.h
 CLEANFILES = lyx_commit_hash.h
 
-lyxcore.cpp:
-	$(AM_V_GEN)for file in $(SOURCEFILESCORE) ; do echo '#include "'$${file}'"' ; done >$@
-
-if MONOLITHIC_CORE
-
-BUILT_SOURCES += lyxcore.cpp $(STANDALONEFILES)
-CLEANFILES += lyxcore.cpp
-
-nodist_liblyxcore_a_SOURCES = lyxcore.cpp
-liblyxcore_a_SOURCES = $(STANDALONEFILES) $(HEADERFILESCORE)
-
-else
-
 liblyxcore_a_SOURCES = $(SOURCEFILESCORE) $(STANDALONEFILES) $(HEADERFILESCORE)
 
-endif
 
 #########################  Qt stuff  ##############################
 
@@ -450,6 +432,7 @@ SOURCEFILESMATHED = \
 	mathed/InsetMathSubstack.cpp \
 	mathed/InsetMathSymbol.cpp \
 	mathed/InsetMathTabular.cpp \
+	mathed/InsetMathTextsize.cpp \
 	mathed/InsetMathUnderset.cpp \
 	mathed/InsetMathUnknown.cpp \
 	mathed/InsetMathXArrow.cpp \
@@ -521,6 +504,7 @@ HEADERFILESMATHED = \
 	mathed/InsetMathSubstack.h \
 	mathed/InsetMathSymbol.h \
 	mathed/InsetMathTabular.h \
+	mathed/InsetMathTextsize.h \
 	mathed/InsetMathUnderset.h \
 	mathed/InsetMathUnknown.h \
 	mathed/InsetMathXArrow.h \
@@ -542,22 +526,8 @@ HEADERFILESMATHED = \
 	mathed/MathSupport.h \
 	mathed/TextPainter.h
 
-lyxmathed.cpp:
-	$(AM_V_GEN)for file in $(SOURCEFILESMATHED) ; do echo '#include "'$${file}'"' ; done >$@
-
-if MONOLITHIC_MATHED
-
-BUILT_SOURCES += lyxmathed.cpp
-CLEANFILES += lyxmathed.cpp
-
-nodist_liblyxmathed_a_SOURCES = lyxmathed.cpp
-liblyxmathed_a_SOURCES = $(HEADERFILESMATHED)
-
-else
-
 liblyxmathed_a_SOURCES = $(SOURCEFILESMATHED) $(HEADERFILESMATHED)
 
-endif
 
 ############################### Insets  ##############################
 
@@ -582,6 +552,7 @@ SOURCEFILESINSETS = \
 	insets/InsetCollapsible.cpp \
 	insets/InsetCommand.cpp \
 	insets/InsetCommandParams.cpp \
+	insets/InsetCounter.cpp \
 	insets/InsetERT.cpp \
 	insets/InsetExternal.cpp \
 	insets/InsetFlex.cpp \
@@ -594,6 +565,7 @@ SOURCEFILESINSETS = \
 	insets/InsetHyperlink.cpp \
 	insets/InsetInclude.cpp \
 	insets/InsetIndex.cpp \
+	insets/InsetIndexMacro.cpp \
 	insets/InsetInfo.cpp \
 	insets/InsetIPA.cpp \
 	insets/InsetIPAMacro.cpp \
@@ -642,6 +614,7 @@ HEADERFILESINSETS = \
 	insets/InsetCollapsible.h \
 	insets/InsetCommand.h \
 	insets/InsetCommandParams.h \
+	insets/InsetCounter.h \
 	insets/InsetERT.h \
 	insets/InsetExternal.h \
 	insets/InsetFlex.h \
@@ -654,6 +627,7 @@ HEADERFILESINSETS = \
 	insets/InsetHyperlink.h \
 	insets/InsetInclude.h \
 	insets/InsetIndex.h \
+	insets/InsetIndexMacro.h \
 	insets/InsetInfo.h \
 	insets/InsetIPA.h \
 	insets/InsetIPAMacro.h \
@@ -681,22 +655,7 @@ HEADERFILESINSETS = \
 	insets/InsetVSpace.h \
 	insets/InsetWrap.h
 
-lyxinsets.cpp:
-	$(AM_V_GEN)for file in $(SOURCEFILESINSETS) ; do echo '#include "'$${file}'"' ; done >$@
-
-if MONOLITHIC_INSETS
-
-BUILT_SOURCES += lyxinsets.cpp
-CLEANFILES += lyxinsets.cpp
-
-nodist_liblyxinsets_a_SOURCES = lyxinsets.cpp
-liblyxinsets_a_SOURCES = $(HEADERFILESINSETS)
-
-else
-
 liblyxinsets_a_SOURCES = $(SOURCEFILESINSETS) $(HEADERFILESINSETS)
-
-endif
 
 
 ############################## Tests ##################################
@@ -740,14 +699,16 @@ ADD_FRAMEWORKS = -framework QtGui -framework QtCore -framework AppKit -framework
 endif
 
 TESTS_LIBS = support/liblyxsupport.a \
-	$(LIBICONV) $(BOOST_LIBS) @LIBS@ \
+	$(LIBICONV) @LIBS@ \
 	$(ICONV_LIBS) $(ZLIB_LIBS) $(QT_LIB) $(LIBSHLWAPI)
 
 check_layout_CPPFLAGS = $(AM_CPPFLAGS)
 check_layout_LDADD = $(check_layout_LYX_OBJS) $(TESTS_LIBS)
 check_layout_LDFLAGS = $(QT_LDFLAGS) $(ADD_FRAMEWORKS)
 check_layout_SOURCES = \
-	tests/check_layout.cpp
+	tests/check_layout.cpp \
+	tests/dummy_functions.cpp \
+	tests/boost.cpp
 check_layout_LYX_OBJS = \
 	insets/InsetLayout.o \
 	CiteEnginesList.o \
@@ -761,41 +722,34 @@ check_layout_LYX_OBJS = \
 	Lexer.o \
 	ModuleList.o \
 	Spacing.o \
-	TextClass.o \
-	tests/dummy_functions.o \
-	tests/boost.o
+	TextClass.o
 
 check_ExternalTransforms_CPPFLAGS = $(AM_CPPFLAGS)
 check_ExternalTransforms_LDADD = $(check_ExternalTransforms_LYX_OBJS) $(TESTS_LIBS)
 check_ExternalTransforms_LDFLAGS = $(QT_LDFLAGS) $(ADD_FRAMEWORKS)
 check_ExternalTransforms_SOURCES = \
-	tests/check_ExternalTransforms.cpp
+	tests/check_ExternalTransforms.cpp \
+	tests/dummy_functions.cpp \
+	tests/boost.cpp
 check_ExternalTransforms_LYX_OBJS = \
-	tests/dummy_functions.o \
-	tests/boost.o \
 	graphics/GraphicsParams.o \
-	insets/ExternalTransforms.o \
-	Length.o \
-	lengthcommon.o
+	insets/ExternalTransforms.o
 
 check_Length_CPPFLAGS = $(AM_CPPFLAGS)
-check_Length_LDADD = $(check_Length_LYX_OBJS) $(TESTS_LIBS)
+check_Length_LDADD = $(TESTS_LIBS)
 check_Length_LDFLAGS = $(QT_LDFLAGS) $(ADD_FRAMEWORKS)
 check_Length_SOURCES = \
-	tests/check_Length.cpp
-check_Length_LYX_OBJS = \
-	tests/dummy_functions.o \
-	tests/boost.o \
-	Length.o \
-	lengthcommon.o
+	tests/check_Length.cpp \
+	tests/dummy_functions.cpp \
+	tests/boost.cpp
 
 check_ListingsCaption_CPPFLAGS = $(AM_CPPFLAGS)
 check_ListingsCaption_LDADD = $(check_ListingsCaption_LYX_OBJS) $(TESTS_LIBS)
 check_ListingsCaption_LDFLAGS = $(QT_LDFLAGS) $(ADD_FRAMEWORKS)
 check_ListingsCaption_SOURCES = \
-	tests/check_ListingsCaption.cpp
-check_ListingsCaption_LYX_OBJS = \
-	tests/dummy_functions.o \
-	tests/boost.o
+	tests/check_ListingsCaption.cpp \
+	tests/dummy_functions.cpp \
+	tests/boost.cpp
+check_ListingsCaption_LYX_OBJS =
 
 .PHONY: alltests alltests-recursive updatetests

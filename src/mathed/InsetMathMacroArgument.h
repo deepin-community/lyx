@@ -24,18 +24,19 @@ namespace lyx {
 // A # that failed to parse
 class InsetMathHash : public InsetMath {
 public:
-	InsetMathHash(docstring const & str = docstring()) : str_('#' + str) {};
+	explicit InsetMathHash(Buffer * buf, docstring const & str = docstring())
+		: InsetMath(buf), str_('#' + str) {}
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo &, int x, int y) const;
+	void draw(PainterInfo &, int x, int y) const override;
 	///
-	void normalize(NormalStream &) const;
+	void normalize(NormalStream &) const override;
 	///
-	void write(WriteStream & os) const;
+	void write(TeXMathStream & os) const override;
 
 private:
-	Inset * clone() const;
+	Inset * clone() const override;
 
 protected:
 	///
@@ -47,19 +48,19 @@ protected:
 class InsetMathMacroArgument : public InsetMathHash {
 public:
 	/// Assumes 0 < number <= 9
-	explicit InsetMathMacroArgument(int number);
+	explicit InsetMathMacroArgument(Buffer * buf, int number);
 	///
 	int number() const { return number_; }
 	/// Assumes 0 < n <= 9
 	void setNumber(int n);
 	///
-	InsetCode lyxCode() const { return MATH_MACROARG_CODE; }
+	InsetCode lyxCode() const override { return MATH_MACROARG_CODE; }
 
 	///
-	void normalize(NormalStream &) const;
+	void normalize(NormalStream &) const override;
 
 private:
-	Inset * clone() const;
+	Inset * clone() const override;
 	/// A number between 1 and 9
 	int number_;
 };

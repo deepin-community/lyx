@@ -20,7 +20,6 @@
 #include "Buffer.h"
 #include "BufferList.h"
 #include "BufferParams.h"
-#include "buffer_funcs.h"
 #include "Cursor.h"
 #include "CutAndPaste.h"
 #include "ErrorList.h"
@@ -28,14 +27,13 @@
 #include "ParagraphList.h"
 #include "Text.h"
 
-#include "mathed/MathSupport.h"
+#include "mathed/InsetMath.h"
 #include "mathed/MathData.h"
+#include "mathed/MathRow.h"
 
-#include "insets/Inset.h"
 #include "insets/InsetText.h"
 
 #include "support/debug.h"
-#include "support/gettext.h"
 #include "support/lassert.h"
 #include "support/lyxtime.h"
 
@@ -76,43 +74,32 @@ struct UndoElement
 	            StableDocIterator const & cel,
 	            pit_type fro, pit_type en, ParagraphList * pl, MathData * ar,
 	            bool lc, size_t gid) :
-		kind(kin), cur_before(cb), cell(cel), from(fro), end(en),
-		pars(pl), array(ar), bparams(0),
-		lyx_clean(lc), group_id(gid), time(current_time())
-		{
-		}
+		cur_before(cb), cell(cel), from(fro), end(en),
+		pars(pl), array(ar), bparams(nullptr),
+		group_id(gid), time(current_time()), kind(kin), lyx_clean(lc)
+		{}
 	///
 	UndoElement(CursorData const & cb, BufferParams const & bp,
 				bool lc, size_t gid) :
-		kind(ATOMIC_UNDO), cur_before(cb), cell(), from(0), end(0),
-		pars(0), array(0), bparams(new BufferParams(bp)),
-		lyx_clean(lc), group_id(gid), time(current_time())
-	{
-	}
+		cur_before(cb), cell(), from(0), end(0),
+		pars(nullptr), array(nullptr), bparams(new BufferParams(bp)),
+		group_id(gid), time(current_time()), kind(ATOMIC_UNDO), lyx_clean(lc)
+	{}
 	///
-	UndoElement(UndoElement const & ue) : time(current_time())
-	{
-		kind = ue.kind;
-		cur_before = ue.cur_before;
-		cur_after = ue.cur_after;
-		cell = ue.cell;
-		from = ue.from;
-		end = ue.end;
-		pars = ue.pars;
-		array = ue.array;
-		bparams = ue.bparams
-			? new BufferParams(*ue.bparams) : 0;
-		lyx_clean = ue.lyx_clean;
-		group_id = ue.group_id;
-	}
+	UndoElement(UndoElement const & ue) :
+		cur_before(ue.cur_before), cur_after(ue.cur_after),
+		cell(ue.cell), from(ue.from), end(ue.end),
+		pars(ue.pars), array(ue.array),
+		bparams(ue.bparams ? new BufferParams(*ue.bparams) : nullptr),
+		group_id(ue.group_id), time(current_time()), kind(ue.kind),
+		lyx_clean(ue.lyx_clean)
+		{}
 	///
 	~UndoElement()
 	{
 		if (bparams)
 			delete bparams;
 	}
-	/// Which kind of operation are we recording for?
-	UndoKind kind;
 	/// the position of the cursor before recordUndo
 	CursorData cur_before;
 	/// the position of the cursor at the end of the undo group
@@ -129,12 +116,14 @@ struct UndoElement
 	MathData * array;
 	/// Only used in case of params undo
 	BufferParams const * bparams;
-	/// Was the buffer clean at this point?
-	bool lyx_clean;
 	/// the element's group id
 	size_t group_id;
 	/// timestamp
 	time_t time;
+	/// Which kind of operation are we recording for?
+	UndoKind kind;
+	/// Was the buffer clean at this point?
+	bool lyx_clean;
 private:
 	/// Protect construction
 	UndoElement();
@@ -199,14 +188,14 @@ private:
 
 struct Undo::Private
 {
-	Private(Buffer & buffer) : buffer_(buffer), undo_finished_(true),
-				   group_id_(0), group_level_(0) {}
+	Private(Buffer & buffer) : buffer_(buffer),
+		group_id_(0), group_level_(0), undo_finished_(true) {}
 
 	// Do one undo/redo step
-	void doTextUndoOrRedo(CursorData & cur, UndoElementStack & stack,
+	void doUndoRedoAction(CursorData & cur, UndoElementStack & stack,
 			      UndoElementStack & otherStack);
 	// Apply one undo/redo group. Returns false if no undo possible.
-	bool textUndoOrRedo(CursorData & cur, bool isUndoOperation);
+	bool undoRedoAction(CursorData & cur, bool isUndoOperation);
 
 	///
 	void doRecordUndo(UndoKind kind,
@@ -233,15 +222,16 @@ struct Undo::Private
 	/// Redo stack.
 	UndoElementStack redostack_;
 
-	/// The flag used by Undo::finishUndo().
-	bool undo_finished_;
-
 	/// Current group Id.
 	size_t group_id_;
 	/// Current group nesting nevel.
 	size_t group_level_;
 	/// the position of cursor before the group was created
 	CursorData group_cur_before_;
+
+	/// The flag used by Undo::finishUndo().
+	bool undo_finished_;
+
 };
 
 
@@ -349,7 +339,7 @@ void Undo::Private::doRecordUndo(UndoKind kind,
 	// create the position information of the Undo entry
 	UndoElement undo(kind,
 	      group_cur_before_.empty() ? cur_before : group_cur_before_,
-	      cell, from, end, 0, 0, buffer_.isClean(), group_id_);
+	      cell, from, end, nullptr, nullptr, buffer_.isClean(), group_id_);
 
 	// fill in the real data to be saved
 	if (cell.inMathed()) {
@@ -383,6 +373,9 @@ void Undo::Private::recordUndo(UndoKind kind,
 {
 	LASSERT(first_pit <= cell.lastpit(), return);
 	LASSERT(last_pit <= cell.lastpit(), return);
+
+	if (buffer_.isReadonly())
+		return;
 
 	doRecordUndo(kind, cell, first_pit, last_pit, cur,
 		undostack_);
@@ -418,6 +411,9 @@ void Undo::Private::doRecordUndoBufferParams(CursorData const & cur_before,
 
 void Undo::Private::recordUndoBufferParams(CursorData const & cur)
 {
+	if (buffer_.isReadonly())
+		return;
+
 	doRecordUndoBufferParams(cur, undostack_);
 
 	// next time we'll try again to combine entries if possible
@@ -430,7 +426,7 @@ void Undo::Private::recordUndoBufferParams(CursorData const & cur)
 }
 
 
-void Undo::Private::doTextUndoOrRedo(CursorData & cur, UndoElementStack & stack, UndoElementStack & otherstack)
+void Undo::Private::doUndoRedoAction(CursorData & cur, UndoElementStack & stack, UndoElementStack & otherstack)
 {
 	// Adjust undo stack and get hold of current undo data.
 	UndoElement & undo = stack.top();
@@ -460,11 +456,8 @@ void Undo::Private::doTextUndoOrRedo(CursorData & cur, UndoElementStack & stack,
 		otherstack.top().bparams = new BufferParams(buffer_.params());
 		DocumentClassConstPtr olddc = buffer_.params().documentClassPtr();
 		buffer_.params() = *undo.bparams;
-		// The error list is not supposed to be helpful here.
-		ErrorList el;
 		cap::switchBetweenClasses(olddc, buffer_.params().documentClassPtr(),
-			static_cast<InsetText &>(buffer_.inset()), el);
-		LATTEST(el.empty());
+			static_cast<InsetText &>(buffer_.inset()));
 	} else if (dit.inMathed()) {
 		// We stored the full cell here as there is not much to be
 		// gained by storing just 'a few' paragraphs (most if not
@@ -474,7 +467,7 @@ void Undo::Private::doTextUndoOrRedo(CursorData & cur, UndoElementStack & stack,
 		dit.cell().swap(*undo.array);
 		dit.inset().setBuffer(buffer_);
 		delete undo.array;
-		undo.array = 0;
+		undo.array = nullptr;
 	} else {
 		// Some finer machinery is needed here.
 		Text * text = dit.text();
@@ -500,27 +493,41 @@ void Undo::Private::doTextUndoOrRedo(CursorData & cur, UndoElementStack & stack,
 		for (; pit != end; ++pit)
 			pit->setInsetOwner(dit.realInset());
 		plist.insert(first, undo.pars->begin(), undo.pars->end());
+
+		// set the buffers for insets we created
+		ParagraphList::iterator fpit = plist.begin();
+		advance(fpit, undo.from);
+		ParagraphList::iterator fend = fpit;
+		advance(fend, undo.pars->size());
+		for (; fpit != fend; ++fpit)
+			fpit->setInsetBuffers(buffer_);
+
 		delete undo.pars;
-		undo.pars = 0;
+		undo.pars = nullptr;
 	}
 
 	// We'll clean up in release mode.
-	LASSERT(undo.pars == 0, undo.pars = 0);
-	LASSERT(undo.array == 0, undo.array = 0);
+	LASSERT(undo.pars == nullptr, undo.pars = nullptr);
+	LASSERT(undo.array == nullptr, undo.array = nullptr);
 
 	if (!undo.cur_before.empty())
 		cur = undo.cur_before;
-	if (undo.lyx_clean)
+	if (undo.lyx_clean) {
 		buffer_.markClean();
-	else
+		// since we have changed the buffer, update its id.
+		buffer_.updateId();
+	} else
 		buffer_.markDirty();
 	// Now that we're done with undo, we pop it off the stack.
 	stack.pop();
 }
 
 
-bool Undo::Private::textUndoOrRedo(CursorData & cur, bool isUndoOperation)
+bool Undo::Private::undoRedoAction(CursorData & cur, bool isUndoOperation)
 {
+	if (buffer_.isReadonly())
+		return false;
+
 	undo_finished_ = true;
 
 	UndoElementStack & stack = isUndoOperation ?  undostack_ : redostack_;
@@ -533,10 +540,7 @@ bool Undo::Private::textUndoOrRedo(CursorData & cur, bool isUndoOperation)
 
 	const size_t gid = stack.top().group_id;
 	while (!stack.empty() && stack.top().group_id == gid)
-		doTextUndoOrRedo(cur, stack, otherstack);
-
-	// Adapt the new material to current buffer.
-	buffer_.setBuffersForInsets(); // FIXME This shouldn't be here.
+		doUndoRedoAction(cur, stack, otherstack);
 	return true;
 }
 
@@ -548,15 +552,15 @@ void Undo::finishUndo()
 }
 
 
-bool Undo::textUndo(CursorData & cur)
+bool Undo::undoAction(CursorData & cur)
 {
-	return d->textUndoOrRedo(cur, true);
+	return d->undoRedoAction(cur, true);
 }
 
 
-bool Undo::textRedo(CursorData & cur)
+bool Undo::redoAction(CursorData & cur)
 {
-	return d->textUndoOrRedo(cur, false);
+	return d->undoRedoAction(cur, false);
 }
 
 
@@ -601,6 +605,16 @@ void Undo::endUndoGroup(CursorData const & cur_after)
 	endUndoGroup();
 	if (!d->undostack_.empty() && d->undostack_.top().cur_after.empty())
 		d->undostack_.top().cur_after = cur_after;
+}
+
+
+void Undo::splitUndoGroup(CursorData const & cur)
+{
+	size_t const level = d->group_level_;
+	d->group_level_ = 1;
+	endUndoGroup(cur);
+	beginUndoGroup(cur);
+	d->group_level_ = level;
 }
 
 

@@ -6,11 +6,12 @@
 # Transposed by Pascal André <andre@via.ecp.fr>
 # Heavily modifed and enhanced by serveral developers.
 
-Format 66
+Format 104
 Input stdclass.inc
 
 SecNumDepth             3
 TocDepth                3
+DocBookRoot             article
 
 NoStyle Chapter
 NoCounter chapter
@@ -20,9 +21,15 @@ NoStyle Chapter*
 Style Part
 	Align                 Left
 	AlignPossible         Left
+	LabelType             Above
 	TopSep                2
 	BottomSep             1.5
 	Font
+	  Series              Bold
+	  Size                Huge
+	EndFont
+	LabelFont
+	  Series              Bold
 	  Size                Larger
 	EndFont
 End
@@ -34,6 +41,7 @@ Style Part*
 	TopSep                2
 	BottomSep             1.5
 	Font
-	  Size                Larger
+	  Series              Bold
+	  Size                Huge
 	EndFont
 End

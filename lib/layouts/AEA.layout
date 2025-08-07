@@ -4,7 +4,7 @@
 # Authors : Koji Yokota <yokota@res.otaru-uc.ac.jp>
 #           Uwe Stöhr <uwestoehr@web.de>
 
-Format 66
+Format 104
 Input stdclass.inc
 Input theorems-ams.module
 Input theorems-bytype.module
@@ -13,13 +13,13 @@ Input theorems-ams-extended-bytype.module
 Provides amsthm 1
 
 NoStyle		Part
-NoCounter		part
+NoCounter	part
 NoStyle		Chapter
-NoCounter		chapter
+NoCounter	chapter
 NoStyle		Paragraph
-NoCounter		paragraph
+NoCounter	paragraph
 NoStyle		Subparagraph
-NoCounter		subparagraph
+NoCounter	subparagraph
 NoStyle		Part*
 NoStyle		Chapter*
 NoStyle		Section*
@@ -32,7 +32,6 @@ NoStyle		LyX-Code
 NoStyle		Verse
 NoStyle		Address
 NoStyle		Right_Address
-NoStyle		Acknowledgement*
 NoStyle		Algorithm*
 NoStyle		Assumption*
 NoStyle		Axiom*
@@ -53,6 +52,9 @@ Style ShortTitle
 	LatexName	shortTitle
 	InTitle		1
 	Align		Center
+	DocBookTag            titleabbrev
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 Style Publication_Month
@@ -64,26 +66,43 @@ Style Publication_Month
 	LabelString	"Publication Month:"
 	LabelSep	M
 	LabelFont
-	  Color		Red
+	  Color		textlabel3
 	EndFont
+	DocBookTag            date
+	DocBookAttr           role='month'
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+    	DocBookNoFontInside   true
 End
 
 Style Publication_Year
 	CopyStyle	Publication_Month
 	LatexName	pubYear
 	LabelString	"Publication Year:"
+	DocBookTag            date
+	DocBookAttr           role='year'
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+    	DocBookNoFontInside   true
 End
 
 Style Publication_Volume
 	CopyStyle	Publication_Month
 	LatexName	pubVolume
 	LabelString	"Publication Volume:"
+	DocBookTag            volumenum
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 Style Publication_Issue
 	CopyStyle	Publication_Month
 	LatexName	pubIssue
 	LabelString	"Publication Issue:"
+	DocBookTag            issuenum
+	DocBookAttr           ""
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 Style JEL
@@ -96,17 +115,29 @@ Style Keywords
 	CopyStyle	Publication_Month
 	LatexName	Keywords
 	LabelString	"Keywords:"
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 Style Abstract
 	InTitle		1
 End
 
-Style Acknowledgement
+Style Acknowledgments
 	Category	FrontMatter
-	LabelString	"Acknowledgement."
-	Preamble
-	EndPreamble
+	LatexType	Environment
+	Align		Left
+	Margin		Dynamic
+	LabelType	Static
+	LabelSep	M
+	LabelString	"Acknowledgments."
+	LatexName	acknowledgement
+	DocBookTag         para
+	DocBookAttr        ""
+	DocBookWrapperTag  acknowledgements
+	DocBookWrapperMergeWithPrevious  true
 End
 
 Style Figure_Notes
@@ -118,6 +149,7 @@ Style Figure_Notes
 	Argument 1
 	  LabelString	"Figure Note"
 	  Tooltip	"Text of a note in a figure"
+	  DocBookTag  emphasis
 	EndArgument
 	LeftMargin	MMM
 	TopSep		0.5
@@ -133,6 +165,8 @@ Style Figure_Notes
 	  Shape		Italic
 	  Size		Small
 	EndFont
+	DocBookTag         para
+	DocBookWrapperTag  note
 End
 
 Style Table_Notes
@@ -141,6 +175,8 @@ Style Table_Notes
 	Argument 1
 	  LabelString	"Table Note"
 	  Tooltip	"Text of a note in a table"
+	  Tooltip	"Text of a note in a figure"
+	  DocBookTag  emphasis
 	EndArgument
 End
 
@@ -163,6 +199,11 @@ Style Axiom
 	Preamble
 		\newtheorem{axiom}{Axiom}
 	EndPreamble
+End
+
+Counter case
+	GuiName Case
+	PrettyFormat "Case ##"
 End
 
 Style Case
@@ -271,12 +312,22 @@ Style Proposition
 	EndPreamble
 End
 
+Counter remark
+	GuiName Remark
+	PrettyFormat "Remark ##"
+End
+
 Style Remark
 	LatexName	remark
 	LabelString	"Remark \theremark."
 	Preamble
 		\newtheorem{remark}{Remark}
 	EndPreamble
+End
+
+Counter solution
+	GuiName Solution
+	PrettyFormat "Solution ##"
 End
 
 Style Solution
@@ -287,6 +338,11 @@ Style Solution
 	Preamble
 		\newtheorem{solution}{Solution}
 	EndPreamble
+End
+
+Counter summary
+	GuiName Summary
+	PrettyFormat "Summary ##"
 End
 
 Style Summary
@@ -313,11 +369,3 @@ Style Proof
 	EndPreamble
 End
 
-Counter case
-End
-Counter remark
-End
-Counter summary
-End
-Counter solution
-End

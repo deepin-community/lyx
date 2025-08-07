@@ -1,12 +1,12 @@
-#LyX file created by tex2lyx 2.3
-\lyxformat 544
+#LyX file created by tex2lyx 2.4
+\lyxformat 620
 \begin_document
 \begin_header
 \save_transient_properties true
 \origin roundtrip
 \textclass article
 \begin_preamble
-
+\setlength{\parskip}{3mm}
 \setlength{\fboxsep}{3mm}
 
 \definecolor{darkgreen}{cmyk}{0.5, 0, 1, 0.5}
@@ -41,7 +41,7 @@
 \end_preamble
 \options b4paper
 \use_default_options false
-\maintain_unincluded_children false
+\maintain_unincluded_children no
 \language english
 \language_package none
 \inputencoding iso8859-15
@@ -53,7 +53,9 @@
 \font_default_family sfdefault
 \use_non_tex_fonts false
 \font_sc false
-\font_osf false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
 \font_sf_scale 100 100
 \font_tt_scale 100 100
 \use_microtype false
@@ -66,7 +68,7 @@
 \paperfontsize 12
 \spacing other 1.2
 \use_hyperref false
-\papersize b4paper
+\papersize b4
 \use_geometry true
 \use_package amsmath 2
 \use_package amssymb 0
@@ -88,6 +90,7 @@
 \justification true
 \use_refstyle 0
 \use_minted 0
+\use_lineno false
 \notefontcolor #0000ff
 \backgroundcolor #ff5500
 \boxbgcolor #ffff00
@@ -105,8 +108,8 @@
 \columnsep 8cm
 \secnumdepth 3
 \tocdepth 3
-\paragraph_separation skip
-\defskip 3mm
+\paragraph_separation indent
+\paragraph_indentation 0sp
 \is_math_indent 0
 \math_numbering_side default
 \quotes_style english
@@ -116,9 +119,12 @@
 \paperpagestyle default
 \tracking_changes false
 \output_changes false
+\change_bars false
 \html_math_output 0
 \html_css_as_file 0
 \html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
 \end_header
 
 \begin_body
@@ -2913,12 +2919,12 @@ ifsym
 status collapsed
 
 \begin_layout Plain Layout
-"
+":
 \end_layout
 
 \end_inset
 
-: ®↨◻◼◙
+ ®↨◻◼◙
 \end_layout
 
 \begin_layout Standard
@@ -2930,7 +2936,33 @@ from textcomp: №™
 \begin_layout Standard
 
 \size normal
-from textgreek and textcyr: ἀв
+from textgreek and textcyr: 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+\backslash
+textgreek{>a}
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+\backslash
+textcyrillic{
+\backslash
+cyrv}
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard

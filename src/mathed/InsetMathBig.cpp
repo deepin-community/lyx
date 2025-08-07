@@ -28,8 +28,8 @@
 namespace lyx {
 
 
-InsetMathBig::InsetMathBig(docstring const & name, docstring const & delim)
-	: name_(name), delim_(delim)
+InsetMathBig::InsetMathBig(Buffer * buf, docstring const & name, docstring const & delim)
+	: InsetMath(buf), name_(name), delim_(delim)
 {}
 
 
@@ -64,7 +64,7 @@ Inset * InsetMathBig::clone() const
 }
 
 
-InsetMathBig::size_type InsetMathBig::size() const
+size_type InsetMathBig::size() const
 {
 	// order: big Big bigg Bigg biggg Biggg
 	//        0   1   2    3    4     5
@@ -120,7 +120,7 @@ void InsetMathBig::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-void InsetMathBig::write(WriteStream & os) const
+void InsetMathBig::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	os << '\\' << name_ << delim_;
@@ -135,11 +135,11 @@ void InsetMathBig::normalize(NormalStream & os) const
 }
 
 
-void InsetMathBig::mathmlize(MathStream & os) const
+void InsetMathBig::mathmlize(MathMLStream & ms) const
 {
-	os << "<mo form='prefix' fence='true' stretchy='true' symmetric='true'>"
+	ms << MTagInline("mo", "fence='true' stretchy='true' symmetric='true'")
 	   << convertDelimToXMLEscape(delim_)
-	   << "</mo>";
+	   << ETagInline("mo");
 }
 
 

@@ -6,7 +6,7 @@
 # IEEtran Magnetics textclass definition file.
 
 
-Format 66
+Format 104
 
 Input IEEEtran.layout
 
@@ -33,6 +33,10 @@ End
 Style Keywords
   InTitle	1
   BottomSep	0.1
+  DocBookTag         keyword
+  DocBookTagType     paragraph
+  DocBookWrapperTag  keywordset
+  DocBookInInfo      always
 End
 
 

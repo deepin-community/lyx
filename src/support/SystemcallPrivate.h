@@ -20,8 +20,6 @@
 namespace lyx {
 namespace support {
 
-class Systemcall;
-
 /**
  * Outputs to the console terminal the line buffered standard output and
  * error of a spawned process when there is a controlling terminal and
@@ -40,7 +38,8 @@ public:
 		Starting,
 		Running,
 		Finished,
-		Error
+		Error,
+		Killed
 	};
 	State state;
 
@@ -56,6 +55,9 @@ public:
 	QProcess* releaseProcess();
 
 	static void killProcess(QProcess * p);
+
+	// when true, kill any running script ASAP
+	static bool kill_script;
 
 
 public Q_SLOTS:
@@ -95,6 +97,9 @@ private:
 	void processEvents();
 	void killProcess();
 
+	/// returns false if we killed the process
+	/// actually returns Systemcall::ReturnValue
+	bool waitAndCheck();
 };
 
 } // namespace support

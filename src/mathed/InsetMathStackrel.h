@@ -22,28 +22,32 @@ public:
 	///
 	InsetMathStackrel(Buffer * buf, bool sub);
 	///
-	bool idxUpDown(Cursor &, bool up) const;
+	bool idxUpDown(Cursor &, bool up) const override;
 	///
-	MathClass mathClass() const;
+	bool idxFirst(Cursor &) const override;
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	bool idxLast(Cursor &) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	MathClass mathClass() const override;
 	///
-	void write(WriteStream & os) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void normalize(NormalStream &) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	void mathmlize(MathStream &) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void htmlize(HtmlStream &) const;
+	void normalize(NormalStream &) const override;
 	///
-	void validate(LaTeXFeatures &) const;
+	void mathmlize(MathMLStream &) const override;
 	///
-	InsetCode lyxCode() const { return MATH_STACKREL_CODE; }
+	void htmlize(HtmlStream &) const override;
+	///
+	void validate(LaTeXFeatures &) const override;
+	///
+	InsetCode lyxCode() const override { return MATH_STACKREL_CODE; }
 
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 };
 
 } // namespace lyx

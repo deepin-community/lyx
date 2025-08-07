@@ -28,23 +28,22 @@
 #include "Lexer.h"
 #include "LyX.h"
 #include "Mover.h"
-#include "Session.h"
 #include "SpellChecker.h"
 #include "version.h"
-
-#include "graphics/GraphicsTypes.h"
 
 #include "support/convert.h"
 #include "support/debug.h"
 #include "support/environment.h"
 #include "support/FileName.h"
 #include "support/filetools.h"
-#include "support/gettext.h"
 #include "support/lstrings.h"
 #include "support/os.h"
 #include "support/Package.h"
 #include "support/TempFile.h"
-#include "support/userinfo.h"
+
+#ifdef USE_MACOSX_PACKAGING
+#include "support/AppleSupport.h"
+#endif
 
 #include <fstream>
 #include <iostream>
@@ -61,8 +60,7 @@ namespace {
 
 // The format should also be updated in configure.py, and conversion code
 // should be added to prefs2prefs_prefs.py.
-static unsigned int const LYXRC_FILEFORMAT = 24; // spitz: rename collapsible
-
+static unsigned int const LYXRC_FILEFORMAT = 38; // chillenb: screen_width and screen_limit
 // when adding something to this array keep it sorted!
 LexerKeyword lyxrcTags[] = {
 	{ "\\accept_compound", LyXRC::RC_ACCEPT_COMPOUND },
@@ -79,6 +77,9 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\bind_file", LyXRC::RC_BINDFILE },
 	{ "\\check_lastfiles", LyXRC::RC_CHECKLASTFILES },
 	{ "\\chktex_command", LyXRC::RC_CHKTEX_COMMAND },
+	{ "\\citation_search", LyXRC::RC_CITATION_SEARCH },
+	{ "\\citation_search_pattern", LyXRC::RC_CITATION_SEARCH_PATTERN },
+	{ "\\citation_search_view", LyXRC::RC_CITATION_SEARCH_VIEW },
 	{ "\\close_buffer_with_last_view", LyXRC::RC_CLOSE_BUFFER_WITH_LAST_VIEW },
 	{ "\\completion_cursor_text", LyXRC::RC_COMPLETION_CURSOR_TEXT },
 	{ "\\completion_inline_delay", LyXRC::RC_COMPLETION_INLINE_DELAY },
@@ -93,11 +94,12 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\converter", LyXRC::RC_CONVERTER },
 	{ "\\converter_cache_maxage", LyXRC::RC_CONVERTER_CACHE_MAXAGE },
 	{ "\\copier", LyXRC::RC_COPIER },
+	{ "\\ct_additions_underlined", LyXRC::RC_CT_ADDITIONS_UNDERLINED },
+	{ "\\ct_markup_copied", LyXRC::RC_CT_MARKUP_COPIED },
 	{ "\\cursor_follows_scrollbar", LyXRC::RC_CURSOR_FOLLOWS_SCROLLBAR },
 	{ "\\cursor_width", LyXRC::RC_CURSOR_WIDTH },
-	{ "\\date_insert_format", LyXRC::RC_DATE_INSERT_FORMAT },
 	{ "\\def_file", LyXRC::RC_DEFFILE },
-	{ "\\default_decimal_point", LyXRC::RC_DEFAULT_DECIMAL_POINT },
+	{ "\\default_decimal_point", LyXRC::RC_DEFAULT_DECIMAL_SEP },
 	{ "\\default_length_unit", LyXRC::RC_DEFAULT_LENGTH_UNIT },
 	{ "\\default_otf_view_format", LyXRC::RC_DEFAULT_OTF_VIEW_FORMAT },
 	{ "\\default_platex_view_format", LyXRC::RC_DEFAULT_PLATEX_VIEW_FORMAT },
@@ -105,21 +107,20 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\dialogs_iconify_with_main", LyXRC::RC_DIALOGS_ICONIFY_WITH_MAIN },
 	{ "\\display_graphics", LyXRC::RC_DISPLAY_GRAPHICS },
 	{ "\\document_path", LyXRC::RC_DOCUMENTPATH },
+	{ "\\draw_strategy", LyXRC::RC_DRAW_STRATEGY },
 	{ "\\editor_alternatives", LyXRC::RC_EDITOR_ALTERNATIVES },
 	{ "\\escape_chars", LyXRC::RC_ESC_CHARS },
 	{ "\\example_path", LyXRC::RC_EXAMPLEPATH },
+	{ "\\experimental:bookmarks_visibility", LyXRC::RC_BOOKMARKS_VISIBILITY },
 	{ "\\export_overwrite", LyXRC::RC_EXPORT_OVERWRITE },
-	{ "\\font_encoding", LyXRC::RC_FONT_ENCODING },
 	{ "\\format", LyXRC::RC_FILEFORMAT },
 	{ "\\forward_search_dvi", LyXRC::RC_FORWARD_SEARCH_DVI },
 	{ "\\forward_search_pdf", LyXRC::RC_FORWARD_SEARCH_PDF },
-	{ "\\fullscreen_limit", LyXRC::RC_FULL_SCREEN_LIMIT },
 	{ "\\fullscreen_menubar", LyXRC::RC_FULL_SCREEN_MENUBAR },
 	{ "\\fullscreen_scrollbar", LyXRC::RC_FULL_SCREEN_SCROLLBAR },
 	{ "\\fullscreen_statusbar", LyXRC::RC_FULL_SCREEN_STATUSBAR },
 	{ "\\fullscreen_tabbar", LyXRC::RC_FULL_SCREEN_TABBAR },
 	{ "\\fullscreen_toolbars", LyXRC::RC_FULL_SCREEN_TOOLBARS },
-	{ "\\fullscreen_width", LyXRC::RC_FULL_SCREEN_WIDTH },
 	{ "\\group_layouts", LyXRC::RC_GROUP_LAYOUTS },
 	{ "\\gui_language", LyXRC::RC_GUI_LANGUAGE },
 	{ "\\hunspelldir_path", LyXRC::RC_HUNSPELLDIR_PATH },
@@ -162,6 +163,7 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\print_paper_dimension_flag", LyXRC::RC_PRINTPAPERDIMENSIONFLAG },
 	{ "\\print_paper_flag", LyXRC::RC_PRINTPAPERFLAG },
 	{ "\\pygmentize_command", LyXRC::RC_PYGMENTIZE_COMMAND },
+	{ "\\respect_os_kbd_language", LyXRC::RC_RESPECT_OS_KBD_LANGUAGE },
 	{ "\\save_compressed", LyXRC::RC_SAVE_COMPRESSED },
 	{ "\\save_origin", LyXRC::RC_SAVE_ORIGIN },
 	{ "\\screen_dpi", LyXRC::RC_SCREEN_DPI },
@@ -173,6 +175,8 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\screen_font_sizes", LyXRC::RC_SCREEN_FONT_SIZES },
 	{ "\\screen_font_typewriter", LyXRC::RC_SCREEN_FONT_TYPEWRITER },
 	{ "\\screen_font_typewriter_foundry", LyXRC::RC_SCREEN_FONT_TYPEWRITER_FOUNDRY },
+	{ "\\screen_limit", LyXRC::RC_SCREEN_LIMIT },
+	{ "\\screen_width", LyXRC::RC_SCREEN_WIDTH },
 	{ "\\screen_zoom", LyXRC::RC_SCREEN_ZOOM },
 	{ "\\scroll_below_document", LyXRC::RC_SCROLL_BELOW_DOCUMENT },
 	{ "\\scroll_wheel_zoom", LyXRC::RC_SCROLL_WHEEL_ZOOM },
@@ -193,18 +197,18 @@ LexerKeyword lyxrcTags[] = {
 	{ "\\texinputs_prefix", LyXRC::RC_TEXINPUTS_PREFIX },
 	{ "\\thesaurusdir_path", LyXRC::RC_THESAURUSDIRPATH },
 	{ "\\ui_file", LyXRC::RC_UIFILE },
+	{ "\\ui_style", LyXRC::RC_UI_STYLE },
 	{ "\\use_converter_cache", LyXRC::RC_USE_CONVERTER_CACHE },
 	{ "\\use_converter_needauth", LyXRC::RC_USE_CONVERTER_NEEDAUTH },
 	{ "\\use_converter_needauth_forbidden", LyXRC::RC_USE_CONVERTER_NEEDAUTH_FORBIDDEN },
 	{ "\\use_lastfilepos", LyXRC::RC_USELASTFILEPOS },
 	{ "\\use_native_filedialog", LyXRC::RC_USE_NATIVE_FILEDIALOG },
-	{ "\\use_pixmap_cache", LyXRC::RC_USE_PIXMAP_CACHE },
-	{ "\\use_qimage", LyXRC::RC_USE_QIMAGE },
 	// compatibility with versions older than 1.4.0 only
 	{ "\\use_system_colors", LyXRC::RC_USE_SYSTEM_COLORS },
 	{ "\\use_system_theme_icons", LyXRC::RC_USE_SYSTEM_THEME_ICONS },
 	{ "\\use_tooltip", LyXRC::RC_USE_TOOLTIP },
 	{ "\\user_email", LyXRC::RC_USER_EMAIL },
+	{ "\\user_initials", LyXRC::RC_USER_INITIALS },
 	{ "\\user_name", LyXRC::RC_USER_NAME },
 	{ "\\view_dvi_paper_option", LyXRC::RC_VIEWDVI_PAPEROPTION },
 	// compatibility with versions older than 1.4.0 only
@@ -216,164 +220,6 @@ LexerKeyword lyxrcTags[] = {
 
 const int lyxrcCount = sizeof(lyxrcTags) / sizeof(lyxrcTags[0]);
 
-} // namespace
-
-
-LyXRC::LyXRC()
-{
-	setDefaults();
-}
-
-
-void LyXRC::setDefaults()
-{
-	icon_set = string();
-	use_system_theme_icons = false;
-	bind_file = "cua";
-	def_file = "default";
-	ui_file = "default";
-	// The current document directory
-	texinputs_prefix = ".";
-	print_landscape_flag = "-t landscape";
-	print_paper_flag = "-t";
-	print_paper_dimension_flag = "-T";
-	document_path.erase();
-	view_dvi_paper_option.erase();
-	default_view_format = "pdf2";
-	default_otf_view_format = "pdf4";
-	default_platex_view_format = "pdf3";
-	chktex_command = "chktex -n1 -n3 -n6 -n9 -n22 -n25 -n30 -n38";
-	bibtex_command = "automatic";
-	fontenc = "default";
-	index_command = "makeindex -c -q";
-	nomencl_command = "makeindex -s nomencl.ist";
-	pygmentize_command = string();
-	dpi = 75;
-	// Because a screen is typically wider than a piece of paper:
-	defaultZoom = 150;
-	currentZoom = defaultZoom;
-	allow_geometry_session = true;
-	// Default LaTeX font size:
-	font_sizes[FONT_SIZE_TINY] = "5.0";
-	font_sizes[FONT_SIZE_SCRIPT] = "7.0";
-	font_sizes[FONT_SIZE_FOOTNOTE] = "8.0";
-	font_sizes[FONT_SIZE_SMALL] = "9.0";
-	font_sizes[FONT_SIZE_NORMAL] = "10.0";
-	font_sizes[FONT_SIZE_LARGE] = "12.0";
-	font_sizes[FONT_SIZE_LARGER] = "14.4";
-	font_sizes[FONT_SIZE_LARGEST] = "17.26";
-	font_sizes[FONT_SIZE_HUGE] = "20.74";
-	font_sizes[FONT_SIZE_HUGER] = "24.88";
-	use_scalable_fonts = true;
-	roman_font_name = "";
-	sans_font_name = "";
-	typewriter_font_name = "";
-	autosave = 300;
-	auto_region_delete = true;
-	auto_reset_options = false;
-	plaintext_linelen = 65;
-	mouse_wheel_speed = 1.0;
-	num_lastfiles = 20;
-	check_lastfiles = true;
-	use_lastfilepos = true;
-	use_native_filedialog = true;
-	load_session = false;
-	make_backup = true;
-	save_compressed = false;
-	save_origin = false;
-	backupdir_path.erase();
-	display_graphics = true;
-	// Spellchecker settings:
-// FIXME: this check should test the target platform (darwin)
-#if defined(USE_MACOSX_PACKAGING)
-	spellchecker = "native";
-#elif defined(USE_ENCHANT)
-	spellchecker = "enchant";
-#elif defined(USE_ASPELL)
-	spellchecker = "aspell";
-#elif defined(USE_HUNSPELL)
-	spellchecker = "hunspell";
-#else
-	spellchecker = "aspell";
-#endif
-	spellchecker_accept_compound = false;
-	spellcheck_continuously = false;
-	completion_minlength = 6;
-	spellcheck_notes = true;
-	use_kbmap = false;
-	visual_cursor = false;
-	auto_number = true;
-	mark_foreign_language = true;
-	language_auto_begin = true;
-	language_auto_end = true;
-	language_global_options = true;
-	language_package_selection = LP_AUTO;
-	language_custom_package = "\\usepackage{babel}";
-	language_command_begin = "\\selectlanguage{$$lang}";
-	language_command_local = "\\foreignlanguage{$$lang}{";
-	sort_layouts = false;
-	group_layouts = true;
-	gui_language = "auto";
-	show_banner = true;
-	windows_style_tex_paths = false;
-	tex_allows_spaces = false;
-	date_insert_format = "%x";
-	cursor_follows_scrollbar = false;
-	scroll_below_document = false;
-	scroll_wheel_zoom = SCROLL_WHEEL_ZOOM_CTRL;
-	paragraph_markers = false;
-	mac_dontswap_ctrl_meta = false;
-	mac_like_cursor_movement = false;
-	macro_edit_style = MACRO_EDIT_INLINE_BOX;
-	dialogs_iconify_with_main = false;
-	preview = PREVIEW_OFF;
-	preview_hashed_labels  = false;
-	preview_scale_factor = 1.0;
-	use_converter_cache = true;
-	use_converter_needauth_forbidden = true;
-	use_converter_needauth = true;
-	use_system_colors = false;
-	use_tooltip = true;
-	use_pixmap_cache = false;
-	use_qimage = true;
-	converter_cache_maxage = 6 * 30 * 24 * 3600; // 6 months
-	user_name = to_utf8(support::user_name());
-	user_email = to_utf8(support::user_email());
-	open_buffers_in_tabs = true;
-	single_close_tab_button = false;
-	single_instance = true;
-	forward_search_dvi = string();
-	forward_search_pdf = string();
-	export_overwrite = NO_FILES;
-
-	// Fullscreen settings
-	full_screen_limit = false;
-	full_screen_toolbars = true;
-	full_screen_tabbar = true;
-	full_screen_menubar = true;
-	full_screen_statusbar = true;
-	full_screen_scrollbar = true;
-	full_screen_width = 700;
-
-	completion_cursor_text = true;
-	completion_popup_math = true;
-	completion_popup_text = false;
-	completion_popup_delay = 2.0;
-	completion_popup_after_complete = true;
-	autocorrection_math = false;
-	completion_inline_math = true;
-	completion_inline_text = false;
-	completion_inline_dots = -1;
-	completion_inline_delay = 0.2;
-	default_decimal_point = ".";
-	default_length_unit = Length::CM;
-	cursor_width = 1;
-	close_buffer_with_last_view = "yes";
-	mouse_middlebutton_paste = true;
-}
-
-
-namespace {
 
 void oldFontFormat(string & family, string & foundry)
 {
@@ -440,7 +286,7 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 		return ReadError;
 
 	// format prior to 2.0 and introduction of format tag
-	unsigned int format = 0;
+	unsigned int rc_format = 0;
 
 	while (lexrc.isOK()) {
 		// By using two switches we take advantage of the compiler
@@ -463,7 +309,7 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 		switch (static_cast<LyXRCTags>(le)) {
 		case RC_LYXRCFORMAT:
 			if (lexrc.next())
-				format = lexrc.getInteger();
+				rc_format = lexrc.getInteger();
 			break;
 		case RC_INPUT: // Include file
 			if (lexrc.next()) {
@@ -538,10 +384,6 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 					lexrc.printError("LyX: Keymap `$$Token' not found");
 				}
 			}
-			break;
-
-		case RC_FONT_ENCODING:
-			lexrc >> fontenc;
 			break;
 
 		case RC_PRINTLANDSCAPEFLAG:
@@ -644,16 +486,16 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 			break;
 
 		case RC_SCREEN_FONT_SIZES:
-			lexrc >> font_sizes[FONT_SIZE_TINY];
-			lexrc >> font_sizes[FONT_SIZE_SCRIPT];
-			lexrc >> font_sizes[FONT_SIZE_FOOTNOTE];
-			lexrc >> font_sizes[FONT_SIZE_SMALL];
-			lexrc >> font_sizes[FONT_SIZE_NORMAL];
-			lexrc >> font_sizes[FONT_SIZE_LARGE];
-			lexrc >> font_sizes[FONT_SIZE_LARGER];
-			lexrc >> font_sizes[FONT_SIZE_LARGEST];
-			lexrc >> font_sizes[FONT_SIZE_HUGE];
-			lexrc >> font_sizes[FONT_SIZE_HUGER];
+			lexrc >> font_sizes[TINY_SIZE];
+			lexrc >> font_sizes[SCRIPT_SIZE];
+			lexrc >> font_sizes[FOOTNOTE_SIZE];
+			lexrc >> font_sizes[SMALL_SIZE];
+			lexrc >> font_sizes[NORMAL_SIZE];
+			lexrc >> font_sizes[LARGE_SIZE];
+			lexrc >> font_sizes[LARGER_SIZE];
+			lexrc >> font_sizes[LARGEST_SIZE];
+			lexrc >> font_sizes[HUGE_SIZE];
+			lexrc >> font_sizes[HUGER_SIZE];
 			break;
 
 		case RC_SCREEN_FONT_SCALABLE:
@@ -762,6 +604,10 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 			lexrc >> icon_set;
 			break;
 
+		case RC_UI_STYLE:
+			lexrc >> ui_style;
+			break;
+
 		case RC_USE_SYSTEM_THEME_ICONS:
 			lexrc >> use_system_theme_icons;
 			break;
@@ -806,13 +652,17 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 				lexrc.printError("Missing color tag.");
 				break;
 			}
-			string lyx_name = lexrc.getString();
+			string const lyx_name = lexrc.getString();
 
 			if (!lexrc.next()) {
 				lexrc.printError("Missing color name for color: `$$Token'");
 				break;
 			}
-			string x11_name = lexrc.getString();
+			string const x11_name = lexrc.getString();
+
+			string x11_darkname = x11_name;
+			if (lexrc.next())
+				x11_darkname = lexrc.getString();
 
 			ColorCode const col =
 				lcolor.getFromLyXName(lyx_name);
@@ -821,8 +671,10 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 			    col == Color_ignore)
 				break;
 
-			if (!lcolor.setColor(col, x11_name))
+			if (!lcolor.setColor(col, x11_name, x11_darkname))
 				LYXERR0("Bad lyxrc set_color for " << lyx_name);
+			LYXERR(Debug::LYXRC, "Set " << lyx_name << "(" << col << ") to "
+			       << x11_name << " and " << x11_darkname);
 			break;
 		}
 
@@ -832,8 +684,35 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 			break;
 
 		case RC_SERVERPIPE:
+			if (lexrc.next()) {
+				string userdir = package().user_support().absFileName();
+				if (userdir.back() == '/')
+				  userdir.pop_back();
+				lyxpipes = subst(os::internal_path(lexrc.getString()), "$$UserDir",
+					userdir);
+			}
+			break;
+
+		case RC_CITATION_SEARCH:
+			lexrc >> citation_search;
+			break;
+
+		case RC_CITATION_SEARCH_PATTERN:
 			if (lexrc.next())
-				lyxpipes = os::internal_path(lexrc.getString());
+				citation_search_pattern = lexrc.getString();
+			break;
+
+		case RC_CITATION_SEARCH_VIEW:
+			if (lexrc.next())
+				citation_search_view = lexrc.getString();
+			break;
+
+		case RC_CT_ADDITIONS_UNDERLINED:
+			lexrc >> ct_additions_underlined;
+			break;
+
+		case RC_CT_MARKUP_COPIED:
+			lexrc >> ct_markup_copied;
 			break;
 
 		case RC_CURSOR_FOLLOWS_SCROLLBAR:
@@ -890,12 +769,6 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 		case RC_USE_TOOLTIP:
 			lexrc >> use_tooltip;
 			break;
-		case RC_USE_PIXMAP_CACHE:
-			lexrc >> use_pixmap_cache;
-			break;
-		case RC_USE_QIMAGE:
-			lexrc >> use_qimage;
-			break;
 		case RC_SPELLCHECKER:
 			lexrc >> spellchecker;
 			break;
@@ -924,15 +797,12 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 			if (lexrc.next())
 				backupdir_path = os::internal_path(lexrc.getString());
 			break;
-		case RC_DEFAULT_DECIMAL_POINT:
-			lexrc >> default_decimal_point;
+		case RC_DEFAULT_DECIMAL_SEP:
+			lexrc >> default_decimal_sep;
 			break;
 		case RC_DEFAULT_LENGTH_UNIT:
 			if (lexrc.next())
 				default_length_unit = (Length::UNIT) lexrc.getInteger();
-			break;
-		case RC_DATE_INSERT_FORMAT:
-			lexrc >> date_insert_format;
 			break;
 		case RC_LANGUAGE_CUSTOM_PACKAGE:
 			lexrc >> language_custom_package;
@@ -972,6 +842,9 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 			break;
 		case RC_LANGUAGE_COMMAND_LOCAL:
 			lexrc >> language_command_local;
+			break;
+		case RC_RESPECT_OS_KBD_LANGUAGE:
+			lexrc >> respect_os_kbd_language;
 			break;
 		case RC_VISUAL_CURSOR:
 			lexrc >> visual_cursor;
@@ -1143,6 +1016,9 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 		case RC_USER_EMAIL:
 			lexrc >> user_email;
 			break;
+		case RC_USER_INITIALS:
+			lexrc >> user_initials;
+			break;
 
 		case RC_PATH_PREFIX:
 			lexrc >> path_prefix;
@@ -1167,8 +1043,8 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 		case RC_GROUP_LAYOUTS:
 			lexrc >> group_layouts;
 			break;
-		case RC_FULL_SCREEN_LIMIT:
-			lexrc >> full_screen_limit;
+		case RC_SCREEN_LIMIT:
+			lexrc >> screen_limit;
 			break;
 		case RC_FULL_SCREEN_TOOLBARS:
 			lexrc >> full_screen_toolbars;
@@ -1185,11 +1061,15 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 		case RC_FULL_SCREEN_MENUBAR:
 			lexrc >> full_screen_menubar;
 			break;
-		case RC_FULL_SCREEN_WIDTH:
-			lexrc >> full_screen_width;
+		case RC_SCREEN_WIDTH:
+			lexrc >> screen_width;
 			break;
 		case RC_OPEN_BUFFERS_IN_TABS:
 			lexrc >> open_buffers_in_tabs;
+#ifdef USE_MACOSX_PACKAGING
+			if (appleUserTabbingPreferenceAlways())
+				open_buffers_in_tabs = true;
+#endif
 			break;
 		case RC_SINGLE_CLOSE_TAB_BUTTON:
 			lexrc >> single_close_tab_button;
@@ -1244,13 +1124,43 @@ LyXRC::ReturnValues LyXRC::read(Lexer & lexrc, bool check_format)
 			lexrc >> mouse_middlebutton_paste;
 			break;
 
+		case RC_BOOKMARKS_VISIBILITY:
+			if (lexrc.next()) {
+				string const tmp = lexrc.getString();
+				if (tmp == "none")
+					bookmarks_visibility = BMK_NONE;
+				else if (tmp == "margin")
+					bookmarks_visibility = BMK_MARGIN;
+				else if (tmp == "inline")
+					bookmarks_visibility = BMK_INLINE;
+				else {
+					bookmarks_visibility = BMK_NONE;
+					LYXERR0("Unrecognized bookmark visibility " << tmp <<'"');
+				}
+			}
+			break;
+
+		case RC_DRAW_STRATEGY:
+			if (lexrc.next()) {
+				string const tmp = lexrc.getString();
+				if (tmp == "partial")
+					draw_strategy = DS_PARTIAL;
+				else if (tmp == "backingstore")
+					draw_strategy = DS_BACKINGSTORE;
+				else {
+					draw_strategy = DS_PARTIAL;
+					LYXERR0("Unrecognized draw strategy " << tmp <<'"');
+				}
+			}
+			break;
+
 		case RC_LAST:
 			break; // this is just a dummy
 		}
 
 		// This is triggered the first time through the loop unless
 		// we hit a format tag.
-		if (check_format && format != LYXRC_FILEFORMAT)
+		if (check_format && rc_format != LYXRC_FILEFORMAT)
 			return FormatMismatch;
 	}
 
@@ -1608,15 +1518,6 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		if (tag != RC_LAST)
 			break;
 		// fall through
-	case RC_DATE_INSERT_FORMAT:
-		if (ignore_system_lyxrc ||
-		    date_insert_format != system_lyxrc.date_insert_format) {
-			os << "\\date_insert_format \"" << date_insert_format
-			   << "\"\n";
-		}
-		if (tag != RC_LAST)
-			break;
-		// fall through
 	case RC_USER_NAME:
 		os << "\\user_name \"" << user_name << "\"\n";
 		if (tag != RC_LAST)
@@ -1624,6 +1525,11 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		// fall through
 	case RC_USER_EMAIL:
 		os << "\\user_email \"" << user_email << "\"\n";
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_USER_INITIALS:
+		os << "\\user_initials \"" << user_initials << "\"\n";
 		if (tag != RC_LAST)
 			break;
 		// fall through
@@ -1723,6 +1629,15 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		if (tag != RC_LAST)
 			break;
 		// fall through
+	case RC_UI_STYLE:
+		if (ignore_system_lyxrc ||
+			ui_style != system_lyxrc.ui_style) {
+			os << "\\ui_style \"" << ui_style
+				<< "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
 	case RC_USE_SYSTEM_THEME_ICONS:
 		if (ignore_system_lyxrc ||
 			  use_system_theme_icons != system_lyxrc.use_system_theme_icons) {
@@ -1754,6 +1669,56 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		    allow_geometry_session != system_lyxrc.allow_geometry_session) {
 			os << "\\allow_geometry_session " << convert<string>(allow_geometry_session)
 			   << '\n';
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_CITATION_SEARCH:
+		if (ignore_system_lyxrc ||
+		    citation_search != system_lyxrc.citation_search) {
+			os << "# Set to true to use script to search"
+			   << " local disk for citation targets.\n"
+			   << "\\citation_search "
+			   << convert<string>(citation_search)
+			   << '\n';
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_CITATION_SEARCH_VIEW:
+		if (ignore_system_lyxrc ||
+		    citation_search_view != system_lyxrc.citation_search_view) {
+			os << "\\citation_search_view \""
+			   << citation_search_view << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_CITATION_SEARCH_PATTERN:
+		if (ignore_system_lyxrc ||
+		    citation_search_pattern != system_lyxrc.citation_search_pattern) {
+			os << "\\citation_search_pattern \""
+			   << citation_search_pattern << "\"\n";
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_CT_ADDITIONS_UNDERLINED:
+		if (ignore_system_lyxrc ||
+		    ct_additions_underlined
+		    != system_lyxrc.ct_additions_underlined) {
+			os << "\\ct_additions_underlined "
+			   << convert<string>(ct_additions_underlined) << '\n';
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_CT_MARKUP_COPIED:
+		if (ignore_system_lyxrc ||
+		    ct_markup_copied
+		    != system_lyxrc.ct_markup_copied) {
+			os << "\\ct_markup_copied "
+			   << convert<string>(ct_markup_copied) << '\n';
 		}
 		if (tag != RC_LAST)
 			break;
@@ -1794,6 +1759,26 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		    != system_lyxrc.paragraph_markers) {
 			os << "\\paragraph_markers "
 			   << convert<string>(paragraph_markers) << '\n';
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
+	case RC_BOOKMARKS_VISIBILITY:
+		if (ignore_system_lyxrc ||
+			bookmarks_visibility != system_lyxrc.bookmarks_visibility) {
+			string status;
+			switch (bookmarks_visibility) {
+			case BMK_NONE:
+				status = "none";
+				break;
+			case BMK_INLINE:
+				status = "inline";
+				break;
+			case BMK_MARGIN:
+				status = "margin";
+				break;
+			}
+			os << "\\experimental:bookmarks_visibility " << status << '\n';
 		}
 		if (tag != RC_LAST)
 			break;
@@ -1908,40 +1893,40 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		// fall through
 	case RC_SCREEN_FONT_SIZES:
 		if (ignore_system_lyxrc ||
-		    font_sizes[FONT_SIZE_TINY]
-		    != system_lyxrc.font_sizes[FONT_SIZE_TINY] ||
-		    font_sizes[FONT_SIZE_SCRIPT]
-		    != system_lyxrc.font_sizes[FONT_SIZE_SCRIPT] ||
-		    font_sizes[FONT_SIZE_FOOTNOTE]
-		    != system_lyxrc.font_sizes[FONT_SIZE_FOOTNOTE] ||
-		    font_sizes[FONT_SIZE_SMALL]
-		    != system_lyxrc.font_sizes[FONT_SIZE_SMALL] ||
-		    font_sizes[FONT_SIZE_NORMAL]
-		    != system_lyxrc.font_sizes[FONT_SIZE_NORMAL] ||
-		    font_sizes[FONT_SIZE_LARGE]
-		    != system_lyxrc.font_sizes[FONT_SIZE_LARGE] ||
-		    font_sizes[FONT_SIZE_LARGER]
-		    != system_lyxrc.font_sizes[FONT_SIZE_LARGER] ||
-		    font_sizes[FONT_SIZE_LARGEST]
-		    != system_lyxrc.font_sizes[FONT_SIZE_LARGEST] ||
-		    font_sizes[FONT_SIZE_HUGE]
-		    != system_lyxrc.font_sizes[FONT_SIZE_HUGE] ||
-		    font_sizes[FONT_SIZE_HUGER]
-		    != system_lyxrc.font_sizes[FONT_SIZE_HUGER]) {
+		    font_sizes[TINY_SIZE]
+		    != system_lyxrc.font_sizes[TINY_SIZE] ||
+		    font_sizes[SCRIPT_SIZE]
+		    != system_lyxrc.font_sizes[SCRIPT_SIZE] ||
+		    font_sizes[FOOTNOTE_SIZE]
+		    != system_lyxrc.font_sizes[FOOTNOTE_SIZE] ||
+		    font_sizes[SMALL_SIZE]
+		    != system_lyxrc.font_sizes[SMALL_SIZE] ||
+		    font_sizes[NORMAL_SIZE]
+		    != system_lyxrc.font_sizes[NORMAL_SIZE] ||
+		    font_sizes[LARGE_SIZE]
+		    != system_lyxrc.font_sizes[LARGE_SIZE] ||
+		    font_sizes[LARGER_SIZE]
+		    != system_lyxrc.font_sizes[LARGER_SIZE] ||
+		    font_sizes[LARGEST_SIZE]
+		    != system_lyxrc.font_sizes[LARGEST_SIZE] ||
+		    font_sizes[HUGE_SIZE]
+		    != system_lyxrc.font_sizes[HUGE_SIZE] ||
+		    font_sizes[HUGER_SIZE]
+		    != system_lyxrc.font_sizes[HUGER_SIZE]) {
 			streamsize old_prec = os.precision();
 			os.setf(ios::fixed);
 			os.precision(2);
 			os << "\\screen_font_sizes"
-			   << ' ' << font_sizes[FONT_SIZE_TINY]
-			   << ' ' << font_sizes[FONT_SIZE_SCRIPT]
-			   << ' ' << font_sizes[FONT_SIZE_FOOTNOTE]
-			   << ' ' << font_sizes[FONT_SIZE_SMALL]
-			   << ' ' << font_sizes[FONT_SIZE_NORMAL]
-			   << ' ' << font_sizes[FONT_SIZE_LARGE]
-			   << ' ' << font_sizes[FONT_SIZE_LARGER]
-			   << ' ' << font_sizes[FONT_SIZE_LARGEST]
-			   << ' ' << font_sizes[FONT_SIZE_HUGE]
-			   << ' ' << font_sizes[FONT_SIZE_HUGER]
+			   << ' ' << font_sizes[TINY_SIZE]
+			   << ' ' << font_sizes[SCRIPT_SIZE]
+			   << ' ' << font_sizes[FOOTNOTE_SIZE]
+			   << ' ' << font_sizes[SMALL_SIZE]
+			   << ' ' << font_sizes[NORMAL_SIZE]
+			   << ' ' << font_sizes[LARGE_SIZE]
+			   << ' ' << font_sizes[LARGER_SIZE]
+			   << ' ' << font_sizes[LARGEST_SIZE]
+			   << ' ' << font_sizes[HUGE_SIZE]
+			   << ' ' << font_sizes[HUGER_SIZE]
 			   << '\n';
 			os.precision(old_prec);
 			os.unsetf(ios::fixed);
@@ -1949,11 +1934,11 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		if (tag != RC_LAST)
 			break;
 		// fall through
-	case RC_FULL_SCREEN_LIMIT:
+	case RC_SCREEN_LIMIT:
 		if (ignore_system_lyxrc ||
-		    full_screen_limit != system_lyxrc.full_screen_limit) {
-			os << "\\fullscreen_limit "
-			   << convert<string>(full_screen_limit)
+		    screen_limit != system_lyxrc.screen_limit) {
+			os << "\\screen_limit "
+			   << convert<string>(screen_limit)
 			   << '\n';
 		}
 		if (tag != RC_LAST)
@@ -2009,11 +1994,11 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		if (tag != RC_LAST)
 			break;
 		// fall through
-	case RC_FULL_SCREEN_WIDTH:
+	case RC_SCREEN_WIDTH:
 		if (ignore_system_lyxrc ||
-		    full_screen_width != system_lyxrc.full_screen_width) {
-			os << "\\fullscreen_width "
-			   << convert<string>(full_screen_width)
+		    screen_width != system_lyxrc.screen_width) {
+			os << "\\screen_width "
+			   << screen_width.asString()
 			   << '\n';
 		}
 		if (tag != RC_LAST)
@@ -2064,21 +2049,42 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		}
 		if (tag != RC_LAST)
 			break;
+		// fall through
+	case RC_DRAW_STRATEGY:
+		if (ignore_system_lyxrc ||
+			draw_strategy != system_lyxrc.draw_strategy) {
+			string status;
+			switch (draw_strategy) {
+			case DS_PARTIAL:
+				status = "partial";
+				break;
+			case DS_BACKINGSTORE:
+				status = "backingstore";
+				break;
+			}
+			os << "\\draw_strategy " << status << '\n';
+		}
+		if (tag != RC_LAST)
+			break;
+		// fall through
 
 	os << "\n#\n"
-			<< "# COLOR SECTION ###################################\n"
-			<< "#\n\n";
+		<< "# COLOR SECTION ###################################\n"
+		<< "#\n\n";
 
 	// fall through
 	case RC_SET_COLOR:
 		for (int i = 0; i < Color_ignore; ++i) {
 			ColorCode lc = static_cast<ColorCode>(i);
-			string const col = lcolor.getX11Name(lc);
+			string const col = lcolor.getAllX11HexNames(lc).first;
+			string const darkcol = lcolor.getAllX11HexNames(lc).second;
 			if (ignore_system_lyxrc
-			    || col != system_lcolor.getX11Name(lc)) {
+			    || col != system_lcolor.getAllX11HexNames(lc).first
+			    || darkcol != system_lcolor.getAllX11HexNames(lc).second) {
 				os << "\\set_color \""
 				   << lcolor.getLyXName(lc) << "\" \""
-				   << col << "\"\n";
+				   << col << "\" \""
+				   << darkcol << "\"\n";
 			}
 		}
 		if (tag != RC_LAST)
@@ -2130,18 +2136,9 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		if (tag != RC_LAST)
 			break;
 		// fall through
-	case RC_FONT_ENCODING:
-		if (ignore_system_lyxrc ||
-		    fontenc != system_lyxrc.fontenc) {
-			os << "\\font_encoding \"" << fontenc << "\"\n";
-		}
-		if (tag != RC_LAST)
-			break;
-
 		os << "\n#\n"
 		   << "# FILE SECTION ######################################\n"
 		   << "#\n\n";
-
 	// fall through
 	case RC_DOCUMENTPATH:
 		if (ignore_system_lyxrc ||
@@ -2453,35 +2450,16 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 		if (tag != RC_LAST)
 			break;
 		// fall through
-	case RC_USE_PIXMAP_CACHE:
-		if (ignore_system_lyxrc ||
-		    use_pixmap_cache != system_lyxrc.use_pixmap_cache) {
-			os << "\\use_pixmap_cache "
-			   << convert<string>(use_pixmap_cache)
-			   << '\n';
-		}
-		if (tag != RC_LAST)
-			break;
-		// fall through
-	case RC_USE_QIMAGE:
-		if (ignore_system_lyxrc ||
-		    use_qimage != system_lyxrc.use_qimage) {
-			os << "\\use_qimage "
-			   << convert<string>(use_qimage)
-			   << '\n';
-		}
-		if (tag != RC_LAST)
-			break;
 
 		os << "\n#\n"
 		   << "# LANGUAGE SUPPORT SECTION ##########################\n"
 		   << "#\n\n";
 
 	// fall through
-	case RC_DEFAULT_DECIMAL_POINT:
+	case RC_DEFAULT_DECIMAL_SEP:
 		if (ignore_system_lyxrc ||
-		    default_decimal_point != system_lyxrc.default_decimal_point) {
-			os << "\\default_decimal_point " << default_decimal_point << '\n';
+		    default_decimal_sep != system_lyxrc.default_decimal_sep) {
+			os << "\\default_decimal_point \"" << default_decimal_sep << "\"" << '\n';
 		}
 		if (tag != RC_LAST)
 			break;
@@ -2636,6 +2614,15 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 			os << "\\mark_foreign_language " <<
 				convert<string>(mark_foreign_language) << '\n';
 		}
+		// fall through
+	case RC_RESPECT_OS_KBD_LANGUAGE:
+		if (ignore_system_lyxrc ||
+		    respect_os_kbd_language
+		    != system_lyxrc.respect_os_kbd_language) {
+			os << "\\respect_os_kbd_language " <<
+				convert<string>(respect_os_kbd_language) << '\n';
+		}
+		//fall through
 		if (tag != RC_LAST)
 			break;
 
@@ -2826,8 +2813,9 @@ void LyXRC::write(ostream & os, bool ignore_system_lyxrc, string const & name) c
 			break;
 		// fall through
 	case RC_DEFAULT_VIEW_FORMAT:
-		if (ignore_system_lyxrc ||
-		    default_view_format != system_lyxrc.default_view_format) {
+		if ((ignore_system_lyxrc ||
+			default_view_format != system_lyxrc.default_view_format)
+			&& !default_view_format.empty()) {
 			os << "\\default_view_format " << default_view_format << '\n';
 		}
 		if (tag != RC_LAST)
@@ -2929,6 +2917,10 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 	case LyXRC::RC_BIBTEX_ALTERNATIVES:
 	case LyXRC::RC_BIBTEX_COMMAND:
 	case LyXRC::RC_BINDFILE:
+	case LyXRC::RC_BOOKMARKS_VISIBILITY:
+	case LyXRC::RC_CITATION_SEARCH:
+	case LyXRC::RC_CITATION_SEARCH_PATTERN:
+	case LyXRC::RC_CITATION_SEARCH_VIEW:
 	case LyXRC::RC_CHECKLASTFILES:
 	case LyXRC::RC_COMPLETION_CURSOR_TEXT:
 	case LyXRC::RC_COMPLETION_INLINE_DELAY:
@@ -2946,9 +2938,10 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 	case LyXRC::RC_CONVERTER:
 	case LyXRC::RC_CONVERTER_CACHE_MAXAGE:
 	case LyXRC::RC_COPIER:
+	case LyXRC::RC_CT_ADDITIONS_UNDERLINED:
+	case LyXRC::RC_CT_MARKUP_COPIED:
 	case LyXRC::RC_CURSOR_FOLLOWS_SCROLLBAR:
 	case LyXRC::RC_SCROLL_BELOW_DOCUMENT:
-	case LyXRC::RC_DATE_INSERT_FORMAT:
 	case LyXRC::RC_GUI_LANGUAGE:
 	case LyXRC::RC_DEFAULT_OTF_VIEW_FORMAT:
 	case LyXRC::RC_DEFAULT_PLATEX_VIEW_FORMAT:
@@ -2963,14 +2956,15 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 				package().document_dir() = FileName(lyxrc.document_path);
 		}
 		// fall through
+	case LyXRC::RC_DRAW_STRATEGY:
 	case LyXRC::RC_EDITOR_ALTERNATIVES:
 	case LyXRC::RC_ESC_CHARS:
 	case LyXRC::RC_EXAMPLEPATH:
-	case LyXRC::RC_FONT_ENCODING:
 	case LyXRC::RC_FILEFORMAT:
 	case LyXRC::RC_GROUP_LAYOUTS:
 	case LyXRC::RC_HUNSPELLDIR_PATH:
 	case LyXRC::RC_ICON_SET:
+	case LyXRC::RC_UI_STYLE:
 	case LyXRC::RC_INDEX_ALTERNATIVES:
 	case LyXRC::RC_INDEX_COMMAND:
 	case LyXRC::RC_JBIBTEX_COMMAND:
@@ -2996,6 +2990,7 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 	case LyXRC::RC_MACRO_EDIT_STYLE:
 	case LyXRC::RC_MAKE_BACKUP:
 	case LyXRC::RC_MARK_FOREIGN_LANGUAGE:
+	case LyXRC::RC_RESPECT_OS_KBD_LANGUAGE:
 	case LyXRC::RC_MOUSE_WHEEL_SPEED:
 	case LyXRC::RC_MOUSE_MIDDLEBUTTON_PASTE:
 	case LyXRC::RC_NUMLASTFILES:
@@ -3040,11 +3035,12 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 		|| lyxrc_orig.roman_font_foundry != lyxrc_new.roman_font_foundry
 		|| lyxrc_orig.sans_font_foundry != lyxrc_new.sans_font_foundry
 		|| lyxrc_orig.use_scalable_fonts != lyxrc_new.use_scalable_fonts
-		|| lyxrc_orig.font_sizes != lyxrc_new.font_sizes
+		|| !std::equal(std::begin(lyxrc_orig.font_sizes), std::end(lyxrc_orig.font_sizes),
+			       std::begin(lyxrc_new.font_sizes))
 		|| lyxrc_orig.typewriter_font_foundry != lyxrc_new.typewriter_font_foundry
 		|| lyxrc_orig.defaultZoom != lyxrc_new.defaultZoom) {
-		dispatch(FuncRequest(LFUN_SCREEN_FONT_UPDATE));
-	}
+			dispatch(FuncRequest(LFUN_SCREEN_FONT_UPDATE));
+		}
 		// fall through
 	case LyXRC::RC_GEOMETRY_SESSION:
 	case LyXRC::RC_SERVERPIPE:
@@ -3070,6 +3066,7 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 	case LyXRC::RC_THESAURUSDIRPATH:
 	case LyXRC::RC_UIFILE:
 	case LyXRC::RC_USER_EMAIL:
+	case LyXRC::RC_USER_INITIALS:
 	case LyXRC::RC_USER_NAME:
 	case LyXRC::RC_USE_CONVERTER_CACHE:
 	case LyXRC::RC_USE_CONVERTER_NEEDAUTH_FORBIDDEN:
@@ -3077,20 +3074,18 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 	case LyXRC::RC_USE_NATIVE_FILEDIALOG:
 	case LyXRC::RC_USE_SYSTEM_COLORS:
 	case LyXRC::RC_USE_TOOLTIP:
-	case LyXRC::RC_USE_PIXMAP_CACHE:
-	case LyXRC::RC_USE_QIMAGE:
 	case LyXRC::RC_USE_SYSTEM_THEME_ICONS:
 	case LyXRC::RC_VIEWDVI_PAPEROPTION:
 	case LyXRC::RC_SINGLE_CLOSE_TAB_BUTTON:
 	case LyXRC::RC_SINGLE_INSTANCE:
 	case LyXRC::RC_SORT_LAYOUTS:
-	case LyXRC::RC_FULL_SCREEN_LIMIT:
+	case LyXRC::RC_SCREEN_LIMIT:
 	case LyXRC::RC_FULL_SCREEN_SCROLLBAR:
 	case LyXRC::RC_FULL_SCREEN_MENUBAR:
 	case LyXRC::RC_FULL_SCREEN_STATUSBAR:
 	case LyXRC::RC_FULL_SCREEN_TABBAR:
 	case LyXRC::RC_FULL_SCREEN_TOOLBARS:
-	case LyXRC::RC_FULL_SCREEN_WIDTH:
+	case LyXRC::RC_SCREEN_WIDTH:
 	case LyXRC::RC_VISUAL_CURSOR:
 	case LyXRC::RC_CLOSE_BUFFER_WITH_LAST_VIEW:
 	case LyXRC::RC_VIEWER:
@@ -3098,12 +3093,21 @@ void actOnUpdatedPrefs(LyXRC const & lyxrc_orig, LyXRC const & lyxrc_new)
 	case LyXRC::RC_FORWARD_SEARCH_DVI:
 	case LyXRC::RC_FORWARD_SEARCH_PDF:
 	case LyXRC::RC_EXPORT_OVERWRITE:
-	case LyXRC::RC_DEFAULT_DECIMAL_POINT:
+	case LyXRC::RC_DEFAULT_DECIMAL_SEP:
 	case LyXRC::RC_DEFAULT_LENGTH_UNIT:
 	case LyXRC::RC_SCROLL_WHEEL_ZOOM:
 	case LyXRC::RC_CURSOR_WIDTH:
 		break;
 	}
+}
+
+
+set<string> LyXRC::getRCs()
+{
+	set<string> res;
+	for (int i = 0; i != lyxrcCount; ++i)
+		res.insert(ltrim(lyxrcTags[i].tag, "\\"));
+	return res;
 }
 
 
@@ -3202,11 +3206,6 @@ string const LyXRC::getDescription(LyXRCTags tag)
 		str = _("Show a small box around a Math Macro with the macro name when the cursor is inside.");
 		break;
 
-	case RC_DATE_INSERT_FORMAT:
-		//xgettext:no-c-format
-		str = _("This accepts the normal strftime formats; see man strftime for full details. E.g.\"%A, %e. %B %Y\".");
-		break;
-
 	case RC_DEFFILE:
 		str = _("Command definition file. Can either specify an absolute path, or LyX will look in its global and local commands/ directories.");
 		break;
@@ -3237,10 +3236,6 @@ string const LyXRC::getDescription(LyXRCTags tag)
 
 	case RC_EXAMPLEPATH:
 		str = _("The path that LyX will set when offering to choose an example. An empty value selects the directory LyX was started from.");
-		break;
-
-	case RC_FONT_ENCODING:
-		str = _("The font encoding used for the LaTeX2e fontenc package. T1 is highly recommended for non-English languages.");
 		break;
 
 	case RC_FILEFORMAT:
@@ -3317,6 +3312,10 @@ string const LyXRC::getDescription(LyXRCTags tag)
 
 	case RC_MARK_FOREIGN_LANGUAGE:
 		str = _("Select to control the highlighting of words with a language foreign to that of the document.");
+		break;
+
+	case RC_RESPECT_OS_KBD_LANGUAGE:
+		str = _("Select to use the current keyboard language, as set from the operating system, as default input language.");
 		break;
 
 	case RC_MOUSE_WHEEL_SPEED:
@@ -3490,10 +3489,6 @@ string const LyXRC::getDescription(LyXRCTags tag)
 
 	case RC_USE_TOOLTIP:
 		str = _("Enable the automatic appearance of tool tips in the work area.");
-		break;
-
-	case RC_USE_PIXMAP_CACHE:
-		str = _("Enable the pixmap cache that might improve performance on Mac and Windows.");
 		break;
 
 	case RC_VIEWDVI_PAPEROPTION:

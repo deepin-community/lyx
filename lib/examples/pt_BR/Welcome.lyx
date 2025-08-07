@@ -1,0 +1,309 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/pt_BR/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language brazilian
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "palatino" "default"
+\font_sans "helvet" "default"
+\font_typewriter "courier" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 95 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\use_lineno 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Bem-vindo ao \SpecialChar LyX
+!
+\end_layout
+
+\begin_layout Section*
+As coisas mais importantes que você deve saber quando estiver usando o \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Enumerate
+O \SpecialChar LyX
+ vem com uma excelente documentação —
+ use-a!
+ Comece com o menu 
+\family sans
+Ajuda\SpecialChar menuseparator
+Introdução
+\family default
+,
+ que lhe dará uma breve introdução sobre a documentação.
+ Em seguida aprenda mais sobre como usar o \SpecialChar LyX
+ em 
+\family sans
+Ajuda\SpecialChar menuseparator
+Tutorial
+\family default
+.
+\end_layout
+
+\begin_layout Enumerate
+O \SpecialChar LyX
+ é o que chamamos de 
+\begin_inset Quotes eld
+\end_inset
+
+processador de documentos
+\begin_inset Quotes erd
+\end_inset
+
+.
+ Por design,
+ ele é diferente dos processadores de texto convencionais —
+ de um jeito que torna mais fácil escrever seus documentos.
+ Mas só um pouco diferente,
+ portanto,
+ não se assuste.
+ A documentação vai deixar tudo claro.
+\end_layout
+
+\begin_layout Enumerate
+O visual dos documentos de saída do \SpecialChar LyX
+ é excelente!
+ Use o menu 
+\family sans
+Documento\SpecialChar menuseparator
+Visualizar
+\begin_inset space ~
+\end_inset
+
+[PDF
+\begin_inset space ~
+\end_inset
+
+(pdflatex)]
+\family default
+ ou pressione o botão 
+\begin_inset Info
+type  "icon"
+arg   "buffer-view"
+\end_inset
+
+ na barra de ferramentas e veja você mesmo.
+\end_layout
+
+\begin_layout Enumerate
+Sim,
+ o \SpecialChar LyX
+ pode reproduzir (quase) toda a funcionaldade do \SpecialChar LaTeX
+.
+ E sim,
+ o \SpecialChar LyX
+ pode importar arquivos \SpecialChar LaTeX
+.
+ Usuários \SpecialChar LaTeX
+ experientes podem folhear o resto do 
+\emph on
+Tutorial
+\emph default
+,
+ e em seguida ler o capítulo 
+\begin_inset Quotes eld
+\end_inset
+
+\SpecialChar LyX
+ para Usuários \SpecialChar LaTeX
+
+\begin_inset Quotes erd
+\end_inset
+
+ (se não souber \SpecialChar LaTeX
+,
+ não se preocupe:
+ não é necessário saber \SpecialChar LaTeX
+ para usar o \SpecialChar LyX
+).
+\end_layout
+
+\begin_layout Enumerate
+O \SpecialChar LyX
+ tem muitos recursos para usuários que leem ou escrevem outro idioma que não inglês.
+ Além disso,
+ as combinações de teclas,
+ barras de ferramentas e muitas outras funcionalidades são altamente configuráveis.
+ Para mais informações,
+ consulte 
+\family sans
+Ajuda\SpecialChar menuseparator
+Personalização
+\family default
+.
+\end_layout
+
+\begin_layout Enumerate
+A página inicial do \SpecialChar LyX
+ é 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org
+\end_layout
+
+\end_inset
+
+.
+ Lá,
+ entre outras coisas,
+ você pode saber mais sobre o \SpecialChar LyX
+,
+ assinar a(s) lista(s) de correio,
+ e fazer o Tour Gráfico do \SpecialChar LyX
+:
+ 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org/Walkthrough
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Nota para usuários do Linux:
+
+\series default
+ Por favor assegure-se que os pacotes de idioma da distribuição \SpecialChar LaTeX
+ 
+\family sans
+\SpecialChar TeX
+
+\begin_inset space ~
+\end_inset
+
+Live
+\family default
+ estão instalados.
+ Caso contrário,
+ ocorrerão erros \SpecialChar LaTeX
+.
+\begin_inset Newline newline
+\end_inset
+
+Por exemplo,
+ nas distribuições 
+\family sans
+(K,X)Ubuntu
+\family default
+ e 
+\family sans
+Debian
+\family default
+,
+ o nome do pacote para o idioma alemão é 
+\begin_inset Quotes eld
+\end_inset
+
+
+\family typewriter
+texlive-lang-german
+\family default
+
+\begin_inset Quotes erd
+\end_inset
+
+.
+\begin_inset Newline newline
+\end_inset
+
+Após instalar os pacotes de idioma,
+ é necessário usar o menu 
+\family sans
+Ferramentas
+\family default
+\SpecialChar menuseparator
+
+\family sans
+Reconfigurar
+\family default
+.
+\end_layout
+
+\end_body
+\end_document

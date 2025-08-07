@@ -6,7 +6,7 @@
 # This include files contains various standard environments for lists.
 
 
-Format 66
+Format 104
 
 Input stdlyxlist.inc
 
@@ -33,6 +33,19 @@ Style Itemize
 		LabelString   "Custom Item|s"
 		Tooltip       "A customized item string"
 	EndArgument
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            itemizedlist
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
 End
 
 
@@ -62,6 +75,25 @@ Style Enumerate
 		LabelString   "Custom Item|s"
 		Tooltip       "A customized item string"
 	EndArgument
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            orderedlist
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
+	HTMLStyle
+		ol.enumi   { list-style-type: decimal; }
+		ol.enumii  { list-style-type: lower-latin; }
+		ol.enumiii { list-style-type: lower-roman; }
+		ol.enumiv  { list-style-type: upper-latin; }
+	EndHTMLStyle
 End
 
 Style Description
@@ -84,13 +116,28 @@ Style Description
 	  Series              Bold
 	EndFont
 	HTMLTag               dl
-	HTMLAttr              class='description'
 	HTMLItem              dd
 	HTMLLabel             dt
 	HTMLLabelFirst        1
 	HTMLStyle
 		dl.description dt { font-weight: bold; }
 	EndHTMLStyle
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            variablelist
+	DocBookItemWrapperTag varlistentry
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
+	DocBookItemLabelTag   term
+	DocBookItemLabelTagType   paragraph
 End
 
 

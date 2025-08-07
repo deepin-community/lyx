@@ -28,6 +28,7 @@ target_link_libraries(${_lyxclient}
 	${QT_QTCORE_LIBRARY}
 	${QT_QTGUI_LIBRARY})
 
+qt_use_modules(${_lyxclient} ${QtCore5CompatModule})
 lyx_target_link_libraries(${_lyxclient} Magic ASPELL)
 
 if(APPLE)

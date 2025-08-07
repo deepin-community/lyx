@@ -79,7 +79,7 @@
 # If possible, the script will use pdftocairo instead of gs,
 # as it's much faster and gives better results.
 
-import glob, os, pipes, re, sys, tempfile
+import glob, os, re, subprocess, sys, tempfile
 
 from lyxpreview_tools import check_latex_log, copyfileobj, error, filter_pages,\
      find_exe, find_exe_or_terminate, join_metrics_and_rename, latex_commands, \
@@ -156,7 +156,7 @@ def legacy_extract_metrics_info(log_file):
 def extract_resolution(log_file, dpi):
     fontsize_re = re.compile(b"Preview: Fontsize")
     magnification_re = re.compile(b"Preview: Magnification")
-    extract_decimal_re = re.compile(b"([0-9\.]+)")
+    extract_decimal_re = re.compile(br"([0-9\.]+)")
     extract_integer_re = re.compile(b"([0-9]+)")
 
     found_fontsize = 0
@@ -235,9 +235,9 @@ def legacy_latex_file(latex_file, fg_color, bg_color):
             else:
                 tmp.write(b"""
 \\usepackage{color}
-\\definecolor{fg}{rgb}{%s}
-\\definecolor{bg}{rgb}{%s}
-\\pagecolor{bg}
+\\definecolor{lyxfg}{rgb}{%s}
+\\definecolor{lyxbg}{rgb}{%s}
+\\pagecolor{lyxbg}
 \\usepackage{polyglossia}
 """ % (fg_color_gr, bg_color_gr))
                 polyglossia = True
@@ -248,25 +248,30 @@ def legacy_latex_file(latex_file, fg_color, bg_color):
         if not polyglossia:
             tmp.write(b"""
 \\usepackage{color}
-\\definecolor{fg}{rgb}{%s}
-\\definecolor{bg}{rgb}{%s}
-\\pagecolor{bg}
-\\usepackage[%s,tightpage]{preview}
+\\definecolor{lyxfg}{rgb}{%s}
+\\definecolor{lyxbg}{rgb}{%s}
+\\pagecolor{lyxbg}
 \\makeatletter
-\\def\\t@a{cmr}
-\\if\\f@family\\t@a
-\\IfFileExists{lmodern.sty}{\\usepackage{lmodern}}{\\usepackage{ae,aecompl}}
+\\def\\@tempa{cmr}
+\\ifx\\f@family\\@tempa
+  \\IfFileExists{lmodern.sty}{\\usepackage{lmodern}}{\\usepackage{ae,aecompl}}
 \\fi
-\\g@addto@macro\\preview{\\begingroup\\color{bg}\\special{ps::clippath fill}\\color{fg}}
-\\g@addto@macro\\endpreview{\\endgroup}
-\\makeatother
-""" % (fg_color_gr, bg_color_gr, previewopts))
-        else:
-            tmp.write(b"""
+""" % (fg_color_gr, bg_color_gr))
+        tmp.write(b"""
 \\usepackage[%s,tightpage]{preview}
 \\makeatletter
-\\g@addto@macro\\preview{\\begingroup\\color{bg}\\special{ps::clippath fill}\\color{fg}}
+\\g@addto@macro\\preview{\\leavevmode\\begingroup\\color{lyxbg}\\special{background \\current@color}\\special{ps::clippath fill}\\color{lyxfg}}
 \\g@addto@macro\\endpreview{\\endgroup}
+\\let\\pr@set@pagerightoffset\\@empty
+\\ifx\\pagerightoffset\\@undefined\\else
+  \\def\\pr@set@pagerightoffset{\\ifnum\\pagedirection=1
+      \\pagerightoffset=-1in
+      \\advance\\pagerightoffset-\\pr@bb@i
+      \\advance\\pagerightoffset\\pr@bb@iii
+    \\fi
+  }
+\\fi
+\\g@addto@macro\\pr@ship@end{\\pr@set@pagerightoffset}
 \\makeatother
 """ % previewopts)
     if success:
@@ -276,16 +281,15 @@ def legacy_latex_file(latex_file, fg_color, bg_color):
 
 
 def crop_files(pnmcrop, basename):
-    t = pipes.Template()
-    t.append('%s -left' % pnmcrop, '--')
-    t.append('%s -right' % pnmcrop, '--')
-
     for file in glob.glob("%s*.ppm" % basename):
         tmp = tempfile.TemporaryFile()
-        new = t.open(file, "r")
-        copyfileobj(new, tmp)
-        if not new.close():
-            copyfileobj(tmp, open(file,"wb"), 1)
+        conv_call = f'{pnmcrop} -left -right -- {file}'
+        conv_status = subprocess.run(conv_call, stdout=tmp)
+
+        if conv_status:
+            continue
+
+        copyfileobj(tmp, open(file, "wb"), 1)
 
 
 def legacy_conversion(argv, skipMetrics = False):

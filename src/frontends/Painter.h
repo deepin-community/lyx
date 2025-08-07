@@ -18,6 +18,7 @@
 
 namespace lyx {
 
+class Color;
 class Font;
 class FontInfo;
 
@@ -49,7 +50,8 @@ namespace frontend {
  */
 class Painter {
 public:
-	Painter(double pixel_ratio) : pixel_ratio_(pixel_ratio) {}
+	Painter(double pixel_ratio, bool devel_mode)
+		: pixel_ratio_(pixel_ratio), devel_mode_(devel_mode) {}
 
 	static const int thin_line;
 
@@ -120,18 +122,28 @@ public:
 	virtual void arc(int x, int y, unsigned int w, unsigned int h,
 		int a1, int a2, Color) = 0;
 
+	/// draw an ellipse
+	virtual void ellipse(double x, double y, double rx, double ry, Color,
+		fill_style = fill_none, line_style = line_solid,
+		int line_width = thin_line) = 0;
+
 	/// draw a pixel
 	virtual void point(int x, int y, Color) = 0;
 
 	/// draw an image from the image cache
 	virtual void image(int x, int y, int w, int h,
-		graphics::Image const & image) = 0;
+		graphics::Image const & image, bool const revert_in_darkmode = false) = 0;
+
+	// Direction for painting text
+	enum Direction { LtR, RtL, Auto };
 
 	/// draw a string at position x, y (y is the baseline).
-	virtual void text(int x, int y, docstring const & str, FontInfo const & f) = 0;
+	virtual void text(int x, int y, docstring const & str, FontInfo const & f,
+	                  Direction const dir = Auto) = 0;
 
 	/// draw a char at position x, y (y is the baseline)
-	virtual void text(int x, int y, char_type c, FontInfo const & f) = 0;
+	virtual void text(int x, int y, char_type c, FontInfo const & f,
+	                  Direction const dir = Auto) = 0;
 
 	/** draw a string at position x, y (y is the baseline). The
 	 * text direction is enforced by the \c Font.
@@ -151,6 +163,8 @@ public:
 	virtual bool isNull() const = 0;
 
 	double pixelRatio() const { return pixel_ratio_; }
+
+	bool develMode() const { return devel_mode_; }
 
 	/// draw the underbar, strikeout, xout, uuline and uwave font attributes
 	virtual void textDecoration(FontInfo const & f, int x, int y, int width) = 0;
@@ -172,16 +186,17 @@ public:
 	virtual int preeditText(int x, int y,
 		char_type c, FontInfo const & f, preedit_style style) = 0;
 
-	/// start monochrome painting mode, i.e. map every color into [min,max]
-	virtual void enterMonochromeMode(Color const & min,
-		Color const & max) = 0;
+	/// start monochrome painting mode, i.e. map every color a shade of \c blend.
+	virtual void enterMonochromeMode(Color const & blend) = 0;
 	/// leave monochrome painting mode
 	virtual void leaveMonochromeMode() = 0;
 	/// draws a wavy line that can be used for underlining.
-	virtual void wavyHorizontalLine(int x, int y, int width, ColorCode col) = 0;
+	virtual void wavyHorizontalLine(FontInfo const & f, int x, int y, int width, ColorCode col) = 0;
 private:
 	/// Ratio between physical pixels and device-independent pixels
 	double pixel_ratio_;
+	/// True when developer more is on at application-level.
+	bool devel_mode_;
 };
 
 } // namespace frontend

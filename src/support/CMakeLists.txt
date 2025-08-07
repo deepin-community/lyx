@@ -12,6 +12,7 @@ list(REMOVE_ITEM support_sources ${moc_files} .)
 if(APPLE)
 	list(APPEND dont_merge ${TOP_SRC_DIR}/src/support/AppleSpeller.m)
 	list(APPEND dont_merge ${TOP_SRC_DIR}/src/support/AppleScript.m)
+	list(APPEND dont_merge ${TOP_SRC_DIR}/src/support/AppleSupport.m)
 else()
 	list(REMOVE_ITEM support_sources "${TOP_SRC_DIR}/src/support/AppleScriptProxy.cpp")
 endif()
@@ -77,7 +78,7 @@ else()
 	add_library(support ${library_type} ${_allinone_files} ${support_separate}
 		${support_linkback_sources} ${support_headers} ${dont_merge})
 endif()
-set_target_properties(support PROPERTIES FOLDER "applications/LyX")
+set_target_properties(support PROPERTIES FOLDER "applications/LyX" QT_NO_UNICODE_DEFINES TRUE)
 
 qt_use_modules(support Core Gui)
 

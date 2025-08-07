@@ -1,5 +1,5 @@
-#LyX file created by tex2lyx 2.3
-\lyxformat 544
+#LyX file created by tex2lyx 2.4
+\lyxformat 620
 \begin_document
 \begin_header
 \save_transient_properties true
@@ -18,7 +18,7 @@
 
 \end_preamble
 \use_default_options false
-\maintain_unincluded_children false
+\maintain_unincluded_children no
 \language english
 \language_package none
 \inputencoding iso8859-15
@@ -30,7 +30,9 @@
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
-\font_osf false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
 \font_sf_scale 100 100
 \font_tt_scale 100 100
 \use_microtype false
@@ -52,7 +54,7 @@
 \pdf_colorlinks 0
 \pdf_backref section
 \pdf_pdfusetitle 0
-\papersize a4paper
+\papersize a4
 \use_geometry false
 \use_package amsmath 2
 \use_package amssymb 2
@@ -74,6 +76,7 @@
 \justification true
 \use_refstyle 0
 \use_minted 0
+\use_lineno false
 \index Index
 \shortcut idx
 \color #008000
@@ -99,9 +102,12 @@
 \paperpagestyle default
 \tracking_changes false
 \output_changes false
+\change_bars false
 \html_math_output 0
 \html_css_as_file 0
 \html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
 \end_header
 
 \begin_body
@@ -156,6 +162,8 @@ This paragraph is not indented.
 \begin_layout Section
 References
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -192,6 +200,7 @@ reference "lab:test"
 plural "false"
 caps "false"
 noprefix "false"
+nolink "false"
 
 \end_inset
 
@@ -219,6 +228,7 @@ reference "lab:test"
 plural "false"
 caps "false"
 noprefix "false"
+nolink "false"
 
 \end_inset
 
@@ -234,6 +244,7 @@ reference "lab:test"
 plural "false"
 caps "false"
 noprefix "false"
+nolink "false"
 
 \end_inset
 
@@ -249,6 +260,7 @@ reference "lab:test"
 plural "false"
 caps "false"
 noprefix "false"
+nolink "false"
 
 \end_inset
 
@@ -264,6 +276,7 @@ reference "lab:test"
 plural "false"
 caps "false"
 noprefix "false"
+nolink "false"
 
 \end_inset
 
@@ -279,6 +292,7 @@ reference "lab:test"
 plural "false"
 caps "false"
 noprefix "false"
+nolink "false"
 
 \end_inset
 
@@ -294,6 +308,7 @@ reference "lab:test"
 plural "false"
 caps "false"
 noprefix "false"
+nolink "false"
 
 \end_inset
 
@@ -335,6 +350,8 @@ status collapsed
 \begin_layout Section
 Cites
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -697,30 +714,10 @@ bibliography since LaTeX throws an error.
 \end_layout
 
 \begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-
-
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
 %
 \backslash
 bibliographystyle{unsrt}
 \end_layout
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-
-
-\begin_inset ERT
-status collapsed
 
 \begin_layout Plain Layout
 % 
@@ -811,6 +808,8 @@ A. 2004, ApJ, 604, 632
 \begin_layout Section
 Input files
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -828,6 +827,7 @@ We can input files too, like this
 LatexCommand input
 preview false
 filename "DummyDocument.lyx.lyx"
+literal "false"
 
 \end_inset
 
@@ -836,6 +836,7 @@ filename "DummyDocument.lyx.lyx"
 LatexCommand include
 preview false
 filename "Dummy Document.tex"
+literal "false"
 
 \end_inset
 
@@ -844,6 +845,7 @@ filename "Dummy Document.tex"
 LatexCommand include
 preview false
 filename "Dummy Document.tex"
+literal "false"
 
 \end_inset
 
@@ -852,6 +854,7 @@ filename "Dummy Document.tex"
 LatexCommand include
 preview false
 filename "Dummy~Document.lyx.lyx"
+literal "false"
 
 \end_inset
 
@@ -860,14 +863,16 @@ filename "Dummy~Document.lyx.lyx"
 LatexCommand include
 preview false
 filename "Dummy~Document.lyx.lyx"
+literal "false"
 
 \end_inset
 
- File names containg double quotes are not legal on windows, so no test file is provided. Nevertheless, they are legal on unix, so we test at least the parsing. File names containing spaces can not be handled by automake (make dist would fail), so no test file is provided as well. Since the files do not exist, the variants without extension would not work (tex2lyx can't deduce the correct extension of nonexisting files). 
+ File names containing double quotes are not legal on windows, so no test file is provided. Nevertheless, they are legal on unix, so we test at least the parsing. File names containing spaces can not be handled by automake (make dist would fail), so no test file is provided as well. Since the files do not exist, the variants without extension would not work (tex2lyx can't deduce the correct extension of nonexisting files). 
 \begin_inset CommandInset include
 LatexCommand include
 preview false
 filename "Dummy\"Document.tex"
+literal "false"
 
 \end_inset
 
@@ -882,7 +887,7 @@ We can also import chess diagrams:
 
 \begin_inset External
 	template ChessDiagram
-	filename ../../../lib/examples/iecc05.fen
+	filename ../../../lib/examples/Graphics_and_Insets/iecc05.fen
 
 \end_inset
 
@@ -897,7 +902,7 @@ Spreadsheets:
 
 \begin_inset External
 	template GnumericSpreadsheet
-	filename ../../../lib/examples/longsheet.gnumeric
+	filename ../../../lib/examples/External_Material/longsheet.gnumeric
 
 \end_inset
 
@@ -927,7 +932,7 @@ and PDF pages:
 
 \begin_inset External
 	template PDFPages
-	filename ../../../lib/examples/beamer-icsi-logo.pdf
+	filename ../../../lib/examples/Presentations/beamer-icsi-logo.pdf
 	extra LaTeX "pages=-"
 	rotateAngle 22
 	rotateOrigin baselineleft
@@ -951,6 +956,7 @@ If you prefer verbatim input, you can choose between
 LatexCommand verbatiminput
 preview false
 filename "foo"
+literal "false"
 
 \end_inset
 
@@ -964,6 +970,7 @@ filename "foo"
 LatexCommand verbatiminput*
 preview false
 filename "foo"
+literal "false"
 
 \end_inset
 
@@ -973,6 +980,8 @@ filename "foo"
 \begin_layout Section
 URLs and Hyperlinks
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -1136,6 +1145,8 @@ literal "false"
 \begin_layout Section
 Lists
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -1354,6 +1365,8 @@ begin{centering} hello
 \begin_layout Section
 Graphics
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -1376,9 +1389,9 @@ There is also some basic support for graphics, in the form
 \begin_inset Graphics 
 	filename foo.eps
 	width 1cm
-	height 1cm
 	clip
 	BoundingBox 10bp 0bp 96bp 96bp
+	special height=1cm
 
 \end_inset
 
@@ -1388,6 +1401,8 @@ There is also some basic support for graphics, in the form
 \begin_layout Section
 Tables
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -1473,7 +1488,7 @@ clearpage}
 
 \begin_inset Tabular 
 <lyxtabular version="3" rows="66" columns="2">
-<features rotate="0" islongtable="true">
+<features islongtable="true" tabularwidth="0pt">
 <column alignment="none" valignment="top" special="@{*}r">
 <column alignment="none" valignment="top" special="|p{1in}@{*}">
 <row endfirsthead="true">
@@ -3530,7 +3545,7 @@ like this.
 From bug 7412 another example with more captions (can currently not produced in LyX): 
 \begin_inset Tabular 
 <lyxtabular version="3" rows="45" columns="2">
-<features rotate="0" islongtable="true" lastFootEmpty="true">
+<features islongtable="true" lastFootEmpty="true" tabularwidth="0pt">
 <column alignment="left" valignment="top">
 <column alignment="left" valignment="top">
 <row endfirsthead="true" caption="true">
@@ -4488,7 +4503,7 @@ status collapsed
 
 \begin_inset Tabular 
 <lyxtabular version="3" rows="2" columns="2">
-<features rotate="0" tabularvalignment="bottom" tabularwidth="80col%">
+<features tabularvalignment="bottom" tabularwidth="80col%">
 <column alignment="left" valignment="top">
 <column alignment="right" valignment="top">
 <row>
@@ -4593,7 +4608,7 @@ status collapsed
 
 \begin_inset Tabular 
 <lyxtabular version="3" rows="8" columns="4">
-<features rotate="0" booktabs="true" tabularvalignment="middle" tabularwidth="0pt">
+<features booktabs="true" tabularvalignment="middle" tabularwidth="0pt">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
@@ -4643,74 +4658,10 @@ Chip
 </cell>
 </row>
 <row>
-<cell alignment="center" valignment="top" usebox="none">
+<cell alignment="center" valignment="top" topline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Standard
-
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-\backslash
-cmidrule
-\end_layout
-
-\end_inset
-
-(r)
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-{
-\end_layout
-
-\end_inset
-
-2-2
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-}
-\end_layout
-
-\end_inset
-
-
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-
-\backslash
-cmidrule
-\end_layout
-
-\end_inset
-
-(l)
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-{
-\end_layout
-
-\end_inset
-
-3-4
-\begin_inset ERT
-status collapsed
-
-\begin_layout Plain Layout
-}
-\end_layout
-
-\end_inset
-
 
 \begin_inset ERT
 status collapsed
@@ -4760,7 +4711,7 @@ Detector thickness in µm
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" usebox="none">
+<cell alignment="center" valignment="top" topline="true" toplinertrim="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Standard
@@ -4769,7 +4720,7 @@ Detector thickness in µm
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" usebox="none">
+<cell alignment="center" valignment="top" topline="true" toplineltrim="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Standard
@@ -4778,7 +4729,7 @@ Detector thickness in µm
 
 \end_inset
 </cell>
-<cell alignment="center" valignment="top" usebox="none">
+<cell alignment="center" valignment="top" topline="true" usebox="none">
 \begin_inset Text
 
 \begin_layout Standard
@@ -5080,7 +5031,7 @@ status open
 
 \begin_inset Tabular 
 <lyxtabular version="3" rows="4" columns="5">
-<features rotate="0" tabularvalignment="middle" tabularwidth="0pt">
+<features tabularvalignment="middle" tabularwidth="0pt">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
 <column alignment="none" valignment="top" special="d">
@@ -5414,7 +5365,7 @@ status open
 
 \begin_inset Tabular 
 <lyxtabular version="3" rows="4" columns="5">
-<features rotate="0" tabularvalignment="middle" tabularwidth="0pt">
+<features tabularvalignment="middle" tabularwidth="0pt">
 <column alignment="center" valignment="top">
 <column alignment="center" valignment="top">
 <column alignment="decimal" decimal_point="." valignment="top">
@@ -6183,6 +6134,8 @@ macrot{x}
 \begin_layout Section
 Special formattings
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -6880,12 +6833,58 @@ Other symbols
 \end_layout
 
 \begin_layout Standard
-All three should be converted to U+00C5: Å Å Å (not U+212B). All three should be converted to U+00E5: å å å.
+All three should be converted to U+00C5: 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+\backslash
+AA
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+{}
+\end_layout
+
+\end_inset
+
+ Å Å (not U+212B). All three should be converted to U+00E5: 
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+
+\backslash
+aa
+\end_layout
+
+\end_inset
+
+
+\begin_inset ERT
+status collapsed
+
+\begin_layout Plain Layout
+{}
+\end_layout
+
+\end_inset
+
+ å å.
 \end_layout
 
 \begin_layout Subsection
 Line breaks
 \begin_inset Index breaks
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -6974,6 +6973,8 @@ status collapsed
 \begin_layout Subsection
 Page breaks
 \begin_inset Index breaks
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -7012,6 +7013,8 @@ pagebreak[4]
 \begin_layout Section
 Special characters
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -7249,6 +7252,8 @@ latex2writer outputs quotes in braces like
 \begin_layout Section
 Mathematics
 \begin_inset Index idx
+range none
+pageformat default
 status collapsed
 
 \begin_layout Plain Layout
@@ -7438,12 +7443,12 @@ idx
 status collapsed
 
 \begin_layout Plain Layout
-"
+":
 \end_layout
 
 \end_inset
 
-:
+
 \end_layout
 
 \begin_layout Standard
@@ -7474,12 +7479,12 @@ new
 status collapsed
 
 \begin_layout Plain Layout
-"
+":
 \end_layout
 
 \end_inset
 
-:
+
 \end_layout
 
 \begin_layout Standard
@@ -7510,12 +7515,12 @@ new
 status collapsed
 
 \begin_layout Plain Layout
-"
+":
 \end_layout
 
 \end_inset
 
-:
+
 \end_layout
 
 \begin_layout Standard

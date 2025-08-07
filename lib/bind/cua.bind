@@ -26,6 +26,12 @@
 #
 # Happy tuning!
 
+# Note: modifiers on PC keyboards:
+# C - Ctrl
+# M - Alt
+# S - Shift
+#~S - Ignore shift (useful for numbers on localized keyboards)
+
 # Free bindings:
 
 #\bind "C-h"
@@ -34,10 +40,10 @@
 
 ###
 
-Format 4
+Format 5
 
 \bind "C-n"			"buffer-new"
-\bind "C-S-N"			"buffer-new-template"
+\bind "C-S-N"			"dialog-show lyxfiles templates"
 \bind "C-o"			"file-open"
 \bind "C-w"			"view-close"
 \bind "C-s"			"buffer-write"
@@ -75,13 +81,15 @@ Format 4
 \bind "C-f"			"dialog-show findreplace"
 \bind "C-S-f"			"dialog-show findreplaceadv"
 \bind "C-i"			"inset-toggle"		# 'i' for Inset
-\bind "C-M-i"		"inset-settings"
+\bind "C-M-i"			"inset-settings"
 
 \bind "C-c"			"copy"
 \bind "C-x"			"cut"
 \bind "C-v"			"paste"
 \bind "C-S-v"			"clipboard-paste"
 \bind "C-M-v"			"primary-selection-paste"
+# "join lines"
+\bind "C-S-M-v"			"clipboard-paste paragraph"
 
 \bind "C-z"			"undo"
 \bind "C-y"			"redo"
@@ -93,7 +101,8 @@ Format 4
 \bind "C-S-E"			"changes-track"  # it's what MS Word uses
 \bind "~S-M-quotedbl"		"quote-insert inner"
 \bind "~S-C-quotedbl"		"quote-insert outer auto plain"
-\bind "C-minus"			"specialchar-insert hyphenation"
+\bind "~S-C-apostrophe"		"quote-insert inner auto plain"
+\bind "M-minus"			"specialchar-insert hyphenation"
 \bind "C-S-underscore"		"math-macro-fold"
 \bind "C-M-minus"		"specialchar-insert nobreakdash"
 \bind "M-S-Right"		"depth-increment"
@@ -105,8 +114,10 @@ Format 4
 
 #bind "F1"			"help"			# Not yet implemented!
 #bind "C-F1"			"help-context"		# Not yet implemented!
-\bind "F2"			"buffer-write"
+\bind "F2"			"buffer-write force"
 \bind "F3"			"word-find"
+\bind "S-F3"			"word-find-backward"
+\bind "C-F3"			"search-string-set"
 \bind "C-F4"			"buffer-close"
 \bind "M-F4"			"lyx-quit"
 \bind "F5"			"screen-recenter"
@@ -114,6 +125,8 @@ Format 4
 \bind "C-M-Down"		"scroll line down"
 \bind "C-M-Prior"		"scroll page up"
 \bind "C-M-Next"		"scroll page down"
+\bind "F6"			"tab-group-next"
+\bind "S-F6"			"tab-group-previous"
 \bind "C-F6"			"buffer-next"
 \bind "C-S-F6"			"buffer-previous"
 \bind "F7"			"dialog-show spellchecker"
@@ -124,10 +137,10 @@ Format 4
 
 \bind "F11"			"ui-toggle fullscreen"
 
-\bind "M-0"			"buffer-zoom"
-\bind "M-equal"			"buffer-zoom-in"
-\bind "M-plus"			"buffer-zoom-in"
-\bind "M-minus"			"buffer-zoom-out"
+\bind "C-0"			"buffer-zoom"
+\bind "C-equal"			"buffer-zoom-in"
+\bind "C-plus"			"buffer-zoom-in"
+\bind "C-minus"			"buffer-zoom-out"
 
 #
 # Motion group
@@ -198,32 +211,32 @@ Format 4
 # bookmarks
 #
 
-\bind "C-~S-1"			"bookmark-goto 1"
-\bind "C-~S-2"			"bookmark-goto 2"
-\bind "C-~S-3"			"bookmark-goto 3"
-\bind "C-~S-4"			"bookmark-goto 4"
-\bind "C-~S-5"			"bookmark-goto 5"
-\bind "C-~S-6"			"bookmark-goto 6"
-\bind "C-~S-7"			"bookmark-goto 7"
-\bind "C-~S-8"			"bookmark-goto 8"
-\bind "C-~S-9"			"bookmark-goto 9"
-\bind "S-F1"			"bookmark-save 1"
-\bind "S-F2"			"bookmark-save 2"
-\bind "S-F3"			"bookmark-save 3"
-\bind "S-F4"			"bookmark-save 4"
-\bind "S-F5"			"bookmark-save 5"
-\bind "S-F6"			"bookmark-save 6"
-\bind "S-F7"			"bookmark-save 7"
-\bind "S-F8"			"bookmark-save 8"
-\bind "S-F9"			"bookmark-save 9"
+\bind "C-~S-1"		"bookmark-goto 1"
+\bind "C-~S-2"		"bookmark-goto 2"
+\bind "C-~S-3"		"bookmark-goto 3"
+\bind "C-~S-4"		"bookmark-goto 4"
+\bind "C-~S-5"		"bookmark-goto 5"
+\bind "C-~S-6"		"bookmark-goto 6"
+\bind "C-~S-7"		"bookmark-goto 7"
+\bind "C-~S-8"		"bookmark-goto 8"
+\bind "C-~S-9"		"bookmark-goto 9"
+\bind "M-~S-1"		"bookmark-save 1"
+\bind "M-~S-2"		"bookmark-save 2"
+\bind "M-~S-3"		"bookmark-save 3"
+\bind "M-~S-4"		"bookmark-save 4"
+\bind "M-~S-5"		"bookmark-save 5"
+\bind "M-~S-6"		"bookmark-save 6"
+\bind "M-~S-7"		"bookmark-save 7"
+\bind "M-~S-8"		"bookmark-save 8"
+\bind "M-~S-9"		"bookmark-save 9"
 
 
 #
 # Edit group
 #
 
-\bind "C-Delete"		"word-delete-forward"
-\bind "C-BackSpace"		"word-delete-backward"
+\bind "C-Delete"		"word-delete-forward confirm"
+\bind "C-BackSpace"		"word-delete-backward confirm"
 \bind "M-Return"		"paragraph-break inverse"
 \bind "C-Return"		"newline-insert newline"
 \bind "C-S-Return"		"newline-insert linebreak"
@@ -232,8 +245,8 @@ Format 4
 \bind "nobreakspace"		"space-insert protected"
 \bind "C-M-space"		"space-insert normal"
 \bind "S-C-space"		"space-insert thin"
-\bind "C-period"		"specialchar-insert end-of-sentence"
-\bind "M-period"		"specialchar-insert dots"
+\bind "C-~S-period"		"specialchar-insert end-of-sentence"
+\bind "M-~S-period"		"specialchar-insert dots"
 \bind "Escape"			"cancel"
 \bind "F9"			"meta-prefix"
 

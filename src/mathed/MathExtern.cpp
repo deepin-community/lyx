@@ -75,7 +75,7 @@ static char const * function_names[] = {
 	"det", "dim", "exp", "gcd", "hom", "inf", "ker",
 	"lg", "lim", "liminf", "limsup", "ln", "log",
 	"max", "min", "sec", "sin", "sinh", "sup",
-	"tan", "tanh", "Pr", 0
+	"tan", "tanh", "Pr", nullptr
 };
 
 static size_t const npos = lyx::docstring::npos;
@@ -191,7 +191,7 @@ void extractStrings(MathData & ar)
 		if (!ar[i]->asCharInset())
 			continue;
 		docstring s = charSequence(ar.begin() + i, ar.end());
-		ar[i] = MathAtom(new InsetMathString(s));
+		ar[i] = MathAtom(new InsetMathString(ar.buffer(), s));
 		ar.erase(i + 1, i + s.size());
 	}
 	//lyxerr << "\nStrings to: " << ar << endl;
@@ -292,10 +292,23 @@ bool testString(MathAtom const & at, char const * const str)
 	return testString(at, from_ascii(str));
 }
 
+
+bool testSymbol(MathAtom const & at, docstring const & name)
+{
+	return at->asSymbolInset() && at->asSymbolInset()->name() == name;
+}
+
+
+bool testSymbol(MathAtom const & at, char const * const name)
+{
+	return testSymbol(at, from_ascii(name));
+}
+
+
 // search end of nested sequence
 MathData::iterator endNestSearch(
 	MathData::iterator it,
-	MathData::iterator last,
+	const MathData::iterator& last,
 	TestItemFunc testOpen,
 	TestItemFunc testClose
 )
@@ -342,7 +355,7 @@ void replaceNested(
 
 
 //
-// split scripts into seperate super- and subscript insets. sub goes in
+// split scripts into separate super- and subscript insets. sub goes in
 // front of super...
 //
 
@@ -473,7 +486,7 @@ void extractNumbers(MathData & ar)
 
 		docstring s = digitSequence(ar.begin() + i, ar.end());
 
-		ar[i] = MathAtom(new InsetMathNumber(s));
+		ar[i] = MathAtom(new InsetMathNumber(ar.buffer(), s));
 		ar.erase(i + 1, i + s.size());
 	}
 	//lyxerr << "\nNumbers to: " << ar << endl;
@@ -500,7 +513,7 @@ bool testCloseParen(MathAtom const & at)
 MathAtom replaceParenDelims(const MathData & ar)
 {
 	return MathAtom(new InsetMathDelim(const_cast<Buffer *>(ar.buffer()),
-		from_ascii("("), from_ascii(")"), ar));
+		from_ascii("("), from_ascii(")"), ar, true));
 }
 
 
@@ -519,16 +532,56 @@ bool testCloseBracket(MathAtom const & at)
 MathAtom replaceBracketDelims(const MathData & ar)
 {
 	return MathAtom(new InsetMathDelim(const_cast<Buffer *>(ar.buffer()),
-		from_ascii("["), from_ascii("]"), ar));
+		from_ascii("["), from_ascii("]"), ar, true));
 }
 
 
-// replace '('...')' and '['...']' sequences by a real InsetMathDelim
+bool testOpenVert(MathAtom const & at)
+{
+	return testSymbol(at, "lvert");
+}
+
+
+bool testCloseVert(MathAtom const & at)
+{
+	return testSymbol(at, "rvert");
+}
+
+
+MathAtom replaceVertDelims(const MathData & ar)
+{
+	return MathAtom(new InsetMathDelim(const_cast<Buffer *>(ar.buffer()),
+		from_ascii("lvert"), from_ascii("rvert"), ar, true));
+}
+
+
+bool testOpenAngled(MathAtom const & at)
+{
+	return testSymbol(at, "langle");
+}
+
+
+bool testCloseAngled(MathAtom const & at)
+{
+	return testSymbol(at, "rangle");
+}
+
+
+MathAtom replaceAngledDelims(const MathData & ar)
+{
+	return MathAtom(new InsetMathDelim(const_cast<Buffer *>(ar.buffer()),
+		from_ascii("langle"), from_ascii("rangle"), ar, true));
+}
+
+
+// replace '('...')', '['...']', '|'...'|', and '<'...'>' sequences by a real InsetMathDelim
 void extractDelims(MathData & ar)
 {
 	//lyxerr << "\nDelims from: " << ar << endl;
 	replaceNested(ar, testOpenParen, testCloseParen, replaceParenDelims);
 	replaceNested(ar, testOpenBracket, testCloseBracket, replaceBracketDelims);
+	replaceNested(ar, testOpenVert, testCloseVert, replaceVertDelims);
+	replaceNested(ar, testOpenAngled, testCloseAngled, replaceAngledDelims);
 	//lyxerr << "\nDelims to: " << ar << endl;
 }
 
@@ -595,11 +648,11 @@ void extractFunctions(MathData & ar, ExternalMath kind)
 
 		// do we have an exponent like in
 		// 'sin' '^2' 'x' -> 'sin(x)' '^2'
-		MathData exp;
+		MathData exp(buf);
 		extractScript(exp, jt, ar.end(), true);
 
 		// create a proper inset as replacement
-		auto p = make_unique<InsetMathExFunc>(buf, name);
+		auto p = lyx::make_unique<InsetMathExFunc>(buf, name);
 
 		// jt points to the "argument". Get hold of this.
 		MathData::iterator st =
@@ -621,18 +674,6 @@ void extractFunctions(MathData & ar, ExternalMath kind)
 //
 // search integrals
 //
-
-bool testSymbol(MathAtom const & at, docstring const & name)
-{
-	return at->asSymbolInset() && at->asSymbolInset()->name() == name;
-}
-
-
-bool testSymbol(MathAtom const & at, char const * const name)
-{
-	return at->asSymbolInset() && at->asSymbolInset()->name() == from_ascii(name);
-}
-
 
 bool testIntSymbol(MathAtom const & at)
 {
@@ -683,8 +724,8 @@ void extractIntegrals(MathData & ar, ExternalMath kind)
 		if (!testIntegral(*it))
 			continue;
 
-		// core ist part from behind the scripts to the 'd'
-		auto p = make_unique<InsetMathExInt>(buf, from_ascii("int"));
+		// core is part from behind the scripts to the 'd'
+		auto p = lyx::make_unique<InsetMathExInt>(buf, from_ascii("int"));
 
 		// handle scripts if available
 		if (!testIntSymbol(*it)) {
@@ -769,23 +810,23 @@ void extractSums(MathData & ar)
 			continue;
 
 		// create a proper inset as replacement
-		auto p = make_unique<InsetMathExInt>(buf, from_ascii("sum"));
+		auto p = lyx::make_unique<InsetMathExInt>(buf, from_ascii("sum"));
 
 		// collect lower bound and summation index
 		InsetMathScript const * sub = ar[i]->asScriptInset();
 		if (sub && sub->hasDown()) {
 			// try to figure out the summation index from the subscript
-			MathData const & ar = sub->down();
+			MathData const & md = sub->down();
 			MathData::const_iterator xt =
-				find_if(ar.begin(), ar.end(), &testEqualSign);
-			if (xt != ar.end()) {
+				find_if(md.begin(), md.end(), &testEqualSign);
+			if (xt != md.end()) {
 				// we found a '=', use everything in front of that as index,
 				// and everything behind as lower index
-				p->cell(1) = MathData(buf, ar.begin(), xt);
-				p->cell(2) = MathData(buf, xt + 1, ar.end());
+				p->cell(1) = MathData(buf, md.begin(), xt);
+				p->cell(2) = MathData(buf, xt + 1, md.end());
 			} else {
 				// use everything as summation index, don't use scripts.
-				p->cell(1) = ar;
+				p->cell(1) = md;
 			}
 		}
 
@@ -857,7 +898,7 @@ void extractDiff(MathData & ar)
 		}
 
 		// create a proper diff inset
-		auto diff = make_unique<InsetMathDiff>(buf);
+		auto diff = lyx::make_unique<InsetMathDiff>(buf);
 
 		// collect function, let jt point behind last used item
 		MathData::iterator jt = it + 1;
@@ -900,7 +941,7 @@ void extractDiff(MathData & ar)
 						lyxerr << "Cannot differentiate less than 0 or more than 1000 times !" << endl;
 						continue;
 					}
-					for (int i = 0; i < mult; ++i)
+					for (int ii = 0; ii < mult; ++ii)
 						diff->addDer(MathData(buf, dt + 1, st));
 				}
 			} else {
@@ -959,7 +1000,7 @@ void extractLims(MathData & ar)
 		MathData x0 = MathData(buf, st + 1, s.end());
 
 		// use something behind the script as core
-		MathData f;
+		MathData f(buf);
 		MathData::iterator tt = extractTerm(f, it + 1, ar.end());
 
 		// cleanup
@@ -1026,7 +1067,7 @@ namespace {
 		       << "\ninput: '" << data << "'" << endl;
 		cmd_ret const ret = runCommand(command);
 		cas_tmpfile.removeFile();
-		return ret.second;
+		return ret.result;
 	}
 
 	size_t get_matching_brace(string const & str, size_t i)
@@ -1114,7 +1155,7 @@ namespace {
 
 		vector<string> tmp = getVectorFromString(out, "$$");
 		if (tmp.size() < 2)
-			return MathData();
+			return MathData(nullptr);
 
 		out = subst(subst(tmp[1], "\\>", string()), "{\\it ", "\\mathit{");
 		lyxerr << "output: '" << out << "'" << endl;
@@ -1152,7 +1193,7 @@ namespace {
 			//lyxerr << "output: " << out << endl;
 			i = out.find("\\over", i + 4);
 		}
-		MathData res;
+		MathData res(nullptr);
 		mathed_parse_cell(res, from_utf8(out));
 		return res;
 	}
@@ -1230,7 +1271,7 @@ namespace {
 		// change \_ into _
 
 		//
-		MathData res;
+		MathData res(nullptr);
 		mathed_parse_cell(res, from_utf8(out));
 		return res;
 	}
@@ -1290,7 +1331,7 @@ namespace {
 		// ansi control sequence before, such as '\033[?1034hans = '
 		size_t i = out.find("ans = ");
 		if (i == string::npos)
-			return MathData();
+			return MathData(nullptr);
 		out = out.substr(i + 6);
 
 		// parse output as matrix or single number
@@ -1375,7 +1416,7 @@ namespace {
 		size_t pos2 = out.find("In[2]:=");
 
 		if (pos1 == string::npos || pos2 == string::npos)
-			return MathData();
+			return MathData(nullptr);
 
 		// get everything from pos1+17 to pos2
 		out = out.substr(pos1 + 17, pos2 - pos1 - 17);
@@ -1386,7 +1427,7 @@ namespace {
 		prettifyMathematicaOutput(out, "Muserfunction", true, false);
 		prettifyMathematicaOutput(out, "Mvariable", false, false);
 
-		MathData res;
+		MathData res(nullptr);
 		mathed_parse_cell(res, from_utf8(out));
 		return res;
 	}
@@ -1395,7 +1436,7 @@ namespace {
 
 } // namespace
 
-void write(MathData const & dat, WriteStream & wi)
+void write(MathData const & dat, TeXMathStream & wi)
 {
 	wi.firstitem() = true;
 	docstring s;
@@ -1419,31 +1460,40 @@ void write(MathData const & dat, WriteStream & wi)
 }
 
 
-void writeString(docstring const & s, WriteStream & os)
+void writeString(docstring const & s, TeXMathStream & os)
 {
 	if (!os.latex()) {
-		os << (os.asciiOnly() ? escape(s) : s);
+		os << s;
+		return;
+	}
+
+	docstring str = s;
+	if (os.asciiOnly())
+		str = escape(s);
+
+	if (os.output() == TeXMathStream::wsSearchAdv) {
+		os << str;
 		return;
 	}
 
 	if (os.lockedMode()) {
 		bool space;
 		docstring cmd;
-		for (char_type c : s) {
+		for (char_type c : str) {
 			try {
 				Encodings::latexMathChar(c, true, os.encoding(), cmd, space);
 				os << cmd;
 				os.pendingSpace(space);
 			} catch (EncodingException const & e) {
 				switch (os.output()) {
-				case WriteStream::wsDryrun: {
+				case TeXMathStream::wsDryrun: {
 					os << "<" << _("LyX Warning: ")
 					   << _("uncodable character") << " '";
 					os << docstring(1, e.failed_char);
 					os << "'>";
 					break;
 				}
-				case WriteStream::wsPreview: {
+				case TeXMathStream::wsPreview: {
 					// indicate the encoding error by a boxed '?'
 					os << "{\\fboxsep=1pt\\fbox{?}}";
 					LYXERR0("Uncodable character" << " '"
@@ -1451,18 +1501,15 @@ void writeString(docstring const & s, WriteStream & os)
 						<< "'");
 					break;
 				}
-				case WriteStream::wsDefault:
+				case TeXMathStream::wsDefault:
 				default:
 					// throw again
-					throw(e);
+					throw;
 				}
 			}
 		}
 		return;
 	}
-
-	docstring::const_iterator cit = s.begin();
-	docstring::const_iterator end = s.end();
 
 	// We may already be inside an \ensuremath command.
 	bool in_forced_mode = os.pendingBrace();
@@ -1470,9 +1517,8 @@ void writeString(docstring const & s, WriteStream & os)
 	// We will take care of matching braces.
 	os.pendingBrace(false);
 
-	while (cit != end) {
+	for (char_type const c : str) {
 		bool mathmode = in_forced_mode ? os.textMode() : !os.textMode();
-		char_type const c = *cit;
 		docstring command(1, c);
 		try {
 			bool termination = false;
@@ -1514,14 +1560,14 @@ void writeString(docstring const & s, WriteStream & os)
 				os.pendingSpace(true);
 		} catch (EncodingException const & e) {
 			switch (os.output()) {
-			case WriteStream::wsDryrun: {
+			case TeXMathStream::wsDryrun: {
 				os << "<" << _("LyX Warning: ")
 				   << _("uncodable character") << " '";
 				os << docstring(1, e.failed_char);
 				os << "'>";
 				break;
 			}
-			case WriteStream::wsPreview: {
+			case TeXMathStream::wsPreview: {
 				// indicate the encoding error by a boxed '?'
 				os << "{\\fboxsep=1pt\\fbox{?}}";
 				LYXERR0("Uncodable character" << " '"
@@ -1529,13 +1575,12 @@ void writeString(docstring const & s, WriteStream & os)
 					<< "'");
 				break;
 			}
-			case WriteStream::wsDefault:
+			case TeXMathStream::wsDefault:
 			default:
 				// throw again
-				throw(e);
+				throw;
 			}
 		}
-		++cit;
 	}
 
 	if (in_forced_mode && os.textMode()) {
@@ -1591,19 +1636,24 @@ void mathematica(MathData const & dat, MathematicaStream & os)
 }
 
 
-void mathmlize(MathData const & dat, MathStream & os)
+void mathmlize(MathData const & dat, MathMLStream & ms)
 {
 	MathData ar = dat;
 	extractStructure(ar, MATHML);
-	if (ar.empty())
-		os << "<mrow/>";
-	else if (ar.size() == 1)
-		os << ar.front();
-	else {
-		os << MTag("mrow");
+	if (ar.empty()) {
+		if (!ms.inText())
+			ms << CTag("mrow");
+	} else if (ar.size() == 1) {
+		ms << ar.front();
+	} else {
+		// protect against the value changing in the second test.
+		bool const intext = ms.inText();
+		if (!intext)
+			ms << MTag("mrow");
 		for (MathData::const_iterator it = ar.begin(); it != ar.end(); ++it)
-			(*it)->mathmlize(os);
-		os << ETag("mrow");
+			(*it)->mathmlize(ms);
+		if (!intext)
+			ms << ETag("mrow");
 	}
 }
 
@@ -1670,12 +1720,12 @@ MathData pipeThroughExtern(string const & lang, docstring const & extra,
 	FileName const file = libFileSearch("mathed", "extern_" + lang);
 	if (file.empty()) {
 		lyxerr << "converter to '" << lang << "' not found" << endl;
-		return MathData();
+		return MathData(nullptr);
 	}
 
 	// run external sript
 	string out = captureOutput(file.absFileName(), data);
-	MathData res;
+	MathData res(nullptr);
 	mathed_parse_cell(res, from_utf8(out));
 	return res;
 }

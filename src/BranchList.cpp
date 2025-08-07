@@ -13,9 +13,11 @@
 
 #include "BranchList.h"
 #include "Color.h"
+#include "ColorSet.h"
 
 #include "frontends/Application.h"
 
+#include "support/convert.h"
 #include "support/lstrings.h"
 
 #include <algorithm>
@@ -24,37 +26,6 @@ using namespace std;
 
 
 namespace lyx {
-
-namespace {
-
-class BranchNamesEqual : public std::unary_function<Branch, bool>
-{
-public:
-	BranchNamesEqual(docstring const & name)
-		: name_(name)
-	{}
-
-	bool operator()(Branch const & branch) const
-	{
-		return branch.branch() == name_;
-	}
-private:
-	docstring name_;
-};
-
-} // namespace
-
-
-Branch::Branch()
-	: selected_(false), filenameSuffix_(false)
-{
-	// no theApp() with command line export
-	if (theApp())
-		theApp()->getRgbColor(Color_background, color_);
-	else
-		frontend::Application::getRgbColorUncached(Color_background, color_);
-}
-
 
 docstring const & Branch::branch() const
 {
@@ -95,46 +66,88 @@ void Branch::setFileNameSuffix(bool b)
 }
 
 
-RGBColor const & Branch::color() const
+string const & Branch::color() const
 {
-	return color_;
+	return (theApp() && theApp()->isInDarkMode())
+			? dmcolor_ : lmcolor_;
 }
 
 
-void Branch::setColor(RGBColor const & c)
+string const & Branch::lightModeColor() const
 {
-	color_ = c;
+	return lmcolor_;
 }
 
 
-void Branch::setColor(string const & str)
+string const & Branch::darkModeColor() const
 {
-	if (str.size() == 7 && str[0] == '#')
-		color_ = rgbFromHexName(str);
-	else {
-		// no color set or invalid color - use normal background
-		// no theApp() with command line export
-		if (theApp())
-			theApp()->getRgbColor(Color_background, color_);
-		else
-			frontend::Application::getRgbColorUncached(Color_background, color_);
-	}
+	return dmcolor_;
 }
+
+
+void Branch::setColor(string const & col)
+{
+	if (theApp() && theApp()->isInDarkMode())
+		setColors(string(), col);
+	else
+		setColors(col);
+}
+
+
+void Branch::setColors(string const & lmcol, string const & dmcol)
+{
+	if (lmcol.empty() && lmcolor_ == "background" && support::prefixIs(dmcol, "#"))
+		lmcolor_ = X11hexname(inverseRGBColor(rgbFromHexName(dmcol)));
+	else if (!lmcol.empty())
+		lmcolor_ = lmcol;
+	if (dmcol.empty() && dmcolor_ == "background" && support::prefixIs(lmcol, "#"))
+		dmcolor_ = X11hexname(inverseRGBColor(rgbFromHexName(lmcol)));
+	else if (!dmcol.empty())
+		dmcolor_ = dmcol;
+
+	// Update the Color table
+	string lmcolor = lmcolor_;
+	string dmcolor = dmcolor_;
+	if (lmcolor == "none")
+		lmcolor = "background";
+	// if we have background color, keep semantic value, as system colors might vary
+	else if (lmcolor != "background" && (lmcolor.size() != 7 || lmcolor[0] != '#'))
+		lmcolor = lcolor.getX11HexName(lcolor.getFromLyXName(lmcolor));
+	if (dmcolor == "none")
+		dmcolor = "background";
+	// if we have background color, keep semantic value, as system colors might vary
+	else if (dmcolor != "background" && (dmcolor.size() != 7 || dmcolor[0] != '#'))
+		dmcolor = lcolor.getX11HexName(lcolor.getFromLyXName(dmcolor), true);
+
+	// FIXME UNICODE
+	lcolor.setColor("branch" + convert<string>(branch_list_id_)
+			+ to_utf8(branch_), lmcolor, dmcolor);
+}
+
+
+namespace {
+
+std::function<bool (Branch const &)> BranchNameIs(docstring const & d)
+{
+	return [d](Branch const & b){ return b.branch() == d; };
+}
+
+} // namespace
 
 
 Branch * BranchList::find(docstring const & name)
 {
 	List::iterator it =
-		find_if(list.begin(), list.end(), BranchNamesEqual(name));
-	return it == list.end() ? 0 : &*it;
+		find_if(list_.begin(), list_.end(), BranchNameIs(name));
+	return it == list_.end() ? nullptr : &*it;
 }
 
 
 Branch const * BranchList::find(docstring const & name) const
 {
 	List::const_iterator it =
-		find_if(list.begin(), list.end(), BranchNamesEqual(name));
-	return it == list.end() ? 0 : &*it;
+		find_if(list_.begin(), list_.end(), BranchNameIs(name));
+	return it == list_.end() ? nullptr : &*it;
 }
 
 
@@ -150,16 +163,15 @@ bool BranchList::add(docstring const & s)
 		else
 			name = s.substr(i, j - i);
 		// Is this name already in the list?
-		bool const already =
-			find_if(list.begin(), list.end(),
-				     BranchNamesEqual(name)) != list.end();
+		bool const already = find(name);
 		if (!already) {
 			added = true;
 			Branch br;
 			br.setBranch(name);
 			br.setSelected(false);
 			br.setFileNameSuffix(false);
-			list.push_back(br);
+			br.setListID(id_);
+			list_.push_back(br);
 		}
 		if (j == docstring::npos)
 			break;
@@ -171,9 +183,9 @@ bool BranchList::add(docstring const & s)
 
 bool BranchList::remove(docstring const & s)
 {
-	size_t const size = list.size();
-	list.remove_if(BranchNamesEqual(s));
-	return size != list.size();
+	size_t const size = list_.size();
+	list_.remove_if(BranchNameIs(s));
+	return size != list_.size();
 }
 
 
@@ -182,11 +194,10 @@ bool BranchList::rename(docstring const & oldname,
 {
 	if (newname.empty())
 		return false;
-	if (find_if(list.begin(), list.end(),
-		    BranchNamesEqual(newname)) != list.end()) {
+	if (find(newname)) {
 		// new name already taken
 		if (merge)
-		      return remove(oldname);
+			return remove(oldname);
 		return false;
 	}
 
@@ -201,10 +212,9 @@ bool BranchList::rename(docstring const & oldname,
 docstring BranchList::getFileNameSuffix() const
 {
 	docstring result;
-	List::const_iterator it = list.begin();
-	for (; it != list.end(); ++it) {
-		if (it->isSelected() && it->hasFileNameSuffix())
-			result += "-" + it->branch();
+	for (auto const & br : list_) {
+		if (br.isSelected() && br.hasFileNameSuffix())
+			result += "-" + br.branch();
 	}
 	return support::subst(result, from_ascii("/"), from_ascii("_"));
 }

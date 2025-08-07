@@ -177,6 +177,9 @@ public:
 	*/
 	void changeExtension(std::string const & extension);
 
+	/// Add extension to the file name if it is not already there
+	void ensureExtension(std::string const & extension);
+
 	static FileName fromFilesystemEncoding(std::string const & name);
 
 	/// get the current working directory
@@ -213,7 +216,7 @@ private:
 	friend bool equivalent(FileName const &, FileName const &);
 	/// Set for tracking of already visited file names.
 	/// Uses operator==() (which may be case insensitive), and not
-	/// equvalent(), so that symlinks are not resolved.
+	/// equivalent(), so that symlinks are not resolved.
 	typedef std::set<FileName> FileNameSet;
 	/// Helper for public copyTo() to find circular symlink chains
 	bool copyTo(FileName const &, bool, FileNameSet &) const;
@@ -260,7 +263,7 @@ public:
 	 */
 	void set(std::string const & filename, std::string const & buffer_path);
 	///
-	void erase();
+	void erase() override;
 	///
 	bool saveAbsPath() const { return save_abs_path_; }
 	/// \param buffer_path if empty, uses `pwd`
@@ -285,11 +288,30 @@ public:
 	 *  - two FileName instances with the same filename have identical
 	 *    mangled names.
 	 *
+	 *  @param encrypt_path will use short hash instead of path
+	 *  in the mangled name if set to true. Useful for xHTML export
+	 *  so we do not leak e.g. user names contained in the paths.
+	 *  Filename itself is stripped if the resulting filename would
+	 *  become too long (~250 chars).
+	 *  Prefix counter is not used because
+	 *  1) it's hack useful for MikTeX/YAP only
+	 *  2) causes many duplicates within the export directory across different
+	 *     LyX sessions as (unlike in LaTeX export) we use mangled names in
+	 *     final xHTML export directory.
+	 *  An example of hashed mangled case:
+	 *  C:/foo bar/baz.png - > e_95a42ec852ea_baz.png
+	 *
+	 *  It is guaranteed that
+	 *  - two different filenames have different mangled names (modulo hash collision)
+	 *  - two FileName instances with the same filename have identical hashed
+	 *    mangled names.
+	 *
+	 *
 	 *  Only the mangled file name is returned. It is not prepended
 	 *  with @c dir.
 	 */
 	std::string
-	mangledFileName(std::string const & dir = empty_string()) const;
+	mangledFileName(std::string const & dir = empty_string(), bool encrypt_path=false) const;
 
 	/// \return the absolute file name without its .gz, .z, .Z extension
 	std::string unzippedFileName() const;

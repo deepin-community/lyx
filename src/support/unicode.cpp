@@ -19,9 +19,8 @@
 
 #include <iconv.h>
 
-#include <boost/cstdint.hpp>
-
 #include <cerrno>
+#include <cstdint>
 #include <map>
 #include <ostream>
 //Needed in MSVC
@@ -52,7 +51,7 @@ namespace lyx {
 
 struct IconvProcessor::Handler {
 	// assumes cd is valid
-	Handler(iconv_t const cd) : cd(cd) {}
+	explicit Handler(iconv_t const cd) : cd(cd) {}
 	~Handler() {
 		if (iconv_close(cd) == -1)
 			LYXERR0("Error returned from iconv_close(" << errno << ')');
@@ -62,14 +61,7 @@ struct IconvProcessor::Handler {
 
 
 IconvProcessor::IconvProcessor(string tocode, string fromcode)
-	: tocode_(move(tocode)), fromcode_(move(fromcode))
-{}
-
-
-// for gcc 4.6
-IconvProcessor::IconvProcessor(IconvProcessor && other)
-	: tocode_(move(other.tocode_)), fromcode_(move(other.fromcode_)),
-	  h_(move(other.h_))
+	: tocode_(std::move(tocode)), fromcode_(std::move(fromcode))
 {}
 
 
@@ -115,7 +107,7 @@ int IconvProcessor::convert(char const * buf, size_t buflen,
 	// flush out remaining data. This is needed because iconv sometimes
 	// holds back chars in the stream, waiting for a combination character
 	// (see e.g. http://sources.redhat.com/bugzilla/show_bug.cgi?id=1124)
-	iconv(h_->cd, NULL, NULL, &outbuf, &outbytesleft);
+	iconv(h_->cd, nullptr, nullptr, &outbuf, &outbytesleft);
 
 	//lyxerr << dec;
 	//lyxerr << "Inbytesleft: " << inbytesleft << endl;
@@ -143,7 +135,7 @@ int IconvProcessor::convert(char const * buf, size_t buflen,
 			for (size_t i = 0; i < buflen; ++i) {
 				// char may be signed, avoid output of
 				// something like 0xffffffc2
-				boost::uint32_t const b =
+				uint32_t const b =
 					*reinterpret_cast<unsigned char const *>(buf + i);
 				lyxerr << " 0x" << (unsigned int)b;
 			}
@@ -259,9 +251,9 @@ IconvProcessor & getProc(map<string, IconvProcessor> & processors,
 	map<string, IconvProcessor>::iterator const it = processors.find(encoding);
 	if (it == processors.end()) {
 		IconvProcessor p(fromcode, tocode);
-		return processors.insert(make_pair(encoding, move(p))).first->second;
-	} else
-		return it->second;
+		return processors.insert(make_pair(encoding, std::move(p))).first->second;
+	}
+	return it->second;
 }
 
 } // namespace

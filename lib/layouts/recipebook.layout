@@ -27,7 +27,7 @@
 # Another command, \ingred{...}, is defined to typeset a
 # list of ingredients.
 
-Format 66
+Format 104
 Input scrclass.inc
 Input numreport.inc
 
@@ -35,6 +35,7 @@ Input numreport.inc
 SecNumDepth		2
 TocDepth		3
 PageStyle		Headings
+DocBookRoot		book
 
 # There is no abstract environment in scrbook.cls
 NoStyle Abstract
@@ -91,8 +92,11 @@ Style Recipe
     Size		Large
     Series		Bold
     Shape		Italic
-    Color		red
+    Color		textlabel3
   EndFont
+  DocBookTag    bridgehead
+  DocBookAttr   renderas='sect2'
+  DocBookTagType paragraph
 End
 
 # Subsubsection style definition
@@ -129,11 +133,13 @@ Style Ingredients
   LabelFont
     Series		Bold
     Shape		Italic
-    Color		red
+    Color		textlabel3
   EndFont
   Preamble
    \renewcommand*\l@subsubsection{\@dottedtocline{3}{3em}{0em}}
    \setlength\parindent{0pt}
    \setlength\parskip{2ex plus 0.5ex}
   EndPreamble
+  DocBookTag    para
+  DocBookAttr   role='ingredients'
 End

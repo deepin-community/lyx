@@ -88,7 +88,7 @@ void InsetMathCancelto::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-void InsetMathCancelto::write(WriteStream & os) const
+void InsetMathCancelto::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	os << "\\cancelto{" << cell(1) << "}{" << cell(0) << '}';
@@ -102,7 +102,7 @@ void InsetMathCancelto::normalize(NormalStream & os) const
 
 bool InsetMathCancelto::idxUpDown(Cursor & cur, bool up) const
 {
-	Cursor::idx_type const target = up ? 1 : 0;
+	idx_type const target = up ? 1 : 0;
 	if (cur.idx() == target)
 		return false;
 	cur.idx() = target;

@@ -15,38 +15,34 @@
 #include "CursorSlice.h"
 
 #include <vector>
-#include <algorithm>
+#include <algorithm> // std::min in MSVC 2017
 
 namespace lyx {
 
 class DocIterator;
 class Encoding;
+class FontSpan;
+class InsetIterator;
 class LyXErr;
 class MathAtom;
 class Paragraph;
 class Text;
-class InsetIterator;
-class FontSpan;
 
-DocIterator doc_iterator_begin(Buffer const * buf, Inset const * inset = 0);
-DocIterator doc_iterator_end(Buffer const * buf, Inset const * inset = 0);
+DocIterator doc_iterator_begin(Buffer const * buf, Inset const * inset = nullptr);
+DocIterator doc_iterator_end(Buffer const * buf, Inset const * inset = nullptr);
 
 
 class DocIterator
 {
 public:
-	/// type for cell number in inset
-	typedef CursorSlice::idx_type idx_type;
-	/// type for row indices
-	typedef CursorSlice::row_type row_type;
-	/// type for col indices
-	typedef CursorSlice::col_type col_type;
+	///
+	DocIterator() = default;
 
-public:
-	///
-	DocIterator();
-	///
-	explicit DocIterator(Buffer *buf);
+	// We could be able to get rid of this if only every BufferView were
+	// associated to a buffer on construction.
+	explicit DocIterator(Buffer *buf)
+		: buffer_(buf)
+	{}
 
 	/// access to owning buffer
 	Buffer * buffer() const { return buffer_; }
@@ -69,10 +65,10 @@ public:
 
 	/// does this iterator have any content?
 	bool empty() const { return slices_.empty(); }
+	/// is this the begin position?
+	bool atBegin() const { return depth() == 1 && pit() == 0 && pos() == 0; }
 	/// is this the end position?
 	bool atEnd() const { return slices_.empty(); }
-	/// is this the last possible position?
-	bool atLastPos() const { return pit() == lastpit() && pos() == lastpos(); }
 
 	/// checks the cursor slices for disabled spell checker insets
 	bool allowSpellCheck() const;
@@ -126,6 +122,7 @@ public:
 	/// return the last column of the top grid
 	col_type lastcol() const { return ncols() - 1; }
 	/// the inset just behind the cursor
+	/// returns 0 if there is no inset (e.g. normal text)
 	Inset * nextInset() const;
 	/// the inset just in front of the cursor
 	Inset * prevInset() const;
@@ -150,6 +147,10 @@ public:
 	//
 	/// return the mathed cell this cursor is in
 	MathData & cell() const;
+	///
+	InsetMath & nextMath();
+	///
+	InsetMath & prevMath();
 	/// the mathatom left of the cursor
 	MathAtom & prevAtom() const;
 	/// the mathatom right of the cursor
@@ -166,8 +167,9 @@ public:
 	Paragraph & innerParagraph() const;
 	/// return the inner text slice.
 	CursorSlice const & innerTextSlice() const;
-	// convert a DocIterator into an argument to LFUN_PARAGRAPH_GOTO
-	docstring paragraphGotoArgument() const;
+	/// convert a DocIterator into an argument to LFUN_PARAGRAPH_GOTO
+	/// \p nopos determines whether the cursor position is returned
+	docstring paragraphGotoArgument(bool const nopos = false) const;
 	/// returns a DocIterator for the containing text inset
 	DocIterator getInnerText() const;
 	/// the first and last positions of a word at top cursor slice
@@ -203,17 +205,18 @@ public:
 	void forwardChar();
 	/// move on one paragraph
 	void forwardPar();
-	/// move on one inset
+	/// move on to the next closest inset
 	void forwardInset();
 	/// move backward one logical position
 	void backwardPos();
+	/// move backward one logical position, skip collapsed insets
+	void backwardPosIgnoreCollapsed();
 	/// move backward one physical character or inset
 	void backwardChar();
 	/// move backward one paragraph
 	void backwardPar();
 	/// move backward one inset
-	/// not used currently, uncomment if you need it
-	//void backwardInset();
+	void backwardInset();
 
 	/// are we some 'extension' (i.e. deeper nested) of the given iterator
 	bool hasPart(DocIterator const & it) const;
@@ -244,6 +247,10 @@ public:
 	/// Repopulate the slices insets from bottom to top. Useful
 	/// for stable iterators or Undo data.
 	void sanitize();
+	///
+	bool isInside(Inset const *) const;
+	/// make sure we are outside of given inset
+	void leaveInset(Inset const & inset);
 
 	/// find index of CursorSlice with &cell() == &cell (or -1 if not found)
 	int find(MathData const & cell) const;
@@ -259,14 +266,19 @@ public:
 	void append(idx_type idx, pos_type pos);
 
 	///
-	Encoding const * getEncoding() const;
+	docstring getPossibleLabel() const;
 
+	///
+	Encoding const * getEncoding() const;
 private:
 	friend class InsetIterator;
 	friend DocIterator doc_iterator_begin(Buffer const * buf, Inset const * inset);
 	friend DocIterator doc_iterator_end(Buffer const * buf, Inset const * inset);
 	///
-	explicit DocIterator(Buffer * buf, Inset * inset);
+	explicit DocIterator(Buffer * buf, Inset * inset)
+		: inset_(inset), buffer_(buf)
+	{}
+	
 	/**
 	 * Normally, when the cursor is at position i, it is painted *before*
 	 * the character at position i. However, what if we want the cursor
@@ -292,15 +304,15 @@ private:
 	 * happen *before* i. If the cursor, however, were painted *after* i, that
 	 * would be very unnatural...
 	 */
-	bool boundary_;
+	bool boundary_ = false;
 	///
 	std::vector<CursorSlice> const & internalData() const { return slices_; }
 	///
 	std::vector<CursorSlice> slices_;
 	///
-	Inset * inset_;
+	Inset * inset_ = nullptr;
 	///
-	Buffer * buffer_;
+	Buffer * buffer_ = nullptr;
 };
 
 

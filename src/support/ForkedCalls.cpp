@@ -24,6 +24,8 @@
 #include "support/bind.h"
 
 #include <cerrno>
+#include <cstring>
+#include <list>
 #include <queue>
 #include <sstream>
 #include <utility>
@@ -303,10 +305,7 @@ int ForkedCall::generateChild()
 	if (command_.empty())
 		return 1;
 
-	// Make sure that a V2 python is run, if available.
-	string const line = cmd_prefix_ +
-		(prefixIs(command_, "python -tt")
-		 ? os::python() + command_.substr(10) : command_);
+	string const prefixed_command = cmd_prefix_ + command_;
 
 #if !defined (_WIN32)
 	// POSIX
@@ -315,8 +314,8 @@ int ForkedCall::generateChild()
 	// in a contiguous block of memory. The array contains pointers
 	// to each word.
 	// Don't forget the terminating `\0' character.
-	char const * const c_str = line.c_str();
-	vector<char> vec(c_str, c_str + line.size() + 1);
+	char const * const c_str = prefixed_command.c_str();
+	vector<char> vec(c_str, c_str + prefixed_command.size() + 1);
 
 	// Splitting the command up into an array of words means replacing
 	// the whitespace between words with '\0'. Life is complicated
@@ -374,13 +373,13 @@ int ForkedCall::generateChild()
 			argv.push_back(&*it);
 		prev = *it;
 	}
-	argv.push_back(0);
+	argv.push_back(nullptr);
 
 	// Debug output.
 	if (lyxerr.debugging(Debug::FILES)) {
 		vector<char *>::iterator ait = argv.begin();
 		vector<char *>::iterator const aend = argv.end();
-		lyxerr << "<command>\n\t" << line
+		lyxerr << "<command>\n\t" << prefixed_command
 		       << "\n\tInterpreted as:\n\n";
 		for (; ait != aend; ++ait)
 			if (*ait)
@@ -411,7 +410,7 @@ int ForkedCall::generateChild()
 
 	startup.cb = sizeof(STARTUPINFO);
 
-	if (CreateProcess(0, (LPSTR)line.c_str(), 0, 0, FALSE,
+	if (CreateProcess(0, (LPSTR)command_.c_str(), 0, 0, FALSE,
 		CREATE_NO_WINDOW, 0, 0, &startup, &process)) {
 		CloseHandle(process.hThread);
 		cpid = (pid_t)process.hProcess;
@@ -437,18 +436,12 @@ namespace ForkedCallQueue {
 
 /// A process in the queue
 typedef pair<string, ForkedCall::sigPtr> Process;
-/** Add a process to the queue. Processes are forked sequentially
- *  only one is running at a time.
- *  Connect to the returned signal and you'll be informed when
- *  the process has ended.
- */
-ForkedCall::sigPtr add(string const & process);
 
 /// in-progress queue
 static queue<Process> callQueue_;
 
 /// flag whether queue is running
-static bool running_ = 0;
+static bool running_ = false;
 
 ///
 void startCaller();
@@ -457,6 +450,11 @@ void stopCaller();
 ///
 void callback(pid_t, int);
 
+/** Add a process to the queue. Processes are forked sequentially
+ *  only one is running at a time.
+ *  Connect to the returned signal and you'll be informed when
+ *  the process has ended.
+ */
 ForkedCall::sigPtr add(string const & process)
 {
 	ForkedCall::sigPtr ptr;
@@ -661,7 +659,7 @@ void handleCompletedProcesses()
 			forkedCalls.erase(it);
 			actCall->emitSignal();
 
-			/* start all over: emiting the signal can result
+			/* start all over: emitting the signal can result
 			 * in changing the list (Ab)
 			 */
 			it = forkedCalls.begin();

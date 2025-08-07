@@ -4,15 +4,23 @@
 # Update for Koma Script Release >=2.8q
 # Juergen Spitzmueller <spitz@lyx.org>, 2003/2/08.
 # Mapped List to Labeling
-# Guenter Milde <milde users.berlios.de>, 2009-02-02
+# Guenter Milde <milde@lyx.org>, 2009-02-02
 # Labeling is now used also in non-KOMA classes
 
 
-Format 66
+Format 104
 SecNumDepth             2
 TocDepth                2
 DefaultStyle            Standard
+PageSize                a4
 Provides                subscript 1
+
+ClassOptions
+	FontSize             9|10|11|12|13|14|15|16|17|18|19|20
+	FontSizeFormat       fontsize=$$s
+	PageSize             a0|a1|a2|a3|a4|a5|a6|b0|b1|b2|b3|b4|b5|b6|c0|c1|c2|c3|c4|c5|c6|executive|legal|letter
+	PageSizeFormat       paper=$$s
+End
 
 Style Standard
 	Category              MainText
@@ -27,6 +35,7 @@ Style Standard
 			margin-bottom: 2ex;
 		}
 	EndHTMLStyle
+	DocBookTag            para
 End
 
 Input stdinsets.inc
@@ -37,7 +46,6 @@ Input stdfloats.inc
 
 # Adapt enumii counter display to KOMA default
 Counter enumii
-	Within               enumi
 	LabelString          "\alph{enumii})"
 End
 
@@ -53,7 +61,13 @@ Style Labeling
 	LatexName             labeling
 	# overwrite the preamble code definition
 	Preamble
-	EndPreamble
+	EndPreamble	
+	DocBookTag            variablelist
+	DocBookItemWrapperTag varlistentry
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
+	DocBookItemLabelTag   term
+	DocBookItemLabelTagType   paragraph
 End
 
 Input stdsections.inc
@@ -74,6 +88,7 @@ Style Chapter
 	  Family              Sans
 	  Size                Largest
 	EndFont
+		TocLevel 0
 End
 
 
@@ -82,6 +97,7 @@ Style Section
 	Font
 	  Family              Sans
 	EndFont
+	TocLevel 1
 End
 
 
@@ -90,6 +106,7 @@ Style Subsection
 	Font
 	  Family              Sans
 	EndFont
+	TocLevel 2
 End
 
 
@@ -98,6 +115,7 @@ Style Subsubsection
 	Font
 	  Family              Sans
 	EndFont
+	TocLevel 3
 End
 
 
@@ -106,6 +124,7 @@ Style Paragraph
 	Font
 	  Family              Sans
 	EndFont
+	TocLevel 4
 End
 
 
@@ -115,6 +134,7 @@ Style Subparagraph
 	Font
 	  Family              Sans
 	EndFont
+	TocLevel 5
 End
 
 Input stdstarsections.inc
@@ -126,6 +146,8 @@ Style Addpart
 		LabelString   "Short Title|S"
 		Tooltip       "The part as it appears in the table of contents/running headers"
 		InsertCotext  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 End
 
@@ -137,6 +159,8 @@ Style Addchap
 		LabelString   "Short Title|S"
 		Tooltip       "The chapter as it appears in the table of contents/running headers"
 		InsertCotext  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 End
 
@@ -148,6 +172,8 @@ Style Addsec
 		LabelString   "Short Title|S"
 		Tooltip       "The section as it appears in the table of contents/running headers"
 		InsertCotext  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 End
 
@@ -188,6 +214,8 @@ Style Title
 	  Family              Sans
 	  Series              Bold
 	EndFont
+	DocBookTag            title
+	DocBookInInfo         maybe
 End
 
 Style Subtitle
@@ -196,6 +224,8 @@ Style Subtitle
 	Font
 	  Size                Large
 	EndFont
+	DocBookTag            subtitle
+	DocBookInInfo         maybe
 End
 
 
@@ -203,6 +233,11 @@ Style Author
 	Font
 	  Size                Larger
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -210,6 +245,10 @@ Style Date
 	Font
 	  Size                Larger
 	EndFont
+	DocBookTag            date
+	DocBookTagType        paragraph
+	DocBookInInfo         always
+    DocBookNoFontInside   true
 End
 
 
@@ -258,6 +297,11 @@ Style Extratitle
 	LatexName             extratitle
 End
 
+Style Frontispiece
+	CopyStyle             Titlehead
+	LatexName             frontispiece
+End
+
 Input stdstruct.inc
 
 Style Abstract
@@ -284,6 +328,8 @@ InsetLayout Caption:Above
 		LabelString   "Short Title|S"
 		Tooltip       "The caption as it appears in the list of figures/tables"
 		InsertCotext  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 	HTMLStyle
 		div.float-caption {
@@ -293,7 +339,7 @@ InsetLayout Caption:Above
 			margin: 1ex;
 		}
 	EndHTMLStyle
-	HTMLAttr "class='float-caption float-caption-above'"
+	HTMLClass   "float-caption float-caption-above"
 End
 
 
@@ -307,6 +353,8 @@ InsetLayout Caption:Below
 		LabelString   "Short Title|S"
 		Tooltip       "The caption as it appears in the list of figures/tables"
 		InsertCotext  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 	HTMLStyle
 		div.float-caption {
@@ -316,7 +364,7 @@ InsetLayout Caption:Below
 			margin: 1ex;
 		}
 	EndHTMLStyle
-	HTMLAttr "class='float-caption float-caption-below'"
+	HTMLClass    "float-caption float-caption-below"
 End
 
 

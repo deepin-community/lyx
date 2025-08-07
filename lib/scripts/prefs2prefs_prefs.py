@@ -4,16 +4,32 @@
 # This file is part of LyX, the document processor.
 # Licence details can be found in the file COPYING.
 
-# author Richard Heck
+# author Richard Kimberly Heck
 
 # Full author contact details are available in file CREDITS
 
 # This file houses conversion information for the preferences file.
 
-# The converter functions take a line as argument and return a list: 
-# 	(Bool, NewLine), 
-# where the Bool says if  we've modified anything and the NewLine is 
+# There are two kinds of converter functions.
+# 
+# Most of them take a line as argument and return a list:
+#     (Bool, NewLine),
+# where the Bool says if we've modified anything and the NewLine is
 # the new line, if so, which will be used to replace the old line.
+# This can be used to erase lines (return (True, "")) or to modify 
+# existing preference lines.
+# 
+# It is also possible for conversion routines to accept the whole
+# list of lines and process that. This is useful (as in the change
+# to format 35) when you need to add a preference if it's not already
+# there.
+
+
+######################################################################
+#
+# FORMAT CHANGES
+#
+######################################################################
 
 # Incremented to format 2, r39670 by jrioux
 #   Support for multiple file extensions per format.
@@ -102,8 +118,62 @@
 # Incremented to format 24, by spitz
 #   Rename collapsable to collapsible
 
+# Incremented to format 25, by lasgouttes
+#   Remove use_qimage preference
+
+# Incremented to format 26, by spitz
+#   Rename font_encoding preference
+
+# Incremented to format 27, by spitz
+#   Add optional flavor value to needaux flag
+
+# Incremented to format 28, by spitz
+#   Remove date_insert_format
+
+# Incremented to format 29, by lasgouttes
+#   Remove use_pixmap_cache
+
+# Incremented to format 30, by lasgouttes
+#   Add respect_os_kbd_language.
+#   No convergence necessary.
+
+# Incremented to format 31, by spitz
+#   Add ct_additions_underlined.
+#   No convergence necessary.
+
+# Incremented to format 32, by spitz
+#   Add ct_markup_copied.
+#   No convergence necessary.
+
+# Incremented to format 33, by sanda
+#   Add \citation_search, \citation_search_pattern
+#   and \citation_search_view.
+#   No conversion necessary.
+
+# Incremented to format 34, by yuriy
+#   Rename *.kmap files for Cyrillic languages
+
+# Incremented to format 35, by spitz
+#   \set_color now takes three arguments
+#   \set_color lyxname x11hexname x11darkhexname
+
+# Incremented to format 36, by rkh
+#   Set spellcheck_continuously to FALSE if it is not otherwise set
+#   (the new default is true, so this keeps behavior the same for 
+#   existing users)
+
+# Incremented to format 37, by chillenb
+#  Remove \fullscreen_width
+#  Remove \fullscreen_limit
+#  Add \screen_width
+#  Add \screen_limit
+
+# Incremented to format 38, by ec
+#   Add option to configure ui style
+#   No conversion necessary.
+
 # NOTE: The format should also be updated in LYXRC.cpp and
-# in configure.py.
+# in configure.py (search for lyxrc_fileformat).
 
 import re
 
@@ -163,7 +233,7 @@ def remove_obsolete(line):
 
 
 def language_use_babel(line):
-	if not line.lower().startswith("\language_use_babel"):
+	if not line.lower().startswith(r"\language_use_babel"):
 		return no_match
 	re_lub = re.compile(r'^\\language_use_babel\s+"?(true|false)', re.IGNORECASE)
 	m = re_lub.match(line)
@@ -304,7 +374,7 @@ def split_pdf_format(line):
 				viewer = ''
 			else:
 				viewer = entries[5]
-			converted = line.replace('application/pdf', '') + '''
+			converted = line.replace('application/pdf', '') + r'''
 \Format pdf6       pdf    "PDF (graphics)"        "" "''' + viewer + '"	""	"vector"	"application/pdf"'
 			return (True, converted)
 	elif line.lower().startswith("\\viewer_alternatives") or \
@@ -372,6 +442,7 @@ def remove_print_support(line):
 # End conversions for LyX 2.1 to 2.2
 ####################################
 
+
 #################################
 # Conversions from LyX 2.2 to 2.3
 
@@ -380,6 +451,66 @@ def rename_collapsible(line):
 
 # End conversions for LyX 2.2 to 2.3
 ####################################
+
+
+#################################
+# Conversions from LyX 2.3 to 2.4
+
+def remove_use_qimage(line):
+	if not line.lower().startswith("\\use_qimage "):
+		return no_match
+	return (True, "")
+
+def remove_font_encoding(line):
+	if not line.lower().startswith("\\font_encoding "):
+		return no_match
+	return (True, "")
+
+def remove_date_insert_format(line):
+	if not line.lower().startswith("\\date_insert_format "):
+		return no_match
+	return (True, "")
+
+def remove_use_pixmap_cache(line):
+	if not line.lower().startswith("\\use_pixmap_cache "):
+		return no_match
+	return (True, "")
+
+def rename_cyrillic_kmap_files(line):
+	line = line.lower()
+	if not (line.startswith("\\kbmap_primary ")
+			or line.startswith("\\kbmap_secondary ")):
+		return no_match
+	line = line.replace('"bg-bds-1251"', '"bulgarian"')
+	line = line.replace('"koi8-r"', '"russian"')
+	line = line.replace('"koi8-u"', '"ukrainian"')
+	return (True, line)
+
+def add_dark_color(line):
+	if not line.lower().startswith("\\set_color "):
+		return no_match
+	colre = re.compile(r'^\\set_color\s+("[^"]+")\s+("[^"]+")\s*$', re.IGNORECASE)
+	m = colre.match(line)
+	if not m:
+		return no_match
+	line += " " + m.group(2)
+	return (True, line)
+
+def add_spellcheck_default(lines):
+	for l in lines:
+		if l.startswith("\\spellcheck_continuously"):
+			return
+	lines.append("\\spellcheck_continuously false")
+
+def remove_fullscreen_widthlimit(line):
+	lower = line.lower()
+	if lower.startswith("\\fullscreen_width") or lower.startswith("\\fullscreen_limit"):
+		return (True, "")
+	return no_match
+
+# End conversions for LyX 2.3 to 2.4
+####################################
+
 
 
 ############################################################
@@ -415,5 +546,19 @@ conversions = [
 	[ 21, []],
 	[ 22, []],
 	[ 23, []],
-	[ 24, [rename_collapsible]]
+	[ 24, [rename_collapsible]],
+	[ 25, [remove_use_qimage]],
+	[ 26, [remove_font_encoding]],
+	[ 27, []],
+	[ 28, [remove_date_insert_format]],
+	[ 29, [remove_use_pixmap_cache]],
+	[ 30, []],
+	[ 31, []],
+	[ 32, []],
+	[ 33, []],
+	[ 34, [rename_cyrillic_kmap_files]],
+	[ 35, [add_dark_color]],
+	[ 36, [add_spellcheck_default]],
+	[ 37, [remove_fullscreen_widthlimit]],
+	[ 38, []]
 ]

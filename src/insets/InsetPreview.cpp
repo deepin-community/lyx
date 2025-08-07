@@ -15,9 +15,8 @@
 #include "BufferParams.h"
 #include "BufferView.h"
 #include "Cursor.h"
-#include "Lexer.h"
+#include "Dimension.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
 #include "RenderPreview.h"
 #include "texstream.h"
 
@@ -80,38 +79,53 @@ void InsetPreview::addPreview(DocIterator const & inset_pos,
 }
 
 
-void InsetPreview::preparePreview(DocIterator const & pos) const
+MacroNameSet gatherMacroDefinitions(const Buffer* buffer, const Inset * inset)
 {
-	odocstringstream str;
-	otexstream os(str);
-	OutputParams runparams(&pos.buffer()->params().encoding());
-	latex(os, runparams);
-
-	// collect macros at this position
+	// Collect macros for this inset.
+	// Not done yet: this function returns a list of macro *definitions*.
 	MacroNameSet macros;
-	pos.buffer()->listMacroNames(macros);
+	buffer->listMacroNames(macros);
 
-	// look for math insets and collect definitions for the used macros
+	// Look for math insets and collect definitions for the used macros.
 	MacroNameSet defs;
-	DocIterator dit = doc_iterator_begin(pos.buffer(), this);
-	DocIterator const dend = doc_iterator_end(pos.buffer(), this);
+	DocIterator const dbeg = doc_iterator_begin(buffer, inset);
+	DocIterator dit = dbeg;
+	DocIterator const dend = doc_iterator_end(buffer, inset);
 	if (!dit.nextInset())
 		dit.forwardInset();
+
 	for (; dit != dend; dit.forwardInset()) {
 		InsetMath * im = dit.nextInset()->asInsetMath();
-		InsetMathHull * hull = im ? im->asHullInset() : 0;
+		InsetMathHull * hull = im ? im->asHullInset() : nullptr;
 		if (!hull)
 			continue;
 		for (idx_type idx = 0; idx < hull->nargs(); ++idx)
-			hull->usedMacros(hull->cell(idx), pos, macros, defs);
+			hull->usedMacros(hull->cell(idx), dbeg, macros, defs);
 	}
-	MacroNameSet::iterator it = defs.begin();
-	MacroNameSet::iterator end = defs.end();
-	docstring macro_preamble;
-	for (; it != end; ++it)
-		macro_preamble.append(*it);
 
-	docstring const snippet = macro_preamble + str.str();
+	return defs;
+}
+
+
+docstring insetToLaTeXSnippet(const Buffer* buffer, const Inset * inset)
+{
+	odocstringstream str;
+	otexstream os(str);
+	OutputParams runparams(&buffer->params().encoding());
+	inset->latex(os, runparams);
+
+	MacroNameSet defs = gatherMacroDefinitions(buffer, inset);
+	docstring macro_preamble;
+	for (const auto& def : defs)
+		macro_preamble.append(def);
+
+	return macro_preamble + str.str();
+}
+
+
+void InsetPreview::preparePreview(DocIterator const & pos) const
+{
+	docstring const snippet = insetToLaTeXSnippet(pos.buffer(), this);
 	preview_->addPreview(snippet, *pos.buffer());
 }
 
@@ -170,8 +184,8 @@ void InsetPreview::metrics(MetricsInfo & mi, Dimension & dim) const
 		dim.wid = max(dim.wid, 4);
 		dim.asc = max(dim.asc, 4);
 
-		dim.asc += TEXT_TO_INSET_OFFSET;
-		dim.des += TEXT_TO_INSET_OFFSET;
+		dim.asc += topOffset(mi.base.bv);
+		dim.des += bottomOffset(mi.base.bv);
 		// insert a one pixel gap
 		dim.wid += 1;
 		Dimension dim_dummy;

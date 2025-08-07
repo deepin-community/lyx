@@ -2,11 +2,11 @@
 #  \DeclareLaTeXClass[spie,cite.sty]{SPIE Proceedings}
 #  \DeclareCategory{Articles}
 # SPIE-Article textclass definition file.
-# Author : Guenter Milde <g.milde@physik.tu-dresden.de>
+# Author : Guenter Milde <milde@lyx.org>
 # to be used with the spie.cls LaTex-style available at
 # http://public.lanl.gov/kmh/spie/
 
-Format 66
+Format 104
 Input stdclass.inc
 
 NoStyle Chapter
@@ -50,6 +50,10 @@ Style Keywords
 	LabelFont
 	  Series              Bold
 	EndFont
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 
@@ -70,6 +74,11 @@ Style Authorinfo
 	  Series              Bold
 	  Shape               Italic
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -94,4 +103,8 @@ Style Acknowledgments
 #  LatexType             Command
 	LatexName             acknowledgments
 	LabelString           "ACKNOWLEDGMENTS"
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
+	DocBookSection        true
 End
+

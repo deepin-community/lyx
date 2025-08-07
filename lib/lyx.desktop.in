@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=LyX
+Name=LyX@program_suffix@
 GenericName=Document Processor
 Comment=High level LaTeX frontend
 Keywords=WYSIWYG;WYSIWYM;TeX;LaTeX;GUI;frontend;editor;
@@ -9,7 +9,7 @@ Exec=lyx@program_suffix@ %F
 TryExec=lyx@program_suffix@
 Icon=lyx@program_suffix@
 StartupNotify=false
-StartupWMClass=Lyx
+StartupWMClass=@PACKAGE@
 Terminal=false
 Categories=Office;WordProcessor;Qt;
 MimeType=text/x-lyx;application/x-lyx;

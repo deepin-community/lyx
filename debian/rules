@@ -22,6 +22,8 @@ override_dh_auto_configure:
 		--with-x \
 		--without-included-boost \
 		--without-included-mythes \
+		--without-saxon \
+		--without-xslt-stylesheets \
 
 override_dh_installchangelogs:
 	dh_installchangelogs -k NEWS
@@ -54,7 +56,7 @@ override_dh_auto_install:
 
 # handle font documentation
 	mkdir -p debian/fonts-lyx/usr/share/doc/fonts-lyx
-	mv debian/fonts-lyx/usr/share/fonts/truetype/lyx/ReadmeBaKoMa4LyX.txt \
+	mv debian/fonts-lyx/usr/share/fonts/truetype/lyx/README \
 		debian/fonts-lyx/usr/share/doc/fonts-lyx/
 	rm debian/fonts-lyx/usr/share/fonts/truetype/lyx/BaKoMaFontLicense.txt
 

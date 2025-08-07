@@ -21,16 +21,14 @@
 #include "support/FileNameList.h"
 #include "support/Package.h"
 #include "support/debug.h"
+#include "support/docstring.h"
 #include "support/docstring_list.h"
 #include "support/filetools.h"
-#include "support/gettext.h"
 #include "support/lstrings.h"
 #include "support/os.h"
 
 #include <cstdio>
 #include MYTHES_H_LOCATION
-
-#include "frontends/alert.h"
 
 #include <algorithm>
 #include <cstring>
@@ -216,10 +214,10 @@ bool Thesaurus::thesaurusInstalled(docstring const & lang) const
 Thesaurus::Meanings Thesaurus::lookup(WordLangTuple const & wl)
 {
 	Meanings meanings;
-	MyThes * mythes = 0;
+	MyThes * mythes = nullptr;
 
 	docstring const lang_code = from_ascii(wl.lang()->code());
-	docstring const t = wl.word();
+	docstring const & t = wl.word();
 
 	if (!d->addThesaurus(lang_code))
 		return meanings;
@@ -268,6 +266,7 @@ Thesaurus::Meanings Thesaurus::lookup(WordLangTuple const & wl)
 		// remove silly item
 		if (support::prefixIs(meaning, '-'))
 			meaning = support::ltrim(meaning, "- ");
+		ret.reserve(pm->count);
 		for (int j = 0; j < pm->count; j++) {
 			ret.push_back(from_iconv_encoding(string(pm->psyns[j]), encoding));
 		}

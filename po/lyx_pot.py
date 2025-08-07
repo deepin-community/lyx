@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # file lyx_pot.py
@@ -18,7 +18,7 @@
 #
 from __future__ import print_function
 
-import sys, os, re, getopt
+import glob, sys, os, re, getopt
 import io
 
 def relativePath(path, base):
@@ -47,6 +47,7 @@ def ui_l10n(input_files, output, base):
     output = io.open(output, 'w', encoding='utf_8', newline='\n')
     Submenu = re.compile(r'^[^#]*Submenu\s+"([^"]*)"', re.IGNORECASE)
     Popupmenu = re.compile(r'^[^#]*PopupMenu\s+"[^"]+"\s+"([^"]*)"', re.IGNORECASE)
+    Dynamicmenu = re.compile(r'^[^#]*DynamicMenu\s+"[^"]+"\s+"([^"]*)"', re.IGNORECASE)
     IconPalette = re.compile(r'^[^#]*IconPalette\s+"[^"]+"\s+"([^"]*)"', re.IGNORECASE)
     Toolbar = re.compile(r'^[^#]*Toolbar\s+"[^"]+"\s+"([^"]*)"', re.IGNORECASE)
     Item = re.compile(r'[^#]*Item\s+"([^"]*)"', re.IGNORECASE)
@@ -59,6 +60,8 @@ def ui_l10n(input_files, output, base):
                 string = string.replace('_', ' ')
             elif Popupmenu.match(line):
                 (string,) = Popupmenu.match(line).groups()
+            elif Dynamicmenu.match(line):
+                (string,) = Dynamicmenu.match(line).groups()
             elif IconPalette.match(line):
                 (string,) = IconPalette.match(line).groups()
             elif Toolbar.match(line):
@@ -104,7 +107,7 @@ def layouts_l10n(input_files, output, base, layouttranslations):
     CounterFormat = re.compile(r'^\s*PrettyFormat\s+"?(.*)"?\s*$', re.IGNORECASE)
     CiteFormat = re.compile(r'^\s*CiteFormat', re.IGNORECASE)
     # Note: preceding and trailing space in the val below matters
-    KeyVal = re.compile(r'^\s*_\w+\s(.*\S)*$')
+    KeyVal = re.compile(r'^\s*B?_\w+\s(.*\S)*$')
     Float = re.compile(r'^\s*Float\s*$', re.IGNORECASE)
     UsesFloatPkg = re.compile(r'^\s*UsesFloatPkg\s+(.*\S)\s*$', re.IGNORECASE)
     IsPredefined = re.compile(r'^\s*IsPredefined\s+(.*\S)\s*$', re.IGNORECASE)
@@ -442,8 +445,8 @@ def layouts_l10n(input_files, output, base, layouttranslations):
     out.close()
 
 
-def qt4_l10n(input_files, output, base):
-    '''Generate pot file from src/frontends/qt4/ui/*.ui'''
+def qt_l10n(input_files, output, base):
+    '''Generate pot file from src/frontends/qt/ui/*.ui'''
     output = io.open(output, 'w', encoding='utf_8', newline='\n')
     pat = re.compile(r'\s*<string>(.*)</string>')
     prop = re.compile(r'\s*<property.*name.*=.*shortcut')
@@ -569,18 +572,15 @@ def external_l10n(input_files, output, base):
 def formats_l10n(input_files, output, base):
     '''Generate pot file from configure.py'''
     output = io.open(output, 'w', encoding='utf_8', newline='\n')
-    GuiName = re.compile(r'.*\\Format\s+\S+\s+\S+\s+"([^"]*)"\s+(\S*)\s+.*', re.IGNORECASE)
-    GuiName2 = re.compile(r'.*\\Format\s+\S+\s+\S+\s+([^"]\S+)\s+(\S*)\s+.*', re.IGNORECASE)
+    # \Format "shortname" "ext1, ext2..." "name" "shortcut" (quotation marks optional in each group)
+    GuiName = re.compile(r'.*\\Format\s+(""|"[^"]+"|\S+)\s+(""|"[^"]+"|\S+)\s+(""|"[^"]+"|\S+)\s+(""|"[^"]+"|\S+)\s+.*', re.IGNORECASE)
     input = io.open(input_files[0], encoding='utf_8')
     for lineno, line in enumerate(input.readlines()):
         label = ""
         labelsc = ""
         if GuiName.match(line):
-            label = GuiName.match(line).group(1)
-            shortcut = GuiName.match(line).group(2).replace('"', '')
-        elif GuiName2.match(line):
-            label = GuiName2.match(line).group(1)
-            shortcut = GuiName2.match(line).group(2).replace('"', '')
+            label = GuiName.match(line).group(3)
+            shortcut = GuiName.match(line).group(4).replace('"', '')
         else:
             continue
         label = label.replace('\\', '\\\\').replace('"', '')
@@ -601,7 +601,7 @@ def encodings_l10n(input_files, output, base):
     output = io.open(output, 'w', encoding='utf_8', newline='\n')
     # assuming only one encodings file
     #                 Encoding utf8      utf8    "Unicode (utf8)" UTF-8    variable inputenc
-    reg = re.compile('Encoding [\w-]+\s+[\w-]+\s+"([\w \-\(\)^"]*)"\s+["\w-]+\s+(fixed|variable|variableunsafe)\s+\w+.*')
+    reg = re.compile(r'Encoding [\w-]+\s+[\w-]+\s+"([\w \-\(\)\[\]\/^"]*)"\s+["\w-]+\s+(fixed|variable|variableunsafe)\s+\w+.*')
     input = io.open(input_files[0], encoding='utf_8')
     for lineno, line in enumerate(input.readlines()):
         if not line.startswith('Encoding'):
@@ -620,6 +620,59 @@ def encodings_l10n(input_files, output, base):
     output.close()
 
 
+def examples_templates_l10n(input_files, output, base):
+  '''Generate pot file from lib/templates and lib/examples'''
+  output = io.open(output, 'w', encoding='utf_8', newline='\n')
+  # only record each item once
+  seen = []
+  for src in input_files:
+      parseExamplesTemplates(src, seen, output)
+  output.close()
+
+
+def parseExamplesTemplates(file, seen, output):
+  # Recursively iterate over subdirectories
+  if os.path.isdir(file):
+      for sfile in glob.glob( os.path.join(file, '*') ):
+          parseExamplesTemplates(sfile, seen, output)
+
+  filename = os.path.normpath(os.path.realpath(file)).split(os.sep)[-1]
+  if os.path.isfile(file):
+      if filename[-4:] != ".lyx":
+          return
+      filename = filename[:-4]
+  if seen.count(filename) or filename[0].islower():
+      return
+
+  seen.append(filename)
+  if filename != "":
+      print(u'#: %s:%d\nmsgid "%s"\nmsgstr ""\n' % \
+                (relativePath(input_files[0], base), 0, filename.replace('_', ' ').replace('%26', '&').replace('%28', '(').replace('%29', ')')), file=output)
+
+
+def tabletemplates_l10n(input_files, output, base):
+  '''Generate pot file from lib/tabletemplates '''
+  output = io.open(output, 'w', encoding='utf_8', newline='\n')
+  # only record each item once
+  seen = []
+  for file in input_files:
+      filename = os.path.normpath(os.path.realpath(file)).split(os.sep)[-1]
+      if os.path.isfile(file):
+          if filename[-4:] != ".lyx":
+              continue
+          filename = filename[:-4]
+          if filename[-4:-1] == "_1x":
+              continue
+          if seen.count(filename):
+              continue
+
+      seen.append(filename)
+      if filename != "":
+          print(u'#: %s:%d\nmsgid "%s"\nmsgstr ""\n' % \
+                    (relativePath(input_files[0], base), 0, filename.replace('_', ' ')), file=output)
+  output.close()
+  
+
 
 Usage = '''
 lyx_pot.py [-b|--base top_src_dir] [-o|--output output_file] [-h|--help] [-s|src_file filename] -t|--type input_type input_files
@@ -635,12 +688,14 @@ where
         ui: lib/ui/*
         layouts: lib/layouts/*
         layouttranslations: create lib/layouttranslations from po/*.po and lib/layouts/*
-        qt4: qt4 ui files
+        qt: qt ui files
         languages: file lib/languages
         latexfonts: file lib/latexfonts
         encodings: file lib/encodings
         external: external templates files
         formats: formats predefined in lib/configure.py
+        examples_templates: example and template files
+        tabletemplates: table template files
 '''
 
 if __name__ == '__main__':
@@ -664,7 +719,7 @@ if __name__ == '__main__':
         elif opt in ['-s', '--src_file']:
             input_files = [f.strip() for f in io.open(value, encoding='utf_8')]
 
-    if input_type not in ['ui', 'layouts', 'layouttranslations', 'qt4', 'languages', 'latexfonts', 'encodings', 'external', 'formats'] or output is None:
+    if input_type not in ['ui', 'layouts', 'layouttranslations', 'qt', 'languages', 'latexfonts', 'encodings', 'external', 'formats', 'examples_templates', 'tabletemplates'] or output is None:
         print('Wrong input type or output filename.')
         sys.exit(1)
 
@@ -685,15 +740,17 @@ if __name__ == '__main__':
         layouts_l10n(input_files, output, base, False)
     elif input_type == 'layouttranslations':
         layouts_l10n(input_files, output, base, True)
-    elif input_type == 'qt4':
-        qt4_l10n(input_files, output, base)
+    elif input_type == 'qt':
+        qt_l10n(input_files, output, base)
     elif input_type == 'external':
         external_l10n(input_files, output, base)
     elif input_type == 'formats':
         formats_l10n(input_files, output, base)
     elif input_type == 'encodings':
         encodings_l10n(input_files, output, base)
+    elif input_type == 'examples_templates':
+        examples_templates_l10n(input_files, output, base)
+    elif input_type == 'tabletemplates':
+        tabletemplates_l10n(input_files, output, base)
     else:
         languages_l10n(input_files, output, base)
-
-

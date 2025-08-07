@@ -22,30 +22,32 @@ namespace lyx {
 class InsetMathOverset : public InsetMathFracBase {
 public:
 	///
-	InsetMathOverset(Buffer * buf) : InsetMathFracBase(buf) {}
+	explicit InsetMathOverset(Buffer * buf) : InsetMathFracBase(buf) {}
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	bool idxFirst(Cursor &) const;
+	bool idxUpDown(Cursor & cur, bool up) const override;
 	///
-	bool idxLast(Cursor &) const;
+	bool idxFirst(Cursor &) const override;
 	///
-	void write(WriteStream & os) const;
+	bool idxLast(Cursor &) const override;
 	///
-	void normalize(NormalStream &) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void mathmlize(MathStream &) const;
+	void normalize(NormalStream &) const override;
 	///
-	void htmlize(HtmlStream &) const;
+	void mathmlize(MathMLStream &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void htmlize(HtmlStream &) const override;
 	///
-	InsetCode lyxCode() const { return MATH_OVERSET_CODE; }
+	void validate(LaTeXFeatures & features) const override;
+	///
+	InsetCode lyxCode() const override { return MATH_OVERSET_CODE; }
 
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 };
 
 

@@ -18,6 +18,8 @@
 
 #include "Box.h"
 
+#include "support/unique_ptr.h"
+
 #include <map>
 
 namespace lyx {
@@ -25,7 +27,9 @@ namespace lyx {
 class CursorSlice;
 class InsetLayout;
 
-namespace frontend { class Painter; }
+enum class InsetDecoration : int;
+
+namespace support { class TempFile; }
 
 /** A collapsible text inset
 
@@ -37,41 +41,49 @@ public:
 	///
 	InsetCollapsible(InsetCollapsible const & rhs);
 	///
+	InsetCollapsible & operator=(InsetCollapsible const &);
+	///
 	virtual ~InsetCollapsible();
 	///
-	InsetCollapsible * asInsetCollapsible() { return this; }
+	InsetCollapsible * asInsetCollapsible() override { return this; }
 	///
-	InsetCollapsible const * asInsetCollapsible() const { return this; }
+	InsetCollapsible const * asInsetCollapsible() const override { return this; }
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	///
-	docstring layoutName() const { return from_ascii("Collapsible"); }
+	docstring layoutName() const override { return from_ascii("Collapsible"); }
 	///
-	void read(Lexer &);
+	void read(Lexer &) override;
 	///
-	void write(std::ostream &) const;
+	void write(std::ostream &) const override;
+
 	///
-	void metrics(MetricsInfo &, Dimension &) const;
+	int topOffset(BufferView const * bv) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	int bottomOffset(BufferView const * bv) const override;
+
 	///
-	virtual void drawBackground(PainterInfo &, int, int) const {}
+	void metrics(MetricsInfo &, Dimension &) const override;
+	///
+	void draw(PainterInfo & pi, int x, int y) const override;
+	///
+	void drawBackground(PainterInfo &, int, int) const override {}
 
 	/// return x,y of given position relative to the inset's baseline
 	void cursorPos(BufferView const & bv, CursorSlice const & sl,
-		bool boundary, int & x, int & y) const;
+		bool boundary, int & x, int & y) const override;
 	///
 	docstring const getNewLabel(docstring const & l) const;
 	///
-	bool editable() const;
+	bool editable() const override;
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	/// Returns true if coordinates are over the inset's button.
 	/// Always returns false when the inset does not have a
 	/// button.
-	bool clickable(BufferView const & bv, int x, int y) const;
+	bool clickable(BufferView const & bv, int x, int y) const override;
 	/// can we go further down on mouse click?
-	bool descendable(BufferView const & bv) const;
+	bool descendable(BufferView const & bv) const override;
 	///
 	void setLabel(docstring const & l);
 	///
@@ -112,11 +124,7 @@ public:
 	 */
 
 	/// Default looks
-	virtual InsetLayout::InsetDecoration decoration() const;
-	/// Inset font
-	virtual FontInfo getFont() const { return getLayout().font(); }
-	/// Label font
-	virtual FontInfo getLabelfont() const { return getLayout().labelfont(); }
+	virtual InsetDecoration decoration() const;
 	///
 	enum Geometry {
 		TopButton,
@@ -131,39 +139,40 @@ public:
 	/// and of course decoration().
 	Geometry geometry(BufferView const & bv) const;
 	///
-	bool canPaintChange(BufferView const & bv) const;
+	bool canPaintChange(BufferView const & bv) const override;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 	///
-	bool setMouseHover(BufferView const * bv, bool mouse_hover) const;
+	bool setMouseHover(BufferView const * bv, bool mouse_hover) const override;
 	///
-	ColorCode backgroundColor(PainterInfo const &) const
-		{ return getLayout().bgcolor(); }
+	ColorCode backgroundColor(PainterInfo const &) const override;
 	///
-	ColorCode labelColor() const { return getLayout().labelfont().color(); }
+	ColorCode labelColor() const override;
 	///
-	InsetCode lyxCode() const { return COLLAPSIBLE_CODE; }
+	InsetCode lyxCode() const override { return COLLAPSIBLE_CODE; }
 
 	///
-	virtual bool usePlainLayout() const { return true; }
+	bool usePlainLayout() const override { return true; }
 	///
-	std::string contextMenu(BufferView const & bv, int x, int y) const;
+	std::string contextMenu(BufferView const & bv, int x, int y) const override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	///
 	void addToToc(DocIterator const & dit, bool output_active,
-	              UpdateType utype, TocBackend & backend) const; //override
+	              UpdateType utype, TocBackend & backend) const override;
 
 protected:
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
 	void edit(Cursor & cur, bool front,
-		EntryDirection entry_from = ENTRY_DIRECTION_IGNORE);
+		EntryDirection entry_from = ENTRY_DIRECTION_IGNORE) override;
 	///
-	Inset * editXY(Cursor & cur, int x, int y);
+	Inset * editXY(Cursor & cur, int x, int y) override;
 	///
 	mutable CollapseStatus status_;
+        ///
+        unique_ptr<support::TempFile> tempfile_;
 private:
 	///
 	Dimension dimensionCollapsed(BufferView const & bv) const;

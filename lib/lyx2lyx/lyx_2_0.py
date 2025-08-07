@@ -22,14 +22,15 @@ import re, string
 import unicodedata
 import sys, os
 
-from parser_tools import find_token, find_end_of, find_tokens, \
+from parser_tools import del_complete_lines, \
+  find_token, find_end_of, find_tokens, \
   find_token_exact, find_end_of_inset, find_end_of_layout, \
   find_token_backwards, is_in_inset, get_value, get_quoted_value, \
   del_token, check_token, get_option_value
 
 from lyx2lyx_tools import add_to_preamble, insert_to_preamble, \
   put_cmd_in_ert, lyx2latex, latex_length, revert_flex_inset, \
-  revert_font_attrs, hex2ratio, str2bool
+  revert_font_attrs, hex2ratio, str2bool, revert_language
 
 ####################################################################
 # Private helper functions
@@ -377,7 +378,7 @@ def revert_splitindex(document):
         l = re.compile(r'\\begin_inset Index (.*)$')
         m = l.match(line)
         itype = m.group(1)
-        if itype == "idx" or indices == "false":
+        if itype == "idx" or useindices == "false":
             document.body[i] = "\\begin_inset Index"
         else:
             k = find_end_of_inset(document.body, i)
@@ -484,6 +485,15 @@ def revert_printindexall(document):
             document.body[i:k + 1] = subst
         i = i + 1
 
+strikeout_preamble = ['%  for proper underlining',
+                      r'\PassOptionsToPackage{normalem}{ulem}',
+                      r'\usepackage{ulem}']
+
+def convert_strikeout(document):
+    " Remove preamble code loading 'ulem' package. "
+    del_complete_lines(document.preamble,
+                       ['% Added by lyx2lyx']+strikeout_preamble)
+
 
 def revert_strikeout(document):
   " Reverts \\strikeout font attribute "
@@ -491,25 +501,30 @@ def revert_strikeout(document):
   changed = revert_font_attrs(document.body, "\\uwave", "\\uwave") or changed
   changed = revert_font_attrs(document.body, "\\strikeout", "\\sout")  or changed
   if changed == True:
-    insert_to_preamble(document, \
-        ['%  for proper underlining',
-        '\\PassOptionsToPackage{normalem}{ulem}',
-        '\\usepackage{ulem}'])
+    insert_to_preamble(document, strikeout_preamble)
 
+
+ulinelatex_preamble = ['% fix underbar in citations',
+    r'\let\cite@rig\cite',
+    r'\newcommand{\b@xcite}[2][\%]{\def\def@pt{\%}\def\pas@pt{#1}',
+    r'  \mbox{\ifx\def@pt\pas@pt\cite@rig{#2}\else\cite@rig[#1]{#2}\fi}}',
+    r'\renewcommand{\underbar}[1]{{\let\cite\b@xcite\uline{#1}}}']
+
+def convert_ulinelatex(document):
+    " Remove preamble code for \\uline font attribute. "
+    del_complete_lines(document.preamble,
+                       ['% Added by lyx2lyx']+ulinelatex_preamble)
 
 def revert_ulinelatex(document):
-    " Reverts \\uline font attribute "
+    " Add preamble code for \\uline font attribute in citations. "
     i = find_token(document.body, '\\bar under', 0)
     if i == -1:
         return
-    insert_to_preamble(document,\
-            ['%  for proper underlining',
-            '\\PassOptionsToPackage{normalem}{ulem}',
-            '\\usepackage{ulem}',
-            '\\let\\cite@rig\\cite',
-            '\\newcommand{\\b@xcite}[2][\\%]{\\def\\def@pt{\\%}\\def\\pas@pt{#1}',
-            '  \\mbox{\\ifx\\def@pt\\pas@pt\\cite@rig{#2}\\else\\cite@rig[#1]{#2}\\fi}}',
-            '\\renewcommand{\\underbar}[1]{{\\let\\cite\\b@xcite\\uline{#1}}}'])
+    try:
+        document.preamble.index(r'\usepackage{ulem}')
+    except ValueError:
+        insert_to_preamble(document, strikeout_preamble)
+    insert_to_preamble(document, ulinelatex_preamble)
 
 
 def revert_custom_processors(document):
@@ -818,6 +833,9 @@ def revert_suppress_date(document):
     del document.header[i]
 
 
+mhchem_preamble = [r"\PassOptionsToPackage{version=3}{mhchem}",
+                   r"\usepackage{mhchem}"]
+
 def convert_mhchem(document):
     "Set mhchem to off for versions older than 1.6.x"
     if document.initial_format < 277:
@@ -835,47 +853,44 @@ def convert_mhchem(document):
         # pre-1.5.x document
         i = find_token(document.header, "\\use_amsmath", 0)
     if i == -1:
-        document.warning("Malformed LyX document: Could not find amsmath os esint setting.")
+        document.warning("Malformed LyX document: "
+                         "Could not find amsmath or esint setting.")
         return
     document.header.insert(i + 1, "\\use_mhchem %d" % mhchem)
+    # remove LyX-inserted preamble 
+    if mhchem != 0:
+        del_complete_lines(document.preamble,
+                           ['% Added by lyx2lyx']+mhchem_preamble)
 
 
 def revert_mhchem(document):
-    "Revert mhchem loading to preamble code"
+    "Revert mhchem loading to preamble code."
 
-    mhchem = "off"
-    i = find_token(document.header, "\\use_mhchem", 0)
-    if i == -1:
-        document.warning("Malformed LyX document: Could not find mhchem setting.")
-        mhchem = "auto"
-    else:
-        val = get_value(document.header, "\\use_mhchem", i)
-        if val == "1":
-            mhchem = "auto"
-        elif val == "2":
-            mhchem = "on"
-        del document.header[i]
+    mhchem = get_value(document.header, "\\use_mhchem", delete=True)
+    try:
+        mhchem = int(mhchem)
+    except ValueError:
+        document.warning("Malformed LyX document: "
+                         "Could not find mhchem setting.")
+        mhchem = 1 # "auto"
+    # mhchem in {0: "off", 1: "auto", 2: "on"}
 
-    if mhchem == "off":
-      # don't load case
-      return
-
-    if mhchem == "auto":
+    if mhchem == 1: # "auto"
         i = 0
-        while True:
+        while i != 1 and mhchem == 1:
             i = find_token(document.body, "\\begin_inset Formula", i)
-            if i == -1:
-               break
-            line = document.body[i]
-            if line.find("\\ce{") != -1 or line.find("\\cf{") != -1:
-              mhchem = "on"
-              break
+            j = find_end_of_inset(document.body, i)
+            if j == -1:
+                break
+            if (True for line in document.body[i:j]
+                if r"\ce{" in line or r"\cf{" in line):
+                mhchem = 2
+                break
             i += 1
 
-    if mhchem == "on":
-        pre = ["\\PassOptionsToPackage{version=3}{mhchem}",
-          "\\usepackage{mhchem}"]
-        insert_to_preamble(document, pre)
+    if (mhchem == 2 # on
+        and find_token(document.preamble, r"\usepackage{mhchem}") == -1):
+        insert_to_preamble(document, mhchem_preamble)
 
 
 def revert_fontenc(document):
@@ -954,6 +969,20 @@ def revert_includeonly(document):
             document.warning("Unable to find end of includeonly section!!")
             break
         document.header[i : j + 1] = []
+
+
+def convert_includeall(document):
+    " Add maintain_unincluded_children param "
+
+    i = 0
+    i = find_token(document.header, "\\maintain_unincluded_children", 0)
+    if i == -1:
+        i = find_token(document.header, "\\textclass", 0)
+        if i == -1:
+            document.warning("Malformed LyX document! Missing \\textclass header.")
+            return
+        document.header.insert(i, "\\maintain_unincluded_children false")
+        return
 
 
 def revert_includeall(document):
@@ -1090,7 +1119,7 @@ def revert_multirow(document):
 
 
 def convert_math_output(document):
-    " Convert \html_use_mathml to \html_math_output "
+    r" Convert \html_use_mathml to \html_math_output "
     i = find_token(document.header, "\\html_use_mathml", 0)
     if i == -1:
         return
@@ -1107,7 +1136,7 @@ def convert_math_output(document):
 
 
 def revert_math_output(document):
-    " Revert \html_math_output to \html_use_mathml "
+    r" Revert \html_math_output to \html_use_mathml "
     i = find_token(document.header, "\\html_math_output", 0)
     if i == -1:
         return
@@ -1266,19 +1295,7 @@ def revert_notefontcolor(document):
 def revert_turkmen(document):
     "Set language Turkmen to English"
 
-    if document.language == "turkmen":
-        document.language = "english"
-        i = find_token(document.header, "\\language", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-
-    j = 0
-    while True:
-        j = find_token(document.body, "\\lang turkmen", j)
-        if j == -1:
-            return
-        document.body[j] = document.body[j].replace("\\lang turkmen", "\\lang english")
-        j += 1
+    revert_language(document, "turkmen", "turkmen", "turkmen")
 
 
 def revert_fontcolor(document):
@@ -1602,8 +1619,8 @@ def revert_IEEEtran(document):
 
 def convert_prettyref(document):
 	" Converts prettyref references to neutral formatted refs "
-	re_ref = re.compile("^\s*reference\s+\"(\w+):(\S+)\"")
-	nm_ref = re.compile("^\s*name\s+\"(\w+):(\S+)\"")
+	re_ref = re.compile("^\\s*reference\\s+\"(\\w+):(\\S+)\"")
+	nm_ref = re.compile("^\\s*name\\s+\"(\\w+):(\\S+)\"")
 
 	i = 0
 	while True:
@@ -1624,8 +1641,8 @@ def convert_prettyref(document):
 
 def revert_refstyle(document):
 	" Reverts neutral formatted refs to prettyref "
-	re_ref = re.compile("^reference\s+\"(\w+):(\S+)\"")
-	nm_ref = re.compile("^\s*name\s+\"(\w+):(\S+)\"")
+	re_ref = re.compile("^reference\\s+\"(\\w+):(\\S+)\"")
+	nm_ref = re.compile("^\\s*name\\s+\"(\\w+):(\\S+)\"")
 
 	i = 0
 	while True:
@@ -1664,12 +1681,10 @@ def revert_nameref(document):
       i += 1
       # Make sure it is actually in an inset!
       # A normal line could begin with "LatexCommand nameref"!
-      val = is_in_inset(document.body, cmdloc, \
-          "\\begin_inset CommandInset ref")
-      if not val:
+      stins, endins = is_in_inset(document.body, cmdloc,
+                                  "\\begin_inset CommandInset ref")
+      if endins == -1:
           continue
-      stins, endins = val
-
       # ok, so it is in an InsetRef
       refline = find_token(document.body, "reference", stins, endins)
       if refline == -1:
@@ -1699,17 +1714,16 @@ def remove_Nameref(document):
       break
     cmdloc = i
     i += 1
-
     # Make sure it is actually in an inset!
-    val = is_in_inset(document.body, cmdloc, \
-        "\\begin_inset CommandInset ref")
+    val = is_in_inset(document.body, cmdloc,
+                      "\\begin_inset CommandInset ref", default=False)
     if not val:
       continue
     document.body[cmdloc] = "LatexCommand nameref"
 
 
 def revert_mathrsfs(document):
-    " Load mathrsfs if \mathrsfs us use in the document "
+    r" Load mathrsfs if \mathrsfs us use in the document "
     i = 0
     for line in document.body:
       if line.find("\\mathscr{") != -1:
@@ -1983,7 +1997,7 @@ chapters = ("amsbook", "book", "docbook-book", "elsart", "extbook", "extreport",
     "svmult", "tbook", "treport", "tufte-book")
 
 def convert_bibtex_clearpage(document):
-  " insert a clear(double)page bibliographystyle if bibtotoc option is used "
+  " insert a clear(double)page before bibliographystyle if bibtotoc option is used "
 
   if document.textclass not in chapters:
     return
@@ -2048,6 +2062,86 @@ def convert_bibtex_clearpage(document):
     j = k + len(subst)
 
 
+def revert_bibtex_clearpage(document):
+  " remove clear(double)page before bibliographystyle if bibtotoc option is used "
+
+  if document.textclass not in chapters:
+    return
+
+  i = find_token(document.header, '\\papersides', 0)
+  sides = 0
+  if i == -1:
+    document.warning("Malformed LyX document: Can't find papersides definition.")
+    document.warning("Assuming single sided.")
+    sides = 1
+  else:
+    val = get_value(document.header, "\\papersides", i)
+    try:
+      sides = int(val)
+    except:
+      pass
+    if sides != 1 and sides != 2:
+      document.warning("Invalid papersides value: " + val)
+      document.warning("Assuming single sided.")
+      sides = 1
+
+  j = 0
+  while True:
+    j = find_token(document.body, "\\begin_inset CommandInset bibtex", j)
+    if j == -1:
+      return
+
+    k = find_end_of_inset(document.body, j)
+    if k == -1:
+      document.warning("Can't find end of Bibliography inset at line " + str(j))
+      j += 1
+      continue
+
+    # only act if there is the option "bibtotoc"
+    val = get_value(document.body, 'options', j, k)
+    if not val:
+      document.warning("Can't find options for bibliography inset at line " + str(j))
+      j = k
+      continue
+
+    if val.find("bibtotoc") == -1:
+      j = k
+      continue
+
+    # we had inserted \\clear[double]page right before the paragraph that
+    # this bibliography thing is in. Remove this. The older format has the
+    # respective command hardcoded.
+    lay = find_token_backwards(document.body, "\\begin_layout", j)
+    if lay == -1:
+      document.warning("Can't find layout containing bibliography inset at line " + str(j))
+      j = k
+      continue
+    # Find the layout before this.
+    lay = find_token_backwards(document.body, "\\begin_layout", lay-1)
+    if lay == -1:
+      document.warning("Can't find layout before bibliography inset at line " + str(j))
+      j = k
+      continue
+
+    if sides == 1:
+      cmd = "clearpage"
+    else:
+      cmd = "cleardoublepage"
+
+    if document.body[lay] != "\\begin_layout Standard" or document.body[lay+1] != "\\begin_inset Newpage " + cmd:
+        j = k
+        continue
+    layend = find_end_of_layout(document.body, lay)
+    if layend == -1:
+      document.warning("Can't find end of layout containg newpage inset at line " + str(layend))
+      j += 1
+      continue
+
+    del document.body[lay:layend+1]
+    j = lay
+
+
+
 def check_passthru(document):
   tc = document.textclass
   ok = (tc == "literate-article" or tc == "literate-book" or tc == "literate-report")
@@ -2065,7 +2159,7 @@ def convert_passthru(document):
     if not check_passthru:
       return
 
-    rx = re.compile("\\\\begin_layout \s*(\w+)")
+    rx = re.compile("\\\\begin_layout \\s*(\\w+)")
     beg = 0
     for lay in ["Chunk", "Scrap"]:
       while True:
@@ -2095,7 +2189,7 @@ def convert_passthru(document):
             break
           ne = find_end_of_inset(document.body, ns)
           if ne == -1 or ne > end:
-            document.warning("Can't find end of inset at line " + str(nb))
+            document.warning("Can't find end of inset at line " + str(ne))
             ns += 1
             continue
           if document.body[ne + 1] == "":
@@ -2129,7 +2223,7 @@ def revert_passthru(document):
     " http://www.mail-archive.com/lyx-devel@lists.lyx.org/msg161298.html "
     if not check_passthru:
       return
-    rx = re.compile("\\\\begin_layout \s*(\w+)")
+    rx = re.compile("\\\\begin_layout \\s*(\\w+)")
     beg = 0
     for lay in ["Chunk", "Scrap"]:
       while True:
@@ -2421,7 +2515,7 @@ def revert_langpack(document):
 
 def convert_langpack(document):
     " Add \\language_package parameter "
-    i = find_token(document.header, "\language" , 0)
+    i = find_token(document.header, r"\language" , 0)
     if i == -1:
         document.warning("Malformed document. No \\language defined!")
         return
@@ -2468,9 +2562,9 @@ convert = [[346, []],
            [352, [convert_splitindex]],
            [353, []],
            [354, []],
-           [355, []],
+           [355, [convert_strikeout]],
            [356, []],
-           [357, []],
+           [357, [convert_ulinelatex]],
            [358, []],
            [359, [convert_nomencl_width]],
            [360, []],
@@ -2489,7 +2583,7 @@ convert = [[346, []],
            [373, [merge_gbrief]],
            [374, []],
            [375, []],
-           [376, []],
+           [376, [convert_includeall]],
            [377, []],
            [378, []],
            [379, [convert_math_output]],
@@ -2540,7 +2634,7 @@ revert =  [[412, [revert_html_css_as_file]],
            [404, []],
            [403, [revert_refstyle]],
            [402, [revert_flexnames]],
-           [401, []],
+           [401, [revert_bibtex_clearpage]],
            [400, [revert_diagram]],
            [399, [revert_rule]],
            [398, [revert_mathdots]],

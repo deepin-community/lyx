@@ -1,7 +1,2 @@
 0001-Prefer-xdg-open.patch
-0002-Prefer-python3-over-python2.patch
-0003-Replace-shebang-line-with-python3.patch
-0004-Use-python3-internally-in-the-C-code-as-well.patch
-0007-Fix-path-to-perl.patch
-0006-Store-correctly-the-window-position-with-Wayland.patch
-fix-riscv-build-failure.patch
+0002-Fix-path-to-perl.patch

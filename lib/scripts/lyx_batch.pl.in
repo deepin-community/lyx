@@ -1,0 +1,272 @@
+#! /usr/bin/env perl
+# -*- mode: perl; -*-
+
+# lyx_batch.pl testname
+
+use strict;
+use warnings;
+use File::Copy;
+use File::Compare;
+use File::Slurp qw(read_dir read_file);
+
+sub checkPrecondition();
+sub system1(@);
+sub addFiles($$$);
+sub mycompare($$$$);
+
+my $builddir = "@CMAKE_BINARY_DIR@";
+my $userdir = "$builddir/Testing/.lyxbatch";
+my $workdir = "$builddir/autotests/out-home";
+
+my $vsuffix = "@PROGRAM_SUFFIX@";
+my $lyx_exe = "$builddir/bin/lyx$vsuffix";
+my $git_exe = "@LYX_GITVERSION@";
+my $qt_version = "@LYX_USE_QT@";
+
+my $lyxsource = "@LYX_ABS_TOP_SRCDIR@";
+my $data = "$lyxsource/development/batchtests";
+my $test_bin = "$lyxsource/development/batchtests/bin";
+my $comparepdf = "@COMPAREPDF_EXECUTABLE@";
+my $perl = "@PERL_EXECUTABLE@";
+
+# src_files := Files to be copied from lyx-source to build-dir
+# check     := List of pairs of files to check
+#                  created file (in build-dir)
+#                  expected file (in source dir, to be compared with the created one)
+# check_type: Type of check to perform, can be either:
+#                  * text (default) - compares using File::Compare (i.e. full comparison)
+#                  * pdf - compares using comparepdf (must be installed)
+#                  * custom - compares using a custom script
+# check_script: For check_type==custom, this is the script that's executed to do the comparison
+# commands  := List of commands (lyx-functions) to be executed by lyx in a batch
+# precondition: system commands to be executed prior to the test
+# command_line: List of parameters to be used on the lyx-command-line
+my %Tests = (
+  save_as_test => {
+    src_files => ["save_as.lyx"],
+    check => [["save_as_saved.lyx"],
+              ["save_as_saved2.lyx"]],
+    commands => ["file-open beamer_test.lyx",
+                 "buffer-write-as save_as_saved.lyx",
+                 "buffer-reload dump",
+                 "buffer-write-as save_as_saved2.lyx",
+                 "lyx-quit"],
+  },
+  beamer_test => {
+    src_files => ["beamer_test.lyx"],
+    check_type => 'custom',
+    check_script => ["$perl","$test_bin/compare_exported_tex.pl"],
+    check => [["beamer_test.tex", "beamer_test.tex.orig"]],
+    commands => ["file-open beamer_test.lyx",
+                 "buffer-begin",
+                 "repeat 150 outline-down",
+                 "repeat 150 outline-up",
+                 "buffer-export pdflatex",
+                 "buffer-reload dump",
+                 "lyx-quit"],
+  },
+  vcs_info_export => {
+    precondition => {
+      command => [$git_exe, "ls-files", "--error-unmatch", "vcs_info_export.lyx"],
+      workdir => "$data",
+    },
+    src_files => ["vcs_info_export.lyx"],
+    check_type => 'custom',
+    check_script => ["$perl","$test_bin/compare_exported_tex.pl"],
+    check => [["vcs_info_export.tex", "vcs_info_export.tex.orig"]],
+    command_line => ["-E", "pdflatex", "vcs_info_export.tex", "$data/vcs_info_export.lyx"],
+  },
+  "ams-import" => {
+    src_files => ["ams-import.tex"],
+    check_type => 'pdf',
+    check => [["ams-import.pdf", "ams-import.pdf"],
+              ["ams-import.lyx"]],
+    commands => ["buffer-new",
+                 "buffer-import latex ams-import.tex",
+                 "buffer-write",
+                 "buffer-export pdf2",
+                 "lyx-quit"],
+  },
+  "compare_test" => {
+      src_files => ["old.lyx", "new.lyx"],
+      check_type => 'custom',
+      check_script => ["$perl","$test_bin/compare_custom.pl"],
+      test_dir => "$lyxsource/development/batchtests/compare_tests/",
+      check => [["diffs.lyx", "diffs.expected.lyx"]],
+      commands => [
+          "dialog-show compare run-blocking $workdir/old.lyx $workdir/new.lyx",
+          "buffer-write-as $workdir/diffs.lyx",
+          "lyx-quit"
+      ],
+  },
+);
+
+die("Expected argument missing") if (! defined($ARGV[0]));
+my $test = $ARGV[0];
+die("Invalid argument") if (! defined($Tests{$test}));
+
+if (! -e $userdir) {
+  mkdir($userdir);
+}
+
+$ENV{LANG} = "en";
+$ENV{LC_ALL} = "C";
+$ENV{LANGUAGE} = "en_US";
+
+if (defined $Tests{$test}->{test_dir}) {
+  my @dirs = read_dir($Tests{$test}->{test_dir}, prefix => 1);
+  foreach my $dir (@dirs) {
+    next unless -d $dir;
+    print "--- Running tests in $dir\n";
+    run_tests($dir);
+  }
+}
+else {
+  run_tests($data);
+}
+
+exit(0);
+
+
+sub run_tests {
+  my $test_dir = shift;
+
+  if (-e "$test_dir/skip.test") {
+    my $skip_msg = read_file("$test_dir/skip.test");
+    print "TEST SKIPPED.\n$skip_msg\n";
+    return;
+  }
+
+  my @expected = &addFiles($test_dir, $Tests{$test}->{check},1);
+
+  my @created = &addFiles($workdir, $Tests{$test}->{check}, 0);
+
+  # Copy src-files to work with
+  for my $f (@{$Tests{$test}->{src_files}}) {
+    copy("$test_dir/$f", "$workdir/$f") or die("Copy failed: $!");
+  }
+  print "Unlinking " . join(' ', @created) . "\n";
+  unlink(@created);
+
+  &checkPrecondition();
+  chdir($workdir);
+  my @command = ($lyx_exe, "-userdir", $userdir);
+  if (defined($Tests{$test}->{command_line})) {
+    push(@command, @{$Tests{$test}->{command_line}});
+  }
+  if (defined($Tests{$test}->{commands}->[0])) {
+    if ($qt_version eq "QT5") {
+      push(@command, "-platform", "offscreen");
+    }
+    if (defined($Tests{$test}->{commands}->[1])) { # more than one command
+      push(@command, "-x", "command-sequence " . join(';', @{$Tests{$test}->{commands}}));
+    }
+    else {
+      push(@command, "-x", $Tests{$test}->{commands}->[0]);
+    }
+  }
+
+  &system1(@command);
+
+  for (my $i = 0; defined($created[$i]); $i++) {
+    die("File \"$created[$i]\" not created") if (! -e "$created[$i]");
+
+    if (defined($expected[$i])) {
+      my $res = mycompare($Tests{$test}->{check_type}, $expected[$i], $created[$i], $Tests{$test}->{check_script});
+
+      die("Expected ($expected[$i]) and created ($created[$i]) files differ") if $res != 0;
+    }
+  }
+}
+
+sub checkPrecondition()
+{
+  return if (! defined($Tests{$test}->{precondition}));
+  my $rPrecond = $Tests{$test}->{precondition};
+  my @command = @{$rPrecond->{command}};
+  if (defined($rPrecond->{workdir})) {
+    chdir($rPrecond->{workdir});
+  }
+  my $result = &system1(@command);
+  print "Pre-condition result = $result\n";
+  die("Pre-condition error") if ($result != 0);
+}
+
+sub system1(@)
+{
+  my ($exe, @params) = @_;
+  print "Executing:\n\t$exe '" . join("' '", @params) . "'\n";
+  return(system($exe, @params));
+}
+
+# Create a list of file paths
+# dir: result-dir
+# rBases: List of base-names
+sub addFiles($$$)
+{
+  my ($tdir, $rrBases, $idx) = @_;
+  my $dir;
+  if (defined($tdir)) {
+    $dir = "$tdir/";
+  }
+  else {
+    $dir = "";
+  }
+  my @result = ();
+  for my $rf (@{$rrBases}) {
+    my $path = undef;
+    if (defined($rf) && defined($rf->[$idx])) {
+      $path = "$dir$rf->[$idx]";
+    }
+    push(@result, $path);
+  }
+  return(@result);
+}
+
+sub mycompare($$$$)
+{
+  my ($check_type, $expected, $created, $check_script) = @_;
+  my $result;
+
+  $check_type //= 'text';
+
+if ($check_type eq 'pdf') {
+    my $cmd = $comparepdf;
+
+    if ($cmd =~ /NOTFOUND/) {
+      # no check is done due to missing executable
+    }
+    else {
+      my @params = (
+        "-ca", "-v=1", $expected, $created
+      );
+
+      my $error = "";
+      if (&system1($cmd, @params) != 0) {
+	if ($? == -1) {
+	  $error = sprintf("failed to execute: $cmd");
+	}
+	elsif ($? & 127) {
+	  $error = sprintf("$cmd with signal %d, %s coredump",
+			   ($? & 127),  ($? & 128) ? 'with' : 'without');
+	}
+	else {
+	  $error = sprintf("child $cmd exited with value %d", $? >> 8);
+	}
+      }
+      die($error) if ($error ne "");
+    }
+    $result = 0;
+  }
+  elsif ($check_type eq 'custom') {
+    $result = system1(@$check_script, $expected, $created);
+  }
+  elsif ($check_type eq 'text') {
+    # defaut text comparision
+    $result = compare($created, $expected);
+  }
+  else {
+    die "Unknown check type: $check_type";
+  }
+  return($result);
+}

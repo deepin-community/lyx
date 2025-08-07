@@ -10,7 +10,6 @@
  */
 
 #include <config.h>
-#include <algorithm>
 
 #include "RowPainter.h"
 
@@ -19,6 +18,7 @@
 #include "Cursor.h"
 #include "BufferParams.h"
 #include "BufferView.h"
+#include "Bullet.h"
 #include "Changes.h"
 #include "Language.h"
 #include "Layout.h"
@@ -26,25 +26,19 @@
 #include "Row.h"
 #include "MetricsInfo.h"
 #include "Paragraph.h"
+#include "ParagraphList.h"
 #include "ParagraphParameters.h"
+#include "Text.h"
 #include "TextMetrics.h"
-#include "VSpace.h"
 
 #include "frontends/FontMetrics.h"
 #include "frontends/Painter.h"
 
-#include "insets/InsetText.h"
-
-#include "mathed/InsetMath.h"
-
 #include "support/debug.h"
 #include "support/gettext.h"
-#include "support/textutils.h"
-
 #include "support/lassert.h"
-#include <boost/crc.hpp>
 
-#include <stdlib.h>
+#include <algorithm>
 
 using namespace std;
 
@@ -58,9 +52,7 @@ RowPainter::RowPainter(PainterInfo & pi,
 	Text const & text, Row const & row, int x, int y)
 	: pi_(pi), text_(text),
 	  tm_(pi_.base.bv->textMetrics(&text)),
-	  pars_(text.paragraphs()),
 	  row_(row), par_(text.paragraphs()[row.pit()]),
-	  change_(pi_.change_),
 	  xo_(x), yo_(y)
 {
 	x_ = row_.left_margin + xo_;
@@ -73,11 +65,12 @@ RowPainter::RowPainter(PainterInfo & pi,
 }
 
 
-FontInfo RowPainter::labelFont() const
+FontInfo RowPainter::labelFont(bool end) const
 {
-	FontInfo f = text_.labelFont(par_);
+	FontInfo f = tm_.labelDisplayFont(row_.pit()).fontInfo();
 	// selected text?
-	if ((row_.selection() && row_.begin_margin_sel) || pi_.selected)
+	if ((end ? row_.end_margin_sel : row_.begin_margin_sel)
+	    || pi_.selected)
 		f.setPaintColor(Color_selectiontext);
 	return f;
 }
@@ -90,7 +83,11 @@ FontInfo RowPainter::labelFont() const
 
 void RowPainter::paintInset(Row::Element const & e) const
 {
-	// Handle selection
+	// Handle selection (first left/right, then middle).
+	pi_.selected_left = pi_.selected
+	                    || (row_.isRTL() ? row_.end_margin_sel : row_.begin_margin_sel);
+	pi_.selected_right = pi_.selected
+	                     || (row_.isRTL() ? row_.begin_margin_sel : row_.end_margin_sel);
 	bool const pi_selected = pi_.selected;
 	Cursor const & cur = pi_.base.bv->cursor();
 	if (cur.selection() && cur.text() == &text_
@@ -102,12 +99,13 @@ void RowPainter::paintInset(Row::Element const & e) const
 	// requires a full repaint
 	bool const pi_full_repaint = pi_.full_repaint;
 	bool const pi_do_spellcheck = pi_.do_spellcheck;
-	Change const pi_change = pi_.change_;
+	Change const pi_change = pi_.change;
 
 	pi_.base.font = e.inset->inheritFont() ? e.font.fontInfo() :
 		pi_.base.bv->buffer().params().getFont().fontInfo();
+	pi_.base.outer_font = e.font.fontInfo();
 	pi_.ltr_pos = !e.font.isVisibleRightToLeft();
-	pi_.change_ = change_.changed() ? change_ : e.change;
+	pi_.change = pi_.change.changed() ? pi_.change : e.change;
 	pi_.do_spellcheck &= e.inset->allowSpellCheck();
 
 	int const x1 = int(x_);
@@ -122,7 +120,7 @@ void RowPainter::paintInset(Row::Element const & e) const
 
 	// Restore full_repaint status.
 	pi_.full_repaint = pi_full_repaint;
-	pi_.change_ = pi_change;
+	pi_.change = pi_change;
 	pi_.do_spellcheck = pi_do_spellcheck;
 	pi_.selected = pi_selected;
 
@@ -139,6 +137,13 @@ void RowPainter::paintInset(Row::Element const & e) const
 }
 
 
+void RowPainter::paintLanguageMarkings(Row::Element const & e) const
+{
+	paintForeignMark(e);
+	paintNoSpellingMark(e);
+}
+
+
 void RowPainter::paintForeignMark(Row::Element const & e) const
 {
 	Language const * lang = e.font.language();
@@ -152,20 +157,48 @@ void RowPainter::paintForeignMark(Row::Element const & e) const
 	int const desc = e.inset ? e.dim.descent() : 0;
 	int const y = yo_ + min(3 * pi_.base.solidLineOffset() / 2 + desc,
 	                        row_.descent() - 1);
-	pi_.pain.line(int(x_), y, int(x_ + e.full_width()), y, Color_language,
+	pi_.pain.line(int(x_), y, int(x_ + e.full_width() - 1), y, Color_language,
 	              Painter::line_solid, pi_.base.solidLineThickness());
+}
+
+
+void RowPainter::paintNoSpellingMark(Row::Element const & e) const
+{
+	//if (!lyxrc.mark_no_spelling)
+	//	return;
+	if (e.font.language() == latex_language)
+		return;
+	if (e.font.fontInfo().nospellcheck() != FONT_ON)
+		return;
+
+	// We at the same voffset than the misspelled mark, since
+	// these two are mutually exclusive
+	int const desc = e.inset ? e.dim.descent() : 0;
+	int y = yo_ + pi_.base.solidLineOffset() + desc
+		+ pi_.base.solidLineThickness()
+		+ (e.change.changed() ? pi_.base.solidLineThickness() + 1 : 0)
+		+ 1;
+	// Make sure that the mark does not go below the row rectangle
+	y = min(y, yo_ + row_.descent() - 1);
+
+	pi_.pain.line(int(x_), y, int(x_ + e.full_width()), y, Color_language,
+		      Painter::line_onoffdash, pi_.base.solidLineThickness());
 }
 
 
 void RowPainter::paintMisspelledMark(Row::Element const & e) const
 {
+	if (e.font.fontInfo().nospellcheck() == FONT_ON)
+		return;
 	// if changed the misspelled marker gets placed slightly lower than normal
 	// to avoid drawing at the same vertical offset
 	FontMetrics const & fm = theFontMetrics(e.font);
 	int const thickness = max(fm.lineWidth(), 2);
-	int const y = yo_ + pi_.base.solidLineOffset() + pi_.base.solidLineThickness()
+	int y = yo_ + pi_.base.solidLineOffset() + pi_.base.solidLineThickness()
 		+ (e.change.changed() ? pi_.base.solidLineThickness() + 1 : 0)
 		+ 1 + thickness / 2;
+	// Make sure that the mark does not go below the row rectangle
+	y = min(y, yo_ + row_.descent() - 1);
 
 	//FIXME: this could be computed only once, it is probably not costly.
 	// check for cursor position
@@ -197,7 +230,6 @@ void RowPainter::paintMisspelledMark(Row::Element const & e) const
 			continue;
 		}
 
-		FontMetrics const & fm = theFontMetrics(e.font);
 		int x1 = fm.pos2x(e.str, range.first - e.pos,
 		                  e.isRTL(), e.extra);
 		int x2 = fm.pos2x(e.str, min(range.last - e.pos + 1,
@@ -263,11 +295,10 @@ void RowPainter::paintChange(Row::Element const & e) const
 
 void RowPainter::paintChangeBar() const
 {
-	int const height = tm_.isLastRow(row_)
-		? row_.ascent()
-		: row_.height();
-
-	pi_.pain.fillRectangle(5, yo_ - row_.ascent(), 3, height, Color_changebar);
+	int const x = pi_.base.bv->leftMargin() - pi_.base.bv->zoomedPixels(7);
+	Dimension const & cdim = row_.contents_dim();
+	pi_.pain.fillRectangle(x, yo_ - cdim.ascent(),
+	                       3, cdim.height(), Color_changebar);
 }
 
 
@@ -282,14 +313,15 @@ void RowPainter::paintAppendix() const
 	if (par_.params().startOfAppendix())
 		y += 2 * defaultRowHeight();
 
-	pi_.pain.line(1, y, 1, yo_ + row_.height(), Color_appendix);
-	pi_.pain.line(tm_.width() - 2, y, tm_.width() - 2, yo_ + row_.height(), Color_appendix);
+	pi_.pain.line(1, y, 1, yo_ + row_.descent(), Color_appendix);
+	pi_.pain.line(tm_.width() - 2, y, tm_.width() - 2, yo_ + row_.descent(), Color_appendix);
 }
 
 
 void RowPainter::paintDepthBar() const
 {
 	depth_type const depth = par_.getDepth();
+	ParagraphList const & pars = text_.paragraphs();
 
 	if (depth <= 0)
 		return;
@@ -299,23 +331,23 @@ void RowPainter::paintDepthBar() const
 		pit_type pit2 = row_.pit();
 		if (row_.pos() == 0)
 			--pit2;
-		prev_depth = pars_[pit2].getDepth();
+		prev_depth = pars[pit2].getDepth();
 	}
 
 	depth_type next_depth = 0;
 	if (!tm_.isLastRow(row_)) {
 		pit_type pit2 = row_.pit();
-		if (row_.endpos() >= pars_[pit2].size())
+		if (row_.endpos() >= pars[pit2].size())
 			++pit2;
-		next_depth = pars_[pit2].getDepth();
+		next_depth = pars[pit2].getDepth();
 	}
 
 	for (depth_type i = 1; i <= depth; ++i) {
 		int const w = nestMargin() / 5;
 		int x = int(xo_) + w * i;
-		// consider the bufferview left margin if we're drawing outermost text
+		// only consider the changebar space if we're drawing outermost text
 		if (text_.isMainText())
-			x += pi_.base.bv->leftMargin();
+			x += pi_.base.bv->leftMargin() - changebarMargin();
 
 		int const starty = yo_ - row_.ascent();
 		int const h =  row_.height() - 1 - (i - next_depth - 1) * 3;
@@ -355,18 +387,17 @@ void RowPainter::paintAppendixStart(int y) const
 
 void RowPainter::paintTooLargeMarks(bool const left, bool const right) const
 {
-	if (left)
-		pi_.pain.line(pi_.base.dottedLineThickness(), yo_ - row_.ascent(),
-					  pi_.base.dottedLineThickness(), yo_ + row_.descent(),
-					  Color_scroll, Painter::line_onoffdash,
-		              pi_.base.dottedLineThickness());
+	int const lwid = pi_.base.dottedLineThickness();
+	Dimension const & cdim = row_.contents_dim();
+	if (left) {
+		int const x = pi_.base.bv->leftMargin() - lwid;
+		pi_.pain.line(x, yo_ - cdim.ascent(), x, yo_ + cdim.descent(),
+		              Color_scroll, Painter::line_onoffdash, lwid);
+	}
 	if (right) {
-		int const wwidth =
-			pi_.base.bv->workWidth() - pi_.base.dottedLineThickness();
-		pi_.pain.line(wwidth, yo_ - row_.ascent(),
-					  wwidth, yo_ + row_.descent(),
-					  Color_scroll, Painter::line_onoffdash,
-		              pi_.base.dottedLineThickness());
+		int const x = pi_.base.bv->workWidth() - pi_.base.bv->rightMargin();
+		pi_.pain.line(x, yo_ - cdim.ascent(), x, yo_ + cdim.descent(),
+		              Color_scroll, Painter::line_onoffdash, lwid);
 	}
 }
 
@@ -397,17 +428,26 @@ void RowPainter::paintLabel() const
 	if (str.empty())
 		return;
 
+	// different font for label separation and string
 	Layout const & layout = par_.layout();
-	FontInfo const font = labelFont();
+	FontInfo const font = labelFont(false);
 	FontMetrics const & fm = theFontMetrics(font);
-	double x = x_;
+	FontInfo lfont = font;
 
-	if (row_.isRTL())
-		x = xo_ + row_.width() + fm.width(layout.labelsep);
-	else
-		x = x_ - fm.width(layout.labelsep) - fm.width(str);
+	// bullet?
+	if (layout.labeltype == LABEL_ITEMIZE && par_.itemdepth < 4) {
+		// get label font size from document properties
+		lfont.setSize(pi_.base.bv->buffer().params().user_defined_bullet(par_.itemdepth).getFontSize());
+		// realize to avoid assertion
+		lfont.realize(sane_font);
+	}
 
-	pi_.pain.text(int(x), yo_, str, font);
+	FontMetrics const & lfm = theFontMetrics(lfont);
+
+	int const x = row_.isRTL() ? row_.width() + fm.width(layout.labelsep)
+	                           : row_.left_margin - fm.width(layout.labelsep) - lfm.width(str);
+
+	pi_.pain.text(int(xo_) + x, yo_, str, lfont);
 }
 
 
@@ -416,7 +456,7 @@ void RowPainter::paintTopLevelLabel() const
 	BufferParams const & bparams = pi_.base.bv->buffer().params();
 	ParagraphParameters const & pparams = par_.params();
 	Layout const & layout = par_.layout();
-	FontInfo const font = labelFont();
+	FontInfo const font = labelFont(false);
 	docstring const str = par_.labelString();
 	if (str.empty())
 		return;
@@ -438,8 +478,18 @@ void RowPainter::paintTopLevelLabel() const
 
 	double x = x_;
 	if (layout.labeltype == LABEL_CENTERED) {
-		x += (tm_.width() - row_.left_margin - row_.right_margin) / 2;
-		x -= fm.width(str) / 2;
+		// The 'size + 1' is weird, but it makes sure that we get the
+		// left margin of non-first row.
+		int leftm = tm_.leftMargin(row_.pit(), par_.size() + 1);
+		int rightm = tm_.rightMargin(row_.pit());
+		if (row_.isRTL())
+			swap(leftm, rightm);
+		/* Currently, x points at row_.left_margin (which contains the
+		 * indent). First remove that, and then center the title with
+		 * respect to the left and right margins.
+		 */
+		x += leftm - row_.left_margin + (tm_.width() - leftm -rightm) / 2
+			- fm.width(str) / 2;
 	} else if (row_.isRTL()) {
 		x = xo_ + tm_.width() - row_.right_margin - fm.width(str);
 	}
@@ -447,69 +497,15 @@ void RowPainter::paintTopLevelLabel() const
 }
 
 
-/** Check if the current paragraph is the last paragraph in a
-    proof environment */
-static int getEndLabel(pit_type p, Text const & text)
-{
-	ParagraphList const & pars = text.paragraphs();
-	pit_type pit = p;
-	depth_type par_depth = pars[p].getDepth();
-	while (pit != pit_type(pars.size())) {
-		Layout const & layout = pars[pit].layout();
-		int const endlabeltype = layout.endlabeltype;
-
-		if (endlabeltype != END_LABEL_NO_LABEL) {
-			if (p + 1 == pit_type(pars.size()))
-				return endlabeltype;
-
-			depth_type const next_depth =
-				pars[p + 1].getDepth();
-			if (par_depth > next_depth ||
-			    (par_depth == next_depth && layout != pars[p + 1].layout()))
-				return endlabeltype;
-			break;
-		}
-		if (par_depth == 0)
-			break;
-		pit = text.outerHook(pit);
-		if (pit != pit_type(pars.size()))
-			par_depth = pars[pit].getDepth();
-	}
-	return END_LABEL_NO_LABEL;
-}
-
-
 void RowPainter::paintLast() const
 {
-	int const endlabel = getEndLabel(row_.pit(), text_);
-
-	// paint imaginary end-of-paragraph character
-
-	Change const & change = par_.lookupChange(par_.size());
-	if (change.changed()) {
-		FontMetrics const & fm =
-			theFontMetrics(pi_.base.bv->buffer().params().getFont());
-		int const length = fm.maxAscent() / 2;
-		Color col = change.color();
-
-		pi_.pain.line(int(x_) + 1, yo_ + 2, int(x_) + 1, yo_ + 2 - length, col,
-			   Painter::line_solid, 3);
-
-		if (change.deleted()) {
-			pi_.pain.line(int(x_) + 1 - length, yo_ + 2, int(x_) + 1 + length,
-				yo_ + 2, col, Painter::line_solid, 3);
-		} else {
-			pi_.pain.line(int(x_) + 1 - length, yo_ + 2, int(x_) + 1,
-				yo_ + 2, col, Painter::line_solid, 3);
-		}
-	}
-
-	// draw an endlabel
-
+	int const endlabel = text_.getEndLabel(row_.pit());
 	switch (endlabel) {
 	case END_LABEL_BOX:
 	case END_LABEL_FILLED_BOX: {
-		FontInfo const font = labelFont();
+		FontInfo font = labelFont(true);
+		if (font.realColor() != Color_selectiontext)
+			font.setPaintColor(Color_eolmarker);
 		FontMetrics const & fm = theFontMetrics(font);
 		int const size = int(0.75 * fm.maxAscent());
 		int const y = yo_ - size;
@@ -518,26 +514,26 @@ void RowPainter::paintLast() const
 		int x = 0;
 		if (row_.isRTL()) {
 			int const normal_x = nestMargin() + changebarMargin();
-			x = min(normal_x, row_.left_margin - size - Inset::TEXT_TO_INSET_OFFSET);
+			x = min(normal_x, row_.left_margin - size - Inset::textOffset(pi_.base.bv));
 		} else {
 			int const normal_x = tm_.width() - row_.right_margin
-				- size - Inset::TEXT_TO_INSET_OFFSET;
+				- size - Inset::textOffset(pi_.base.bv);
 			x = max(normal_x, row_.width());
 		}
 
 		if (endlabel == END_LABEL_BOX)
-			pi_.pain.rectangle(int(xo_) + x, y, size, size, Color_eolmarker);
+			pi_.pain.rectangle(int(xo_) + x, y, size, size, font.realColor());
 		else
-			pi_.pain.fillRectangle(int(xo_) + x, y, size, size, Color_eolmarker);
+			pi_.pain.fillRectangle(int(xo_) + x, y, size, size, font.realColor());
 		break;
 	}
 
 	case END_LABEL_STATIC: {
-		FontInfo const font = labelFont();
+		FontInfo const font = labelFont(true);
 		FontMetrics const & fm = theFontMetrics(font);
 		docstring const & str = par_.layout().endlabelstring();
-		double const x = row_.isRTL() ? x_ - fm.width(str) : x_;
-		pi_.pain.text(int(x), yo_, str, font);
+		double const x = row_.isRTL() ? row_.left_margin - fm.width(str) : row_.width();
+		pi_.pain.text(xo_ + x, yo_, str, font);
 		break;
 	}
 
@@ -549,14 +545,12 @@ void RowPainter::paintLast() const
 
 void RowPainter::paintOnlyInsets()
 {
-	Row::const_iterator cit = row_.begin();
-	Row::const_iterator const & end = row_.end();
-	for ( ; cit != end ; ++cit) {
-		Row::Element const & e = *cit;
+	for (Row::Element const & e : row_) {
 		if (e.type == Row::INSET) {
 			paintInset(e);
-			// The line that indicates word in a different language
-			paintForeignMark(e);
+			// The markings of foreign languages
+			// and of text ignored for spellchecking
+			paintLanguageMarkings(e);
 			// change tracking (not for insets that handle it themselves)
 			if (!e.inset->canPaintChange(*pi_.base.bv))
 				paintChange(e);
@@ -569,11 +563,7 @@ void RowPainter::paintOnlyInsets()
 
 void RowPainter::paintText()
 {
-	Row::const_iterator cit = row_.begin();
-	Row::const_iterator const & end = row_.end();
-	for ( ; cit != end ; ++cit) {
-		Row::Element const & e = *cit;
-
+	for (Row::Element const & e : row_) {
 		switch (e.type) {
 		case Row::STRING:
 		case Row::VIRTUAL:
@@ -589,11 +579,13 @@ void RowPainter::paintText()
 			break;
 
 		case Row::SPACE:
+		case Row::MARGINSPACE:
 			paintTextDecoration(e);
 		}
 
-		// The line that indicates word in a different language
-		paintForeignMark(e);
+		// The markings of foreign languages
+		// and of text ignored for spellchecking
+		paintLanguageMarkings(e);
 
 		// change tracking (not for insets that handle it themselves)
 		if (e.type != Row::INSET || ! e.inset->canPaintChange(*pi_.base.bv))
@@ -609,10 +601,16 @@ void RowPainter::paintSelection() const
 	if (!row_.selection())
 		return;
 
-	int const y1 = yo_ - row_.ascent();
-	int const y2 = y1 + row_.height();
+	int const y1 = yo_ - row_.contents_dim().asc;
+	int const y2 = yo_ + row_.contents_dim().des;
 
-	// draw the margins
+	// The top selection
+	if (row_.begin_margin_sel)
+		pi_.pain.fillRectangle(int(xo_), yo_ - row_.ascent(),
+		                       tm_.width(), row_.ascent() - row_.contents_dim().asc,
+		                       Color_selection);
+
+	// The left margin selection
 	if (row_.isRTL() ? row_.end_margin_sel : row_.begin_margin_sel)
 		pi_.pain.fillRectangle(int(xo_), y1, row_.left_margin, y2 - y1,
 		                       Color_selection);
@@ -651,11 +649,31 @@ void RowPainter::paintSelection() const
 		x += e.full_width();
 	}
 
+	// the right margin selection
 	if (row_.isRTL() ? row_.begin_margin_sel : row_.end_margin_sel)
 		pi_.pain.fillRectangle(int(x), y1,
 		                       int(xo_ + tm_.width()) - int(x), y2 - y1,
 		                       Color_selection);
+	// The bottom selection
+	if (row_.end_margin_sel)
+		pi_.pain.fillRectangle(int(xo_), yo_ + row_.contents_dim().des,
+		                       tm_.width(), row_.descent() - row_.contents_dim().des,
+		                       Color_selection);
+}
 
+
+void RowPainter::paintBookmark(int num) const
+{
+	BufferView const * bv = pi_.base.bv;
+	FontInfo fi = bv->buffer().params().getFont().fontInfo();
+	FontMetrics const & fm = theFontMetrics(fi);
+	fi.setColor(Color_bookmark);
+	// ❶ U+2776 DINGBAT NEGATIVE CIRCLED DIGIT ONE
+	char_type const ch = 0x2775 + num;
+	int const x = row_.isRTL()
+		? bv->workWidth() - bv->rightMargin() + (bv->defaultMargin() - fm.width(ch)) / 2
+		: bv->leftMargin() - (bv->defaultMargin() + fm.width(ch)) / 2;
+	pi_.pain.text(x, yo_, ch, fi);
 }
 
 

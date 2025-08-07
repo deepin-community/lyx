@@ -1,16 +1,21 @@
 #% Do not delete the line below; configure depends on this
-#  \DeclareDocBookClass[book]{DocBook Book (SGML)}
+#  \DeclareLaTeXClass[docbook5_book]{DocBook Book (XML)}
+#  \DeclareCategory{Books}
+#% Do not delete the line below; configure depends on this
+#  \DeclareDocBookClass[book]{DocBook Book (XML)}
 #  \DeclareCategory{Books (DocBook)}
 # DocBook textclass definition file.
 # Author : Jose' Matos <jamatos@lyx.org>
 # hacked for books: Luc Abom <luc@abom.com>
 
-Format 66
+Format 104
 Input report
 Input db_stdclass.inc
 
+DocBookRoot		book
+DocBookForceAbstract	true
+
 Style Title
 	LatexType             Command
-	LatexName             bookinfo
 	CommandDepth          1
 End

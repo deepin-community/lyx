@@ -6,8 +6,7 @@
 # 2.) While copying,
 #   2a.) searches for relative references to files and
 #        replaces them with absolute ones
-#   2b.) In order to be able to compile with luatex or xetex
-#        changes default fonts to use non-tex-fonts instead
+#   2b.) Changes default fonts to use non-tex-fonts
 #
 # Syntax: perl useSystemFonts.pl sourceFile destFile format
 # Each param represents a path to a file
@@ -54,10 +53,10 @@ sub copyFoundSubdocuments($);
 sub copyJob($$);
 sub isrelativeFix($$$);
 sub isrelative($$$);
-sub createTemporaryFileName($$);
+sub createTemporaryFileName($$$);
 sub copyJobPending($$);
 sub addNewJob($$$$$);
-sub addFileCopyJob($$$$);
+sub addFileCopyJob($$$$$);
 sub getNewNameOf($$);
 sub getlangs($$);
 sub simplifylangs($);
@@ -86,43 +85,6 @@ if ($source =~ /\/([a-z][a-z](_[A-Z][A-Z])?)[\/_]/) {
 
 my $inputEncoding = undef;
 if ($fontT eq "systemF") {
-  if ($lang =~ /^(ru|uk|sk|el)$/) {
-    $font{roman} = "DejaVu Serif";
-    $font{sans} = "DejaVu Sans";
-    $font{typewriter} = "DejaVu Sans Mono";
-  }
-  elsif ($lang =~ /^(he)$/) {
-    $font{roman} = "FreeSans";
-    $font{sans} = "FreeSans";
-    $font{typewriter} = "FreeSans";
-  }
-  elsif ($lang eq "fa") {
-    $font{roman} = "FreeFarsi";
-    $font{sans} = "FreeFarsi";
-    $font{typewriter} = "FreeFarsi Monospace";
-  }
-  elsif ($lang eq "zh_CN") {
-    $font{roman} = "WenQuanYi Micro Hei";
-    $font{sans} = "WenQuanYi Micro Hei";
-    $font{typewriter} = "WenQuanYi Micro Hei";
-  }
-  elsif ($lang eq "ko" ) {
-    $font{roman} = "NanumGothic"; # NanumMyeongjo, NanumGothic Eco, NanumGothicCoding
-    $font{sans} = "NanumGothic";
-    $font{typewriter} = "NanumGothic";
-  }
-  elsif ($lang eq "ar" ) {
-    # available in 'fonts-sil-scheherazade' package
-    $font{roman} = "Scheherazade";
-    $font{sans} = "Scheherazade";
-    $font{typewriter} = "Scheherazade";
-  }
-  else {
-    # default system fonts
-    $font{roman} = "FreeSerif";
-    $font{sans} = "FreeSans";
-    $font{typewriter} = "FreeMono";
-  }
 }
 elsif ($encodingT ne "default") {
   # set input encoding to the requested value
@@ -166,8 +128,9 @@ if (! -d $destdir) {
 my $destdirOfSubdocuments;
 {
   my ($name, $pat, $suffix) = fileparse($source, qr/\.[^.]*/);
-  my $ext = $format . "_$lang";
-  $destdirOfSubdocuments = "$destdir/tmp_$ext" . "_$name"; # Global var, something TODO here
+  my $ext = $format . "-$lang";
+  $name =~ s/[%_]/-/g;
+  $destdirOfSubdocuments = "$destdir/tmp-$ext" . "-$name"; # Global var, something TODO here
 }
 
 if(-d $destdirOfSubdocuments) {
@@ -213,10 +176,13 @@ sub interpretedCopy($$$$)
 
   initLyxStack(\%font, $fontT, $inputEncoding);
 
+  my $fi_line_no = 0;
+  my @path_errors = ();
   while (my $l = <FI>) {
+    $fi_line_no += 1;
     $l =~ s/[\n\r]+$//;
     #chomp($l);
-    my $rStatus = checkLyxLine($l);
+    my $rStatus = checkLyxLine($l, $sourcedir);
     if ($rStatus->{found}) {
       my $rF = $rStatus->{result};
       if ($rStatus->{"filetype"} eq "replace_only") {
@@ -237,24 +203,74 @@ sub interpretedCopy($$$$)
 	    my $ext = $isrel[1];
 	    if ($rStatus->{"filetype"} eq "prefix_only") {
 	      $f = getNewNameOf("$sourcedir/$f", $rFiles);
+	      if ($format =~ /^(docbook5|epub)$/) {
+		$rF->[1] = join(',', @{$filelist});
+		$l =  join('', @$rF);
+	      }
 	    }
 	    else {
 	      my ($newname, $res1);
+              my @extlist = ();
+              if (ref($rStatus->{ext}) eq "ARRAY") {
+                my @extlist = @{$rStatus->{ext}};
+                my $created = 0;
+                for my $extx (@extlist) {
+                  if (-e "$sourcedir/$f$extx") {
+                    ($newname, $res1) = addFileCopyJob("$sourcedir/$f$extx",
+                                                       "$destdirOfSubdocuments",
+                                                       $rStatus->{"filetype"},
+                                                       $rFiles, $created);
+                    print "Added ($res1) file \"$sourcedir/$f$extx\" to be copied to \"$newname\"\n";
+                    if (!$created && $extx ne "") {
+                      $newname =~ s/$extx$//;
+                    }
+                    $created = 1;
+                  }
+                }
+                print "WARNING: No prefixed file.(" . join('|', @extlist) . ") seens to exist, at \"$source:$fi_line_no\"\n" if (!$created);
+              }
+              else {
 	      ($newname, $res1) = addFileCopyJob("$sourcedir/$f$ext",
 						  "$destdirOfSubdocuments",
 						  $rStatus->{"filetype"},
-						  $rFiles);
+                                                   $rFiles, 0);
 	      print "Added ($res1) file \"$sourcedir/$f$ext\" to be copied to \"$newname\"\n";
 	      if ($ext ne "") {
 		$newname =~ s/$ext$//;
 	      }
+              }
 	      $f = $newname;
 	      $res += $res1;
 	    }
 	  }
+	  else {
+	    if (! -e "$f") {
+	      # Non relative (e.g. with absolute path) file should exist
+	      if ($rStatus->{"filetype"} eq "interpret") {
+		# filetype::interpret should be interpreted by lyx or latex and therefore emit error
+		# We prinnt a warning instead
+		print "WARNING: Interpreted file \"$f\" not found, at \"$source:$fi_line_no\"\n";
+	      }
+	      elsif ($rStatus->{"filetype"} eq "prefix_only") {
+		# filetype::prefix_only should be interpreted by latex
+		print "WARNING: Prefixed file \"$f\" not found, at \"$source:$fi_line_no\"\n";
+	      }
+	      else {
+		# Collect the path-error-messages
+		push(@path_errors, "File \"$f(" . $rStatus->{"filetype"} . ")\" not found, at \"$source:$fi_line_no\"");
+	      }
+	    }
+	  }
 	}
-	if ($foundrelative) {
-	  $rF->[$fidx] = join($separator, @{$filelist});
+	if ($foundrelative && $rStatus->{"filetype"} !~ /^(prefix_for_list|prefix_only)$/) {
+          # The result can be relative too
+          # but, since prefix_for_list does no copy, we have to use absolute paths
+          # to address files inside the source dir
+          my @rel_list = ();
+          for my $fr (@{$filelist}) {
+            push(@rel_list, File::Spec->abs2rel($fr, $destdir));
+          }
+          $rF->[$fidx] = join($separator, @rel_list);
 	  $l = join('', @{$rF});
 	}
       }
@@ -263,6 +279,12 @@ sub interpretedCopy($$$$)
   }
   close(FI);
   close(FO);
+  if (@path_errors > 0) {
+    for my $entry (@path_errors) {
+      print "ERROR: $entry\n";
+    }
+    diestack("Aborted because of path errors in \"$source\"");
+  }
 
   closeLyxStack();
   return($res);
@@ -301,16 +323,16 @@ sub copyJob($$)
   for my $k (values %type2hash) {
     if ($rFiles->{$source}->{$k}) {
       if (! $rFiles->{$source}->{$k . "copied"}) {
-	$rFiles->{$source}->{$k . "copied"} = 1;
-	my $dest = $rFiles->{$source}->{$k};
-	push(@dest, $dest);
-	if ($k eq "copyonly") {
-	  diestack("Could not copy \"$source\" to \"$dest\"") if (! cp($source, $dest));
-	}
-	else {
-	  interpretedCopy($source, $dest, $destdirOfSubdocuments, $rFiles);
-	}
-	$res += 1;
+        $rFiles->{$source}->{$k . "copied"} = 1;
+        my $dest = $rFiles->{$source}->{$k};
+        push(@dest, $dest);
+        if ($k eq "copyonly") {
+          diestack("Could not copy \"$source\" to \"$dest\"") if (! cp($source, $dest));
+        }
+        else {
+          interpretedCopy($source, $dest, $destdirOfSubdocuments, $rFiles);
+        }
+        $res += 1;
       }
     }
   }
@@ -344,15 +366,24 @@ sub isrelative($$$)
   }
 }
 
-sub createTemporaryFileName($$)
+my $oldfname = "";
+
+sub createTemporaryFileName($$$)
 {
-  my ($source, $destdir) = @_;
+  my ($source, $destdir, $created) = @_;
 
   # get the basename to be used for the template
   my ($name, $path, $suffix) = fileparse($source, qr/\.[^.]*/);
   #print "source = $source, name = $name, path = $path, suffix = $suffix\n";
-  my $template = "xx_$name" . "_";
-  my $fname = File::Temp::tempnam($destdir, $template);
+  my $template = "xx-$name" . "-";
+  my $fname;
+  if (! $created) {
+    $fname = File::Temp::tempnam($destdir, $template);
+    $oldfname = $fname;
+  }
+  else {
+    $fname = $oldfname;
+  }
 
   # Append extension from source
   if ($suffix ne "") {
@@ -382,9 +413,9 @@ sub addNewJob($$$$$)
   $rFiles->{$source} = $rJob;
 }
 
-sub addFileCopyJob($$$$)
+sub addFileCopyJob($$$$$)
 {
-  my ($source, $destdirOfSubdocuments, $filetype, $rFiles) = @_;
+  my ($source, $destdirOfSubdocuments, $filetype, $rFiles, $created) = @_;
   my ($res, $newname) = (0, undef);
   my $rJob = $rFiles->{$source};
 
@@ -394,7 +425,7 @@ sub addFileCopyJob($$$$)
   }
   if (!defined($rJob->{$hashname})) {
     addNewJob($source,
-	       createTemporaryFileName($source, $destdirOfSubdocuments),
+               createTemporaryFileName($source, $destdirOfSubdocuments, $created),
 	       "$hashname", $rJob, $rFiles);
     $res = 1;
   }

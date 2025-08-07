@@ -12,6 +12,7 @@
 
 #include "InsetMathRef.h"
 
+#include "BufferParams.h"
 #include "BufferView.h"
 #include "Buffer.h"
 #include "Cursor.h"
@@ -21,15 +22,18 @@
 #include "LyX.h"
 #include "MathData.h"
 #include "MathFactory.h"
+#include "MathStream.h"
 #include "MathSupport.h"
-#include "OutputParams.h"
 #include "ParIterator.h"
-#include "sgml.h"
+#include "xml.h"
 
 #include "insets/InsetCommand.h"
+#include "insets/InsetRef.h"
 
 #include "support/debug.h"
 #include "support/gettext.h"
+#include "support/lstrings.h"
+#include "support/textutils.h"
 
 #include <ostream>
 
@@ -61,22 +65,61 @@ void InsetMathRef::infoize(odocstream & os) const
 
 void InsetMathRef::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
+	// Ctrl + click: go to label
+	if (cmd.action() == LFUN_MOUSE_RELEASE && cmd.modifier() == ControlModifier) {
+		LYXERR0("trying to goto ref '" << to_utf8(asString(cell(0))) << "'");
+		//FIXME: use DispatchResult argument
+		lyx::dispatch(FuncRequest(LFUN_LABEL_GOTO, asString(cell(0))));
+		return;
+	}
+
 	switch (cmd.action()) {
-	case LFUN_INSET_MODIFY:
-		if (cmd.getArg(0) == "ref") {
-			MathData ar;
+	case LFUN_INSET_MODIFY: {
+		string const arg0 = cmd.getArg(0);
+		string const arg1 = cmd.getArg(1);
+		if (arg0 == "ref") {
+			if (arg1 == "changetarget") {
+				string const oldtarget = cmd.getArg(2);
+				string const newtarget = cmd.getArg(3);
+				if (!oldtarget.empty() && !newtarget.empty()
+				    && asString(cell(0)) == from_utf8(oldtarget))
+					changeTarget(from_utf8(newtarget));
+				cur.forceBufferUpdate();
+				break;
+			}
+			MathData ar(buffer_);
 			if (createInsetMath_fromDialogStr(cmd.argument(), ar)) {
 				cur.recordUndo();
+				Buffer & buf = buffer();
 				*this = *ar[0].nucleus()->asRefInset();
+				setBuffer(buf);
+				break;
+			}
+		} else if (arg0 == "changetype") {
+			docstring const data = from_ascii(createDialogStr(arg1));
+			MathData ar(buffer_);
+			if (createInsetMath_fromDialogStr(data, ar)) {
+				cur.recordUndo();
+				Buffer & buf = buffer();
+				*this = *ar[0].nucleus()->asRefInset();
+				setBuffer(buf);
 				break;
 			}
 		}
 		cur.undispatched();
 		break;
+	}
 
 	case LFUN_INSET_DIALOG_UPDATE: {
 		string const data = createDialogStr();
 		cur.bv().updateDialog("ref", data);
+		break;
+	}
+
+	case LFUN_INSET_SETTINGS: {
+		string const data = createDialogStr();
+		cur.bv().showDialog("ref", data, this);
+		cur.dispatched();
 		break;
 	}
 
@@ -85,14 +128,7 @@ void InsetMathRef::doDispatch(Cursor & cur, FuncRequest & cmd)
 			cur.undispatched();
 			break;
 		}
-		if (cmd.button() == mouse_button::button3) {
-			LYXERR0("trying to goto ref '" << to_utf8(asString(cell(0))) << "'");
-			//FIXME: use DispatchResult argument
-			lyx::dispatch(FuncRequest(LFUN_LABEL_GOTO, asString(cell(0))));
-			break;
-		}
 		if (cmd.button() == mouse_button::button1) {
-			// Eventually trigger dialog with button 3, not 1
 			string const data = createDialogStr();
 			cur.bv().showDialog("ref", data, this);
 			break;
@@ -128,7 +164,12 @@ bool InsetMathRef::getStatus(Cursor & cur, FuncRequest const & cmd,
 	switch (cmd.action()) {
 	// we handle these
 	case LFUN_INSET_MODIFY:
+		if (cmd.getArg(0) == "changetype")
+			status.setOnOff(from_ascii(cmd.getArg(1)) == commandname());
+		status.setEnabled(true);
+		return true;
 	case LFUN_INSET_DIALOG_UPDATE:
+	case LFUN_INSET_SETTINGS:
 	case LFUN_MOUSE_RELEASE:
 	case LFUN_MOUSE_PRESS:
 	case LFUN_MOUSE_DOUBLE:
@@ -162,39 +203,46 @@ docstring const InsetMathRef::screenLabel() const
 
 void InsetMathRef::validate(LaTeXFeatures & features) const
 {
+	// This really should not happen here but does.
+	if (!buffer_) {
+		LYXERR0("Unassigned buffer_ in InsetMathRef::write!");
+		LYXERR0("LaTeX output may be wrong!");
+	}
+	bool const use_refstyle =
+		buffer_ && buffer().params().use_refstyle;
+
 	if (commandname() == "vref" || commandname() == "vpageref")
 		features.require("varioref");
-	else if (commandname() == "prettyref")
-		features.require("prettyref");
-	else if (commandname() == "eqref")
+	else if (commandname() == "formatted") {
+		if (use_refstyle)
+			features.require("refstyle");
+		else
+			features.require("prettyref");
+	}
+	// if eqref is used with refstyle, we do our own output
+	else if (commandname() == "eqref" && use_refstyle)
 		features.require("amsmath");
 	else if (commandname() == "nameref")
 		features.require("nameref");
 }
 
 
-int InsetMathRef::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetMathRef::docbook(XMLStream & xs, OutputParams const &) const
 {
 	if (cell(1).empty()) {
-		os << "<xref linkend=\""
-		   << sgml::cleanID(buffer(), runparams, asString(cell(0)));
-		if (runparams.flavor == OutputParams::XML)
-			os << "\"/>";
-		else
-			os << "\">";
+		docstring attr = from_utf8("linkend=\"") + xml::cleanID(asString(cell(0))) + from_utf8("\"");
+		xs << xml::CompTag("xref", to_utf8(attr));
 	} else {
-		os << "<link linkend=\""
-		   << sgml::cleanID(buffer(), runparams, asString(cell(0)))
-		   << "\">"
+		// Link with linkend, as is it within the document (not outside, in which case xlink:href is better suited).
+		docstring attr = from_utf8("linkend=\"") + xml::cleanID(asString(cell(0))) + from_utf8("\"");
+		xs << xml::StartTag("link", to_utf8(attr))
 		   << asString(cell(1))
-		   << "</link>";
+		   << xml::EndTag("link");
 	}
-
-	return 0;
 }
 
 
-void InsetMathRef::updateBuffer(ParIterator const & it, UpdateType /*utype*/)
+void InsetMathRef::updateBuffer(ParIterator const & it, UpdateType /*utype*/, bool const /*deleted*/)
 {
 	if (!buffer_) {
 		LYXERR0("InsetMathRef::updateBuffer: no buffer_!");
@@ -205,9 +253,10 @@ void InsetMathRef::updateBuffer(ParIterator const & it, UpdateType /*utype*/)
 }
 
 
-string const InsetMathRef::createDialogStr() const
+string const InsetMathRef::createDialogStr(string const & type) const
 {
-	InsetCommandParams icp(REF_CODE, to_ascii(commandname()));
+	InsetCommandParams icp(REF_CODE, (type.empty()
+			?  to_ascii(commandname()) : type));
 	icp["reference"] = asString(cell(0));
 	if (!cell(1).empty())
 		icp["name"] = asString(cell(1));
@@ -227,7 +276,7 @@ void InsetMathRef::changeTarget(docstring const & target)
 	icp["reference"] = target;
 	if (!cell(1).empty())
 		icp["name"] = asString(cell(1));
-	MathData ar;
+	MathData ar(buffer_);
 	Buffer & buf = buffer();
 	if (createInsetMath_fromDialogStr(
 	    from_utf8(InsetCommand::params2string(icp)), ar)) {
@@ -238,14 +287,101 @@ void InsetMathRef::changeTarget(docstring const & target)
 }
 
 
+void InsetMathRef::write(TeXMathStream & os) const
+{
+	docstring const & cmd = commandname();
+	// This should not happen, but of course it does
+	if (!buffer_) {
+		LYXERR0("Unassigned buffer_ in InsetMathRef::write!");
+		LYXERR0("LaTeX output may be wrong!");
+	}
+	// are we writing to the LyX file?
+	if (!os.latex()) {
+		// if so, then this is easy
+		InsetMathCommand::write(os);
+		return;
+	}
+	bool const use_refstyle =
+		buffer_ && buffer().params().use_refstyle;
+	bool special_case =  cmd == "formatted" ||
+			cmd == "labelonly" ||
+			(cmd == "eqref" && use_refstyle);
+	// we need to translate 'formatted' to prettyref or refstyle-type
+	// commands and just output the label with labelonly
+	// most of this is borrowed from InsetRef and should be kept in 
+	// sync with that.
+	ModeSpecifier specifier(os, currentMode(), lockedMode(), asciiOnly());
+	MathEnsurer ensurer(os, false);
+	if (!special_case) {
+		os << from_ascii("\\") << cmd << "{" << cell(0) << from_ascii("}");
+	}
+	else if (use_refstyle && cmd == "eqref") {
+		// we advertise this as printing "(n)", so we'll do that, at least
+		// for refstyle, since refstlye's own \eqref prints, by default,
+		// "equation n". if one wants \eqref, one can get it by using a
+		// formatted label in this case.
+		os << '(' << from_ascii("\\ref{") << cell(0) << from_ascii("})");
+	}
+	else if (cmd == "formatted") {
+		if (!use_refstyle)
+			os << "\\prettyref{" << cell(0) << "}";
+		else {
+			odocstringstream ods;
+			// get the label we are referencing
+			for (auto const & d : cell(0)) {
+				ods << d;
+			}
+			docstring const ref = ods.str();
+
+			/*
+			At the moment, the 'plural' and 'caps' options will
+			not work here. The reason is that we handle these as
+			'internal' LyX argumemts, but those are not handled by
+			InsetCommandParams::getCommand, which is what is used
+			in createInsetMath_fromDialogStr to interpret the data
+			coming from the dialog.
+			If this is fixed, then what follows will get the info
+			we need.
+			Fixing it, I think, would mean sub-classing
+			InsetCommandParams to InsetRefParams, and the overriding
+			getCommand.
+			*******************************************************
+			// reset
+			ods.str(docstring());
+			ods.clear();
+			// get the options from the optional argument
+			for (auto const & d : cell(1))
+				ods << d;
+			docstring const options = ods.str();
+			bool const caps   = support::contains(options, 'C');
+			bool const plural = support::contains(options, 's');
+			*/
+			docstring label;
+			docstring prefix;
+			docstring const fcmd =
+				InsetRef::getFormattedCmd(ref, label, prefix, true);
+			os << fcmd;
+			//if (plural)
+			//	os << "[s]";
+			os << '{' << label << '}';
+		}
+	}
+	else if (cmd == "labelonly") {
+		// noprefix does not work here, for reasons given above.
+		os << cell(0);
+	}
+}
+
+
 InsetMathRef::ref_type_info InsetMathRef::types[] = {
 	{ from_ascii("ref"),       from_ascii(N_("Standard[[mathref]]")),   from_ascii(N_("Ref: "))},
 	{ from_ascii("eqref"),     from_ascii(N_("Equation")),              from_ascii(N_("EqRef: "))},
 	{ from_ascii("pageref"),   from_ascii(N_("Page Number")),           from_ascii(N_("Page: "))},
 	{ from_ascii("vpageref"),  from_ascii(N_("Textual Page Number")),   from_ascii(N_("TextPage: "))},
 	{ from_ascii("vref"),      from_ascii(N_("Standard+Textual Page")), from_ascii(N_("Ref+Text: "))},
-	{ from_ascii("prettyref"), from_ascii(N_("PrettyRef")),             from_ascii(N_("FormatRef: "))},
+	{ from_ascii("formatted"), from_ascii(N_("PrettyRef")),             from_ascii(N_("FormatRef: "))},
 	{ from_ascii("nameref"),   from_ascii(N_("Reference to Name")),     from_ascii(N_("NameRef: "))},
+	{ from_ascii("labelonly"), from_ascii(N_("Label Only")),             from_ascii(N_("Label Only: "))},
 	{ from_ascii(""), from_ascii(""), from_ascii("") }
 };
 

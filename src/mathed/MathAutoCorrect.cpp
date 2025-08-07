@@ -11,6 +11,8 @@
 #include <config.h>
 
 #include "MathAutoCorrect.h"
+
+#include "Cursor.h"
 #include "MathData.h"
 #include "InsetMath.h"
 #include "MathSupport.h"
@@ -36,20 +38,20 @@ class Correction {
 public:
 	///
 	/// \brief Correction
-	Correction() : from2_(0) {}
+	Correction() : from1_(nullptr), from2_(0), to_(nullptr) {}
 	///
-	bool correct(MathAtom & at, char_type c) const;
+	bool correct(Cursor & cur, char_type c) const;
 	///
 	bool read(idocstream & is);
 	///
 	void write(odocstream & os) const;
 private:
 	///
-	MathAtom from1_;
+	MathData from1_;
 	///
 	char_type from2_;
 	///
-	MathAtom to_;
+	MathData to_;
 };
 
 
@@ -61,29 +63,47 @@ bool Correction::read(idocstream & is)
 		return false;
 	if (s2.size() != 1)
 		return false;
-	MathData ar1, ar3;
+	MathData ar1(nullptr), ar3(nullptr);
 	mathed_parse_cell(ar1, s1);
 	mathed_parse_cell(ar3, s3);
-	if (ar1.size() != 1 || ar3.size() != 1)
-		return false;
-	from1_ = ar1.front();
+	from1_ = ar1;
 	from2_ = s2[0];
-	to_    = ar3.front();
+	to_    = ar3;
 	return true;
 }
 
 
-bool Correction::correct(MathAtom & at, char_type c) const
+bool Correction::correct(Cursor & cur, char_type c) const
 {
 	//LYXERR(Debug::MATHED,
 	//	"trying to correct ar: " << at << " from: '" << from1_ << '\'');
 	if (from2_ != c)
 		return false;
-	if (asString(at) != asString(from1_))
+	pos_type n = from1_.size();
+	if (cur.pos() < pos_type(from1_.size())) // not enough to match
 		return false;
-	LYXERR(Debug::MATHED, "match found! subst in " << at
+	pos_type start = cur.pos() - from1_.size();
+
+	for (pos_type i = 0; i < n; i++)
+		if (asString(cur.cell()[start + i]) != asString(from1_[i]))
+			return false;
+
+	LYXERR(Debug::MATHED, "match found! subst in " << cur.cell()
 		<< " from: '" << from1_ << "' to '" << to_ << '\'');
-	at = to_;
+
+	/* To allow undoing the completion, we proceed in 4 steps
+	 * - inset the raw character
+	 * - split undo group so that we have two separate undo actions
+	 * - record undo, delete the character we just entered and the from1_ part
+	 * - finally, do the insertion of the correction.
+	 */
+	cur.insert(c);
+	cur.splitUndoGroup();
+	cur.recordUndoSelection();
+	cur.cell().erase(cur.pos() - n - 1, cur.pos());
+	cur.pos() -= n + 1;
+
+	cur.insert(to_);
 	return true;
 }
 
@@ -121,17 +141,17 @@ public:
 	///
 	void insert(const Correction & corr) { data_.push_back(corr); }
 	///
-	bool correct(MathAtom & at, char_type c) const;
+	bool correct(Cursor & cur, char_type c) const;
 private:
 	///
 	vector<Correction> data_;
 };
 
 
-bool Corrections::correct(MathAtom & at, char_type c) const
+bool Corrections::correct(Cursor & cur, char_type c) const
 {
 	for (const_iterator it = data_.begin(); it != data_.end(); ++it)
-		if (it->correct(at, c))
+		if (it->correct(cur, c))
 			return true;
 	return false;
 }
@@ -172,7 +192,7 @@ void initAutoCorrect()
 } // namespace
 
 
-bool math_autocorrect(MathAtom & at, char_type c)
+bool math_autocorrect(Cursor & cur, char_type c)
 {
 	static bool initialized = false;
 
@@ -181,8 +201,6 @@ bool math_autocorrect(MathAtom & at, char_type c)
 		initialized = true;
 	}
 
-	return theCorrections.correct(at, c);
+	return theCorrections.correct(cur, c);
 }
-
-
 } // namespace lyx

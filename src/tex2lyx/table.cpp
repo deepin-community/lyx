@@ -16,6 +16,7 @@
 
 #include "tex2lyx.h"
 
+#include "Context.h"
 #include "Preamble.h"
 
 #include "support/lassert.h"
@@ -38,7 +39,7 @@ namespace {
 class ColInfo {
 public:
 	ColInfo() : align('n'), valign('n'), rightlines(0), leftlines(0),
-		decimal_point('\0') {}
+		varwidth(false), decimal_point('\0'), vcolumn(false) {}
 	/// column alignment
 	char align;
 	/// vertical alignment
@@ -51,8 +52,12 @@ public:
 	int rightlines;
 	/// number of lines on the left
 	int leftlines;
+	/// varwidth column
+	bool varwidth;
 	/// decimal separator
 	char decimal_point;
+	/// V column type
+	bool vcolumn;
 };
 
 
@@ -123,7 +128,9 @@ class CellInfo {
 public:
 	CellInfo() : multi(CELL_NORMAL), align('n'), valign('n'),
 		     leftlines(0), rightlines(0), topline(false),
-		     bottomline(false), rotate(0), mrxnum(0) {}
+		     bottomline(false), topline_ltrim(false),
+		     topline_rtrim(false), bottomline_ltrim(false),
+		     bottomline_rtrim(false), rotate(0), mrxnum(0) {}
 	/// cell content
 	string content;
 	/// multicolumn flag
@@ -140,6 +147,14 @@ public:
 	bool topline;
 	/// do we have a line below?
 	bool bottomline;
+	/// Left trimming of top line
+	bool topline_ltrim;
+	/// Right trimming of top line
+	bool topline_rtrim;
+	/// Left trimming of bottom line
+	bool bottomline_ltrim;
+	/// Right trimming of top line
+	bool bottomline_rtrim;
 	/// how is the cell rotated?
 	int rotate;
 	/// width for multicolumn cells
@@ -281,18 +296,25 @@ void ci2special(ColInfo & ci)
 	}
 
 	if (!ci.width.empty()) {
+		string arraybackslash;
+		if (ci.varwidth)
+			arraybackslash = "\\arraybackslash";
 		switch (ci.align) {
 		case 'l':
-			ci.special += ">{\\raggedright}";
+			ci.special += ">{\\raggedright" + arraybackslash + "}";
 			break;
 		case 'r':
-			ci.special += ">{\\raggedleft}";
+			ci.special += ">{\\raggedleft" + arraybackslash + "}";
 			break;
 		case 'c':
-			ci.special += ">{\\centering}";
+			ci.special += ">{\\centering" + arraybackslash + "}";
 			break;
 		}
-		if (ci.valign == 'n')
+		if (ci.vcolumn)
+			ci.special += 'V';
+		else if (ci.varwidth)
+			ci.special += 'X';
+		else if (ci.valign == 'n')
 			ci.special += 'p';
 		else
 			ci.special += ci.valign;
@@ -324,16 +346,14 @@ void handle_colalign(Parser & p, vector<ColInfo> & colinfo,
 		     ColInfo const & start)
 {
 	if (p.get_token().cat() != catBegin)
-		cerr << "Wrong syntax for table column alignment.\n"
-			"Expected '{', got '" << p.curr_token().asInput()
-		     << "'.\n";
+		warning_message("Wrong syntax for table column alignment.\n"
+			"Expected '{', got '" + p.curr_token().asInput()+ "'");
 
 	ColInfo next = start;
 	for (Token t = p.get_token(); p.good() && t.cat() != catEnd;
 	     t = p.get_token()) {
-#ifdef FILEDEBUG
-		cerr << "t: " << t << "  c: '" << t.character() << "'\n";
-#endif
+
+		debug_message("t: " + t.asInput() + "  c: '" + t.character() + "'");
 
 		// We cannot handle comments here
 		if (t.cat() == catComment) {
@@ -341,7 +361,7 @@ void handle_colalign(Parser & p, vector<ColInfo> & colinfo,
 				// "%\n" combination
 				p.skip_spaces();
 			} else
-				cerr << "Ignoring comment: " << t.asInput();
+				warning_message("Ignoring comment: " + t.asInput());
 			continue;
 		}
 
@@ -368,6 +388,29 @@ void handle_colalign(Parser & p, vector<ColInfo> & colinfo,
 				colinfo.push_back(next);
 				next = ColInfo();
 				break;
+			case 'X':
+				// varwidth column
+				next.varwidth = true;
+				if (!next.special.empty())
+					ci2special(next);
+				colinfo.push_back(next);
+				next = ColInfo();
+				break;
+			case 'V': {
+				// V column type (varwidth package)
+				string const s = trimSpaceAndEol(p.verbatim_item());
+				// V{\linewidth} is treated as a normal column
+				// (which allows for line breaks). The V type is
+				// automatically set by LyX in this case
+				if (s != "\\linewidth" || !next.special.empty()) {
+					next.vcolumn = true;
+					next.width = s;
+					ci2special(next);
+				}
+				colinfo.push_back(next);
+				next = ColInfo();
+				break;
+			}
 			case 'p':
 			case 'b':
 			case 'm':
@@ -397,7 +440,7 @@ void handle_colalign(Parser & p, vector<ColInfo> & colinfo,
 						next.special += '|';
 				} else if (colinfo.back().special.empty())
 					++colinfo.back().rightlines;
-				else if (next.special.empty())
+				else if (next.special.empty() && p.next_token().cat() != catEnd)
 					++next.leftlines;
 				else
 					colinfo.back().special += '|';
@@ -410,11 +453,11 @@ void handle_colalign(Parser & p, vector<ColInfo> & colinfo,
 					// Maybe this can be converted to a
 					// horizontal alignment setting for
 					// fixed width columns
-					if (s == "\\raggedleft")
+					if (s == "\\raggedleft" || s == "\\raggedleft\\arraybackslash")
 						next.align = 'r';
-					else if (s == "\\raggedright")
+					else if (s == "\\raggedright" || s == "\\raggedright\\arraybackslash")
 						next.align = 'l';
-					else if (s == "\\centering")
+					else if (s == "\\centering" || s == "\\centering\\arraybackslash")
 						next.align = 'c';
 					else
 						next.special = ">{" + s + '}';
@@ -427,8 +470,7 @@ void handle_colalign(Parser & p, vector<ColInfo> & colinfo,
 				string const s = trimSpaceAndEol(p.verbatim_item());
 				if (colinfo.empty())
 					// This is not possible in LaTeX.
-					cerr << "Ignoring separator '<{"
-					     << s << "}'." << endl;
+					warning_message("Ignoring separator '<{" + s + "}'.");
 				else {
 					ColInfo & ci = colinfo.back();
 					ci2special(ci);
@@ -452,9 +494,8 @@ void handle_colalign(Parser & p, vector<ColInfo> & colinfo,
 					handle_colalign(p2, colinfo, next);
 					next = ColInfo();
 				} else {
-					cerr << "Ignoring column specification"
-						" '*{" << num << "}{"
-					     << arg << "}'." << endl;
+					warning_message("Ignoring column specification"
+							" '*{" + num + "}{" + arg + "}'.");
 				}
 				break;
 			}
@@ -521,7 +562,7 @@ void fix_colalign(vector<ColInfo> & colinfo)
 {
 	// Try to move extra leftlines to the previous column.
 	// We do this only if both special fields are empty, otherwise we
-	// can't tell wether the result will be the same.
+	// can't tell whether the result will be the same.
 	for (size_t col = 0; col < colinfo.size(); ++col) {
 		if (colinfo[col].leftlines > 1 &&
 		    colinfo[col].special.empty() && col > 0 &&
@@ -544,14 +585,14 @@ void fix_colalign(vector<ColInfo> & colinfo)
 	}
 	// Move the lines and alignment settings to the special field if
 	// necessary
-	for (size_t col = 0; col < colinfo.size(); ++col)
-		fix_colalign(colinfo[col]);
+	for (auto & col : colinfo)
+		fix_colalign(col);
 }
 
 
 /*!
  * Parse hlines and similar stuff.
- * \returns wether the token \p t was parsed
+ * \returns whether the token \p t was parsed
  */
 bool parse_hlines(Parser & p, Token const & t, string & hlines,
 		  bool is_long_tabular)
@@ -566,14 +607,21 @@ bool parse_hlines(Parser & p, Token const & t, string & hlines,
 		hlines += "\\cline{" + p.verbatim_item() + '}';
 
 	else if (t.cs() == "cmidrule") {
-		// We cannot handle the \cmidrule(l){3-4} form
 		p.pushPosition();
 		p.skip_spaces(true);
-		bool const hasParentheses(p.getFullArg('(', ')').first);
-		p.popPosition();
-		if (hasParentheses)
+		// We do not support the optional height argument
+		if (p.hasOpt())
 			return false;
-		hlines += "\\cmidrule{" + p.verbatim_item() + '}';
+		// We support the \cmidrule(l){3-4} form but
+		// not the trim length parameters (l{<with>}r{<width>})
+		string const trim = p.getFullParentheseArg();
+		string const range = p.verbatim_item();
+		if (!trim.empty()) {
+			if (support::contains(trim, "{"))
+				return false;
+			hlines += "\\cmidrule" + trim + "{" + range + "}";
+		} else
+			hlines += "\\cmidrule{" + range + '}';
 	}
 
 	else if (t.cs() == "addlinespace") {
@@ -660,7 +708,7 @@ void parse_table(Parser & p, ostream & os, bool is_long_tabular,
 		}
 
 		// We need to handle structure stuff first in order to
-		// determine wether we need to output a HLINE separator
+		// determine whether we need to output a HLINE separator
 		// before the row or not.
 		if (t.cat() == catEscape) {
 			if (parse_hlines(p, t, hlines, is_long_tabular)) {
@@ -682,13 +730,12 @@ void parse_table(Parser & p, ostream & os, bool is_long_tabular,
 				 t.cs() == "\\" ||
 				 t.cs() == "cr") {
 				if (t.cs() == "cr")
-					cerr << "Warning: Converting TeX "
-						"'\\cr' to LaTeX '\\\\'."
-					     << endl;
+					warning_message("Warning: Converting TeX "
+							"'\\cr' to LaTeX '\\\\'.");
 				// stuff before the line break
 				os << comments << HLINE << hlines << HLINE
 				   << LINE;
-				//cerr << "hlines: " << hlines << endl;
+				//warning_message("hlines: " + hlines);
 				hlines.erase();
 				comments.erase();
 				pos = ROW_START;
@@ -746,8 +793,7 @@ void parse_table(Parser & p, ostream & os, bool is_long_tabular,
 			if (support::contains(hlines, "\\hline") ||
 			    support::contains(hlines, "\\cline") ||
 			    support::contains(hlines, "\\newpage"))
-				cerr << "Ignoring '" << hlines
-				     << "' in a cell" << endl;
+				warning_message("Ignoring '" + hlines + "' in a cell");
 			else
 				os << hlines;
 			hlines.erase();
@@ -801,7 +847,7 @@ void parse_table(Parser & p, ostream & os, bool is_long_tabular,
 		else if (t.cat() == catEnd) {
 			if (flags & FLAG_BRACE_LAST)
 				return;
-			cerr << "unexpected '}'\n";
+			warning_message("unexpected '}'");
 		}
 
 		else if (t.cat() == catAlign) {
@@ -860,8 +906,7 @@ void parse_table(Parser & p, ostream & os, bool is_long_tabular,
 	// We can have hline stuff if the last line is incomplete
 	if (!hlines.empty()) {
 		// this does not work in LaTeX, so we ignore it
-		cerr << "Ignoring '" << hlines << "' at end of tabular"
-		     << endl;
+		warning_message("Ignoring '" + hlines + "' at end of tabular");
 	}
 }
 
@@ -869,16 +914,77 @@ void parse_table(Parser & p, ostream & os, bool is_long_tabular,
 void handle_hline_above(RowInfo & ri, vector<CellInfo> & ci)
 {
 	ri.topline = true;
-	for (size_t col = 0; col < ci.size(); ++col)
-		ci[col].topline = true;
+	for (auto & col : ci)
+		col.topline = true;
 }
 
 
 void handle_hline_below(RowInfo & ri, vector<CellInfo> & ci)
 {
 	ri.bottomline = true;
-	for (size_t col = 0; col < ci.size(); ++col)
-		ci[col].bottomline = true;
+	for (auto & col : ci)
+		col.bottomline = true;
+}
+
+
+void parse_cell_content(ostringstream & os2, Parser & parse, unsigned int flags, Context & newcontext,
+			vector< vector<CellInfo> > & cellinfo, vector<ColInfo> & colinfo,
+			size_t const row, size_t const col)
+{
+	bool turn = false;
+	int rotate = 0;
+	bool varwidth = false;
+	if (parse.next_token().cs() == "begin") {
+		parse.pushPosition();
+		parse.get_token();
+		string const env = parse.getArg('{', '}');
+		if (env == "sideways" || env == "turn") {
+			string angle = "90";
+			if (env == "turn") {
+				turn = true;
+				angle = parse.getArg('{', '}');
+			}
+			active_environments.push_back(env);
+			parse.ertEnvironment(env);
+			active_environments.pop_back();
+			parse.skip_spaces();
+			if (!parse.good() && support::isStrInt(angle))
+				rotate = convert<int>(angle);
+		} else if (env == "cellvarwidth") {
+			active_environments.push_back(env);
+			parse.ertEnvironment(env);
+			active_environments.pop_back();
+			parse.skip_spaces();
+			varwidth = true;
+		}
+		parse.popPosition();
+	}
+	if (rotate != 0) {
+		cellinfo[row][col].rotate = rotate;
+		parse.get_token();
+		active_environments.push_back(parse.getArg('{', '}'));
+		if (turn)
+			parse.getArg('{', '}');
+		parse_text_in_inset(parse, os2, FLAG_END, false, newcontext);
+		active_environments.pop_back();
+		preamble.registerAutomaticallyLoadedPackage("rotating");
+	} else if (varwidth) {
+		parse.get_token();
+		active_environments.push_back(parse.getArg('{', '}'));
+		// valign arg
+		if (parse.hasOpt())
+			cellinfo[row][col].valign = parse.getArg('[', ']')[1];
+		newcontext.in_table_cell = true;
+		parse_text_in_inset(parse, os2, FLAG_END, false, newcontext);
+		if (cellinfo[row][col].multi == CELL_NORMAL)
+			colinfo[col].align = newcontext.cell_align;
+		else
+			cellinfo[row][col].align = newcontext.cell_align;
+		active_environments.pop_back();
+		preamble.registerAutomaticallyLoadedPackage("varwidth");
+	} else {
+		parse_text_in_inset(parse, os2, flags, false, newcontext);
+	}
 }
 
 
@@ -886,25 +992,22 @@ void handle_hline_below(RowInfo & ri, vector<CellInfo> & ci)
 
 
 void handle_tabular(Parser & p, ostream & os, string const & name,
-                    string const & tabularwidth, string const & halign,
-                    Context & context)
+		    string const & tabularwidth, string const & halign,
+		    Context const & context)
 {
-	bool const is_long_tabular(name == "longtable");
+	Context newcontext = context;
+	bool const is_long_tabular(name == "longtable" || name == "xltabular");
 	bool booktabs = false;
 	string tabularvalignment("middle");
 	string posopts = p.getOpt();
 	if (!posopts.empty()) {
-		// FIXME: Convert this to ERT
-		if (is_long_tabular)
-			cerr << "horizontal longtable positioning '"
-			     << posopts << "' ignored\n";
-		else if (posopts == "[t]")
+		if (posopts == "[t]")
 			tabularvalignment = "top";
 		else if (posopts == "[b]")
 			tabularvalignment = "bottom";
 		else
-			cerr << "vertical tabular positioning '"
-			     << posopts << "' ignored\n";
+			warning_message("vertical tabular positioning '"
+					+ posopts + "' ignored");
 	}
 
 	vector<ColInfo> colinfo;
@@ -930,7 +1033,7 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 	ltType endlastfoot;
 
 	// split into rows
-	//cerr << "// split into rows\n";
+	//warning_message("// split into rows");
 	for (size_t row = 0; row < rowinfo.size();) {
 
 		// init row
@@ -939,7 +1042,7 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 
 		// split row
 		vector<string> dummy;
-		//cerr << "\n########### LINE: " << lines[row] << "########\n";
+		//warning_message("########### LINE: " << lines[row] << "########");
 		split(lines[row], dummy, HLINE);
 
 		// handle horizontal line fragments
@@ -947,22 +1050,22 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 		if (dummy.size() != 3) {
 			if ((dummy.size() != 1 && dummy.size() != 2) ||
 			    row != rowinfo.size() - 1)
-				cerr << "unexpected dummy size: " << dummy.size()
-					<< " content: " << lines[row] << "\n";
+				warning_message("unexpected dummy size: " + convert<string>(dummy.size())
+						+ " content: " + lines[row]);
 			dummy.resize(3);
 		}
 		lines[row] = dummy[1];
 
-		//cerr << "line: " << row << " above 0: " << dummy[0] << "\n";
-		//cerr << "line: " << row << " below 2: " << dummy[2] <<  "\n";
-		//cerr << "line: " << row << " cells 1: " << dummy[1] <<  "\n";
+		//warning_message("line: " + row + " above 0: " + dummy[0]);
+		//warning_message("line: " + row + " below 2: " + dummy[2]);
+		//warning_message("line: " + row + " cells 1: " + dummy[1]);
 
 		for (int i = 0; i <= 2; i += 2) {
-			//cerr << "   reading from line string '" << dummy[i] << "'\n";
-			Parser p1(dummy[i]);
+			//warning_message("   reading from line string '" + dummy[i]);
+			Parser p1(dummy[size_type(i)]);
 			while (p1.good()) {
 				Token t = p1.get_token();
-				//cerr << "read token: " << t << "\n";
+				//warning_message("read token: " + t);
 				if (t.cs() == "hline" || t.cs() == "toprule" ||
 				    t.cs() == "midrule" ||
 				    t.cs() == "bottomrule") {
@@ -973,61 +1076,73 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 							if (row > 0) // extra bottomline above
 								handle_hline_below(rowinfo[row - 1], cellinfo[row - 1]);
 							else
-								cerr << "dropping extra "
-								     << t.cs() << '\n';
-							//cerr << "below row: " << row-1 << endl;
+								warning_message("dropping extra " + t.cs());
+							//warning_message("below row: " + row-1);
 						} else {
 							handle_hline_above(rowinfo[row], cellinfo[row]);
-							//cerr << "above row: " << row << endl;
+							//warning_message("above row: " + row);
 						}
 					} else {
-						//cerr << "below row: " << row << endl;
+						//warning_message("below row: " + row);
 						handle_hline_below(rowinfo[row], cellinfo[row]);
 					}
 				} else if (t.cs() == "cline" || t.cs() == "cmidrule") {
-					if (t.cs() == "cmidrule")
+					string trim;
+					if (t.cs() == "cmidrule") {
 						booktabs = true;
+						trim = p1.getFullParentheseArg();
+					}
 					string arg = p1.verbatim_item();
-					//cerr << "read " << t.cs() << " arg: '" << arg << "'\n";
+					//warning_message("read " + t.cs() + " arg: '" + arg + "', trim: '" + trim);
 					vector<string> cols;
 					split(arg, cols, '-');
 					cols.resize(2);
 					size_t from = convert<unsigned int>(cols[0]);
 					if (from == 0)
-						cerr << "Could not parse "
-						     << t.cs() << " start column."
-						     << endl;
+						warning_message("Could not parse " + t.cs() + " start column.");
 					else
 						// 1 based index -> 0 based
 						--from;
 					if (from >= colinfo.size()) {
-						cerr << t.cs() << " starts at "
-							"non existing column "
-						     << (from + 1) << endl;
+						warning_message(t.cs() + " starts at "
+							"non existing column " + convert<string>(from + 1));
 						from = colinfo.size() - 1;
 					}
 					size_t to = convert<unsigned int>(cols[1]);
 					if (to == 0)
-						cerr << "Could not parse "
-						     << t.cs() << " end column."
-						     << endl;
+						warning_message("Could not parse " + t.cs() + " end column.");
 					else
 						// 1 based index -> 0 based
 						--to;
 					if (to >= colinfo.size()) {
-						cerr << t.cs() << " ends at "
-							"non existing column "
-						     << (to + 1) << endl;
+						warning_message(t.cs() + " ends at non existing column "
+								+ convert<string>(to + 1));
 						to = colinfo.size() - 1;
 					}
 					for (size_t col = from; col <= to; ++col) {
-						//cerr << "row: " << row << " col: " << col << " i: " << i << endl;
+						//warning_message("row: " + row + " col: " + col + " i: " + i);
 						if (i == 0) {
 							rowinfo[row].topline = true;
 							cellinfo[row][col].topline = true;
+							if (support::contains(trim, 'l') && col == from) {
+								//rowinfo[row].topline_ltrim = true;
+								cellinfo[row][col].topline_ltrim = true;
+							}
+							else if (support::contains(trim, 'r') && col == to) {
+								//rowinfo[row].topline_rtrim = true;
+								cellinfo[row][col].topline_rtrim = true;
+							}
 						} else {
 							rowinfo[row].bottomline = true;
 							cellinfo[row][col].bottomline = true;
+							if (support::contains(trim, 'l') && col == from) {
+								//rowinfo[row].bottomline_ltrim = true;
+								cellinfo[row][col].bottomline_ltrim = true;
+							}
+							else if (support::contains(trim, 'r') && col == to) {
+								//rowinfo[row].bottomline_rtrim = true;
+								cellinfo[row][col].bottomline_rtrim = true;
+							}
 						}
 					}
 				} else if (t.cs() == "addlinespace") {
@@ -1104,14 +1219,13 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 							rowinfo[row - 1].newpage = true;
 						else
 							// This does not work in LaTeX
-							cerr << "Ignoring "
-								"'\\newpage' "
-								"before rows."
-							     << endl;
+							warning_message("Ignoring "
+									"'\\newpage' "
+									"before rows.");
 					} else
 						rowinfo[row].newpage = true;
 				} else {
-					cerr << "unexpected line token: " << t << endl;
+					warning_message("unexpected line token: " + t.cs());
 				}
 			}
 		}
@@ -1163,11 +1277,10 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 		split(lines[row], cells, TAB);
 		for (size_t col = 0, cell = 0; cell < cells.size();
 		     ++col, ++cell) {
-			//cerr << "cell content: '" << cells[cell] << "'\n";
+			//warning_message("cell content: '" + cells[cell]);
 			if (col >= colinfo.size()) {
 				// This does not work in LaTeX
-				cerr << "Ignoring extra cell '"
-				     << cells[cell] << "'." << endl;
+				warning_message("Ignoring extra cell '" + cells[cell] + "'.");
 				continue;
 			}
 			string cellcont = cells[cell];
@@ -1175,38 +1288,38 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 			// of a pair.
 			if (colinfo[col].decimal_point != '\0' && colinfo[col].align == 'd' && cell < cells.size() - 1)
 				cellcont += colinfo[col].decimal_point + cells[cell + 1];
-			Parser p(cellcont);
-			p.skip_spaces();
+			Parser parse(cellcont);
+			parse.skip_spaces();
 			//cells[cell] << "'\n";
-			if (p.next_token().cs() == "multirow") {
+			if (parse.next_token().cs() == "multirow") {
 				// We do not support the vpos arg yet.
-				if (p.hasOpt()) {
-					string const vpos = p.getArg('[', ']');
-					p.skip_spaces(true);
-					cerr << "Ignoring multirow's vpos arg '"
-					     << vpos << "'!" << endl;
+				if (parse.hasOpt()) {
+					string const vpos = parse.getArg('[', ']');
+					parse.skip_spaces(true);
+					warning_message("Ignoring multirow's vpos arg '"
+					     + vpos + "'!");
 				}
 				// how many cells?
-				p.get_token();
+				parse.get_token();
 				size_t const ncells =
-					convert<unsigned int>(p.verbatim_item());
+					convert<unsigned int>(parse.verbatim_item());
 				// We do not support the bigstrut arg yet.
-				if (p.hasOpt()) {
-					string const bs = p.getArg('[', ']');
-					p.skip_spaces(true);
-					cerr << "Ignoring multirow's bigstrut arg '"
-					     << bs << "'!" << endl;
+				if (parse.hasOpt()) {
+					string const bs = parse.getArg('[', ']');
+					parse.skip_spaces(true);
+					warning_message("Ignoring multirow's bigstrut arg '"
+					     + bs + "'!");
 				}
 				// the width argument
-				string const width = p.getArg('{', '}');
+				string const width = parse.getArg('{', '}');
 				// the vmove arg
 				string vmove;
-				if (p.hasOpt()) {
-					vmove = p.getArg('[', ']');
-					p.skip_spaces(true);
+				if (parse.hasOpt()) {
+					vmove = parse.getArg('[', ']');
+					parse.skip_spaces(true);
 				}
 
-				if (width != "*")
+				if (width != "*" && width != "=")
 					colinfo[col].width = width;
 				if (!vmove.empty())
 					cellinfo[row][col].mroffset = vmove;
@@ -1216,28 +1329,31 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 				cellinfo[row][col].mrxnum = ncells - 1;
 
 				ostringstream os2;
-				parse_text_in_inset(p, os2, FLAG_ITEM, false, context);
+				parse.get_token();// skip {
+				parse_cell_content(os2, parse, FLAG_BRACE_LAST, newcontext,
+							cellinfo, colinfo,
+							row, col);
+				parse.get_token();// skip }
 				if (!cellinfo[row][col].content.empty()) {
 					// This may or may not work in LaTeX,
 					// but it does not work in LyX.
 					// FIXME: Handle it correctly!
-					cerr << "Moving cell content '"
-					     << cells[cell]
-					     << "' into a multirow cell. "
-						"This will probably not work."
-					     << endl;
+					warning_message("Moving cell content '"
+							+ cells[cell]
+							+ "' into a multirow cell. "
+							  "This will probably not work.");
 				}
 				cellinfo[row][col].content += os2.str();
-			} else if (p.next_token().cs() == "multicolumn") {
+			} else if (parse.next_token().cs() == "multicolumn") {
 				// how many cells?
-				p.get_token();
+				parse.get_token();
 				size_t const ncells =
-					convert<unsigned int>(p.verbatim_item());
+					convert<unsigned int>(parse.verbatim_item());
 
 				// special cell properties alignment
 				vector<ColInfo> t;
-				handle_colalign(p, t, ColInfo());
-				p.skip_spaces(true);
+				handle_colalign(parse, t, ColInfo());
+				parse.skip_spaces(true);
 				ColInfo & ci = t.front();
 
 				// The logic of LyX for multicolumn vertical
@@ -1252,33 +1368,35 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 				cellinfo[row][col].special    = ci.special;
 				cellinfo[row][col].leftlines  = ci.leftlines;
 				cellinfo[row][col].rightlines = ci.rightlines;
-				ostringstream os;
-				parse_text_in_inset(p, os, FLAG_ITEM, false, context);
+				ostringstream os2;
+				parse.get_token();// skip {
+				parse_cell_content(os2, parse, FLAG_BRACE_LAST, newcontext,
+							cellinfo, colinfo,
+							row, col);
+				parse.get_token();// skip }
 				if (!cellinfo[row][col].content.empty()) {
 					// This may or may not work in LaTeX,
 					// but it does not work in LyX.
 					// FIXME: Handle it correctly!
-					cerr << "Moving cell content '"
-					     << cells[cell]
-					     << "' into a multicolumn cell. "
-						"This will probably not work."
-					     << endl;
+					warning_message("Moving cell content '"
+							+ cells[cell]
+							+ "' into a multicolumn cell. "
+							  "This will probably not work.");
 				}
-				cellinfo[row][col].content += os.str();
+				cellinfo[row][col].content += os2.str();
 
 				// add dummy cells for multicol
 				for (size_t i = 0; i < ncells - 1; ++i) {
 					++col;
 					if (col >= colinfo.size()) {
-						cerr << "The cell '"
-							<< cells[cell]
-							<< "' specifies "
-							<< convert<string>(ncells)
-							<< " columns while the table has only "
-							<< convert<string>(colinfo.size())
-							<< " columns!"
-							<< " Therefore the surplus columns will be ignored."
-							<< endl;
+						warning_message("The cell '"
+							+ cells[cell]
+							+ "' specifies "
+							+ convert<string>(ncells)
+							+ " columns while the table has only "
+							+ convert<string>(colinfo.size())
+							+ " columns!"
+							+ " Therefore the surplus columns will be ignored.");
 						break;
 					}
 					cellinfo[row][col].multi = CELL_PART_OF_MULTICOLUMN;
@@ -1287,7 +1405,7 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 
 			} else if (col == 0 && colinfo.size() > 1 &&
 			           is_long_tabular &&
-			           p.next_token().cs() == "caption") {
+			           parse.next_token().cs() == "caption") {
 				// longtable caption support in LyX is a hack:
 				// Captions require a row of their own with
 				// the caption flag set to true, having only
@@ -1299,69 +1417,68 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 				rowinfo[row].caption = true;
 				for (size_t c = 1; c < cells.size(); ++c) {
 					if (!cells[c].empty()) {
-						cerr << "Moving cell content '"
-						     << cells[c]
-						     << "' into the caption cell. "
-							"This will probably not work."
-						     << endl;
+						warning_message("Moving cell content '"
+						     + cells[c]
+						     + "' into the caption cell. "
+						       "This will probably not work.");
 						cells[0] += cells[c];
 					}
 				}
 				cells.resize(1);
 				cellinfo[row][col].align      = colinfo[col].align;
 				cellinfo[row][col].multi      = CELL_BEGIN_OF_MULTICOLUMN;
-				ostringstream os;
-				parse_text_in_inset(p, os, FLAG_CELL, false, context);
-				cellinfo[row][col].content += os.str();
+				ostringstream os2;
+				parse_text_in_inset(parse, os2, FLAG_CELL, false, newcontext);
+				cellinfo[row][col].content += os2.str();
+				// add dummy multicolumn cells
+				for (size_t c = 1; c < colinfo.size(); ++c)
+					cellinfo[row][c].multi = CELL_PART_OF_MULTICOLUMN;
+			} else if (col == 0 && colinfo.size() > 1 &&
+			           is_long_tabular &&
+			           parse.next_token().cs() == "caption") {
+				// longtable caption support in LyX is a hack:
+				// Captions require a row of their own with
+				// the caption flag set to true, having only
+				// one multicolumn cell. The contents of that
+				// cell must contain exactly one caption inset
+				// and nothing else.
+				// Fortunately, the caption flag is only needed
+				// for tables with more than one column.
+				rowinfo[row].caption = true;
+				for (size_t c = 1; c < cells.size(); ++c) {
+					if (!cells[c].empty()) {
+						warning_message("Moving cell content '"
+						     + cells[c]
+						     + "' into the caption cell. "
+							"This will probably not work.");
+						cells[0] += cells[c];
+					}
+				}
+				cells.resize(1);
+				cellinfo[row][col].align      = colinfo[col].align;
+				cellinfo[row][col].multi      = CELL_BEGIN_OF_MULTICOLUMN;
+				ostringstream os2;
+				parse_text_in_inset(parse, os2, FLAG_CELL, false, newcontext);
+				cellinfo[row][col].content += os2.str();
 				// add dummy multicolumn cells
 				for (size_t c = 1; c < colinfo.size(); ++c)
 					cellinfo[row][c].multi = CELL_PART_OF_MULTICOLUMN;
 			} else {
-				bool turn = false;
-				int rotate = 0;
-				if (p.next_token().cs() == "begin") {
-					p.pushPosition();
-					p.get_token();
-					string const env = p.getArg('{', '}');
-					if (env == "sideways" || env == "turn") {
-						string angle = "90";
-						if (env == "turn") {
-							turn = true;
-							angle = p.getArg('{', '}');
-						}
-						active_environments.push_back(env);
-						p.ertEnvironment(env);
-						active_environments.pop_back();
-						p.skip_spaces();
-						if (!p.good() && support::isStrInt(angle))
-							rotate = convert<int>(angle);
-					}
-					p.popPosition();
-				}
+				ostringstream os2;
+				parse_cell_content(os2, parse, FLAG_CELL, newcontext,
+							cellinfo, colinfo,
+							row, col);
 				cellinfo[row][col].leftlines  = colinfo[col].leftlines;
 				cellinfo[row][col].rightlines = colinfo[col].rightlines;
 				cellinfo[row][col].align      = colinfo[col].align;
-				ostringstream os;
-				if (rotate != 0) {
-					cellinfo[row][col].rotate = rotate;
-					p.get_token();
-					active_environments.push_back(p.getArg('{', '}'));
-					if (turn)
-						p.getArg('{', '}');
-					parse_text_in_inset(p, os, FLAG_END, false, context);
-					active_environments.pop_back();
-					preamble.registerAutomaticallyLoadedPackage("rotating");
-				} else {
-					parse_text_in_inset(p, os, FLAG_CELL, false, context);
-				}
-				cellinfo[row][col].content += os.str();
+				cellinfo[row][col].content += os2.str();
 			}
 		}
 
-		//cerr << "//  handle almost empty last row what we have\n";
+		//warning_message("//  handle almost empty last row what we have");
 		// handle almost empty last row
 		if (row && lines[row].empty() && row + 1 == rowinfo.size()) {
-			//cerr << "remove empty last line\n";
+			//warning_message("remove empty last line");
 			if (rowinfo[row].topline)
 				rowinfo[row - 1].bottomline = true;
 			for (size_t col = 0; col < colinfo.size(); ++col)
@@ -1439,21 +1556,24 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 
 	if (booktabs)
 		preamble.registerAutomaticallyLoadedPackage("booktabs");
-	if (is_long_tabular)
+	if (name == "longtable")
 		preamble.registerAutomaticallyLoadedPackage("longtable");
+	else if (name == "xltabular")
+		preamble.registerAutomaticallyLoadedPackage("xltabular");
+	else if (name == "tabularx")
+		preamble.registerAutomaticallyLoadedPackage("tabularx");
 
-	//cerr << "// output what we have\n";
+	//warning_message("output what we have");
 	// output what we have
-	string const rotate = "0";
 	size_type cols = colinfo.size();
-	for (size_t col = 0; col < colinfo.size(); ++col) {
-		if (colinfo[col].decimal_point != '\0' && colinfo[col].align != 'd')
+	for (auto const & col : colinfo) {
+		if (col.decimal_point != '\0' && col.align != 'd')
 			--cols;
 	}
 	os << "\n<lyxtabular version=\"3\" rows=\"" << rowinfo.size()
 	   << "\" columns=\"" << cols << "\">\n";
 	os << "<features"
-	   << write_attribute("rotate", rotate)
+	   << write_attribute("rotate", context.tablerotation)
 	   << write_attribute("booktabs", booktabs)
 	   << write_attribute("islongtable", is_long_tabular);
 	if (is_long_tabular) {
@@ -1470,25 +1590,26 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 		if (!halign.empty())
 			os << write_attribute("longtabularalignment", halign);
 	} else
-		os << write_attribute("tabularvalignment", tabularvalignment)
-		   << write_attribute("tabularwidth", tabularwidth);
-	os << ">\n";
+		os << write_attribute("tabularvalignment", tabularvalignment);
+		   
+	os << write_attribute("tabularwidth", tabularwidth) << ">\n";
 
-	//cerr << "// after header\n";
-	for (size_t col = 0; col < colinfo.size(); ++col) {
-		if (colinfo[col].decimal_point != '\0' && colinfo[col].align != 'd')
+	//warning_message("after header");
+	for (auto const & col : colinfo) {
+		if (col.decimal_point != '\0' && col.align != 'd')
 			continue;
 		os << "<column alignment=\""
-			   << verbose_align(colinfo[col].align) << "\"";
-		if (colinfo[col].decimal_point != '\0')
-			os << " decimal_point=\"" << colinfo[col].decimal_point << "\"";
+			   << verbose_align(col.align) << "\"";
+		if (col.decimal_point != '\0')
+			os << " decimal_point=\"" << col.decimal_point << "\"";
 		os << " valignment=\""
-		   << verbose_valign(colinfo[col].valign) << "\""
-		   << write_attribute("width", translate_len(colinfo[col].width))
-		   << write_attribute("special", colinfo[col].special)
+		   << verbose_valign(col.valign) << "\""
+		   << write_attribute("width", translate_len(col.width))
+		   << write_attribute("special", col.special)
+		   << write_attribute("varwidth", col.varwidth)
 		   << ">\n";
 	}
-	//cerr << "// after cols\n";
+	//warning_message("after cols");
 
 	for (size_t row = 0; row < rowinfo.size(); ++row) {
 		os << "<row"
@@ -1524,16 +1645,20 @@ void handle_tabular(Parser & p, ostream & os, string const & name,
 			   << " valignment=\"" << verbose_valign(cell.valign)
 			   << "\""
 			   << write_attribute("topline", cell.topline)
+			   << write_attribute("toplineltrim", cell.topline_ltrim)
+			   << write_attribute("toplinertrim", cell.topline_rtrim)
 			   << write_attribute("bottomline", cell.bottomline)
+			   << write_attribute("bottomlineltrim", cell.bottomline_ltrim)
+			   << write_attribute("bottomlinertrim", cell.bottomline_rtrim)
 			   << write_attribute("leftline", cell.leftlines > 0)
 			   << write_attribute("rightline", cell.rightlines > 0)
 			   << write_attribute("rotate", cell.rotate)
 			   << write_attribute("mroffset", cell.mroffset);
-			//cerr << "\nrow: " << row << " col: " << col;
+			//warning_message("\nrow: " + row + " col: " + col);
 			//if (cell.topline)
-			//	cerr << " topline=\"true\"";
+			//	warning_message(" topline=\"true\"");
 			//if (cell.bottomline)
-			//	cerr << " bottomline=\"true\"";
+			//	warning_message(" bottomline=\"true\"");
 			os << " usebox=\"none\""
 			   << write_attribute("width", translate_len(cell.width));
 			if (cell.multi != CELL_NORMAL)

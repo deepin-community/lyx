@@ -61,36 +61,36 @@ public:
 
 private:
 	///
-	InsetCode lyxCode() const { return BRANCH_CODE; }
+	InsetCode lyxCode() const override { return BRANCH_CODE; }
 	///
-	void write(std::ostream &) const;
+	void write(std::ostream &) const override;
 	///
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	///
-	docstring const buttonLabel(BufferView const &) const;
+	docstring const buttonLabel(BufferView const &) const override;
 	///
-	ColorCode backgroundColor(PainterInfo const &) const;
+	ColorCode backgroundColor(PainterInfo const &) const override;
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void toString(odocstream &) const;
+	bool findUsesToString() const override { return true; }
 	///
-	void forOutliner(docstring &, size_t const, bool const) const;
+	void toString(odocstream &) const override;
 	///
-	void validate(LaTeXFeatures &) const;
+	void forOutliner(docstring &, size_t const, bool const) const override;
 	///
-	std::string contextMenuName() const;
+	void validate(LaTeXFeatures &) const override;
 	///
-	void updateBuffer(ParIterator const & it, UpdateType utype);
+	std::string contextMenuName() const override;
 	///
-	void setParams(InsetBranchParams const & params) { params_ = params; }
+	void updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted = false) override;
 
 	/** \returns true if params_.branch is listed as 'selected' in
 		\c buffer. \p child only checks within child documents.
@@ -102,21 +102,21 @@ private:
 	 * Note that Branch insets are considered part of the
 	 * document when they are selected XOR inverted.
 	 */
-	bool producesOutput() const;
+	bool producesOutput() const override;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 	///
-	bool isMacroScope() const;
+	bool isMacroScope() const override;
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	///
-	bool usePlainLayout() const { return false; }
+	bool usePlainLayout() const override { return false; }
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	docstring layoutName() const { return from_ascii("Branch:") + branch(); }
+	docstring layoutName() const override;
 	///
-	Inset * clone() const { return new InsetBranch(*this); }
+	Inset * clone() const override { return new InsetBranch(*this); }
 
 	///
 	friend class InsetBranchParams;

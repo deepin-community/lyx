@@ -27,6 +27,7 @@
 #include "ConverterCache.h"
 #include "Converter.h"
 #include "CutAndPaste.h"
+#include "DispatchResult.h"
 #include "EnchantChecker.h"
 #include "Encoding.h"
 #include "ErrorList.h"
@@ -37,8 +38,6 @@
 #include "Language.h"
 #include "LaTeXFonts.h"
 #include "LayoutFile.h"
-#include "Lexer.h"
-#include "LyX.h"
 #include "LyXAction.h"
 #include "LyXRC.h"
 #include "ModuleList.h"
@@ -46,13 +45,11 @@
 #include "Server.h"
 #include "ServerSocket.h"
 #include "Session.h"
-#include "WordList.h"
 
 #include "frontends/alert.h"
 #include "frontends/Application.h"
 
 #include "support/ConsoleApplication.h"
-#include "support/convert.h"
 #include "support/lassert.h"
 #include "support/debug.h"
 #include "support/environment.h"
@@ -65,7 +62,6 @@
 #include "support/Package.h"
 #include "support/unique_ptr.h"
 
-#include <algorithm>
 #include <csignal>
 #include <iostream>
 #include <functional>
@@ -124,14 +120,6 @@ RunMode run_mode = PREFERRED;
 OverwriteFiles force_overwrite = UNSPECIFIED;
 
 
-// Scale the GUI by this factor. This works whether we have a HiDpi screen
-// or not and scales everything, also fonts. Can only be changed by setting
-// the QT_SCALE_FACTOR environment variable before launching LyX and only
-// works properly with Qt 5.6 or higher.
-
-double qt_scale_factor = 1.0;
-
-
 namespace {
 
 // Filled with the command line arguments "foo" of "-sysdir foo" or
@@ -139,9 +127,7 @@ namespace {
 string cl_system_support;
 string cl_user_support;
 
-string geometryArg;
-
-LyX * singleton_ = 0;
+LyX * singleton_ = nullptr;
 
 void showFileError(string const & error)
 {
@@ -155,7 +141,9 @@ void showFileError(string const & error)
 /// The main application class private implementation.
 struct LyX::Impl {
 	Impl()
-		: latexfonts_(0), spell_checker_(0), apple_spell_checker_(0), aspell_checker_(0), enchant_checker_(0), hunspell_checker_(0)
+		: latexfonts_(nullptr), spell_checker_(nullptr),
+		  apple_spell_checker_(nullptr), aspell_checker_(nullptr),
+		  enchant_checker_(nullptr), hunspell_checker_(nullptr)
 	{}
 
 	~Impl()
@@ -232,7 +220,7 @@ public:
 		  argc_(argc), argv_(argv)
 	{
 	}
-	void doExec()
+	void doExec() override
 	{
 		int const exit_status = lyx_->execWithoutGui(argc_, argv_);
 		exit(exit_status);
@@ -250,14 +238,14 @@ frontend::Application * theApp()
 	if (singleton_)
 		return singleton_->pimpl_->application_.get();
 	else
-		return 0;
+		return nullptr;
 }
 
 
 LyX::~LyX()
 {
 	delete pimpl_;
-	singleton_ = 0;
+	singleton_ = nullptr;
 }
 
 
@@ -318,17 +306,6 @@ int LyX::exec(int & argc, char * argv[])
 	// Here we need to parse the command line. At least
 	// we need to parse for "-dbg" and "-help"
 	easyParse(argc, argv);
-
-#if QT_VERSION >= 0x050600
-	// Check whether Qt will scale all GUI elements and accordingly
-	// set the scale factor so that to avoid blurred images and text
-	char const * const scale_factor = getenv("QT_SCALE_FACTOR");
-	if (scale_factor) {
-		qt_scale_factor = convert<double>(scale_factor);
-		if (qt_scale_factor < 1.0)
-			qt_scale_factor = 1.0;
-	}
-#endif
 
 	try {
 		init_package(os::utf8_argv(0), cl_system_support, cl_user_support);
@@ -397,11 +374,9 @@ int LyX::exec(int & argc, char * argv[])
 	if (!pimpl_->lyx_server_->deferredLoadingToOtherInstance())
 		exit_status = pimpl_->application_->exec();
 	else if (!pimpl_->files_to_load_.empty()) {
-		vector<string>::const_iterator it = pimpl_->files_to_load_.begin();
-		vector<string>::const_iterator end = pimpl_->files_to_load_.end();
 		lyxerr << _("The following files could not be loaded:") << endl;
-		for (; it != end; ++it)
-			lyxerr << *it << endl;
+		for (auto const & f : pimpl_->files_to_load_)
+			lyxerr << f << endl;
 	}
 
 	prepareExit();
@@ -438,17 +413,16 @@ void LyX::prepareExit()
 	// do any other cleanup procedures now
 	if (package().temp_dir() != package().system_temp_dir()) {
 		string const abs_tmpdir = package().temp_dir().absFileName();
-		if (!contains(package().temp_dir().absFileName(), "lyx_tmpdir")) {
+		if (!contains(abs_tmpdir, "lyx_tmpdir")) {
 			docstring const msg =
 				bformat(_("%1$s does not appear like a LyX created temporary directory."),
 				from_utf8(abs_tmpdir));
 			Alert::warning(_("Cannot remove temporary directory"), msg);
 		} else {
-			LYXERR(Debug::INFO, "Deleting tmp dir "
-				<< package().temp_dir().absFileName());
+			LYXERR(Debug::INFO, "Deleting tmp dir "	<< abs_tmpdir);
 			if (!package().temp_dir().destroyDirectory()) {
 				LYXERR0(bformat(_("Unable to remove the temporary directory %1$s"),
-					from_utf8(package().temp_dir().absFileName())));
+					from_utf8(abs_tmpdir)));
 			}
 		}
 	}
@@ -500,7 +474,7 @@ int LyX::init(int & argc, char * argv[])
 
 	if (first_start) {
 		pimpl_->files_to_load_.push_back(
-			i18nLibFileSearch("examples", "splash.lyx").absFileName());
+			i18nLibFileSearch("examples", "Welcome.lyx").absFileName());
 	}
 
 	return EXIT_SUCCESS;
@@ -585,10 +559,11 @@ void LyX::execCommands()
 {
 	// The advantage of doing this here is that the event loop
 	// is already started. So any need for interaction will be
-	// aknowledged.
+	// acknowledged.
 
 	// if reconfiguration is needed.
-	if (LayoutFileList::get().empty()) {
+	const bool noLayouts = LayoutFileList::get().empty();
+	if (noLayouts && os::hasPython()) {
 		switch (Alert::prompt(
 			_("No textclass is found"),
 			_("LyX will only have minimal functionality because no textclasses "
@@ -597,7 +572,8 @@ void LyX::execCommands()
 			0, 2,
 			_("&Reconfigure"),
 			_("&Without LaTeX"),
-			_("&Continue")))
+			_("&Continue"),
+			_("&Exit LyX")))
 		{
 		case 0:
 			// regular reconfigure
@@ -608,13 +584,32 @@ void LyX::execCommands()
 			lyx::dispatch(FuncRequest(LFUN_RECONFIGURE,
 				" --without-latex-config"));
 			break;
+		case 3:
+			lyx::dispatch(FuncRequest(LFUN_LYX_QUIT, ""));
+			return;
+		default:
+			break;
+		}
+	} else if (noLayouts) {
+		switch (Alert::prompt(
+			_("No python is found"),
+			_("LyX will only have minimal functionality because no python interpreter "
+			  "has been found. Consider installing python with your software manager "
+			  "or from the python.org website."),
+			0, 1,
+			_("&Continue"),
+			_("&Exit LyX")))
+		{
+		case 1:
+			lyx::dispatch(FuncRequest(LFUN_LYX_QUIT, ""));
+			return;
 		default:
 			break;
 		}
 	}
 
 	// create the first main window
-	lyx::dispatch(FuncRequest(LFUN_WINDOW_NEW, geometryArg));
+	lyx::dispatch(FuncRequest(LFUN_WINDOW_NEW));
 
 	if (!pimpl_->files_to_load_.empty()) {
 		// if some files were specified at command-line we assume that the
@@ -910,6 +905,25 @@ bool LyX::init()
 	if (package().build_support().empty())
 		prependEnvPath("PATH", package().binary_dir().absFileName());
 #endif
+	{
+		// Add the directory containing the dt2dv and dv2dt executables to the path
+		FileName dtldir;
+		if (!package().build_support().empty()) {
+			// dtl executables should be in the same dir ar tex2lyx
+			dtldir = package().binary_dir();
+		}
+		else {
+			dtldir = FileName(addName(package().system_support().absFileName(), "extratools"));
+		}
+#if defined(_WIN32)
+		string dtlexe = "dt2dv.exe";
+#else
+		string dtlexe = "dt2dv";
+#endif
+		FileName const dt2dv = FileName(addName(dtldir.absFileName(), dtlexe));
+		if (dt2dv.exists())
+			prependEnvPath("PATH", dtldir.absFileName());
+	}
 	if (!lyxrc.path_prefix.empty())
 		prependEnvPath("PATH", replaceEnvironmentPath(lyxrc.path_prefix));
 
@@ -961,6 +975,7 @@ bool LyX::init()
 	// This one is edited through the preferences dialog.
 	if (!readRcFile("preferences", true))
 		return false;
+	pimpl_->application_->applyPrefs();
 
 	// The language may have been set to someting useful through prefs
 	setLocale();
@@ -990,7 +1005,7 @@ bool LyX::init()
 	pimpl_->toplevel_keymap_.read("site");
 	pimpl_->toplevel_keymap_.read(lyxrc.bind_file);
 	// load user bind file user.bind
-	pimpl_->toplevel_keymap_.read("user", 0, KeyMap::MissingOK);
+	pimpl_->toplevel_keymap_.read("user", nullptr, KeyMap::MissingOK);
 
 	if (lyxerr.debugging(Debug::LYXRC))
 		lyxrc.print();
@@ -1088,7 +1103,7 @@ bool LyX::queryUserLyXDir(bool explicit_userdir)
 
 	if (!sup.createDirectory(0755)) {
 		// Failed, so let's exit.
-		lyxerr << to_utf8(_("Failed to create directory. Exiting."))
+		lyxerr << to_utf8(_("Failed to create directory. Perhaps wrong -userdir command-line option?\nExiting."))
 		       << endl;
 		earlyExit(EXIT_FAILURE);
 	}
@@ -1165,10 +1180,15 @@ int parse_dbg(string const & arg, string const &, string &)
 		Debug::showTags(cout);
 		exit(0);
 	}
-	lyxerr << to_utf8(bformat(_("Setting debug level to %1$s"), from_utf8(arg))) << endl;
-
-	lyxerr.setLevel(Debug::value(arg));
-	Debug::showLevel(lyxerr, lyxerr.level());
+	string bad = Debug::badValue(arg);
+	if (bad.empty()) {
+		lyxerr.setLevel(Debug::value(arg));
+		Debug::showLevel(lyxerr, lyxerr.level());
+	} else {
+		cout << to_utf8(bformat(_("Bad debug value `%1$s'. Exiting."),
+		                        from_utf8(bad))) << endl;
+		exit(1);
+	}
 	return 1;
 }
 
@@ -1320,15 +1340,6 @@ int parse_import(string const & type, string const & file, string & batch)
 }
 
 
-int parse_geometry(string const & arg1, string const &, string &)
-{
-	geometryArg = arg1;
-	// don't remove "-geometry", it will be pruned out later in the
-	// frontend if need be.
-	return -1;
-}
-
-
 int parse_batch(string const &, string const &, string &)
 {
 	use_gui = false;
@@ -1406,7 +1417,6 @@ void LyX::easyParse(int & argc, char * argv[])
 	cmdmap["--export-to"] = parse_export_to;
 	cmdmap["-i"] = parse_import;
 	cmdmap["--import"] = parse_import;
-	cmdmap["-geometry"] = parse_geometry;
 	cmdmap["-batch"] = parse_batch;
 	cmdmap["-f"] = parse_force;
 	cmdmap["--force-overwrite"] = parse_force;
@@ -1419,6 +1429,10 @@ void LyX::easyParse(int & argc, char * argv[])
 	cmdmap["--ignore-error-message"] = parse_ignore_error_message;
 
 	for (int i = 1; i < argc; ++i) {
+		// Let Qt handle -geometry even when not on X11.
+		if (from_utf8(argv[i]) == "-geometry")
+			argv[i] = const_cast<char *>("-qwindowgeometry");
+
 		map<string, cmd_helper>::const_iterator it
 			= cmdmap.find(argv[i]);
 
@@ -1621,7 +1635,7 @@ void setSpellChecker()
 			singleton_->pimpl_->apple_spell_checker_ = new AppleSpellChecker;
 		singleton_->pimpl_->spell_checker_ = singleton_->pimpl_->apple_spell_checker_;
 #else
-		singleton_->pimpl_->spell_checker_ = 0;
+		singleton_->pimpl_->spell_checker_ = nullptr;
 #endif
 	} else if (lyxrc.spellchecker == "aspell") {
 #if defined(USE_ASPELL)
@@ -1629,7 +1643,7 @@ void setSpellChecker()
 			singleton_->pimpl_->aspell_checker_ = new AspellChecker;
 		singleton_->pimpl_->spell_checker_ = singleton_->pimpl_->aspell_checker_;
 #else
-		singleton_->pimpl_->spell_checker_ = 0;
+		singleton_->pimpl_->spell_checker_ = nullptr;
 #endif
 	} else if (lyxrc.spellchecker == "enchant") {
 #if defined(USE_ENCHANT)
@@ -1637,7 +1651,7 @@ void setSpellChecker()
 			singleton_->pimpl_->enchant_checker_ = new EnchantChecker;
 		singleton_->pimpl_->spell_checker_ = singleton_->pimpl_->enchant_checker_;
 #else
-		singleton_->pimpl_->spell_checker_ = 0;
+		singleton_->pimpl_->spell_checker_ = nullptr;
 #endif
 	} else if (lyxrc.spellchecker == "hunspell") {
 #if defined(USE_HUNSPELL)
@@ -1645,10 +1659,10 @@ void setSpellChecker()
 			singleton_->pimpl_->hunspell_checker_ = new HunspellChecker;
 		singleton_->pimpl_->spell_checker_ = singleton_->pimpl_->hunspell_checker_;
 #else
-		singleton_->pimpl_->spell_checker_ = 0;
+		singleton_->pimpl_->spell_checker_ = nullptr;
 #endif
 	} else {
-		singleton_->pimpl_->spell_checker_ = 0;
+		singleton_->pimpl_->spell_checker_ = nullptr;
 	}
 	if (singleton_->pimpl_->spell_checker_) {
 		singleton_->pimpl_->spell_checker_->changeNumber(speller_change_number);

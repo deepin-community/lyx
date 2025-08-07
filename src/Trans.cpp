@@ -13,12 +13,7 @@
 
 #include "Trans.h"
 
-#include "Buffer.h"
-#include "BufferView.h"
-#include "Cursor.h"
-#include "CutAndPaste.h"
 #include "Lexer.h"
-#include "LyXRC.h"
 #include "Text.h"
 
 #include "support/debug.h"
@@ -98,7 +93,7 @@ TeXAccent get_accent(FuncCode action)
 		++i;
 	}
 	struct TeXAccent temp = { static_cast<tex_accent>(0), 0,
-					  0, static_cast<FuncCode>(0)};
+					  nullptr, static_cast<FuncCode>(0)};
 	return temp;
 }
 
@@ -186,23 +181,21 @@ void Trans::addDeadkey(tex_accent accent, docstring const & keys)
 	tmp.accent = accent;
 	kmod_list_[accent] = tmp;
 
-	for (docstring::size_type i = 0; i < keys.length(); ++i) {
+	for (char_type key : keys) {
 		// FIXME This is a hack.
 		// tmp is no valid UCS4 string, but misused to store the
 		// accent.
-		docstring tmp;
-		tmp += char_type(0);
-		tmp += char_type(accent);
-		keymap_[keys[i]] = tmp;
+		docstring tmpd;
+		tmpd += char_type(0);
+		tmpd += char_type(accent);
+		keymap_[key] = tmpd;
 	}
 }
 
 
 int Trans::load(Lexer & lex)
 {
-	bool error = false;
-
-	while (lex.isOK() && !error) {
+	while (lex.isOK()) {
 		switch (lex.lex()) {
 		case KMOD:
 		{
@@ -303,7 +296,7 @@ int Trans::load(Lexer & lex)
 			if (!lex.next(true))
 				return -1;
 
-			key_from = lex.getString()[0];
+			key_from = static_cast<unsigned char>(lex.getString()[0]);
 			LYXERR(Debug::KBMAP, "\t`" << lex.getString() << '\'');
 
 			if (!lex.next(true))
@@ -433,8 +426,8 @@ tex_accent getkeymod(string const & p)
 
 
 // TransFSMData
-TransFSMData::TransFSMData() : deadkey_(0), deadkey2_(0), init_state_(0),
-	deadkey_state_(0), combined_state_(0), currentState(0)
+TransFSMData::TransFSMData() : deadkey_(0), deadkey2_(0), init_state_(nullptr),
+	deadkey_state_(nullptr), combined_state_(nullptr), currentState(nullptr)
 {
 }
 
@@ -512,7 +505,7 @@ docstring const TransDeadkeyState::deadkey(char_type c, KmodInfo d)
 	KmodException::const_iterator cit = deadkey_info_.exception_list.begin();
 	KmodException::const_iterator end = deadkey_info_.exception_list.end();
 	for (; cit != end; ++cit) {
-		if (cit->combined == true && cit->accent == d.accent) {
+		if (cit->combined && cit->accent == d.accent) {
 			deadkey2_ = c;
 			deadkey2_info_ = d;
 			comb_info_ = (*cit);
@@ -658,7 +651,7 @@ void TransManager::deadkey(char_type c, tex_accent accent, Text * t, Cursor & cu
 		// A deadkey was pressed that cannot be printed
 		// or a accent command was typed in the minibuffer
 		KmodInfo i;
-		if (active_->isAccentDefined(accent, i) == true) {
+		if (active_->isAccentDefined(accent, i)) {
 			docstring const res = trans_fsm_
 				.currentState->deadkey(c, i);
 			insert(res, t, cur);

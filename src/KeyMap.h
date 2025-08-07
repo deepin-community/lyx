@@ -65,8 +65,9 @@ public:
 		    unsigned int r = 0);
 
 
-	/// returns the function bound to this key sequence, or
-	/// FuncRequest::unknown if no binding exists for it.
+	/// returns the function bound to this key sequence, or:
+	/// * FuncRequest::unknown if no binding exists for it;
+	/// * FuncRequest::prefix if this is the start of longer keysequences
 	/// @param r an internal recursion counter
 	// FIXME Surely there's a better way to do that?
 	FuncRequest getBinding(KeySequence const & seq, unsigned int r = 0);
@@ -82,9 +83,10 @@ public:
 	 * @param bind_file bind file
 	 * @param unbind_map pointer to a KeyMap that holds \unbind bindings
 	 * @param rt how to respond if the file can't be found
+	 * @param i18n whether to search in localized folders
 	 */
 	bool read(std::string const & bind_file, KeyMap * unbind_map = 0,
-			BindReadType rt = Default);
+			BindReadType rt = Default, bool i18n = true);
 
 	/** write to a bind file.
 	 * @param append append to the bind_file instead of overwrite it
@@ -118,7 +120,8 @@ public:
 
 	/// Given an action, print the keybindings.
 	docstring printBindings(FuncRequest const & func,
-				KeySequence::outputFormat format) const;
+				KeySequence::outputFormat format,
+				bool const untranslated = false) const;
 
 	struct Binding {
 		Binding(FuncRequest const & r, KeySequence const & s, ItemType t)

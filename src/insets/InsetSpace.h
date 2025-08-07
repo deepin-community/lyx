@@ -16,7 +16,8 @@
 #define INSET_SPACE_H
 
 #include "Inset.h"
-#include "Length.h"
+
+#include "support/Length.h"
 
 
 namespace lyx {
@@ -42,9 +43,9 @@ struct InsetSpaceParams {
 		QUAD,
 		/// \qquad (2em)
 		QQUAD,
-		/// \enskip (0.5em unbreakable)
+		/// \enspace (0.5em unbreakable)
 		ENSPACE,
-		/// \enspace (0.5em breakable)
+		/// \enskip (0.5em breakable)
 		ENSKIP,
 		/// Negative thin space ('\negthinspace')
 		NEGTHIN,
@@ -74,7 +75,7 @@ struct InsetSpaceParams {
 		CUSTOM_PROTECTED
 	};
 	///
-	InsetSpaceParams(bool m = false) : kind(NORMAL), math(m) {}
+	explicit InsetSpaceParams(bool m = false) : kind(NORMAL), math(m) {}
 	///
 	void write(std::ostream & os) const;
 	///
@@ -98,7 +99,7 @@ public:
 	///
 	InsetSpace() : Inset(0) {}
 	///
-	explicit InsetSpace(InsetSpaceParams const & par);
+	explicit InsetSpace(InsetSpaceParams const & params);
 	///
 	InsetSpaceParams const & params() const { return params_; }
 	///
@@ -112,55 +113,59 @@ public:
 	GlueLength length() const;
 
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
+	/// unprotected spaces allow line breaking after them
+	int rowFlags() const override;
 	///
-	void metrics(MetricsInfo &, Dimension &) const;
+	void metrics(MetricsInfo &, Dimension &) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	void write(std::ostream &) const;
+	void write(std::ostream &) const override;
 	/// Will not be used when lyxf3
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	void toString(odocstream &) const;
+	bool findUsesToString() const override { return false; }
 	///
-	void forOutliner(docstring &, size_t const, bool const) const;
+	void toString(odocstream &) const override;
 	///
-	bool hasSettings() const { return true; }
+	void forOutliner(docstring &, size_t const, bool const) const override;
 	///
-	bool clickable(BufferView const &, int, int) const { return true; }
+	bool hasSettings() const override { return true; }
 	///
-	InsetCode lyxCode() const { return SPACE_CODE; }
+	bool clickable(BufferView const &, int, int) const override { return true; }
+	///
+	InsetCode lyxCode() const override { return SPACE_CODE; }
 	/// does this inset try to use all available space (like \\hfill does)?
-	bool isHfill() const;
+	bool isHfill() const override;
 	/// should this inset be handled like a normal character?
-	bool isChar() const { return true; }
+	bool isChar() const override { return true; }
 	/// is this equivalent to a letter?
-	bool isLetter() const { return false; }
+	bool isLetter() const override { return false; }
 	/// is this equivalent to a space (which is BTW different from
 	// a line separator)?
-	bool isSpace() const { return true; }
+	bool isSpace() const override { return true; }
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 protected:
 	///
-	Inset * clone() const { return new InsetSpace(*this); }
+	Inset * clone() const override { return new InsetSpace(*this); }
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 public:
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const override;
 
 private:
 	///

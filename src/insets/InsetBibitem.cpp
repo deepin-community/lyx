@@ -28,7 +28,6 @@
 #include "Language.h"
 #include "Lexer.h"
 #include "output_xhtml.h"
-#include "OutputParams.h"
 #include "Paragraph.h"
 #include "ParagraphList.h"
 #include "ParIterator.h"
@@ -96,9 +95,11 @@ void InsetBibitem::updateCommand(docstring const & new_key, bool)
 			++i;
 			key = new_key + '-' + convert<docstring>(i);
 		}
+		buffer().setBusy(true);
 		frontend::Alert::warning(_("Keys must be unique!"),
 			bformat(_("The key %1$s already exists,\n"
 			"it will be changed to %2$s."), new_key, key));
+		buffer().setBusy(false);
 	}
 	setParam("key", key);
 	buffer().invalidateBibinfoCache();
@@ -155,7 +156,7 @@ void InsetBibitem::doDispatch(Cursor & cur, FuncRequest & cmd)
 		setParam("literal", p["literal"]);
 
 		if (p["key"] != old_key) {
-			cur.recordUndoFullBuffer();
+			// changeRefsIfUnique handles undo
 			cur.bv().buffer().changeRefsIfUnique(old_key, p["key"]);
 			updateCommand(p["key"]);
 			cur.forceBufferUpdate();
@@ -188,7 +189,16 @@ docstring InsetBibitem::bibLabel() const
 	BufferParams const & bp = buffer().masterBuffer()->params();
 	if (bp.citeEngineType() == ENGINE_TYPE_NUMERICAL)
 		return autolabel_;
-	docstring const & label = getParam("label");
+	docstring label = getParam("label");
+	if (!label.empty() && bp.citeEngine() == "natbib") {
+		// Add a space before opening paren
+		label = subst(label, from_ascii("("), from_ascii(" ("));
+		// and strip off long author list
+		docstring striplabel;
+		label = rsplit(label, striplabel, ')');
+		if (!striplabel.empty())
+			label = striplabel + ")";
+	}
 	return label.empty() ? autolabel_ : label;
 }
 
@@ -208,7 +218,7 @@ int InsetBibitem::plaintext(odocstringstream & os,
 	docstring const str = oss.str();
 	os << str;
 
-	return str.size();
+	return int(str.size());
 }
 
 
@@ -221,9 +231,9 @@ docstring bibitemWidest(Buffer const & buffer, OutputParams const & runparams)
 
 	int w = 0;
 
-	InsetBibitem const * bitem = 0;
+	InsetBibitem const * bitem = nullptr;
 
-	// FIXME: this font is used unitialized for now but should  be set to
+	// FIXME: this font is used uninitialized for now but should  be set to
 	// a proportional font. Here is what Georg Baum has to say about it:
 	/*
 	bibitemWidest() is supposed to find the bibitem with the widest label in the
@@ -271,7 +281,7 @@ docstring bibitemWidest(Buffer const & buffer, OutputParams const & runparams)
 		// So for now we just use the label size in order to be sure
 		// that GUI and no-GUI gives the same bibitem (even if that is
 		// potentially the wrong one.
-		int const wx = label.size();
+		int const wx = int(label.size());
 
 		if (wx > w) {
 			w = wx;
@@ -318,7 +328,7 @@ void InsetBibitem::collectBibKeys(InsetIterator const & it, FileNameList & /*che
 
 
 // Update the counters of this inset and of its contents
-void InsetBibitem::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetBibitem::updateBuffer(ParIterator const & it, UpdateType utype, bool const /*deleted*/)
 {
 	BufferParams const & bp = buffer().masterBuffer()->params();
 	Counters & counters = bp.documentClass().counters();
@@ -334,20 +344,26 @@ void InsetBibitem::updateBuffer(ParIterator const & it, UpdateType utype)
 }
 
 
-docstring InsetBibitem::xhtml(XHTMLStream & xs, OutputParams const &) const
+void InsetBibitem::docbook(XMLStream &, OutputParams const &) const
+{
+	// Nothing to do: everything is implemented in makeBibliography.
+}
+
+
+docstring InsetBibitem::xhtml(XMLStream & xs, OutputParams const &) const
 {
 	// FIXME XHTML
 	// XHTML 1.1 doesn't have the "name" attribute for <a>, so we have to use
-	// the "id" atttribute to get the document to validate. Probably, we will
+	// the "id" attribute to get the document to validate. Probably, we will
 	// need to use "name" anyway, eventually, because some browsers do not
 	// handle jumping to ids. If we don't do that, though, we can just put the
 	// id into the span tag.
 	string const attrs =
-		"id='LyXCite-" + to_utf8(html::cleanAttr(getParam("key"))) + "'";
-	xs << html::CompTag("a", attrs);
-	xs << html::StartTag("span", "class='bibitemlabel'");
+			"id='LyXCite-" + to_utf8(xml::cleanAttr(getParam("key"))) + "'";
+	xs << xml::CompTag("a", attrs);
+	xs << xml::StartTag("span", "class='bibitemlabel'");
 	xs << bibLabel();
-	xs << html::EndTag("span");
+	xs << xml::EndTag("span");
 	return docstring();
 }
 

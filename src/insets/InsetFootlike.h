@@ -23,22 +23,14 @@ namespace lyx {
 class InsetFootlike : public InsetCollapsible {
 public:
 	///
-	InsetFootlike(Buffer *);
+	explicit InsetFootlike(Buffer *);
 	///
-	bool hasSettings() const { return false; }
+	bool hasSettings() const override { return false; }
 private:
 	///
-	void metrics(MetricsInfo &, Dimension &) const;
+	void write(std::ostream & os) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
-	///
-	void write(std::ostream & os) const;
-	///
-	bool insetAllowed(InsetCode) const;
-	/** returns false if, when outputing LaTeX, font changes should
-	    be closed before generating this inset. This is needed for
-	    insets that may contain several paragraphs */
-	bool inheritFont() const { return false; }
+	bool insetAllowed(InsetCode) const override;
 };
 
 

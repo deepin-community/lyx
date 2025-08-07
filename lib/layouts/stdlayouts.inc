@@ -7,29 +7,7 @@
 # quotations and such.
 
 
-Format 66
-
-Style Quotation
-	Category              MainText
-	Margin                Static
-	LatexType             Environment
-	LatexName             quotation
-	NextNoIndent          1
-	ToggleIndent          Always
-	LeftMargin            MMM
-	RightMargin           MMM
-	ParIndent             MM
-	ParSkip               0
-	ItemSep               0
-	TopSep                0.5
-	BottomSep             0.5
-	ParSep                0
-	Align                 Block
-	AlignPossible         Block, Left, Right, Center
-	HTMLTag               blockquote
-	HTMLItem              div
-End
-
+Format 104
 
 Style Quote
 	Category              MainText
@@ -45,9 +23,22 @@ Style Quote
 	BottomSep             0.5
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
-	LabelType             No_Label
 	HTMLTag               blockquote
 	HTMLItem              div
+	DocBookWrapperTag     blockquote
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
+End
+
+
+Style Quotation
+	CopyStyle             Quote
+	LatexName             quotation
+	ToggleIndent          Always
+	ParIndent             MM
+	ParSkip               0
+	ItemSep               0
+	ParSep                0
 End
 
 
@@ -70,6 +61,8 @@ Style Verse
 	LabelType             No_Label
 	HTMLTag               blockquote
 	HTMLItem              p
+	DocBookTag            literallayout
+	DocBookTagType        paragraph
 End
 
 
@@ -78,9 +71,10 @@ Style Verbatim
 	LatexType             Environment
 	LatexName             verbatim
 	NextNoIndent          1
-	ParbreakIsNewline	  1
+	ParbreakIsNewline     1
 	FreeSpacing           1
 	PassThru              1
+	NeedCProtect          1
 	KeepEmpty             1
 	NewLine               0
 	TopSep                0.7
@@ -92,7 +86,8 @@ Style Verbatim
 	  Family              Typewriter
 	EndFont
 	HTMLTag               pre
-	HTMLItem              p
+	HTMLItem              NONE
+	DocBookTag            programlisting
 End
 
 

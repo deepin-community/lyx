@@ -32,7 +32,7 @@ Inset * InsetMathMatrix::clone() const
 }
 
 
-void InsetMathMatrix::write(WriteStream & os) const
+void InsetMathMatrix::write(TeXMathStream & os) const
 {
 	InsetMathGrid::write(os);
 }
@@ -92,30 +92,31 @@ void InsetMathMatrix::mathematica(MathematicaStream & os) const
 }
 
 
-void InsetMathMatrix::mathmlize(MathStream & os) const
+void InsetMathMatrix::mathmlize(MathMLStream & ms) const
 {
-	os << "<mo form='prefix' fence='true' stretchy='true' symmetric='true' lspace='thinmathspace'>"
+	// lspace='3/18em', but fractions are not allowed.
+	ms << MTagInline("mo", "form='prefix' fence='true' stretchy='true' symmetric='true' lspace='0.1666em'")
 	   << convertDelimToXMLEscape(left_)
-	   << "</mo>"
+	   << ETagInline("mo")
 	   << MTag("mtable");
 	for (row_type row = 0; row < nrows(); ++row) {
-		os << MTag("mtr");
+		ms << MTag("mtr");
 		for (col_type col = 0; col < ncols(); ++col) {
 			idx_type const i = index(row, col);
-			if (cellinfo_[i].multi_ != CELL_PART_OF_MULTICOLUMN) {
+			if (cellinfo(i).multi != CELL_PART_OF_MULTICOLUMN) {
 				col_type const cellcols = ncellcols(i);
 				ostringstream attr;
 				if (cellcols > 1)
 					attr << "columnspan='" << cellcols << '\'';
-				os << MTag("mtd", attr.str()) << cell(i) << ETag("mtd");
+				ms << MTag("mtd", attr.str()) << cell(i) << ETag("mtd");
 			}
 		}
-		os << ETag("mtr");
+		ms << ETag("mtr");
 	}
-	os << ETag("mtable");
-	os << "<mo form='postfix' fence='true' stretchy='true' symmetric='true' lspace='thinmathspace'>"
+	ms << ETag("mtable")
+	   << MTagInline("mo", "form='postfix' fence='true' stretchy='true' symmetric='true' lspace='0.1666em'")
 	   << convertDelimToXMLEscape(right_)
-	   << "</mo>";
+	   << ETagInline("mo");
 }
 
 
@@ -136,7 +137,7 @@ void InsetMathMatrix::htmlize(HtmlStream & os) const
 			os << MTag("td", lattrib) << ETag("td") << '\n';
 		for (col_type col = 0; col < ncols(); ++col) {
 			idx_type const i = index(row, col);
-			if (cellinfo_[i].multi_ != CELL_PART_OF_MULTICOLUMN) {
+			if (cellinfo(i).multi != CELL_PART_OF_MULTICOLUMN) {
 				col_type const cellcols = ncellcols(i);
 				ostringstream attr;
 				if (cellcols > 1)

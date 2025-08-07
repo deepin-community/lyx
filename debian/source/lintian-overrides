@@ -1,0 +1,5 @@
+# These errors are false positives. There is no other source file than
+# the one packaged in the upstream tarball. Moreover, those files are
+# used in the Windows build of LyX, and are not used in Debian.
+lyx source: source-is-missing [development/Win32/packaging/information/WinLangCode.htm]
+lyx source: source-is-missing [development/Win32/vld/README.html]

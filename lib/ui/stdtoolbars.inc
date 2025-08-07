@@ -28,7 +28,7 @@
 #
 # Toolbar "name" "GUI Name"
 #
-# Only seven commands are allowed inside the Toolbar and End
+# Only eight commands are allowed inside the Toolbar and End
 # directives:
 #   Item "The tooltip" "<action> [<parameter>]" adds an icon to the toolbar performing
 #          "<action> <parameter>"
@@ -36,37 +36,46 @@
 #      Item "Small font" "font-size small"
 #      Item Emphasized set-emph
 #
+#   BidiItem is like Item, but an alternative icon (with name ending
+#     with "+rtl") will be used <hen the paragraph has a right-to-left
+#     layout. If this alternative icon does not exist, the LtR icon will
+#     be mirrored instead.
+#
 #   Layouts adds the layouts combo-box to the toolbar
 #
 #   Separator adds some spacing to the toolbar
 #
-#   Minibuffer adds the command buffer (Qt only, only one may exist)
+#   Minibuffer adds the command buffer (only one may exist)
 #
-#   TableInsert "The tooltip" adds a special widget for quick insertion of tables
+#   TableInsert "The tooltip" adds a special widget for quick
+#     insertion of tables
 #
 #   PopupMenu "name" "The tooltip"
 #
-#   ... inserts a button with a popup menu derived from Toolbar "name"
+#     ... inserts a button with a popup menu derived from Toolbar "name"
 #
 #   IconPalette "name" "The tooltip"
 #
-#   ... inserts a button with a popup iconpalette derived from Toolbar "name"
+#     ... inserts a button with a popup icon palette derived from Toolbar "name"
 #
 #
-# The icons are found in the lib/images/ direcory under the name
+# The icons are found in the lib/images/ directory under the name
 # action.png or action_parameter.png, except for math-insert, which
 # is e.g. lib/image/math/sum.png. Note that some characters are
 # replaced (e.g. ')' -> rbracket).
 #
-#  All other lyx commands will get a "unknown" icon.
+# Note that the lib/images/icon.aliases file can be used to specify
+# fallback icons for some functions.
+#
+#  All other LyX commands will get a "unknown" icon.
 #
 # This is the default toolbar:
 
-Format 4
+Format 5
 
 ToolbarSet
 
-	Toolbar "standard" "Standard"
+	Toolbar "standard" "Standard[[toolbar]]"
 		Layouts
 		Item "New document" "buffer-new"
 		Item "Open document" "file-open"
@@ -79,23 +88,25 @@ ToolbarSet
 		Item "Redo" "redo"
 		Item "Cut" "cut"
 		Item "Copy" "copy"
-		Item "Paste" "paste"
-		Item "Find and replace" "dialog-show findreplace"
+		DynamicMenu "paste" "Paste"
+		Item "Find and replace" "dialog-toggle findreplace"
 		Item "Find and replace (advanced)" "dialog-toggle findreplaceadv"
 		Item "Navigate back" "bookmark-goto 0"
 		Separator
 		Item "Toggle emphasis" "font-emph"
 		Item "Toggle noun" "font-noun"
-		Item "Apply last" "textstyle-apply"
+		DynamicMenu "textstyle-apply" "Apply recent text properties"
+		DynamicMenu "dynamic-char-styles" "Custom text styles"
 		Separator
 		Item "Insert math" "math-mode on"
 		Item "Insert graphics" "dialog-show-new-inset graphics"
 		TableInsert "Insert table"
+		DynamicMenu "dynamic-custom-insets" "Custom insets"
 		Separator
 		Item "Toggle outline" "dialog-toggle toc"
-		Item "Toggle math toolbar" "toolbar-toggle math"
-		Item "Toggle table toolbar" "toolbar-toggle table"
-		Item "Toggle review toolbar" "toolbar-toggle review"
+		PopupMenu "toolbar-toggle_math" "Show math toolbar"
+		PopupMenu "toolbar-toggle_table" "Show table toolbar"
+		PopupMenu "toolbar-toggle_review" "Show review toolbar"
 	End
 
 	Toolbar "view/update" "View/Update"
@@ -103,6 +114,7 @@ ToolbarSet
 		Item "Update" "buffer-update"
 		Item "View master document" "master-buffer-view"
 		Item "Update master document" "master-buffer-update"
+#		Item "Cancel export" "export-cancel"
 		Item "Enable Forward/Reverse Search" "buffer-toggle-output-sync"
 		Separator
 		StickyPopupMenu "view-others" "View other formats"
@@ -111,12 +123,13 @@ ToolbarSet
 
 	Toolbar "extra" "Extra"
 		Item "Default" "layout"
-		Item "Numbered list" "layout Enumerate"
-		Item "Itemized list" "layout Itemize"
-		Item "List" "layout List"
-		Item "Description" "layout Description"
-		Item "Increase depth" "depth-increment"
-		Item "Decrease depth" "depth-decrement"
+		BidiItem "Numbered list" "layout-toggle Enumerate"
+		BidiItem "Itemized list" "layout-toggle Itemize"
+		BidiItem "Labeled List" "layout-toggle Labeling"
+		BidiItem "Description" "layout-toggle Description"
+		BidiItem "Section" "layout-toggle Section"
+		BidiItem "Increase depth" "command-alternatives outline-in;depth-increment"
+		BidiItem "Decrease depth" "command-alternatives outline-out;depth-decrement"
 		Separator
 		Item "Insert figure float" "float-insert figure"
 		Item "Insert table float" "float-insert table"
@@ -135,7 +148,7 @@ ToolbarSet
 		Item "Insert math macro" "math-macro newmacroname newcommand"
 		Item "Include file" "dialog-show-new-inset include"
 		Separator
-		Item "Text style" "dialog-show character"
+		Item "Text properties" "dialog-show character"
 		Item "Paragraph settings" "layout-paragraph"
 		Item "Thesaurus" "thesaurus-entry"
 	End
@@ -150,14 +163,15 @@ ToolbarSet
 		Item "Move row down" "tabular-feature move-row-down"
 		Item "Move column right" "tabular-feature move-column-right"
 		Separator
-		Item "Set top line" "tabular-feature toggle-line-top"
-		Item "Set bottom line" "tabular-feature toggle-line-bottom"
-		Item "Set left line" "tabular-feature toggle-line-left"
-		Item "Set right line" "tabular-feature toggle-line-right"
-		Item "Set border lines" "tabular-feature set-border-lines"
-		Item "Set all lines" "tabular-feature set-all-lines"
-		Item "Set inner lines" "tabular-feature set-inner-lines"
+		Item "Toggle top line" "tabular-feature toggle-line-top"
+		Item "Toggle bottom line" "tabular-feature toggle-line-bottom"
+		Item "Toggle left line" "tabular-feature toggle-line-left"
+		Item "Toggle right line" "tabular-feature toggle-line-right"
+		Item "Toggle border lines" "tabular-feature toggle-border-lines"
+		Item "Toggle inner lines" "tabular-feature toggle-inner-lines"
+		Item "Toggle all lines" "tabular-feature toggle-all-lines"
 		Item "Unset all lines" "tabular-feature unset-all-lines"
+		Item "Reset formal default lines" "tabular-feature reset-formal-default"
 		Separator
 		Item "Align left" "command-alternatives tabular-feature m-align-left;tabular-feature align-left"
 		Item "Align center" "command-alternatives tabular-feature m-align-center;tabular-feature align-center"
@@ -198,7 +212,29 @@ ToolbarSet
 		Item "Delete row" "tabular-feature delete-row"
 		Item "Delete column" "tabular-feature delete-column"
 		Separator
-		Item "Toggle math panels" "toolbar-toggle math_panels"
+		PopupMenu "toolbar-toggle_math_panels" "Show math panels"
+	End
+
+	Toolbar "math_panels" "Math Panels"
+		PopupMenu "space" "Math spacings"
+		PopupMenu "style" "Styles & classes"
+		PopupMenu "frac-square" "Fractions"
+		PopupMenu "font" "Fonts"
+		PopupMenu "functions" "Functions"
+		IconPalette "latex_deco" "Frame decorations"
+		IconPalette "latex_varsz" "Big operators"
+		IconPalette "latex_misc" "Miscellaneous"
+		IconPalette "latex_greek" "Greek"
+		IconPalette "latex_arrow" "Arrows"
+		IconPalette "latex_ams_arrows" "Arrows (extended)"
+		IconPalette "latex_bop" "Operators"
+		IconPalette "latex_ams_ops" "Operators (extended)"
+		IconPalette "latex_brel" "Relations"
+		IconPalette "latex_ams_rel" "Relations (extended)"
+		IconPalette "latex_ams_nrel" "Negative relations (extended)"
+		IconPalette "latex_dots" "Dots"
+		IconPalette "latex_delim" "Delimiters (fixed size)"
+		IconPalette "latex_ams_misc" "Miscellaneous (extended)"
 	End
 
 	Toolbar "mathmacrotemplate" "Math Macros"
@@ -264,6 +300,30 @@ ToolbarSet
 		UpdateFormats
 	End
 
+	Toolbar "toolbar-toggle_math" "Show math toolbar"
+		Item "[[Toolbar]]&On" "toolbar-set math on"
+		Item "[[Toolbar]]O&ff" "toolbar-set math off"
+		Item "[[Toolbar]]&Automatic" "toolbar-set math auto"
+	End
+
+	Toolbar "toolbar-toggle_math_panels" "Show math panels"
+		Item "[[Toolbar]]&On" "toolbar-set math_panels on"
+		Item "[[Toolbar]]O&ff" "toolbar-set math_panels off"
+		Item "[[Toolbar]]&Automatic" "toolbar-set math_panels auto"
+	End
+
+	Toolbar "toolbar-toggle_table" "Show table toolbar"
+		Item "[[Toolbar]]&On" "toolbar-set table on"
+		Item "[[Toolbar]]O&ff" "toolbar-set table off"
+		Item "[[Toolbar]]&Automatic" "toolbar-set table auto"
+	End
+
+	Toolbar "toolbar-toggle_review" "Show review toolbar"
+		Item "[[Toolbar]]&On" "toolbar-set review on"
+		Item "[[Toolbar]]O&ff" "toolbar-set review off"
+		Item "[[Toolbar]]&Automatic" "toolbar-set review auto"
+	End
+
 # The following three toolbars are disabled because of missing icons.
 #	Toolbar "import/export" "Import/Export"
 #		Item "Import" "buffer-import"
@@ -288,33 +348,11 @@ ToolbarSet
 		Item "Revert changes" "vc-revert"
 		Item "Compare with older revision" "vc-compare"
 		Item "Compare with last revision" "vc-compare 0"
-		Item "Insert Version Info" "info-insert buffer vcs-revision"
+		Item "Insert Version Info" "info-insert vcs revision"
 		Separator
 		Item "Use SVN file locking property" "vc-locking-toggle"
 		Separator
 		Item "Update local directory from repository" "vc-repo-update"
-	End
-
-	Toolbar "math_panels" "Math Panels"
-		PopupMenu "space" "Math spacings"
-		PopupMenu "style" "Styles & classes"
-		PopupMenu "frac-square" "Fractions"
-		PopupMenu "font" "Fonts"
-		PopupMenu "functions" "Functions"
-		IconPalette "latex_deco" "Frame decorations"
-		IconPalette "latex_varsz" "Big operators"
-		IconPalette "latex_misc" "Miscellaneous"
-		IconPalette "latex_greek" "Greek"
-		IconPalette "latex_arrow" "Arrows"
-		IconPalette "latex_ams_arrows" "Arrows (extended)"
-		IconPalette "latex_bop" "Operators"
-		IconPalette "latex_ams_ops" "Operators (extended)"
-		IconPalette "latex_brel" "Relations"
-		IconPalette "latex_ams_rel" "Relations (extended)"
-		IconPalette "latex_ams_nrel" "Negative relations (extended)"
-		IconPalette "latex_dots" "Dots"
-		IconPalette "latex_delim" "Delimiters (fixed size)"
-		IconPalette "latex_ams_misc" "Miscellaneous (extended)"
 	End
 
 	Toolbar "functions" "Functions"

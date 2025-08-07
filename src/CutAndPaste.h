@@ -14,9 +14,11 @@
 #ifndef CUTANDPASTE_H
 #define CUTANDPASTE_H
 
+#include "Author.h"
 #include "DocumentClassPtr.h"
 
-#include "support/docstring.h"
+#include "support/strfwd.h"
+#include "support/types.h"
 
 #include "frontends/Clipboard.h"
 
@@ -25,10 +27,13 @@
 
 namespace lyx {
 
-class DocumentClass;
+class Buffer;
 class ErrorList;
+class Inset;
 class InsetText;
 class Cursor;
+class CursorData;
+class CursorSlice;
 class ParagraphList;
 
 namespace cap {
@@ -37,8 +42,13 @@ namespace cap {
 std::vector<docstring> availableSelections(Buffer const *);
 /// Get the number of available elements in the cut buffer.
 size_type numberOfSelections();
-/// Get the sel_index-th element of the cut buffer in plain text format.
-docstring selection(size_t sel_index, DocumentClassConstPtr docclass);
+///
+typedef std::pair<DocumentClassConstPtr, AuthorList > DocInfoPair;
+/**
+ * Get the sel_index-th element of the cut buffer in plain text format
+ * or, if \param for_math is true, in a format suitable for mathed.
+ */
+docstring selection(size_t sel_index, DocInfoPair docinfo, bool for_math = false);
 
 /**
  * Replace using the font of the first selected character and select
@@ -66,9 +76,11 @@ void cutSelectionToTemp(Cursor & cur, bool realcut = true);
 /// Push the current selection to the cut buffer and the system clipboard.
 void copySelection(Cursor const & cur);
 /// Like copySelection, but only put to temporary cut buffer
-void copySelectionToTemp(Cursor & cur);
+void copySelectionToTemp(Cursor const & cur);
 ///
 void copyInset(Cursor const & cur, Inset * inset, docstring const & plaintext);
+///
+void copyInsetToTemp(Cursor const & cur, Inset * inset);
 /**
  * Push the current selection to the cut buffer and the system clipboard.
  * \param plaintext plain text version of the selection for the system
@@ -116,20 +128,25 @@ enum BranchAction {
 /// Paste the paragraph list \p parlist at the position given by \p cur.
 /// Does not handle undo. Does only work in text, not mathed.
 void pasteParagraphList(Cursor & cur, ParagraphList const & parlist,
-                        DocumentClassConstPtr textclass, ErrorList & errorList,
-                        BranchAction branchAction = BRANCH_ASK);
+			DocumentClassConstPtr textclass, AuthorList const & authors,
+			ErrorList & errorList,
+			BranchAction branchAction = BRANCH_ASK);
 
 
 /** Needed to switch between different classes. This works
  *  for a list of paragraphs beginning with the specified par.
- *  It changes layouts and character styles.
+ *  It changes layouts and character styles. Errors are reported
+ *  in the passed ErrorList.
  */
-void switchBetweenClasses(DocumentClassConstPtr c1,
-			DocumentClassConstPtr c2, InsetText & in, ErrorList &);
+void switchBetweenClasses(DocumentClassConstPtr oldone,
+            DocumentClassConstPtr newone, InsetText & in, ErrorList & el);
+/// Same but without error reporting.
+void switchBetweenClasses(DocumentClassConstPtr oldone,
+            DocumentClassConstPtr newone, InsetText & in);
 
 /// Get the current selection as a string. Does not change the selection.
 /// Does only work if the whole selection is in mathed.
-docstring grabSelection(Cursor const & cur);
+docstring grabSelection(CursorData const & cur);
 /// Erase the current selection.
 /// Does not handle undo. Does only work if the whole selection is in mathed.
 /// Calls saveSelection.
@@ -138,9 +155,9 @@ void eraseSelection(Cursor & cur);
 /// cells, the cursor is moved the end of the current cell and the anchor to the
 /// start. If the selection is inside only one cell, nothing is done. Return
 /// true if the selection now does not span multiple cells anymore.
-bool reduceSelectionToOneCell(Cursor & cur);
+bool reduceSelectionToOneCell(CursorData & cur);
 /// Returns true if multiple cells are selected in mathed.
-bool multipleCellsSelected(Cursor const & cur);
+bool multipleCellsSelected(CursorData const & cur);
 /// Erase the selection and return it as a string.
 /// Does not handle undo. Does only work if the whole selection is in mathed.
 docstring grabAndEraseSelection(Cursor & cur);
@@ -153,8 +170,8 @@ void selDel(Cursor & cur);
 void selClearOrDel(Cursor & cur);
 /// Calculate rectangular region of cell between \c i1 and \c i2.
 void region(CursorSlice const & i1, CursorSlice const & i2,
-    Inset::row_type & r1, Inset::row_type & r2,
-    Inset::col_type & c1, Inset::col_type & c2);
+			row_type & r1, row_type & r2,
+			col_type & c1, col_type & c2);
 /** Tabular has its own paste stack for multiple cells
  *  but it needs to know whether there is a more recent
  *  ordinary paste. Therefore which one is newer.

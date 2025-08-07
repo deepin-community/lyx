@@ -20,9 +20,7 @@
 #include "Font.h"
 #include "InsetList.h"
 #include "Language.h"
-#include "LaTeXFeatures.h"
 #include "Paragraph.h"
-#include "LyXRC.h"
 #include "Text.h"
 
 #include "mathed/MathData.h"
@@ -44,23 +42,6 @@ using namespace std;
 using namespace lyx::support;
 
 namespace lyx {
-
-
-DocIterator::DocIterator()
-	: boundary_(false), inset_(0), buffer_(0)
-{}
-
-
-// We could be able to get rid of this if only every BufferView were
-// associated to a buffer on construction.
-DocIterator::DocIterator(Buffer * buf)
-	: boundary_(false), inset_(0), buffer_(buf)
-{}
-
-
-DocIterator::DocIterator(Buffer * buf, Inset * inset)
-	: boundary_(false), inset_(inset), buffer_(buf)
-{}
 
 
 DocIterator doc_iterator_begin(const Buffer * buf0, const Inset * inset0)
@@ -117,13 +98,13 @@ LyXErr & operator<<(LyXErr & os, DocIterator const & it)
 
 Inset * DocIterator::nextInset() const
 {
-	LASSERT(!empty(), return 0);
+	LASSERT(!empty(), return nullptr);
 	if (pos() == lastpos())
-		return 0;
+		return nullptr;
 	if (pos() > lastpos()) {
 		LYXERR0("Should not happen, but it does: pos() = "
 			<< pos() << ", lastpos() = " << lastpos());
-		return 0;
+		return nullptr;
 	}
 	if (inMathed())
 		return nextAtom().nucleus();
@@ -133,15 +114,15 @@ Inset * DocIterator::nextInset() const
 
 Inset * DocIterator::prevInset() const
 {
-	LASSERT(!empty(), return 0);
+	LASSERT(!empty(), return nullptr);
 	if (pos() == 0)
-		return 0;
+		return nullptr;
 	if (inMathed()) {
 		if (cell().empty())
 			// FIXME: this should not happen but it does.
 			// See bug 3189
 			// http://www.lyx.org/trac/ticket/3189
-			return 0;
+			return nullptr;
 		else
 			return prevAtom().nucleus();
 	}
@@ -151,13 +132,25 @@ Inset * DocIterator::prevInset() const
 
 Inset * DocIterator::realInset() const
 {
-	LASSERT(inTexted(), return 0);
+	LASSERT(inTexted(), return nullptr);
 	// if we are in a tabular, we need the cell
 	if (inset().lyxCode() == TABULAR_CODE) {
 		InsetTabular * tabular = inset().asInsetTabular();
 		return tabular->cell(idx()).get();
 	}
 	return &inset();
+}
+
+
+InsetMath & DocIterator::nextMath()
+{
+	return *nextAtom().nucleus();
+}
+
+
+InsetMath & DocIterator::prevMath()
+{
+	return *prevAtom().nucleus();
 }
 
 
@@ -180,7 +173,7 @@ MathAtom & DocIterator::nextAtom() const
 
 Text * DocIterator::text() const
 {
-	LASSERT(!empty(), return 0);
+	LASSERT(!empty(), return nullptr);
 	return top().text();
 }
 
@@ -232,11 +225,12 @@ CursorSlice const & DocIterator::innerTextSlice() const
 }
 
 
-docstring DocIterator::paragraphGotoArgument() const
+docstring DocIterator::paragraphGotoArgument(bool const nopos) const
 {
 	CursorSlice const & s = innerTextSlice();
-	return convert<docstring>(s.paragraph().id()) + ' ' +
-		convert<docstring>(s.pos());
+	return nopos ? convert<docstring>(s.paragraph().id())
+		     : convert<docstring>(s.paragraph().id())
+		       + ' ' + convert<docstring>(s.pos());
 }
 
 
@@ -261,7 +255,7 @@ pos_type DocIterator::lastpos() const
 }
 
 
-DocIterator::idx_type DocIterator::lastidx() const
+idx_type DocIterator::lastidx() const
 {
 	return top().lastidx();
 }
@@ -288,13 +282,13 @@ size_t DocIterator::nrows() const
 }
 
 
-DocIterator::row_type DocIterator::row() const
+row_type DocIterator::row() const
 {
 	return top().row();
 }
 
 
-DocIterator::col_type DocIterator::col() const
+col_type DocIterator::col() const
 {
 	return top().col();
 }
@@ -309,7 +303,7 @@ MathData & DocIterator::cell() const
 
 Text * DocIterator::innerText() const
 {
-	LASSERT(!empty(), return 0);
+	LASSERT(!empty(), return nullptr);
 	return innerTextSlice().text();
 }
 
@@ -319,7 +313,7 @@ Inset * DocIterator::innerInsetOfType(int code) const
 	for (int i = depth() - 1; i >= 0; --i)
 		if (slices_[i].inset_->lyxCode() == code)
 			return slices_[i].inset_;
-	return 0;
+	return nullptr;
 }
 
 
@@ -357,7 +351,7 @@ void DocIterator::forwardPos()
 	// not at cell/paragraph end?
 	if (tip.pos() != tip.lastpos()) {
 		// move into an inset to the right if possible
-		Inset * n = 0;
+		Inset * n = nullptr;
 		if (inMathed())
 			n = (tip.cell().begin() + tip.pos())->nucleus();
 		else
@@ -476,7 +470,7 @@ void DocIterator::backwardPos()
 		return;
 
 	// move into an inset to the left if possible
-	Inset * n = 0;
+	Inset * n = nullptr;
 	if (inMathed())
 		n = (top().cell().begin() + top().pos())->nucleus();
 	else
@@ -490,8 +484,18 @@ void DocIterator::backwardPos()
 }
 
 
-#if 0
-// works, but currently not needed
+void DocIterator::backwardPosIgnoreCollapsed()
+{
+	backwardPos();
+	if (inTexted()) {
+		Inset const * ins = realInset();
+		if (ins && !ins->editable()) {
+			pop_back(); // move out of collapsed inset
+		}
+	}
+}
+
+
 void DocIterator::backwardInset()
 {
 	backwardPos();
@@ -509,7 +513,6 @@ void DocIterator::backwardInset()
 		backwardPos();
 	}
 }
-#endif
 
 
 bool DocIterator::hasPart(DocIterator const & it) const
@@ -544,6 +547,11 @@ void DocIterator::updateInsets(Inset * inset)
 	size_t const n = slices_.size();
 	slices_.resize(0);
 	for (size_t i = 0 ; i < n; ++i) {
+		if (dit[i].empty() && pos() > 0 && prevMath().lyxCode() == MATH_SCRIPT_CODE)
+			// Workaround: With empty optional argument and a trailing script,
+			// we have empty slices in math macro args (#11676)
+			// FIXME: Find real cause!
+			continue;
 		LBUFERR(inset);
 		push_back(dit[i]);
 		top().inset_ = inset;
@@ -621,7 +629,7 @@ void DocIterator::sanitize()
 	Inset * inset = inset_;
 	// re-add the slices one by one, and adjust the inset pointer.
 	for (size_t i = 0, n = sl.size(); i != n; ++i) {
-		if (inset == 0) {
+		if (inset == nullptr) {
 			// FIXME
 			LYXERR0("Null inset on cursor stack.");
 			fixIfBroken();
@@ -638,6 +646,26 @@ void DocIterator::sanitize()
 			break;
 		if (i + 1 != n)
 			inset = nextInset();
+	}
+}
+
+
+bool DocIterator::isInside(Inset const * p) const
+{
+	for (CursorSlice const & sl : slices_)
+		if (&sl.inset() == p)
+			return true;
+	return false;
+}
+
+
+void DocIterator::leaveInset(Inset const & inset)
+{
+	for (size_t i = 0; i != slices_.size(); ++i) {
+		if (&slices_[i].inset() == &inset) {
+			resize(i);
+			return;
+		}
 	}
 }
 
@@ -681,7 +709,7 @@ void DocIterator::append(vector<CursorSlice> const & x)
 }
 
 
-void DocIterator::append(DocIterator::idx_type idx, pos_type pos)
+void DocIterator::append(idx_type idx, pos_type pos)
 {
 	slices_.push_back(CursorSlice());
 	top().idx() = idx;
@@ -689,31 +717,33 @@ void DocIterator::append(DocIterator::idx_type idx, pos_type pos)
 }
 
 
+docstring DocIterator::getPossibleLabel() const
+{
+	return inMathed() ? from_ascii("eq:") : text()->getPossibleLabel(*this);
+}
+
+
 Encoding const * DocIterator::getEncoding() const
 {
 	if (empty())
-		return 0;
+		return nullptr;
 
 	BufferParams const & bp = buffer()->params();
 	if (bp.useNonTeXFonts)
 		return encodings.fromLyXName("utf8-plain");
 
+	// With platex, we don't switch encodings (not even if forced).
+	if (bp.encoding().package() == Encoding::japanese)
+		return &bp.encoding();
+
 	CursorSlice const & sl = innerTextSlice();
 	Text const & text = *sl.text();
 	Language const * lang =
-		text.getPar(sl.pit()).getFont(bp, sl.pos(),
-					      text.outerFont(sl.pit())).language();
-	// If we have a custom encoding for the buffer, we do not switch encoding ...
-	bool const customenc =
-		bp.inputenc != "auto" && bp.inputenc != "default";
-	// ... except for non-CJKutf8 CJK (see output_latex::switchEncoding())
-	bool const cjk_non_utf8 =
-			bp.encoding().name() != "utf8-cjk"
-			|| !LaTeXFeatures::isAvailable("CJKutf8");
-	Encoding const * enc =
-		(customenc
-		 && (lang->encoding()->package() != Encoding::CJK || !cjk_non_utf8))
-		? &bp.encoding() : lang->encoding();
+		text.getPar(sl.pit()).getFont(bp, sl.pos(), text.outerFont(sl.pit())).language();
+	// If we have a custom encoding for the buffer, we don't switch
+	// encodings (see output_latex::switchEncoding())
+	bool const customenc = bp.inputenc != "auto-legacy" && bp.inputenc != "auto-legacy-plain";
+	Encoding const * enc = customenc ? &bp.encoding() : lang->encoding();
 
 	// Some insets force specific encodings sometimes (e.g., listings in
 	// multibyte context forces singlebyte).
@@ -744,10 +774,7 @@ Encoding const * DocIterator::getEncoding() const
 									       otext.outerFont(slices_[i].pit())).language();
 			// Again, if we have a custom encoding, this is used
 			// instead of the language's.
-			Encoding const * oenc =
-					(customenc
-					 && (olang->encoding()->package() != Encoding::CJK || !cjk_non_utf8))
-					? &bp.encoding() : olang->encoding();
+			Encoding const * oenc = customenc ? &bp.encoding() : olang->encoding();
 			if (olang->encoding()->name() != "inherit")
 				return oenc;
 		}
@@ -771,7 +798,7 @@ StableDocIterator::StableDocIterator(DocIterator const & dit) :
 	data_(dit.internalData())
 {
 	for (size_t i = 0, n = data_.size(); i != n; ++i)
-		data_[i].inset_ = 0;
+		data_[i].inset_ = nullptr;
 }
 
 

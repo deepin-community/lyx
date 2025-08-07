@@ -15,7 +15,7 @@
 
 #include "Buffer.h"
 #include "BufferParams.h"
-#include "OutputParams.h"
+#include "output_docbook.h"
 #include "TocBackend.h"
 
 #include "support/docstream.h"
@@ -41,14 +41,16 @@ int InsetMarginal::plaintext(odocstringstream & os,
 }
 
 
-int InsetMarginal::docbook(odocstream & os,
-			   OutputParams const & runparams) const
+void InsetMarginal::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	os << "<note role=\"margin\">";
-	int const i = InsetText::docbook(os, runparams);
-	os << "</note>";
-
-	return i;
+	// Implementation as per http://www.sagehill.net/docbookxsl/SideFloats.html
+	// Unfortunately, only for XSL-FO output with the default style sheets, hence the role.
+	xs << xml::StartTag("sidebar", "role=\"margin\"");
+	xs << xml::CR();
+	xs << XMLStream::ESCAPE_NONE << "<?dbfo float-type=\"margin.note\"?>";
+	xs << xml::CR();
+	InsetText::docbook(xs, runparams);
+	xs << xml::EndTag("sidebar");
 }
 
 

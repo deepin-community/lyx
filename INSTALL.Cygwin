@@ -1,0 +1,34 @@
+LyX/Cygwin
+==========
+
+Ruurd Reitsma  <R.A.Reitsma@wbmt.tudelft.nl>
+Bo Peng <ben.bob#gmail.com>
+
+
+Building LyX on Cygwin
+======================
+
+To build lyx, you will need to install the following cygwin packages
+
+    gcc-core             libhunspell-devel      libQt5X11Extras-devel
+    gcc-g++              libiconv-devel         pkg-config
+    gzip                 libQt5Core-devel       python2
+    gettext-devel        libQt5Gui-devel        python3
+    libaspell-devel      libQt5Svg-devel
+
+Building LyX on cygwin does not differ from building lyx on any typical
+posix system, so you are referred to the INSTALL file.
+
+When lyx is built as outlined above, it will be a X-Window application,
+so you will need a X-server for running it. It is possible to build lyx
+as a cygwin application but using the native Windows GDI backend instead
+of X11. You are referred to the lyx wiki for instructions:
+http://wiki.lyx.org/LyX/LyXOnCygwin
+
+
+Acknowledgements
+================
+
+Many thanks to Steven van Dijk, Claus Hentschel and Miyata Shigeru for 
+starting the porting business, and Enrico Forestieri for many cygwin-related
+improvements.

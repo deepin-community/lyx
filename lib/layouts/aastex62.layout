@@ -48,9 +48,16 @@
 #
 # TODO: - support for new commands (see below)
 #       - aastex6.cls loads hyperref (with pre-set options) and url
-#         -> option clash if "Use Hyerref" is selected in Document>Settings
+#         -> option clash if "Use Hy^perref" is selected in Document>Settings
+#       - in DocBook, the appendix is not output (not a standard LyX appendix
+#         separator (needs a layout update)
+#       - in DocBook, the "Software" part should really be a section on its own,
+#         but that would require a way to provide the section title within the
+#         layout (needs a layout update)
+#       - in DocBook, the table notes are not supported at all (move the remarks
+#         into the table cells instead of outputting tablenotemark in the cells?)
 
-Format 66
+Format 104
 
 Provides hyperref 1
 
@@ -78,7 +85,11 @@ Style Software
 	LabelFont
 		Shape           Italic
 	EndFont
-	
+	DocBookTag      remark
+	DocBookAttr     role='software'
+	# Override what's taken from Keywords, but not really wanted.
+	DocBookWrapperTag   NONE
+	DocBookInInfo       never
 End
 
 # other new commands are mainly for the user preamble
@@ -141,7 +152,7 @@ Style Email
 	Align           Left
 	Font
 		Shape           Up
-		Color           Blue
+		Color           textlabel1
 		Size            Small
 	EndFont
 End
@@ -151,14 +162,20 @@ Style Author
 	LabelString     "Author:"
 	LabelFont
 		Shape           Italic
-		Color           Green
+		Color           textlabel2
 	EndFont
 	Argument 1
 		LabelString     ORCID
 		ToolTip         "Enter the 16 digit ORCID as xxxx-xxxx-xxxx-xxxx"
+		# TODO: In DocBook, this cannot be in the <personname>, it must be directly within <author>.
 	EndArgument
 	Align           Center
 	Margin          Dynamic
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 Style Affiliation
@@ -169,7 +186,7 @@ Style Affiliation
 	LabelSep        "x"
 	LabelFont
 		Shape           Italic
-		Color           Green
+		Color           textlabel2
 	EndFont
 	Align           Center
 End
@@ -185,7 +202,7 @@ Style Collaboration
 	LabelSep        "x"
 	LabelFont
 		Shape           Italic
-		Color           Green
+		Color           textlabel2
 	EndFont
 	Align           Center
 End
@@ -202,7 +219,7 @@ Style Nocollaboration
 	LabelSep        "x"
 	LabelFont
 		Shape           Italic
-		Color           Green
+		Color           textlabel2
 	EndFont
 End
 
@@ -212,18 +229,22 @@ Style Altaffilation
 	Align           Center
 End
 
-Style Acknowledgements
+Style Acknowledgments
 	Font
 		Shape           Up
 	EndFont
 	LabelType       Above
 	Margin          Static
 	LabelFont
-		Color           Green
+		Color           textlabel2
 	EndFont
+	DocBookTag          para
+	DocBookWrapperTag   acknowledgements
+	DocBookSection      true
 End
 
 Counter appendix
+	GuiName Appendix
 	Within          "none"
 End
 
@@ -239,6 +260,7 @@ Style Section_Appendix
 End
 
 Counter subappendix
+	GuiName Subappendix
 	Within          "appendix"
 End
 
@@ -254,6 +276,7 @@ Style Subsection_Appendix
 End
 
 Counter subsubappendix
+	GuiName Subsubappendix
 	Within          subappendix
 End
 

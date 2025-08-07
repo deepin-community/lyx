@@ -1,4 +1,3 @@
-
 # file lyxpreview_tools.py
 # This file is part of LyX, the document processor.
 # Licence details can be found in the file COPYING.
@@ -166,7 +165,7 @@ def run_command_win32(cmd):
         try:
             hr, buffer = win32file.ReadFile(stdout_r, 4096)
             if hr != winerror.ERROR_IO_PENDING:
-                data = data + buffer
+                data = data + str(buffer)
 
         except pywintypes.error as e:
             if e.args[0] != winerror.ERROR_BROKEN_PIPE:
@@ -219,16 +218,16 @@ def write_metrics_info(metrics_info, metrics_file):
 # Reads a .tex files and create an identical file but only with
 # pages whose index is in pages_to_keep
 def filter_pages(source_path, destination_path, pages_to_keep):
-    def_re = re.compile(r"(\\newcommandx|\\renewcommandx|\\global\\long\\def)(\\[a-zA-Z]+)(.+)")
-    source_file = open(source_path, "r")
-    destination_file = open(destination_path, "w")
+    def_re = re.compile(b"(\\\\newcommandx|\\\\renewcommandx|\\\\global\\\\long\\\\def)(\\[a-zA-Z]+)(.+)")
+    source_file = open(source_path, "rb")
+    destination_file = open(destination_path, "wb")
 
     page_index = 0
     skip_page = False
     macros = []
     for line in source_file:
         # We found a new page
-        if line.startswith("\\begin{preview}"):
+        if line.startswith(b"\\begin{preview}"):
             page_index += 1
             # If the page index isn't in pages_to_keep we don't copy it
             skip_page = page_index not in pages_to_keep
@@ -240,12 +239,12 @@ def filter_pages(source_path, destination_path, pages_to_keep):
                 macroname = match.group(2)
                 if not macroname in macros:
                     macros.append(macroname)
-                    if definecmd == "\\renewcommandx":
-                        line = line.replace(definecmd, "\\newcommandx")
+                    if definecmd == b"\\renewcommandx":
+                        line = line.replace(definecmd, b"\\newcommandx")
             destination_file.write(line)
 
         # End of a page, we reset the skip_page bool
-        if line.startswith("\\end{preview}"):
+        if line.startswith(b"\\end{preview}"):
             skip_page = False
 
     destination_file.close()
@@ -294,7 +293,7 @@ def run_latex(latex, latex_file, bibtex = None):
         latex_status, latex_stdout = run_tex(latex, latex_file)
     # Rerun latex if necessary
     progress("Checking if a latex rerun is necessary")
-    if string_in_file("Warning: Citation", log_file):
+    if string_in_file("Warning: (Citation|Reference)", log_file):
         latex_status, latex_stdout = run_tex(latex, latex_file)
 
     return latex_status, latex_stdout
@@ -313,9 +312,10 @@ def run_tex(tex, tex_file):
 def string_in_file(string, infile):
     if not os.path.isfile(infile):
         return False
+    string_re = re.compile(string.encode())
     f = open(infile, 'rb')
     for line in f.readlines():
-        if string.encode() in line:
+        if string_re.search(line):
             f.close()
             return True
     f.close()

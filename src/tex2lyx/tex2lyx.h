@@ -48,7 +48,8 @@ extern std::string rgbcolor2code(std::string const & name);
 std::string translate_len(std::string const &);
 
 void parse_text(Parser & p, std::ostream & os, unsigned flags, bool outer,
-		Context & context, std::string const rdelim = std::string());
+		Context & context, std::string const & rdelim = "",
+		std::string const & rdelimesc = "");
 void check_comment_bib(std::ostream & os, Context & context);
 
 void fix_child_filename(std::string & name);
@@ -66,9 +67,10 @@ std::string find_file(std::string const & name, std::string const & path,
  * Therefore this may only be used to parse text in insets or table cells.
  */
 void parse_text_in_inset(Parser & p, std::ostream & os, unsigned flags,
-                         bool outer, Context const & context,
-                         InsetLayout const * layout = 0,
-                         std::string const rdelim = std::string());
+                         bool outer, Context & context,
+                         InsetLayout const * layout = nullptr,
+                         std::string const & rdelim = "",
+			 std::string const & rdelimesc = "");
 
 /// Guess document language from \p p if CJK is used.
 /// \p lang is used for all non-CJK contents.
@@ -81,8 +83,8 @@ void parse_math(Parser & p, std::ostream & os, unsigned flags, mode_type mode);
 
 /// in table.cpp
 void handle_tabular(Parser & p, std::ostream & os, std::string const & name,
-                    std::string const & width, std::string const & halign,
-                    Context & context);
+		    std::string const & tabularwidth, std::string const & halign,
+		    Context const & context);
 
 
 /// in tex2lyx.cpp
@@ -102,7 +104,7 @@ char const * const * is_known(std::string const &, char const * const *);
  * Adds the command \p command to the list of known commands.
  * \param o1 first optional parameter to the latex command \\newcommand
  * (with brackets), or the empty string if there were no optional arguments.
- * \param o2 wether \\newcommand had a second optional parameter.
+ * \param o2 whether \\newcommand had a second optional parameter.
  * If \p definition is not empty the command is assumed to be from the LyX
  * preamble and added to possible_textclass_commands.
  */
@@ -114,10 +116,8 @@ extern void add_known_environment(std::string const & environment,
 extern void add_known_theorem(std::string const & theorem,
 	std::string const & o1, bool o2, docstring const & definition);
 extern Layout const * findLayoutWithoutModule(TextClass const & tc,
-	std::string const & name, bool command,
-	std::string const & latexparam = std::string());
-extern InsetLayout const * findInsetLayoutWithoutModule(TextClass const & tc,
-	std::string const & name, bool command,
+	std::string const & name, bool command,	std::string const & latexparam = std::string());
+extern InsetLayout const * findInsetLayoutWithoutModule(TextClass const & tc, std::string const & name, bool command,
 	std::string const & latexparam = std::string());
 /*!
  * Check whether a module provides command (if \p command is true) or
@@ -215,6 +215,13 @@ bool tex2lyx(std::string const & infilename,
 	     support::FileName const & outfilename,
 	     std::string const & encoding);
 
+/// A general warning message that can be silenced with -q
+void warning_message(std::string const & message);
+/// A general error message
+void error_message(std::string const & message);
+/// A general debug message that outputs if
+/// FILEDEBUG is definied
+void debug_message(std::string const & message);
 
 } // namespace lyx
 

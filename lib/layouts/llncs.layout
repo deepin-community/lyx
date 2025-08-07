@@ -15,7 +15,7 @@
 # Modified for LyX 12 by Jean-Marc Lasgouttes and MV.
 
 
-Format 66
+Format 104
 Columns                 1
 Sides                   1
 PageStyle               Plain
@@ -31,6 +31,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -125,6 +126,9 @@ Style Title
 	  Size                Largest
 	EndFont
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -146,6 +150,8 @@ Style Subtitle
 	  Series              Bold
 	  Size                Large
 	EndFont
+	DocBookTag            subtitle
+	DocBookInInfo         maybe
 End
 
 
@@ -167,7 +173,7 @@ Style Running_LaTeX_Title
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               Red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -198,6 +204,11 @@ Style Author
 	  Series              Bold
 	  Shape               Italic
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -289,6 +300,16 @@ Style Bibliography
 	EndFont
 	TocLevel              0
 	IsTocCaption          0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
 End
 
 

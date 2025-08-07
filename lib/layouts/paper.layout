@@ -5,11 +5,23 @@
 # Created by Jean-Marc Lasgouttes (Jean-Marc.Lasgouttes@inria.fr)
 
 
-Format 66
+Format 104
 Columns                 1
 Sides                   1
 SecNumDepth             3
 TocDepth                3
+
+AddToPreamble
+  % Save and disable \example as this might
+  % clash with theorems
+  \let\paperclassexample\example
+  \let\endpaperclassexample\endexample
+  \let\example\relax
+  % If theorems hasn't been loaded, restore example
+  \AtBeginDocument{%
+    \@ifundefined{example}{\let\example\paperclassexample}{}
+  }
+EndPreamble
 
 Style Standard
 	Category              MainText
@@ -26,6 +38,7 @@ Style Standard
 			margin-bottom: 2ex;
 		}
 	EndHTMLStyle
+	DocBookTag            para
 End
 
 Input stdtitle.inc
@@ -57,6 +70,7 @@ Style Section
 	  Series              Bold
 	  Size                Large
 	EndFont
+	TocLevel 1
 End
 
 
@@ -66,6 +80,7 @@ Style Subsection
 	  Series              Bold
 	  Size                Large
 	EndFont
+	TocLevel 2
 End
 
 
@@ -75,6 +90,7 @@ Style Subsubsection
 	  Series              Bold
 	  Size                Normal
 	EndFont
+	TocLevel 3
 End
 
 
@@ -84,6 +100,7 @@ Style Paragraph
 	  Series              Bold
 	  Size                Normal
 	EndFont
+	TocLevel 4
 End
 
 
@@ -92,6 +109,7 @@ Style Subparagraph
 	  Family              Sans
 	  Size                Normal
 	EndFont
+	TocLevel 5
 End
 
 Style Description
@@ -118,6 +136,9 @@ Style Title
 	  Series              Bold
 	  Size                Largest
 	EndFont
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -157,6 +178,8 @@ Style SubTitle
 	  Size                Large
 	EndFont
 	HTMLTitle             false
+	DocBookTag            subtitle
+	DocBookInInfo         maybe
 End
 
 
@@ -177,4 +200,8 @@ Style Keywords
 	CopyStyle             Abstract
 	LatexName             keywords
 	LabelString           "Keywords:"
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End

@@ -1,10 +1,10 @@
 #\DeclareLyXModule[literate->latex,noweb.sty]{Noweb}
+#\DeclareCategory{Literate Programming}
 #DescriptionBegin
 #Allows to use Noweb as a literate programming tool.
 #DescriptionEnd
-#Category: literate
 
-Format 66
+Format 104
 Input litinsets.inc
 OutputType              literate
 

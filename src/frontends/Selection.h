@@ -28,6 +28,11 @@ public:
 	virtual ~Selection() {}
 
 	/**
+	 * Returns true if the underlying system supports mouse selection
+	 * (basically X11 and Wayland).
+	 */
+	virtual bool supported() const = 0;
+	/**
 	 * Tell the window system whether we set or cleared our selection.
 	 * This is a noop on systems that don't have a selection.
 	 * This should be called by the kernel whenever a selection is
@@ -49,7 +54,7 @@ public:
 	 * Fill the X selection.
 	 * The format is plain text.
 	 * Does nothing on systems that don't have a selection.
-	 * Since the X selection protocol is asyncronous this should never be
+	 * Since the X selection protocol is asynchronous this should never be
 	 * called from the kernel.
 	 * If another application requests the current selection a
 	 * SelectionRequest XEvent will be triggered. The response of the

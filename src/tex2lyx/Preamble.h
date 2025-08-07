@@ -92,9 +92,11 @@ public:
 	///
 	void titleLayoutFound(bool found) { title_layout_found = found; }
 	/// Register an author named \p name in the author list
-	void registerAuthor(std::string const & name);
+	void registerAuthor(std::string const & name, std::string const & initials);
 	/// Get author named \p name (must be registered first)
 	Author const & getAuthor(std::string const & name) const;
+	/// Set text class
+	void setTextClass(std::string const & tclass, TeX2LyXDocClass & tc);
 	/// Get number of arguments of special table column type \c or -1
 	/// if no column type \p c exists
 	int getSpecialTableColumnArguments(char c) const;
@@ -114,6 +116,12 @@ public:
 	static const char * const coded_polyglossia_languages[];
 	///
 	std::vector<std::string> biblatex_bibliographies;
+	///
+	std::vector<std::string> biblatex_encodings;
+	///
+	std::string bibencoding;
+	///
+	std::string docencoding;
 
 private:
 	///
@@ -140,6 +148,7 @@ private:
 	int index_number;
 
 	std::ostringstream h_preamble;
+	std::string h_doc_metadata;
 	std::string h_backgroundcolor;
 	std::string h_multibib;
 	std::string h_biblio_style;
@@ -160,15 +169,22 @@ private:
 	std::string h_font_roman[2];
 	std::string h_font_sans[2];
 	std::string h_font_typewriter[2];
+	std::string h_font_roman_opts;
+	std::string h_font_sans_opts;
+	std::string h_font_typewriter_opts;
 	std::string h_font_default_family;
 	bool h_use_non_tex_fonts;
 	std::string h_font_sc;
-	std::string h_font_osf;
+	std::string h_font_roman_osf;
+	std::string h_font_sans_osf;
+	std::string h_font_typewriter_osf;
 	std::string h_font_sf_scale[2];
 	std::string h_font_tt_scale[2];
 	bool h_font_cjk_set;
 	std::string h_font_cjk;
 	std::string h_use_microtype;
+	std::string h_use_lineno;
+	std::string h_lineno_options;
 	std::string h_is_mathindent;
 	std::string h_math_numbering_side;
 	std::string h_mathindentation;
@@ -177,6 +193,8 @@ private:
 	std::string h_html_be_strict;
 	std::string h_html_css_as_file;
 	std::string h_html_math_output;
+	std::string h_docbook_table_output;
+	std::string h_docbook_mathml_prefix;
 	std::string h_index[99];
 	std::string h_index_command;
 	std::string h_inputencoding;
@@ -189,6 +207,7 @@ private:
 	std::string h_notefontcolor;
 	std::string h_options;
 	std::string h_output_changes;
+	std::string h_change_bars;
 	std::string h_output_sync;
 	std::string h_output_sync_macro;
 	std::string h_papercolumns;

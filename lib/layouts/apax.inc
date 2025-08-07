@@ -2,7 +2,7 @@
 # Author: Jacob Bishop <bishop.jacob@gmail.com> based on the apa 
 # layout written by Randy Gobbel.
 
-Format 66
+Format 104
 Columns                 1
 Sides                   1
 PageStyle               Headers
@@ -31,6 +31,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -44,6 +45,9 @@ Style Title
 	EndFont
 	Align                 Center
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -67,6 +71,9 @@ Style ShortTitle
 	  Size                Small
 	  Shape               Up
 	EndFont
+	DocBookTag            titleabbrev
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -83,6 +90,11 @@ Style Author
 	  Shape               Italic
 	  Size                Small
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -142,6 +154,10 @@ Style LeftHeader
 	  Series              Bold
 	  Size                Small
 	EndFont
+	DocBookTag            authorinitials
+	DocBookAttr           role='left-header'
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -164,6 +180,12 @@ Style Affiliation
 	  Series              Bold
 	  Size                Small
 	EndFont
+	DocBookTag                        affiliation
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 Style TwoAffiliations
@@ -244,6 +266,11 @@ Style Abstract
 	  Series              Bold
 	  Size                Small
 	EndFont
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 Style Keywords
@@ -268,6 +295,10 @@ Style Keywords
 	  Size                Small
 	  Shape               Italic
 	EndFont
+	DocBookTag          keyword
+	DocBookTagType      paragraph
+	DocBookWrapperTag   keywordset
+	DocBookInInfo       always
 End
 
 Style AuthorNote
@@ -295,11 +326,9 @@ Style AuthorNote
 	  Series              Bold
 	  Size                Small
 	EndFont
-End
-
-
-Style Acknowledgments
-	ObsoletedBy           AuthorNote
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
+	DocBookSection        true
 End
 
 
@@ -365,7 +394,7 @@ InsetLayout Caption:Centered
 			margin: 1ex;
 		}
 	EndHTMLStyle
-	HTMLAttr "class='float-caption float-caption-centered'"
+	HTMLClass   "float-caption float-caption-centered"
 End
 
 
@@ -474,6 +503,19 @@ Style Itemize
 		LabelString   "Custom Item|s"
 		Tooltip       "A customized item string"
 	EndArgument
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            itemizedlist
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
 End
 
 
@@ -499,6 +541,25 @@ Style Enumerate
 		LabelString   "Custom Item|s"
 		Tooltip       "A customized item string"
 	EndArgument
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            orderedlist
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
+	HTMLStyle
+		ol.enumi   { list-style-type: decimal; }
+		ol.enumii  { list-style-type: lower-latin; }
+		ol.enumiii { list-style-type: lower-roman; }
+		ol.enumiv  { list-style-type: upper-latin; }
+	EndHTMLStyle
 End
 
 
@@ -517,11 +578,21 @@ Style Seriate
 	ParSep                0.0
 	Align                 Block
 	AlignPossible         Block, Left
-	LabelType             Static
+	LabelType             Itemize
 	LabelCounter          enumii
 	LabelString           "(\alph{enumii})"
 	LabelStringAppendix   "(\alph{enumii})"
 	RefPrefix             ser
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
 End
 
 Style Course
@@ -546,8 +617,14 @@ Style Course
 	  Size                Small
 	  Shape               Italic
 	EndFont
+	DocBookTag            releaseinfo
+	DocBookAttr           role='course'
+	DocBookInInfo         always
 End
 
+
+# The addORCIDlink{}{} latex command can be used in the preamble,
+# but also inside some other style like note, paragraph etc
 Style addORCIDlink
 	Category              FrontMatter
 	InTitle               1
@@ -556,13 +633,42 @@ Style addORCIDlink
 	LatexName             addORCIDlink
 	LatexType             Command
 	Margin                Dynamic
-	LeftMargin MMN
-	RightMargin MMN
+	LeftMargin            MMN
+	RightMargin           MMN
 	Align Block
-	Argument	1
-	  LabelString "Author-name"
-	  Tooltip ORCID
-	  Mandatory     1
+	Argument              1
+	  LabelString         "Author-name"
+	  Tooltip             ORCID
+	  Mandatory           1
+	  DocBookTag          phrase
+	  DocBookAttr         role='author-name'
+	EndArgument
+	# TODO: for DocBook, this won't work outside the preamble.
+	DocBookTag            personblurb
+	DocBookAttr           role='orcid'
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+End
+
+
+# To be used inside the document body
+InsetLayout Flex:addORCIDlink
+	LabelString           "ORCID-link: "
+	LatexName             addORCIDlink
+	Decoration            none
+	LatexType             Command
+	LyxType               custom
+	Argument              1
+	  LabelString         "Author-name"
+	  Mandatory           1
+	AutoInsert            1
+	Decoration            none
+	EndArgument
+	Argument              2
+	  LabelString         ORCID
+	  AutoInsert          1
+	  Mandatory           1
+	  Decoration          none
 	EndArgument
 End
 

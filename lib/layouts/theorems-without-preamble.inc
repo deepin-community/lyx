@@ -26,12 +26,15 @@
 # - Note
 
 
-Format 66
+Format 104
 
 OutlinerName thm "Definitions & Theorems"
 
 Counter		theorem
+	GuiName Theorem
+	LaTeXName thm
 End
+
 Style Theorem
 	Category	Reasoning
 	Margin		First_Dynamic
@@ -71,10 +74,17 @@ Style Theorem
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\theoremname}{_(Theorem)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='theorem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		corollary
+	GuiName Corollary
+	PrettyFormat "Corollary ##"
 End
 Style Corollary
 	CopyStyle	Theorem
@@ -87,10 +97,17 @@ Style Corollary
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\corollaryname}{_(Corollary)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='corollary'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		lemma
+	GuiName Lemma
+	PrettyFormat "Lemma ##"
 End
 Style Lemma
 	CopyStyle	Theorem
@@ -103,10 +120,17 @@ Style Lemma
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\lemmaname}{_(Lemma)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='lemma'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		proposition
+	GuiName Proposition
+	PrettyFormat "Proposition ##"
 End
 Style Proposition
 	CopyStyle	Theorem
@@ -119,10 +143,17 @@ Style Proposition
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\propositionname}{_(Proposition)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='proposition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		prop
+	GuiName Prop(osition)
+	PrettyFormat "Proposition ##"
 End
 Style Prop
 	CopyStyle	Theorem
@@ -135,10 +166,17 @@ Style Prop
 	LabelFont
 	  Series	Medium
 	EndFont
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='proposition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		conjecture
+	GuiName Conjecture
+	PrettyFormat "Conjecture ##"
 End
 Style Conjecture
 	CopyStyle	Theorem
@@ -158,10 +196,17 @@ Style Conjecture
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\conjecturename}{_(Conjecture)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='conjecture'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		fact
+	GuiName Fact
+	PrettyFormat "Fact ##"
 End
 Style Fact
 	CopyStyle	Theorem
@@ -174,10 +219,17 @@ Style Fact
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\factname}{_(Fact)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='fact'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		definition
+	GuiName Definition
+	PrettyFormat "Definition ##"
 End
 Style Definition
 	CopyStyle	Theorem
@@ -198,10 +250,17 @@ Style Definition
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\definitionname}{_(Definition)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='definition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		example
+	GuiName Example
+	PrettyFormat "Example ##"
 End
 Style Example
 	CopyStyle	Conjecture
@@ -215,10 +274,15 @@ Style Example
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\examplename}{_(Example)}}
 	EndBabelPreamble
+	DocBookWrapperTag     informalexample
+	DocBookTag            para
+	DocBookAttr           ""
 End
 
 
 Counter		problem
+	GuiName Problem
+	PrettyFormat "Problem ##"
 End
 Style Problem
 	CopyStyle	Definition
@@ -233,11 +297,18 @@ Style Problem
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\problemname}{_(Problem)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='problem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		prob
-  Within	chapter
+	GuiName Prob(lem)
+	Within	chapter
+	PrettyFormat "Problem ##"
 End
 # Prob does not copy a style to avoid preamble code
 Style Prob
@@ -265,10 +336,17 @@ Style Prob
 	EndFont
 	AddToToc	thm
 	IsTocCaption	true
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='problem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		solution
+	GuiName Solution
+	PrettyFormat "Solution ##"
 End
 Style Solution
 	CopyStyle	Problem
@@ -282,6 +360,11 @@ Style Solution
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\solutionname}{_(Solution)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='solution'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -296,10 +379,17 @@ Style Sol
 	  Tooltip	"Label of the corresponding problem"
 	  IsTocCaption true
 	EndArgument
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='solution'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		exercise
+	GuiName Exercise
+	PrettyFormat "Exercise ##"
 End
 Style Exercise
 	CopyStyle	Definition
@@ -313,10 +403,17 @@ Style Exercise
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\exercisename}{_(Exercise)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='exercise'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		remark
+	GuiName Remark
+	PrettyFormat "Remark ##"
 End
 Style Remark
 	CopyStyle	Conjecture
@@ -330,6 +427,11 @@ Style Remark
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\remarkname}{_(Remark)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='remark'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -343,10 +445,17 @@ Style		Claim
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\claimname}{_(Claim)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='claim'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		case
+	GuiName Case
+	PrettyFormat "Case ##"
 End
 Style Case
 	CopyStyle	Remark
@@ -360,10 +469,17 @@ Style Case
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\casename}{_(Case)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='case'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		property
+	GuiName Property
+	PrettyFormat "Property ##"
 End
 Style Property
 	CopyStyle	Claim
@@ -377,10 +493,17 @@ Style Property
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\propertyname}{_(Property)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='property'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		question
+	GuiName Question
+	PrettyFormat "Question ##"
 End
 Style Question
 	CopyStyle	Claim
@@ -394,10 +517,17 @@ Style Question
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\questionname}{_(Question)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='question'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
 Counter		note
+	GuiName Note
+	PrettyFormat "Note ##"
 End
 Style Note
 	CopyStyle	Claim
@@ -411,5 +541,9 @@ Style Note
 	BabelPreamble
 	  \addto\captions$$lang{\renewcommand{\notename}{_(Note)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='note'
+	DocBookTag            para
+	DocBookGenerateTitle  true
 End
 

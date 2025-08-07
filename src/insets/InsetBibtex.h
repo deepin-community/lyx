@@ -16,7 +16,6 @@
 
 namespace lyx {
 
-class BiblioInfo;
 class docstring_list;
 
 namespace support {
@@ -29,8 +28,6 @@ class InsetBibtex : public InsetCommand {
 public:
 	///
 	InsetBibtex(Buffer *, InsetCommandParams const &);
-	///
-	~InsetBibtex();
 
 	///
 	docstring_list getBibFiles() const;
@@ -39,36 +36,38 @@ public:
 	///
 	bool delDatabase(docstring const &);
 	///
-	void write(std::ostream &) const;
+	void write(std::ostream &) const override;
 
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	///
-	InsetCode lyxCode() const { return BIBTEX_CODE; }
+	InsetCode lyxCode() const override { return BIBTEX_CODE; }
 	///
-	DisplayType display() const { return AlignCenter; }
+	int rowFlags() const override { return Display; }
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	void updateBuffer(ParIterator const &, UpdateType);
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false) override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	void collectBibKeys(InsetIterator const &, support::FileNameList &) const;
+	void collectBibKeys(InsetIterator const &, support::FileNameList &) const override;
 	///
-	void validate(LaTeXFeatures &) const;
+	void validate(LaTeXFeatures &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	std::string contextMenuName() const;
+	void docbook(XMLStream &, OutputParams const &) const override;
+	///
+	std::string contextMenuName() const override;
 	//@}
 
 	/// \name Static public methods obligated for InsetCommand derived classes
@@ -84,29 +83,31 @@ public:
 
 private:
 	///
-	void editDatabases() const;
+	void editDatabases(docstring const & db = docstring()) const;
 	///
 	void parseBibTeXFiles(support::FileNameList &) const;
 	///
 	bool usingBiblatex() const;
 	///
 	docstring getRefLabel() const;
+	///
+	std::map<std::string, std::string> getFileEncodings() const;
 
 	/// \name Private functions inherited from Inset class
 	//@{
 	///
 	bool getStatus(Cursor & cur, FuncRequest const & cmd,
-		FuncStatus & flag) const;
+		FuncStatus & flag) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	Inset * clone() const { return new InsetBibtex(*this); }
+	Inset * clone() const override { return new InsetBibtex(*this); }
 	//@}
 
 	/// \name Private functions inherited from InsetCommand class
 	//@{
 	///
-	docstring screenLabel() const;
+	docstring screenLabel() const override;
 	//@}
 };
 

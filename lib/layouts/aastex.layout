@@ -36,13 +36,14 @@
 #                        - new environments for \altaffiltext and \tablenotetext
 # Version 1.5   26/11/12 - added mandatory argument for \altaffiltext
 # Version 1.6   23/01/15 - fix for the optional argument of \figcaption
+# Version 1.7   05/04/19 - Normalize layout name of \thebibliography
 
 # Note: aastex.cls was replaced by aastex6.cls (v.1 2016/02/16)
 # 	in the CTAN and TeXLive "aastex" package in march 2016.
 # 	The new "aastex6.layout" depends on aastex6.cls but inputs this
 #       file for the definitions (cf. LyX ticket #10027)
 
-Format 66
+Format 104
 Columns			1
 Sides			1
 #SecNumDepth		3
@@ -59,7 +60,7 @@ End
 
 
 Style Standard
-	Category        MainText
+	Category	MainText
 	Margin		Static
 	LatexType	Paragraph
 	LatexName	dummy
@@ -68,6 +69,7 @@ Style Standard
 	Align		Block
 	AlignPossible	Block, Left, Right, Center
 	LabelType	No_Label
+	DocBookTag	para
 End
 
 
@@ -141,6 +143,9 @@ Style Title
 	  Series	Bold
 	  Size		Large
 	EndFont
+	DocBookTag      title
+	DocBookTagType  paragraph
+	DocBookInInfo   maybe
 End
 
 
@@ -153,6 +158,11 @@ Style Author
 	  Series	Medium
 	  Shape		SmallCaps
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -170,6 +180,12 @@ Style Affiliation
 	  Family	Roman
 	  Size		Normal
 	EndFont
+	DocBookTag                        affiliation
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 
@@ -190,8 +206,15 @@ Style Altaffilation
 	LabelType	Static
 	LabelString	"Alternative affiliation:"
 	LabelFont
-	  Color		green
+	  Color		textlabel2
 	EndFont
+	DocBookTag                        affiliation
+	DocBookAttr                       role='alternate'
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 
@@ -211,6 +234,11 @@ Style Email
 	  Size		Normal
 	  Shape		Italic
 	EndFont
+	DocBookTag                        email
+	DocBookTagType                    paragraph
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookInInfo                     always
 End
 
 
@@ -262,6 +290,11 @@ Style Abstract
 	  Series	Bold
 	  Size		Normal
 	EndFont
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 
@@ -281,7 +314,7 @@ InsetLayout "Flex:altaffilmark"
 	  Misc		No_Bar
 	EndFont
 	LabelFont
-	  Color		green
+	  Color		textlabel2
 	  Size		Small
 	EndFont
 End
@@ -311,10 +344,14 @@ Style Keywords
 	  Shape		Italic
 	  Size		Normal
 	EndFont
+	DocBookTag          keyword
+	DocBookTagType      paragraph
+	DocBookWrapperTag   keywordset
+	DocBookInInfo       always
 End
 
 
-Style Acknowledgements
+Style Acknowledgments
 	Category        BackMatter
 	Margin		Dynamic
 	LatexType	Command
@@ -325,13 +362,15 @@ Style Acknowledgements
 	BottomSep	0.8
 	Align		Left
 	LabelType	Static
-	LabelString	"[Acknowledgements]"
+	LabelString	"[Acknowledgments]"
 	KeepEmpty	1
 	Font
 	  Family	Roman
 	  Size		Normal
 	  Shape		Italic
 	EndFont
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
 End
 
 
@@ -404,10 +443,11 @@ Style MathLetters
 	Font
 	  Size		Normal
 	EndFont
+	DocBookTag  NONE
 End
 
 
-Style References
+Style Bibliography
 	Margin		First_Dynamic
 	LatexType	Bib_Environment
 	LatexName	thebibliography
@@ -430,6 +470,20 @@ Style References
 	  Size		Normal
 	  Series	Bold
 	EndFont
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family 	typewriter
+	    Color 	latex
+	  EndFont
+	EndArgument
+End
+
+Style References
+	Obsoletedby	Bibliography
 End
 
 
@@ -453,6 +507,9 @@ Style NoteToEditor
 	  Size		Normal
 	  Shape		Italic
 	EndFont
+	DocBookTag      remark
+	DocBookTagType  paragraph
+	DocBookAttr     role='to-editor'
 End
 
 
@@ -473,6 +530,9 @@ Style TableRefs
 	  Family	Roman
 	  Size		Normal
 	EndFont
+	DocBookTag      remark
+	DocBookTagType  paragraph
+	DocBookAttr     role='tablerefs'
 End
 
 
@@ -493,6 +553,9 @@ Style TableComments
 	  Family	Roman
 	  Size		Normal
 	EndFont
+	DocBookTag      remark
+	DocBookTagType  paragraph
+	DocBookAttr     role='tablecomments'
 End
 
 
@@ -506,8 +569,11 @@ Style "Table note"
 	LabelType	Static
 	LabelString	"Table note:"
 	LabelFont
-	  Color		magenta
+	  Color		textlabel3
 	EndFont
+	DocBookTag      remark
+	DocBookTagType  paragraph
+	DocBookAttr     role='tablenote'
 End
 
 
@@ -527,9 +593,12 @@ InsetLayout "Flex:tablenotemark"
 	  Misc		No_Bar
 	EndFont
 	LabelFont
-	  Color		magenta
+	  Color		textlabel3
 	  Size		Small
 	EndFont
+	DocBookTag      remark
+	DocBookTagType  paragraph
+	DocBookAttr     role='tablenotemark'
 End
 
 
@@ -550,7 +619,7 @@ InsetLayout Caption:FigCaption
 			margin: 1ex;
 		}
 	EndHTMLStyle
-	HTMLAttr "class='float-caption float-caption-figcaption'"
+	HTMLClass   "float-caption float-caption-figcaption"
 End
 
 

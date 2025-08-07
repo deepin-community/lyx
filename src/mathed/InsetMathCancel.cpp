@@ -77,7 +77,7 @@ void InsetMathCancel::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-void InsetMathCancel::write(WriteStream & os) const
+void InsetMathCancel::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	switch (kind_) {
@@ -138,21 +138,21 @@ void InsetMathCancel::htmlize(HtmlStream & os) const
 }
 
 
-void InsetMathCancel::mathmlize(MathStream & os) const
+void InsetMathCancel::mathmlize(MathMLStream & ms) const
 {
 	switch (kind_) {
 	case cancel:
-		os << MTag("menclose", "notation='updiagonalstrike'")
+		ms << MTag("menclose", "notation='updiagonalstrike'")
 		   << cell(0)
 		   << ETag("menclose");
 		break;
 	case bcancel:
-		os << MTag("menclose", "notation='downdiagonalstrike'")
+		ms << MTag("menclose", "notation='downdiagonalstrike'")
 		   << cell(0)
 		   << ETag("menclose");
 		break;
 	case xcancel:
-		os << MTag("menclose", "notation='updiagonalstrike'")
+		ms << MTag("menclose", "notation='updiagonalstrike'")
 		   << MTag("menclose", "notation='downdiagonalstrike'")
 		   << cell(0)
 		   << ETag("menclose")

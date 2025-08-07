@@ -15,6 +15,8 @@
 #include "Preamble.h"
 #include "tex2lyx.h"
 
+#include "support/convert.h"
+
 #include <iostream>
 
 using namespace std;
@@ -43,9 +45,7 @@ void parse_math(Parser & p, ostream & os, unsigned flags, const mode_type mode)
 	while (p.good()) {
 		Token const & t = p.get_token();
 
-#ifdef FILEDEBUG
-		cerr << "t: " << t << " flags: " << flags << "\n";
-#endif
+		debug_message("t: " + t.asInput() + " flags: " + convert<string>(flags));
 
 		if (flags & FLAG_ITEM) {
 			if (t.cat() == catSpace)
@@ -92,7 +92,7 @@ void parse_math(Parser & p, ostream & os, unsigned flags, const mode_type mode)
 			}
 
 			else {
-				cerr << "\nmode: " << mode << endl;
+				warning_message("\nmode: " + std::to_string(mode));
 				p.error("something strange in the parser\n");
 				break;
 			}
@@ -213,22 +213,29 @@ void parse_math(Parser & p, ostream & os, unsigned flags, const mode_type mode)
 
 		else if (t.cs() == "\"") {
 			string const name = p.verbatim_item();
-			     if (name == "a") os << '\xe4';
-			else if (name == "o") os << '\xf6';
-			else if (name == "u") os << '\xfc';
-			else if (name == "A") os << '\xc4';
-			else if (name == "O") os << '\xd6';
-			else if (name == "U") os << '\xdc';
-			else os << "\"{" << name << "}";
+			LYXERR0("name: " << name);
+			if (name == "a")
+				os << "ä";
+			else if (name == "o")
+				os << "ö";
+			else if (name == "u")
+				os << "ü";
+			else if (name == "A")
+				os << "Ä";
+			else if (name == "O")
+				os << "Ö";
+			else if (name == "U")
+				os << "Ü";
+			else
+				os << "\"{" << name << "}";
 		}
 
 		else if (t.cs() == "ss")
-			os << "\xdf";
+			os << "ß";
 
 		else if (t.cs() == "cr") {
 			// lyx can't handle \\cr
-			cerr << "Warning: Converting TeX '\\cr' to LaTeX '\\\\'."
-			     << endl;
+			warning_message("Converting TeX '\\cr' to LaTeX '\\\\'.");
 			os << "\\\\";
 		}
 

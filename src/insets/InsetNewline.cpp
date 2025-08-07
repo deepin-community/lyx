@@ -19,7 +19,7 @@
 #include "FuncStatus.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
 #include "texstream.h"
 
@@ -35,8 +35,17 @@ using namespace std;
 
 namespace lyx {
 
-InsetNewline::InsetNewline() : Inset(0)
+InsetNewline::InsetNewline() : Inset(nullptr)
 {}
+
+
+int InsetNewline::rowFlags() const
+{
+	if (params_.kind == InsetNewlineParams::LINEBREAK)
+		return AlwaysBreakAfter;
+	else
+	    return AlwaysBreakAfter | Flush;
+}
 
 
 void InsetNewlineParams::write(ostream & os) const
@@ -146,7 +155,9 @@ void InsetNewline::latex(otexstream & os, OutputParams const & rp) const
 {
 	switch (params_.kind) {
 		case InsetNewlineParams::NEWLINE:
-			if (rp.inTableCell == OutputParams::PLAIN)
+			if (!rp.newlinecmd.empty())
+				os << "\\" << rp.newlinecmd << "\n";
+			else if (rp.inTableCell == OutputParams::PLAIN)
 				os << "\\newline\n";
 			else
 				os << "\\\\\n";
@@ -169,16 +180,15 @@ int InsetNewline::plaintext(odocstringstream & os,
 }
 
 
-int InsetNewline::docbook(odocstream & os, OutputParams const &) const
+void InsetNewline::docbook(XMLStream &, OutputParams const &) const
 {
-	os << '\n';
-	return 0;
+	// New lines are handled by Paragraph::simpleDocBookOnePar.
 }
 
 
-docstring InsetNewline::xhtml(XHTMLStream & xs, OutputParams const &) const
+docstring InsetNewline::xhtml(XMLStream & xs, OutputParams const &) const
 {
-	xs << html::CR() << html::CompTag("br") << html::CR();
+	xs << xml::CR() << xml::CompTag("br") << xml::CR();
 	return docstring();
 }
 

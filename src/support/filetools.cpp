@@ -21,10 +21,10 @@
 
 #include <config.h>
 
+#include "support/filetools.h"
+
 #include "LyX.h"
 #include "LyXRC.h"
-
-#include "support/filetools.h"
 
 #include "support/convert.h"
 #include "support/debug.h"
@@ -38,12 +38,12 @@
 #include "support/Systemcall.h"
 #include "support/qstring_helpers.h"
 #include "support/TempFile.h"
+#include "support/textutils.h"
 
 #include <QDir>
-#include <QTemporaryFile>
+#include <QUrl>
 
 #include "support/lassert.h"
-#include "support/regex.h"
 
 #include <fcntl.h>
 #ifdef HAVE_MAGIC_H
@@ -60,8 +60,11 @@
 
 #include <utility>
 #include <fstream>
+#include <regex>
 #include <sstream>
 #include <vector>
+
+#include <QCryptographicHash>
 
 #if defined (_WIN32)
 #include <io.h>
@@ -111,7 +114,7 @@ bool isBinaryFile(FileName const & filename)
 	magic_t magic_cookie = magic_open(MAGIC_MIME_ENCODING);
 	if (magic_cookie) {
 		bool detected = true;
-		if (magic_load(magic_cookie, NULL) != 0) {
+		if (magic_load(magic_cookie, nullptr) != 0) {
 			LYXERR(Debug::FILES, "isBinaryFile: "
 				"Could not load magic database - "
 				<< magic_error(magic_cookie));
@@ -336,12 +339,16 @@ FileName const fileSearch(string const & path, string const & name,
 //   2) build_lyxdir (if not empty)
 //   3) system_lyxdir
 FileName const libFileSearch(string const & dir, string const & name,
-			   string const & ext, search_mode mode)
+			   string const & ext, search_mode mode,
+			   bool const only_global)
 {
-	FileName fullname = fileSearch(addPath(package().user_support().absFileName(), dir),
-				     name, ext, mode);
-	if (!fullname.empty())
-		return fullname;
+	FileName fullname;
+	if (!only_global) {
+		fullname = fileSearch(addPath(package().user_support().absFileName(), dir),
+					     name, ext, mode);
+		if (!fullname.empty())
+			return fullname;
+	}
 
 	if (!package().build_support().empty())
 		fullname = fileSearch(addPath(package().build_support().absFileName(), dir),
@@ -405,7 +412,7 @@ FileName const imageLibFileSearch(string & dir, string const & name,
 string const commandPrep(string const & command_in)
 {
 	static string const token_scriptpath = "$$s/";
-	string const python_call = "python -tt";
+	string const python_call = os::python();
 
 	string command = command_in;
 	if (prefixIs(command_in, python_call))
@@ -443,9 +450,20 @@ string const commandPrep(string const & command_in)
 }
 
 
-FileName const tempFileName(string const & mask)
+FileName const tempFileName(FileName const & tempdir, string const & mask, bool const dir)
 {
-	FileName tempfile = TempFile(mask).name();
+	return tempFileName(TempFile(tempdir, mask).name(), dir);
+}
+
+
+FileName const tempFileName(string const & mask, bool const dir)
+{
+	return tempFileName(TempFile(mask).name(), dir);
+}
+
+
+FileName const tempFileName(FileName tempfile, bool const dir)
+{
 	// Since the QTemporaryFile object is destroyed at function return
 	// (which is what is intended here), the next call to this function
 	// may return the same file name again.
@@ -458,11 +476,16 @@ FileName const tempFileName(string const & mask)
 
 	// OK, we need another name. Simply append digits.
 	FileName tmp = tempfile;
-	tmp.changeExtension("");
+	string ext;
+	if (!dir) {
+		// Store and remove extensions
+		ext = "." + tempfile.extension();
+		tmp.changeExtension("");
+	}
 	for (int i = 1; i < INT_MAX ;++i) {
 		// Append digit to filename and re-add extension
-		string const new_fn = tmp.absFileName() + convert<string>(i)
-				+ "." + tempfile.extension();
+		string const new_fn =
+			tmp.absFileName() + convert<string>(i) + ext;
 		if (tmp_names_.find(new_fn) == tmp_names_.end()) {
 			tmp_names_.insert(new_fn);
 			tempfile.set(new_fn);
@@ -482,31 +505,8 @@ void removeTempFile(FileName const & fn)
 		return;
 
 	string const abs = fn.absFileName();
-	if (tmp_names_.find(abs) != tmp_names_.end())
-		tmp_names_.erase(abs);
+	tmp_names_.erase(abs);
 	fn.removeFile();
-}
-
-
-static string createTempFile(QString const & mask)
-{
-	// FIXME: This is not safe. QTemporaryFile creates a file in open(),
-	//        but the file is deleted when qt_tmp goes out of scope.
-	//        Therefore the next call to createTempFile() may create the
-	//        same file again. To make this safe the QTemporaryFile object
-	//        needs to be kept for the whole life time of the temp file name.
-	//        This could be achieved by creating a class TempDir (like
-	//        TempFile, but using a currently non-existing
-	//        QTemporaryDirectory object).
-	QTemporaryFile qt_tmp(mask + ".XXXXXXXXXXXX");
-	if (qt_tmp.open()) {
-		string const temp_file = fromqstr(qt_tmp.fileName());
-		LYXERR(Debug::FILES, "Temporary file `" << temp_file << "' created.");
-		return temp_file;
-	}
-	LYXERR(Debug::FILES, "Unable to create temporary file with following template: "
-			<< qt_tmp.fileTemplate());
-	return string();
 }
 
 
@@ -516,7 +516,9 @@ static FileName createTmpDir(FileName const & tempdir, string const & mask)
 		<< "createTmpDir:    mask=`" << mask << '\'');
 
 	QFileInfo tmp_fi(QDir(toqstr(tempdir.absFileName())), toqstr(mask));
-	FileName const tmpfl(createTempFile(tmp_fi.absoluteFilePath()));
+	FileName const tmpfl =
+		tempFileName(FileName(fromqstr(tmp_fi.absolutePath())),
+			     fromqstr(tmp_fi.fileName()) + ".XXXXXXXXXXXX", true);
 
 	if (tmpfl.empty() || !tmpfl.createDirectory(0700)) {
 		LYXERR0("LyX could not create temporary directory in " << tempdir
@@ -652,11 +654,24 @@ string const addName(string const & path, string const & fname)
 
 	if (path != "." && path != "./" && !path.empty()) {
 		buf = os::internal_path(path);
-		if (!suffixIs(path, '/'))
+		if (!suffixIs(buf, '/'))
 			buf += '/';
 	}
 
 	return buf + basename;
+}
+
+
+string const addPathName(std::string const & path, std::string const & fname)
+{
+	string const pathpart = onlyPath(fname);
+	string const namepart = onlyFileName(fname);
+	string newpath = path;
+	if (!pathpart.empty())
+		newpath = addPath(newpath, pathpart);
+	if (!namepart.empty())
+		newpath = addName(newpath, namepart);
+	return newpath;
 }
 
 
@@ -676,8 +691,12 @@ string const onlyFileName(string const & fname)
 
 
 // Search the string for ${VAR} and $VAR and replace VAR using getenv.
+// If VAR does not exist, ${VAR} and $VAR are left as is in the string.
 string const replaceEnvironmentPath(string const & path)
 {
+	if (!contains(path, '$'))
+		return path;
+
 	// ${VAR} is defined as
 	// $\{[A-Za-z_][A-Za-z_0-9]*\}
 	static string const envvar_br = "[$]\\{([A-Za-z_][A-Za-z_0-9]*)\\}";
@@ -686,19 +705,36 @@ string const replaceEnvironmentPath(string const & path)
 	// $[A-Za-z_][A-Za-z_0-9]*
 	static string const envvar = "[$]([A-Za-z_][A-Za-z_0-9]*)";
 
-	static regex const envvar_br_re("(.*)" + envvar_br + "(.*)");
-	static regex const envvar_re("(.*)" + envvar + "(.*)");
-	string result = path;
-	while (1) {
-		smatch what;
-		if (!regex_match(result, what, envvar_br_re)) {
-			if (!regex_match(result, what, envvar_re))
-				break;
+	// Coverity thinks that the regex constructor can return an
+	// exception. We know that it is not true since our regex are
+	// hardcoded, but we have to protect against that nevertheless.
+	try {
+		static regex const envvar_br_re("(.*)" + envvar_br + "(.*)");
+		static regex const envvar_re("(.*)" + envvar + "(.*)");
+		string result = path;
+		while (1) {
+			smatch what;
+			bool brackets = true;
+			if (!regex_match(result, what, envvar_br_re)) {
+				brackets = false;
+				if (!regex_match(result, what, envvar_re))
+					break;
+			}
+			string env_var = getEnv(what.str(2));
+			if (env_var.empty()) {
+				// temporarily use alert/bell (0x07) in place of $
+				if (brackets)
+					env_var = "\a{" + what.str(2) + '}';
+				else
+					env_var = "\a" + what.str(2);
+			}
+			result = what.str(1) + env_var + what.str(3);
 		}
-		string env_var = getEnv(what.str(2));
-		result = what.str(1) + env_var + what.str(3);
+		return subst(result, '\a', '$');
+	} catch (exception const & e) {
+		LYXERR0("Something is very wrong: " << e.what());
+		return path;
 	}
-	return result;
 }
 
 
@@ -908,6 +944,24 @@ string const getExtension(string const & name)
 }
 
 
+docstring const provideScheme(docstring const & name, docstring const & scheme)
+{
+	if (prefixIs(name, scheme + "://"))
+		return name;
+	QUrl url(toqstr(name));
+	if (!url.scheme().isEmpty())
+		// Has a scheme. Return as is.
+		return name;
+	if (scheme == from_ascii("doi")) {
+		// check if it is the pure DOI (without URL)
+		if (isDigitASCII(name[1]))
+			return from_ascii("https://doi.org/") + name;
+	}
+	url.setScheme(toqstr(scheme));
+	return qstring_to_ucs4(url.toString());
+}
+
+
 string const unzippedFileName(string const & zipped_file)
 {
 	string const ext = getExtension(zipped_file);
@@ -939,6 +993,9 @@ FileName const unzipFile(FileName const & zipped_file, string const & unzipped_f
 docstring const makeDisplayPath(string const & path, unsigned int threshold)
 {
 	string str = path;
+
+	// Recode URL encoded chars.
+	str = from_percent_encoding(str);
 
 	// If file is from LyXDir, display it as if it were relative.
 	string const system = package().system_support().absFileName();
@@ -1045,7 +1102,7 @@ cmd_ret const runCommand(string const & cmd)
 		command = rtrim(command, "2>&1");
 		err2out = true;
 	}
-	string const cmdarg = "/d /c " + command;
+	string const cmdarg = "/d /c \"" + command + "\"";
 	string const comspec = getEnv("COMSPEC");
 
 	security.nLength = sizeof(SECURITY_ATTRIBUTES);
@@ -1088,21 +1145,23 @@ cmd_ret const runCommand(string const & cmd)
 
 	// (Claus Hentschel) Check if popen was successful ;-)
 	if (!inf) {
-		lyxerr << "RunCommand:: could not start child process" << endl;
-		return make_pair(-1, string());
+		lyxerr << "RunCommand: could not start child process" << endl;
+		return { false, string() };
 	}
 
-	string ret;
+	string result;
 	int c = fgetc(inf);
 	while (c != EOF) {
-		ret += static_cast<char>(c);
+		result += static_cast<char>(c);
 		c = fgetc(inf);
 	}
 
 #if defined (_WIN32)
 	WaitForSingleObject(process.hProcess, INFINITE);
 	DWORD pret;
-	if (!GetExitCodeProcess(process.hProcess, &pret))
+	BOOL success = GetExitCodeProcess(process.hProcess, &pret);
+	bool valid = (pret == 0) && success;
+	if (!success)
 		pret = -1;
 	if (!infile.empty())
 		CloseHandle(startup.hStdInput);
@@ -1111,23 +1170,25 @@ cmd_ret const runCommand(string const & cmd)
 		pret = -1;
 #elif defined (HAVE_PCLOSE)
 	int const pret = pclose(inf);
+	bool const valid = (WEXITSTATUS(pret) == 0);
 #elif defined (HAVE__PCLOSE)
 	int const pret = _pclose(inf);
+	bool const valid = (WEXITSTATUS(pret) == 0);
 #else
 #error No pclose() function.
 #endif
 
 	if (pret == -1)
-		perror("RunCommand:: could not terminate child process");
+		perror("RunCommand: could not terminate child process");
 
-	return make_pair(pret, ret);
+	return { valid, result };
 }
 
 
 FileName const findtexfile(string const & fil, string const & /*format*/,
 						   bool const onlykpse)
 {
-	/* There is no problem to extend this function too use other
+	/* There is no problem to extend this function to use other
 	   methods to look for files. It could be setup to look
 	   in environment paths and also if wanted as a last resort
 	   to a recursive find. One of the easier extensions would
@@ -1153,7 +1214,7 @@ FileName const findtexfile(string const & fil, string const & /*format*/,
 	// is used."
 	// However, we want to take advantage of the format sine almost all
 	// the different formats has environment variables that can be used
-	// to controll which paths to search. f.ex. bib looks in
+	// to control which paths to search. f.ex. bib looks in
 	// BIBINPUTS and TEXBIB. Small list follows:
 	// bib - BIBINPUTS, TEXBIB
 	// bst - BSTINPUTS
@@ -1168,10 +1229,10 @@ FileName const findtexfile(string const & fil, string const & /*format*/,
 
 	cmd_ret const c = runCommand(kpsecmd);
 
-	LYXERR(Debug::LATEX, "kpse status = " << c.first << '\n'
-		 << "kpse result = `" << rtrim(c.second, "\n\r") << '\'');
-	if (c.first != -1)
-		return FileName(rtrim(to_utf8(from_filesystem8bit(c.second)), "\n\r"));
+	LYXERR(Debug::OUTFILE, "kpse status = " << c.valid << '\n'
+	                                        << "kpse result = `" << rtrim(c.result, "\n\r") << '\'');
+	if (c.valid)
+		return FileName(rtrim(to_utf8(from_filesystem8bit(c.result)), "\n\r"));
 	else
 		return FileName();
 }
@@ -1217,7 +1278,7 @@ bool prefs2prefs(FileName const & filename, FileName const & tempfile, bool lfun
 	LYXERR(Debug::FILES, "Running `" << command_str << '\'');
 
 	cmd_ret const ret = runCommand(command_str);
-	if (ret.first != 0) {
+	if (!ret.valid) {
 		LYXERR0("Could not run file conversion script prefs2prefs.py.");
 		return false;
 	}
@@ -1272,5 +1333,45 @@ void fileUnlock(int fd, const char * /* lock_file*/)
 #endif
 }
 
-} //namespace support
+
+std::string toHexHash(const std::string & str, bool shorten)
+{
+	auto hashAlgo = QCryptographicHash::Sha256;
+
+	QByteArray hash = QCryptographicHash::hash(toqstr(str).toLocal8Bit(), hashAlgo);
+	QString qshash=QString(hash.toHex());
+
+	/* For shortened case we take 12 leftmost chars (6 bytes encoded).
+	 * Random experiment shows:
+	 *  8 chars: 16 collisions for 10^5 graphic filenames
+	 * 12 chars:  0 collisions for 10^5 graphic filenames
+	 */
+	if (shorten)
+		qshash=qshash.left(12);
+
+	return fromqstr(qshash);
+}
+
+
+std::string sanitizeFileName(const std::string & str)
+{
+	// The list of characters to keep is probably over-restrictive,
+	// but it is not really a problem.
+	// Apart from non-ASCII characters, at least the following characters
+	// are forbidden: '/', '.', ' ', and ':'.
+	// On windows it is not possible to create files with '<', '>' or '?'
+	// in the name.
+	static std::string const keep = "abcdefghijklmnopqrstuvwxyz"
+	                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	                           "+-0123456789;=";
+
+	std::string name = str;
+	string::size_type pos = 0;
+	while ((pos = name.find_first_not_of(keep, pos)) != string::npos)
+		name[pos++] = '_';
+
+	return name;
+}
+
+} // namespace support
 } // namespace lyx

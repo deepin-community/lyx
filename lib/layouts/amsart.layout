@@ -1,5 +1,5 @@
 #% Do not delete the line below; configure depends on this
-#  \DeclareLaTeXClass{American Mathematical Society (AMS) Article}
+#  \DeclareLaTeXClass{American Mathematical Society (AMS)}
 #  \DeclareCategory{Articles}
 # AMS-Article textclass definition file. Taken from initial LyX source code
 # and from the Article textclass definition file, following the AMS sample
@@ -8,14 +8,15 @@
 # Probably broken by Jean-Marc Lasgouttes <Jean-Marc.Lasgouttes@inria.fr>
 # modified and modularized by Emmanuel GUREGHIAN <gureghia@boston.bertin.fr>
 # Tinkered with Sep. '07 by Paul Rubin <rubin@msu.edu>
-# Modularized Jan '08 by Richard Heck <rgheck@brown.edu>
+# Modularized Jan '08 by Richard Kimberly Heck <rikiheck@lyx.org>
 # Moved "number within sections" to modules Aug '09 (Paul Rubin <rubin@msu.edu>)
 
-Format 66
+Format 104
 
 Columns                 1
 Sides                   2
 PageStyle               Headers
+BibInToc                true
 
 Provides amsmath         1
 Provides makeidx         1
@@ -38,6 +39,7 @@ Style Standard
 	Align         Block
 	AlignPossible Block, Left, Right, Center
 	LabelType     No_Label
+	DocBookTag     para
 End
 
 Input stdfloats.inc

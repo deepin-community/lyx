@@ -1,40 +1,28 @@
-Public release of LyX version 2.3.6
+Public release of LyX version 2.4.3
 ===================================
 
-We are proud to announce the release of LyX 2.3.6. This is the sixth
-maintenance release in the 2.3.x series. We encourage all users to
-upgrade to this version.
+We are proud to announce the release LyX 2.4.3, the third maintenance
+release in the 2.4.x series.
 
-You can download LyX 2.3.6 from http://www.lyx.org/Download/.
+This is mostly a bug-fixing release. Most of the bugs are minor, but
+there was one significant one (13118) concerning the loading order of
+the fancyhdr package that was causing errors in page layout. In terms of
+updates, the most significant are that it is not possible to insert
+cross-references from the outliner, even to sections that have not yet
+been given a label. In that case, the label is automatically created.
+There has also been a major update to the Swedish localization.
 
-LyX is a document processor that encourages an approach to writing based 
-on the structure of your documents and not simply their appearance. It is
-released under a Free and Open Source Software license.
+You can download LyX 2.4.3 from https://www.lyx.org/Download.
 
-LyX 2.3.6 is the result of on-going efforts to make our stable version more 
-reliable and more stable. Most of the changes are incremental, but quite a 
-few important bugs have now been fixed.
-
-One important change is that Inkscape 1.0 is now supported: It will be detected
-and configured automatically. Users of previous versions have recently reported
-configuration failures when Inkscape 1.0 is installed, leading to an incomplete
-(and all but unusable) installation of LyX. This should also be fixed.
-
-If you think you have found a bug in LyX 2.3.6, please open a bug report at
-http://www.lyx.org/trac/wiki/BugTrackerHome. If you're not sure whether it
-really is a bug, you can e-mail the LyX developers' mailing list (lyx-devel 
-<at> lists.lyx.org) and ask. 
-
-If you have trouble using LyX or have a question, consult the documentation 
-that comes with LyX (under the Help or Apple menu) and the LyX wiki, which 
-is at http://wiki.lyx.org/. If you can't find the answer there, e-mail the 
-LyX users' list (lyx-users <at> lists.lyx.org), where you will find an 
-active community of people who are ready to help.
-
-We hope you enjoy using LyX 2.3.6.
+If you have trouble using LyX or have a question, consult the
+documentation that comes with LyX (under Help) and the LyX wiki, which
+you will find at https://wiki.lyx.org/. You can also send email to
+the LyX users' list (lyx-users at lists.lyx.org). Bugs can be reported
+on our bug tracker (https://www.lyx.org/trac/) or by writing the
+developers' list (lyx-devel at lists.lyx.org).
 
 The LyX team.
-http://www.lyx.org
+https://www.lyx.org
 
 
 What's new
@@ -45,49 +33,34 @@ What's new
 
 * DOCUMENT INPUT/OUTPUT
 
-- Added layout for American Psychological Association (APA), v. 7 (apa7).
+- The "URW Classico (Optima)" TeX fonts are now also supported via
+  the classico LaTeX package (bug 13124).
 
 
 * USER INTERFACE
 
-- Improve UI of math matrix dialog UI (bug 11888).
+- It is now possible to inserts cross references to sections via
+  the outliner, even of they do not have a label yet. In the latter
+  case, a label is automatically inserted.
 
-- Fix display of 'by chapter' labels in AMS classes (bug 11741).
+- Approximate word count for cross-references in document statistics.
 
-- Add support for the doublestroke package in mathed (bug 11887).
+- Document PDF settings allow color links and frames around them.
+  These two settings are mutually exclusive by default and we signal
+  that within UI now. Workarounds can be found in our and hyperref manual.
 
-- Fix behavior of text style dialog when "Immediate Apply" is checked (bug 11926).
-
-- Focus keyword field in Thesaurus dialog.
-
-- Allow creation of a child file from the include dialog (bug 4475).
-
-- Make sure to load the correct math fonts in certain cases.
-
-- Update autocorrect in mathed so that pressing '*' after a delimiter will
-  cycle through all sizes.
-
-- Display character styles along with fonts in status bar (bug 11951).
-
-
-* MISCELLANEOUS
-
-- Adjust debug output for fonts by not breaking lines that should go together.
+- It is now possible to use inset-forall for math equations with the
+  selector "Formula" or "Formula:eqnarray", for example.
 
 
 * DOCUMENTATION AND LOCALIZATION
 
-- Update Czech, German, Italian, Slovak, Russian and French user interface localizations. 
+- Major update of Swedish localization of the user interface.
 
-- Update French translation of Customization manual
+- Update Basque, Brazilian Portuguese, Czech, Dutch, French, German,
+  Italian, Japanese, Slovak, Swedish, and Ukranainan translations.
 
-
-* BUILD/INSTALLATION
-
-- Wininstaller, temporary remove the option to run LyX from the finish page
-  due to upcoming fix of the issue where after installing LyX as admin, this option
-  would execute LyX as admin too.
-
+- Include DocBook documentation in German customization manual.
 
 
 ** Bug fixes:
@@ -95,70 +68,60 @@ What's new
 
 * DOCUMENT INPUT/OUTPUT
 
-- Fix output of titles in branches and other insets (follow-up to bug 11787).
+- Fix size of Logical and/or characters in LaTeX output (bug 13099).
 
-- Fix clipping of vector images and when exporting from command line
-  (follow-up to bug 11180).
+- Work around bug in aa.cls in the "Astronomy & Astrophysics" template
+  and example documents.
+
+- Fix instant preview of lilypond snippets (bug 13103).
+
+- Fix LaTeX error with listings, book classes and utf8 encoding.
+
+- Fix loading order of fancyhdr (bug 13118).
+
+- Fix spacing problems in previews with math macros under specific
+  circumstances (bug 13120).
+
+- Fix tabular styles on systems with blanks in system directory path.
+
+- Fix inclusion of bibliography files in a LyX archive when the document
+  was imported from a LaTeX source (bug 13129).
 
 
 * USER INTERFACE
 
-- Fix crash when pasting math grid with more rows in source than target
-  (bug 11897).
+- Allow negative offset values in Horizontal Line dialog (bug 13102).
 
-- Fix problem with drawing of auto-opened insets (bug 11870).
+- Use proper background color with default branches and system colors.
 
-- Fix crash when rejecting changes and the cursor is in an inset that will be
-  deleted (bug 10316).
+- Fix handling of (biblatex) bib file encodings in dialog (bug 13109).
 
-- Ask to save hidden dirty documents (bug 11405).
+- Fix problem with display of heading in document float settings.
 
-- Fix background color of collapsible insets with sublabel.
+- Fix some layout problems with the About LyX dialog.
 
-- Do not paste tabulators when pasting multiple cell outside table (bug 4449).
+- Fix missing label prefixes with some AMS theorem modules (bug 13125).
 
-- Fix language when pasting multiple cell outside table (bug 11898).
+- Fix display of superscripts on Windows (bug 13100).
 
-- Fix input of decimal numbers in RtL context (bug 11900).
 
-- Fix the LyX icon in the Wayland dash (bug 11847).
+* INTERNALS
 
-- Fix display bug when typing in a paragraph where row heights change (bug 11601).
+- Fix some defects found by Coverity.
 
-- Fix wrong marking-text-behavior with doubleclick on notebook touchpads (Windows)
 
-- Fix spacing of limits of sum-like operators in display style.
+* DOCUMENTATION AND LOCALIZATION
 
-- Fix positioning of super- and subscripts with integral signs.
-
-- Fix counter in bibliography inset (bug 11920).
-
-- Do not allow editing of math package list in Document > Settings > Math Options,
-  thus preventing a crash (bug 11931).
-
-- Maintain standard layout for separating paragraphs when switching layouts (bug 11936).
-
-- Prevent permanent disabling of widgets in Vertical/Horizontal Space dialogs
-  (bug 11952).
-
-- Fix behavior of Edit button in Include dialog.
-
-- Localize some previously unlocalized strings (bug 11954 ).
-
-- Fix bug where cursor blinks at the wrong position after changing layout (bug 11912).
-
-- Fix PrettyFormat for Part (bug 11986).
-
-- Fix on-screen display of special math fonts (bug 11802).
-
-- Fix white frame border in fullscreen mode.
+- All URLs in the included documents have been verified, outdated
+  links have been updated.
 
 
 * BUILD/INSTALLATION
 
-- Wininstaller, fix bug where previous installations, with emergency version
-  greater than 1, could not be seen in registry on overinstall
+- Fix (only informational) check for hyphenation patterns in
+  (re)configuration.
 
-- Do not break configuration if a module file is not decodable (file
-  not encoded in utf-8). Rather than that, issue a warning and skip
-  that file (a variant of bug 11736).
+- Improve check for package versions in (re)configuration. Particularly,
+  configuration does not break any longer if a sub-dependency of a
+  tested package is missing (bug 13112),
+

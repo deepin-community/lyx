@@ -33,47 +33,54 @@ public:
 	///
 	InsetRef(Buffer * buffer, InsetCommandParams const &);
 
+	///
+	void changeTarget(docstring const & new_label);
+
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	docstring layoutName() const override;
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus & status) const;
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool isLabeled() const { return true; }
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus & status) const override;
 	///
-	docstring toolTip(BufferView const &, int, int) const
+	bool isLabeled() const override { return true; }
+	///
+	docstring toolTip(BufferView const &, int, int) const override
 		{ return tooltip_; }
 	///
-  docstring getTOCString() const;
+	docstring getTOCString() const;
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	///
-	InsetCode lyxCode() const { return REF_CODE; }
+	InsetCode lyxCode() const override { return REF_CODE; }
 	///
-	DisplayType display() const { return Inline; }
-	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void toString(odocstream &) const;
+	bool findUsesToString() const override { return true; }
 	///
-	void forOutliner(docstring &, size_t const, bool const) const;
+	void toString(odocstream &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void forOutliner(docstring &, size_t const, bool const) const override;
 	///
-	void updateBuffer(ParIterator const & it, UpdateType);
+	void validate(LaTeXFeatures & features) const override;
+	///
+	void updateBuffer(ParIterator const & it, UpdateType, bool const deleted = false) override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	bool forceLTR(OutputParams const &) const;
+	bool forceLTR(OutputParams const &) const override;
+	///
+	std::pair<int, int> isWords() const override;
 	//@}
 
 	/// \name Static public methods obligated for InsetCommand derived classes
@@ -85,6 +92,15 @@ public:
 	///
 	static bool isCompatibleCommand(std::string const & s);
 	//@}
+	///
+	bool outputActive() const { return active_; }
+	/// \return the command for a formatted reference to ref
+	/// \param label we're cross-referencing
+	/// \param argument for reference command
+	/// \param prefix of the label (before :)
+	/// Also used by InsetMathRef
+	static docstring getFormattedCmd(docstring const & ref, docstring & label,
+			docstring & prefix, bool use_refstyle, bool use_caps = false);
 
 protected:
 	///
@@ -94,28 +110,30 @@ private:
 	/// \name Private functions inherited from Inset class
 	//@{
 	///
-	Inset * clone() const { return new InsetRef(*this); }
+	Inset * clone() const override { return new InsetRef(*this); }
 	//@}
 
 	/// \name Private functions inherited from InsetCommand class
 	//@{
 	///
-	docstring screenLabel() const;
+	docstring screenLabel() const override;
 	//@}
+
+	///
+	docstring displayString(docstring const & ref, std::string const & cmd,
+			std::string const & language = std::string()) const;
 
 	/// \return the label with things that need to be escaped escaped
 	docstring getEscapedLabel(OutputParams const &) const;
-	/// \return the command for a formatted reference to ref
-	/// \param label we're cross-referencing
-	/// \param argument for reference command
-	/// \param prefix of the label (before :)
-	docstring getFormattedCmd(docstring const & ref, docstring & label,
-			docstring & prefix, docstring const & caps) const;
 
 	///
 	mutable docstring screen_label_;
 	///
+	mutable docstring toc_string_;
+	///
 	mutable bool broken_;
+	///
+	mutable bool active_;
 	///
 	mutable docstring tooltip_;
 };
