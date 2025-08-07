@@ -11,7 +11,6 @@
 #include <config.h>
 
 #include "InsetMathHull.h"
-
 #include "InsetMathChar.h"
 #include "InsetMathColor.h"
 #include "InsetMathFrac.h"
@@ -26,6 +25,7 @@
 #include "BufferParams.h"
 #include "BufferView.h"
 #include "ColorSet.h"
+#include "Cursor.h"
 #include "CutAndPaste.h"
 #include "Encoding.h"
 #include "Exporter.h"
@@ -38,10 +38,9 @@
 #include "InsetMathMacro.h"
 #include "InsetMathMacroTemplate.h"
 #include "MetricsInfo.h"
-#include "output_xhtml.h"
 #include "Paragraph.h"
 #include "ParIterator.h"
-#include "sgml.h"
+#include "xml.h"
 #include "TexRow.h"
 #include "TextClass.h"
 #include "TextPainter.h"
@@ -51,11 +50,11 @@
 #include "insets/InsetRef.h"
 #include "insets/RenderPreview.h"
 
-#include "graphics/GraphicsImage.h"
 #include "graphics/PreviewImage.h"
 #include "graphics/PreviewLoader.h"
 
 #include "frontends/alert.h"
+#include "frontends/FontMetrics.h"
 #include "frontends/Painter.h"
 
 #include "support/convert.h"
@@ -64,7 +63,7 @@
 #include "support/filetools.h"
 #include "support/lassert.h"
 #include "support/lstrings.h"
-#include "support/RefChanger.h"
+#include "support/Changer.h"
 
 #include <sstream>
 
@@ -121,81 +120,35 @@ namespace {
 
 
 	// writes a preamble for underlined or struck out math display
-	void writeMathdisplayPreamble(WriteStream & os)
+	void writeMathdisplayPreamble(TeXMathStream & os)
 	{
-		if (os.strikeoutMath()) {
-			if (os.ulemCmd() == WriteStream::UNDERLINE)
-				os << "\\raisebox{-\\belowdisplayshortskip}{"
-				      "\\lyxmathsout{\\parbox[b]{\\linewidth}{";
-			else
-				os << "\\lyxmathsout{\\parbox{\\linewidth}{";
-		} else if (os.ulemCmd() == WriteStream::UNDERLINE)
+		if (os.strikeoutMath())
+			return;
+
+		if (os.ulemCmd() == TeXMathStream::UNDERLINE)
 			os << "\\raisebox{-\\belowdisplayshortskip}{"
 			      "\\parbox[b]{\\linewidth}{";
-		else if (os.ulemCmd() == WriteStream::STRIKEOUT)
+		else if (os.ulemCmd() == TeXMathStream::STRIKEOUT)
 			os << "\\parbox{\\linewidth}{";
 	}
 
 
 	// writes a postamble for underlined or struck out math display
-	void writeMathdisplayPostamble(WriteStream & os)
+	void writeMathdisplayPostamble(TeXMathStream & os)
 	{
-		if (os.strikeoutMath()) {
-			if (os.ulemCmd() == WriteStream::UNDERLINE)
-				os << "}";
+		if (os.strikeoutMath())
+			return;
+
+		if (os.ulemCmd() == TeXMathStream::UNDERLINE)
 			os << "}}\\\\\n";
-		} else if (os.ulemCmd() == WriteStream::UNDERLINE)
-			os << "}}\\\\\n";
-		else if (os.ulemCmd() == WriteStream::STRIKEOUT)
+		else if (os.ulemCmd() == TeXMathStream::STRIKEOUT)
 			os << "}\\\\\n";
 	}
-
 
 } // namespace
 
 
-HullType hullType(docstring const & s)
-{
-	if (s == "none")      return hullNone;
-	if (s == "simple")    return hullSimple;
-	if (s == "equation")  return hullEquation;
-	if (s == "eqnarray")  return hullEqnArray;
-	if (s == "align")     return hullAlign;
-	if (s == "alignat")   return hullAlignAt;
-	if (s == "xalignat")  return hullXAlignAt;
-	if (s == "xxalignat") return hullXXAlignAt;
-	if (s == "multline")  return hullMultline;
-	if (s == "gather")    return hullGather;
-	if (s == "flalign")   return hullFlAlign;
-	if (s == "regexp")    return hullRegexp;
-	lyxerr << "unknown hull type '" << to_utf8(s) << "'" << endl;
-	return hullUnknown;
-}
-
-
-docstring hullName(HullType type)
-{
-	switch (type) {
-	case hullNone:       return from_ascii("none");
-	case hullSimple:     return from_ascii("simple");
-	case hullEquation:   return from_ascii("equation");
-	case hullEqnArray:   return from_ascii("eqnarray");
-	case hullAlign:      return from_ascii("align");
-	case hullAlignAt:    return from_ascii("alignat");
-	case hullXAlignAt:   return from_ascii("xalignat");
-	case hullXXAlignAt:  return from_ascii("xxalignat");
-	case hullMultline:   return from_ascii("multline");
-	case hullGather:     return from_ascii("gather");
-	case hullFlAlign:    return from_ascii("flalign");
-	case hullRegexp:     return from_ascii("regexp");
-	case hullUnknown:
-		lyxerr << "unknown hull type" << endl;
-		break;
-	}
-	return from_ascii("none");
-}
-
-static InsetLabel * dummy_pointer = 0;
+static InsetLabel * dummy_pointer = nullptr;
 
 InsetMathHull::InsetMathHull(Buffer * buf)
 	: InsetMathGrid(buf, 1, 1), type_(hullNone), numbered_(1, NONUMBER),
@@ -231,8 +184,8 @@ InsetMathHull::InsetMathHull(InsetMathHull const & other) : InsetMathGrid(other)
 
 InsetMathHull::~InsetMathHull()
 {
-	for (size_t i = 0; i < label_.size(); ++i)
-		delete label_[i];
+	for (auto & i : label_)
+		delete i;
 }
 
 
@@ -251,8 +204,8 @@ InsetMathHull & InsetMathHull::operator=(InsetMathHull const & other)
 	numbered_ = other.numbered_;
 	numbers_ = other.numbers_;
 	buffer_ = other.buffer_;
-	for (size_t i = 0; i < label_.size(); ++i)
-		delete label_[i];
+	for (auto & i : label_)
+		delete i;
 	label_ = other.label_;
 	for (size_t i = 0; i != label_.size(); ++i) {
 		if (label_[i])
@@ -261,6 +214,12 @@ InsetMathHull & InsetMathHull::operator=(InsetMathHull const & other)
 	preview_.reset(new RenderPreview(*other.preview_, this));
 
 	return *this;
+}
+
+
+docstring InsetMathHull::layoutName() const
+{
+	return "Formula:" + hullName(type_);
 }
 
 
@@ -275,15 +234,7 @@ void InsetMathHull::setBuffer(Buffer & buffer)
 }
 
 
-// FIXME This should really be controlled by the TOC level, or
-// something of the sort.
-namespace {
-	const char * counters_to_save[] = {"section", "chapter"};
-	unsigned int const numcnts = sizeof(counters_to_save)/sizeof(char *);
-} // namespace
-
-
-void InsetMathHull::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetMathHull::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
 	if (!buffer_) {
 		//FIXME: buffer_ should be set at creation for this inset! Problem is
@@ -300,21 +251,11 @@ void InsetMathHull::updateBuffer(ParIterator const & it, UpdateType utype)
 		Counters & cnts =
 			buffer_->masterBuffer()->params().documentClass().counters();
 
-		// right now, we only need to do this at export time
-		if (utype == OutputUpdate) {
-			for (size_t i = 0; i < numcnts; ++i) {
-				docstring const cnt = from_ascii(counters_to_save[i]);
-				if (cnts.hasCounter(cnt))
-					counter_map[cnt] = cnts.value(cnt);
-			}
-		}
-
 		// this has to be done separately
 		docstring const eqstr = from_ascii("equation");
 		if (cnts.hasCounter(eqstr)) {
-			if (utype == OutputUpdate)
-				counter_map[eqstr] = cnts.value(eqstr);
 			for (size_t i = 0; i != label_.size(); ++i) {
+				docstring const oldnumber = numbers_[i];
 				if (numbered(i)) {
 					Paragraph const & par = it.paragraph();
 					if (!par.isDeleted(it.pos())) {
@@ -324,6 +265,12 @@ void InsetMathHull::updateBuffer(ParIterator const & it, UpdateType utype)
 						numbers_[i] = from_ascii("#");
 				} else
 					numbers_[i] = empty_docstring();
+				// If the numbering has changed, trigger a new preview
+				if (oldnumber != numbers_[i] && RenderPreview::previewMath()) {
+					// Do we need to remove it first?
+					//preview_->removePreview(*buffer_);
+					preparePreview(it);
+				}
 			}
 		}
 	}
@@ -331,10 +278,36 @@ void InsetMathHull::updateBuffer(ParIterator const & it, UpdateType utype)
 	// now the labels
 	for (size_t i = 0; i != label_.size(); ++i) {
 		if (label_[i])
-			label_[i]->updateBuffer(it, utype);
+			label_[i]->updateBuffer(it, utype, deleted);
 	}
+        // set up equation numbers
+
+	// compute first and last item
+	row_type first = nrows();
+	for (row_type row = 0; row != nrows(); ++row)
+		if (numbered(row)) {
+			first = row;
+			break;
+		}
+	if (first != nrows()) {
+		row_type last = nrows() - 1;
+		for (; last != 0; --last)
+			if (numbered(last))
+				break;
+
+		for (row_type row = 0; row != nrows(); ++row) {
+			if (!numbered(row))
+				continue;
+			if (label_[row]) {
+				label_[row]->setCounterValue(numbers_[row]);
+				label_[row]->setPrettyCounter("(" + numbers_[row] + ")");
+				label_[row]->setFormattedCounter("(" + numbers_[row] + ")");
+			}
+		}
+	}
+
 	// pass down
-	InsetMathGrid::updateBuffer(it, utype);
+	InsetMathGrid::updateBuffer(it, utype, deleted);
 }
 
 
@@ -348,7 +321,6 @@ void InsetMathHull::addToToc(DocIterator const & pit, bool output_active,
 		return;
 	}
 
-	TocBuilder & b = backend.builder("equation");
 	// compute first and last item
 	row_type first = nrows();
 	for (row_type row = 0; row != nrows(); ++row)
@@ -362,24 +334,47 @@ void InsetMathHull::addToToc(DocIterator const & pit, bool output_active,
 	row_type last = nrows() - 1;
 	for (; last != 0; --last)
 		if (numbered(last))
-			break;
-	// add equation numbers
-	b.pushItem(pit, docstring(), output_active);
+            break;
+
+	TocBuilder & b = backend.builder("equation");
+        b.pushItem(pit, docstring(), output_active);
 	if (first != last)
 		b.argumentItem(bformat(from_ascii("(%1$s-%2$s)"),
 		                       numbers_[first], numbers_[last]));
+
+	odocstringstream ods;
+	Encoding const * enc = encodings.fromLyXName("utf8");
+	OutputParams ops(enc);
+	ops.for_toc = true;
+	int const max_length = 30;
+
 	for (row_type row = 0; row != nrows(); ++row) {
 		if (!numbered(row))
 			continue;
-		if (label_[row])
+		if (label_[row]) {
 			label_[row]->addToToc(pit, output_active, utype, backend);
+		}
 		docstring label = nicelabel(row);
-		if (first == last)
+		if (first == last) {
 			// this is the only equation
-			b.argumentItem(label);
-		else {
+			plaintext(ods, ops, max_length);
+			b.argumentItem(label + " " + ods.str());
+		} else {
 			// insert as sub-items
-			b.pushItem(pit, label, output_active);
+			otexrowstream ots(ods);
+			TeXMathStream wi(ots, false, false, TeXMathStream::wsDefault, enc);
+			docstring d;
+			for (col_type c = 0; c < ncols(); ++c) {
+				wi << cell(index(row, c));
+				d = ods.str();
+				if (d.size() > max_length) {
+					d = d.substr(0, max_length - 1);
+					break;
+				}
+			}
+			b.pushItem(pit, label+ " " + d, output_active);
+			// clear the stringstream
+			odocstringstream().swap(ods);
 			b.pop();
 		}
 	}
@@ -420,22 +415,6 @@ InsetMath::mode_type InsetMathHull::currentMode() const
 	}
 	// avoid warning
 	return MATH_MODE;
-}
-
-
-bool InsetMathHull::idxFirst(Cursor & cur) const
-{
-	cur.idx() = 0;
-	cur.pos() = 0;
-	return true;
-}
-
-
-bool InsetMathHull::idxLast(Cursor & cur) const
-{
-	cur.idx() = nargs() - 1;
-	cur.pos() = cur.lastpos();
-	return true;
 }
 
 
@@ -529,11 +508,30 @@ bool InsetMathHull::previewState(const BufferView *const bv) const
 
 
 namespace {
-static const int ERROR_FRAME_WIDTH = 2;
+const int ERROR_FRAME_WIDTH = 2;
+
+bool previewTooSmall(Dimension const & dim)
+{
+	return dim.width() <= 10 && dim.height() <= 10;
 }
+}
+
 
 void InsetMathHull::metrics(MetricsInfo & mi, Dimension & dim) const
 {
+	/* Compute \(above|below)displayskip
+	   true value in LaTeX is 10pt plus 2pt minus 5pt (in normal size at 10pt)
+	   But we use a fixed number of pixels and scale them with zoom.
+	*/
+	int const bottom_display_margin = mi.base.bv->zoomedPixels(6);
+	int top_display_margin = bottom_display_margin;
+	// at start of paragraph, add an empty line
+	if (mi.vmode)
+		top_display_margin += theFontMetrics(mi.base.font).maxHeight() + 2;
+
+	int const ind = indent(*mi.base.bv);
+	mi.extrawidth = ind;
+
 	if (previewState(mi.base.bv)) {
 		preview_->metrics(mi, dim);
 		if (previewTooSmall(dim)) {
@@ -541,45 +539,60 @@ void InsetMathHull::metrics(MetricsInfo & mi, Dimension & dim) const
 			dim.wid += 2 * ERROR_FRAME_WIDTH;
 			dim.asc += 2 * ERROR_FRAME_WIDTH;
 		} else {
-			// insert a one pixel gap in front of the formula
-			dim.wid += 1;
-			if (display())
-				dim.des += displayMargin();
+			// insert a gap in front of the formula
+			// value was hardcoded to 1 pixel
+			dim.wid += mi.base.bv->zoomedPixels(1) ;
+			if (display()) {
+				dim.asc += top_display_margin;
+				dim.des += bottom_display_margin;
+			}
 		}
 		return;
 	}
 
-	Changer dummy1 = mi.base.changeFontSet(standardFont());
-	Changer dummy2 = mi.base.font.changeStyle(display() ? LM_ST_DISPLAY
-	                                                    : LM_ST_TEXT);
+	{
+		Changer dummy1 = mi.base.changeFontSet(standardFont());
+		Changer dummy2 = mi.base.font.changeStyle(display() ? DISPLAY_STYLE
+												  : TEXT_STYLE);
 
-	// let the cells adjust themselves
-	InsetMathGrid::metrics(mi, dim);
-
-	if (display()) {
-		dim.asc += displayMargin();
-		dim.des += displayMargin();
+		// let the cells adjust themselves
+		InsetMathGrid::metrics(mi, dim);
 	}
 
+	// Check whether the numbering interferes with the equations
 	if (numberedType()) {
-		Changer dummy = mi.base.changeFontSet("mathrm");
-		int l = 0;
-		for (row_type row = 0; row < nrows(); ++row)
-			l = max(l, mathed_string_width(mi.base.font, nicelabel(row)));
+		BufferParams::MathNumber const math_number = buffer().params().getMathNumber();
+		int extra_offset = 0;
+		int max_nlwid = 0;
+		for (row_type row = 0; row < nrows(); ++row) {
+			rowinfo(row).offset[mi.base.bv] += extra_offset;
+			docstring const nl = nicelabel(row);
+			if (nl.empty())
+				continue;
+			Dimension dimnl;
+			mathed_string_dim(mi.base.font, nl, dimnl);
+			int const x = ind ? ind : (mi.base.textwidth - dim.wid) / 2;
+			// for some reason metrics does not trigger at the
+			// same point as draw, and therefore we use >= instead of >
+			if ((math_number == BufferParams::LEFT && dimnl.wid >= x)
+			    || (math_number == BufferParams::RIGHT
+			        && dimnl.wid >= mi.base.textwidth - x - dim.wid)) {
+				extra_offset += dimnl.height();
+			} else if (dimnl.wid > max_nlwid)
+				max_nlwid = dimnl.wid;
+		}
+		mi.extrawidth += max_nlwid;
+		dim.des += extra_offset;
+	}
 
-		if (l)
-			// Value was hardcoded to 30 pixels
-			dim.wid += Length(0.3, Length::IN).inPixels(mi.base) + l;
+
+	if (display()) {
+		dim.asc += top_display_margin;
+		dim.des += bottom_display_margin;
 	}
 
 	// reserve some space for marker.
 	dim.wid += 2;
-}
-
-
-bool InsetMathHull::previewTooSmall(Dimension const & dim) const
-{
-	return dim.width() <= 10 && dim.height() <= 10;
 }
 
 
@@ -601,7 +614,7 @@ void InsetMathHull::drawMarkers(PainterInfo & pi, int x, int y) const
 	ColorCode pen_color = mouseHovered(pi.base.bv) || editing(pi.base.bv)?
 		Color_mathframe : Color_mathcorners;
 	// If the corners have the same color as the background, do not paint them.
-	if (lcolor.getX11Name(Color_mathbg) == lcolor.getX11Name(pen_color))
+	if (lcolor.getX11HexName(Color_mathbg) == lcolor.getX11HexName(pen_color))
 		return;
 
 	Inset::drawMarkers(pi, x, y);
@@ -623,8 +636,9 @@ void InsetMathHull::drawBackground(PainterInfo & pi, int x, int y) const
 		    dim.wid, dim.asc + dim.des, backgroundColor(pi));
 		return;
 	}
+
 	pi.pain.fillRectangle(x + 1, y - dim.asc + 1, dim.wid - 2,
-			dim.asc + dim.des - 1, pi.backgroundColor(this));
+	                      dim.height() - 1, pi.backgroundColor(this));
 }
 
 
@@ -640,62 +654,70 @@ void InsetMathHull::draw(PainterInfo & pi, int x, int y) const
 	if (previewState(bv)) {
 		// Do not draw change tracking cue if taken care of by RowPainter
 		// already.
-		Changer dummy = !canPaintChange(*bv) ? make_change(pi.change_, Change())
-			: Changer();
+		Changer dummy = !canPaintChange(*bv) ? changeVar(pi.change, Change())
+			: noChange();
 		if (previewTooSmall(dim)) {
 			// we have an extra frame
 			preview_->draw(pi, x + ERROR_FRAME_WIDTH, y);
 		} else {
 			// one pixel gap in front
-			preview_->draw(pi, x + 1, y);
+			// value was hardcoded to 1 pixel
+			int const gap = pi.base.bv->zoomedPixels(1) ;
+			preview_->draw(pi, x + gap, y);
 		}
 		return;
 	}
 
-	ColorCode color = pi.selected && lyxrc.use_system_colors
-				? Color_selectiontext : standardColor();
-	bool const really_change_color = pi.base.font.color() == Color_none;
-	Changer dummy0 = really_change_color ? pi.base.font.changeColor(color)
-		: Changer();
-	Changer dummy1 = pi.base.changeFontSet(standardFont());
-	Changer dummy2 = pi.base.font.changeStyle(display() ? LM_ST_DISPLAY
-	                                                    : LM_ST_TEXT);
-
-	int xmath = x;
-	BufferParams::MathNumber const math_number = buffer().params().getMathNumber();
-	if (numberedType() && math_number == BufferParams::LEFT) {
-		Changer dummy = pi.base.changeFontSet("mathrm");
-		int l = 0;
-		for (row_type row = 0; row < nrows(); ++row)
-			l = max(l, mathed_string_width(pi.base.font, nicelabel(row)));
-
-		if (l)
-			// Value was hardcoded to 30 pixels
-			xmath += Length(0.3, Length::IN).inPixels(pi.base) + l;
-	}
-
-	InsetMathGrid::draw(pi, xmath + 1, y);
-	drawMarkers(pi, x, y);
-
+	// First draw the numbers
 	if (numberedType()) {
-		Changer dummy = pi.base.changeFontSet("mathrm");
+		BufferParams::MathNumber const math_number = buffer().params().getMathNumber();
 		for (row_type row = 0; row < nrows(); ++row) {
-			int const yy = y + rowinfo_[row].offset_;
+			int yy = y + rowinfo(row).offset[bv];
 			docstring const nl = nicelabel(row);
-			if (math_number == BufferParams::LEFT)
-				pi.draw(x, yy, nl);
-			else {
-				int l = mathed_string_width(pi.base.font, nl);
-				pi.draw(x + dim.wid - l, yy, nl);
+			Dimension dimnl;
+			mathed_string_dim(pi.base.font, nl, dimnl);
+			if (math_number == BufferParams::LEFT) {
+				ColorCode const col = pi.selected_left
+					? Color_selectiontext
+					: pi.base.font.color();
+				Changer dummy0 = pi.base.font.changeColor(col);
+				if (dimnl.wid > x - pi.leftx)
+					yy += rowinfo(row).descent + dimnl.asc;
+				pi.pain.fillRectangle(pi.leftx, yy - dimnl.asc,
+					dimnl.width(), dimnl.height(),
+					pi.selected_left ? Color_selection : pi.background_color);
+				pi.draw(pi.leftx, yy, nl);
+			} else {
+				ColorCode const col = pi.selected_right
+					? Color_selectiontext
+					: pi.base.font.color();
+				Changer dummy0 = pi.base.font.changeColor(col);
+				if (dimnl.wid > pi.rightx - x - dim.wid)
+					yy += rowinfo(row).descent + dimnl.asc;
+				pi.pain.fillRectangle(pi.rightx - dimnl.wid, yy - dimnl.asc,
+					dimnl.width(), dimnl.height(),
+					pi.selected_right ? Color_selection : pi.background_color);
+				pi.draw(pi.rightx - dimnl.wid, yy, nl);
 			}
 		}
 	}
 
+	// Then the equations
+	ColorCode color = pi.selected ? Color_selectionmath : standardColor();
+	bool const really_change_color = pi.base.font.color() == Color_none;
+	Changer dummy0 = really_change_color ? pi.base.font.changeColor(color)
+		: noChange();
+	Changer dummy1 = pi.base.changeFontSet(standardFont());
+	Changer dummy2 = pi.base.font.changeStyle(display() ? DISPLAY_STYLE
+	                                                    : TEXT_STYLE);
+	InsetMathGrid::draw(pi, x + 1, y);
+	drawMarkers(pi, x, y);
+
 	// drawing change line
 	if (canPaintChange(*bv)) {
 		// like in metrics()
-		int const display_margin = display() ? displayMargin() : 0;
-		pi.change_.paintCue(pi, x + 1, y + 1 - dim.asc + display_margin,
+		int const display_margin = display() ? pi.base.inPixels(Length(12, Length::PT)) : 0;
+		pi.change.paintCue(pi, x + 1, y + 1 - dim.asc + display_margin,
 		                    x + dim.wid, y + dim.des - display_margin);
 	}
 }
@@ -708,7 +730,7 @@ void InsetMathHull::metricsT(TextMetricsInfo const & mi, Dimension & dim) const
 	} else {
 		odocstringstream os;
 		otexrowstream ots(os);
-		WriteStream wi(ots, false, true, WriteStream::wsDefault);
+		TeXMathStream wi(ots, false, true, TeXMathStream::wsDefault);
 		write(wi);
 		dim.wid = os.str().size();
 		dim.asc = 1;
@@ -724,7 +746,7 @@ void InsetMathHull::drawT(TextPainter & pain, int x, int y) const
 	} else {
 		odocstringstream os;
 		otexrowstream ots(os);
-		WriteStream wi(ots, false, true, WriteStream::wsDefault);
+		TeXMathStream wi(ots, false, true, TeXMathStream::wsDefault);
 		write(wi);
 		pain.draw(x, y, os.str().c_str());
 	}
@@ -739,11 +761,11 @@ static docstring latexString(InsetMathHull const & inset)
 	// \newcommand{\xxx}{\text{$\phi$}}) gets processed twice. The
 	// first time as a whole, and the second time only the inner math.
 	// In this last case inset.buffer() would be invalid.
-	static Encoding const * encoding = 0;
+	static Encoding const * encoding = nullptr;
 	if (inset.isBufferValid())
 		encoding = &(inset.buffer().params().encoding());
 	otexrowstream ots(ls);
-	WriteStream wi(ots, false, true, WriteStream::wsPreview, encoding);
+	TeXMathStream wi(ots, false, true, TeXMathStream::wsPreview, encoding);
 	inset.write(wi);
 	return ls.str();
 }
@@ -795,8 +817,11 @@ void InsetMathHull::usedMacros(MathData const & md, DocIterator const & pos,
 			if (data) {
 				odocstringstream macro_def;
 				data->write(macro_def, true);
-				macro_def << endl;
-				defs.insert(macro_def.str());
+				// Empty lines will generate full rows
+				// with legacy preview and tightpage (#13120).
+				// So remove all preceding and trailing line breaks
+				// and re-add one at the end of the snippet
+				defs.insert(trim(macro_def.str(), "\n") + "\n");
 				asArray(data->definition(), ar);
 			}
 			usedMacros(ar, pos, macros, defs);
@@ -842,11 +867,9 @@ void InsetMathHull::preparePreview(DocIterator const & pos,
 	for (idx_type idx = 0; idx < nargs(); ++idx)
 		usedMacros(cell(idx), pos, macros, defs);
 
-	MacroNameSet::iterator it = defs.begin();
-	MacroNameSet::iterator end = defs.end();
 	docstring macro_preamble;
-	for (; it != end; ++it)
-		macro_preamble.append(*it);
+	for (auto const & defvar : defs)
+		macro_preamble.append(defvar);
 
 	// set the font series and size for this snippet
 	DocIterator dit = pos.getInnerText();
@@ -863,29 +886,7 @@ void InsetMathHull::preparePreview(DocIterator const & pos,
 	if (lsize != "normalsize" && !prefixIs(lsize, "error"))
 		setfont += from_ascii("\\" + lsize + '\n');
 
-	docstring setcnt;
-	if (forexport && haveNumbers()) {
-		docstring eqstr = from_ascii("equation");
-		CounterMap::const_iterator it = counter_map.find(eqstr);
-		if (it != counter_map.end()) {
-			int num = it->second;
-			if (num >= 0)
-				setcnt += from_ascii("\\setcounter{") + eqstr + '}' +
-				          '{' + convert<docstring>(num) + '}' + '\n';
-		}
-		for (size_t i = 0; i != numcnts; ++i) {
-			docstring cnt = from_ascii(counters_to_save[i]);
-			it = counter_map.find(cnt);
-			if (it == counter_map.end())
-					continue;
-			int num = it->second;
-			if (num > 0)
-				setcnt += from_ascii("\\setcounter{") + cnt + '}' +
-				          '{' + convert<docstring>(num) + '}';
-		}
-	}
-	docstring const snippet = macro_preamble + setfont + setcnt
-	                          + latexString(*this) + endfont;
+	docstring const snippet = macro_preamble + setfont + latexString(*this) + endfont;
 	LYXERR(Debug::MACROS, "Preview snippet: " << snippet);
 	preview_->addPreview(snippet, *buffer, forexport);
 }
@@ -951,10 +952,6 @@ void InsetMathHull::label(row_type row, docstring const & label)
 void InsetMathHull::numbered(row_type row, Numbered num)
 {
 	numbered_[row] = num;
-	if (!numbered(row) && label_[row]) {
-		delete label_[row];
-		label_[row] = 0;
-	}
 }
 
 
@@ -984,8 +981,8 @@ bool InsetMathHull::ams() const
 	case hullEqnArray:
 		break;
 	}
-	for (size_t row = 0; row < numbered_.size(); ++row)
-		if (numbered_[row] == NOTAG)
+	for (auto const & row : numbered_)
+		if (row == NOTAG)
 			return true;
 	return false;
 }
@@ -1014,7 +1011,7 @@ bool InsetMathHull::outerDisplay() const
 }
 
 
-Inset::DisplayType InsetMathHull::display() const
+int InsetMathHull::rowFlags() const
 {
 	switch (type_) {
 	case hullUnknown:
@@ -1032,12 +1029,12 @@ Inset::DisplayType InsetMathHull::display() const
 	case hullMultline:
 	case hullGather:
 		if (buffer().params().is_math_indent)
-			return AlignLeft;
+			return Display | AlignLeft;
 		else
-			return AlignCenter;
+			return Display;
 	}
 	// avoid warning
-	return AlignCenter;
+	return Display;
 }
 
 
@@ -1045,7 +1042,7 @@ int InsetMathHull::indent(BufferView const & bv) const
 {
 	// FIXME: set this in the textclass. This value is what the article class uses.
 	static Length default_indent(2.5, Length::EM);
-	if (display() != Inline && buffer().params().is_math_indent) {
+	if (display() && buffer().params().is_math_indent) {
 		Length const & len = buffer().params().getMathIndent();
 		if (len.empty())
 			return bv.inPixels(default_indent);
@@ -1098,9 +1095,9 @@ void InsetMathHull::validate(LaTeXFeatures & features) const
 				+ bgcol + "}{\\ensuremath{\\mathtt{#1}}}}");
 			features.addPreambleSnippet(
 				from_ascii("\\newcommand{\\endregexp}{}"));
-		} else if (outerDisplay() && features.inDeletedInset()
-			   && !features.mustProvide("ct-dvipost")) {
-				features.require("ct-tikz-math-sout");
+		} else if (outerDisplay() && features.inDeletedInset()) {
+				features.require("tikz");
+				features.require("ct-tikz-object-sout");
 		}
 
 		// Validation is necessary only if not using AMS math.
@@ -1123,7 +1120,38 @@ void InsetMathHull::validate(LaTeXFeatures & features) const
 }
 
 
-void InsetMathHull::header_write(WriteStream & os) const
+CtObject InsetMathHull::getCtObject(OutputParams const & runparams) const
+{
+	CtObject res = CtObject::Normal;
+	switch(type_) {
+	case hullNone:
+	case hullSimple:
+	case hullAlignAt:
+	case hullXAlignAt:
+	case hullXXAlignAt:
+	case hullRegexp:
+	case hullUnknown:
+		break;
+
+	case hullEquation:
+	case hullEqnArray:
+	case hullAlign:
+	case hullFlAlign:
+	case hullGather:
+	case hullMultline: {
+		if (runparams.inulemcmd
+		    && (!runparams.local_font || runparams.local_font->fontInfo().strikeout() != FONT_ON))
+			res = CtObject::UDisplayObject;
+		else
+			res = CtObject::DisplayObject;
+		break;
+		}
+	}
+	return res;
+}
+
+
+void InsetMathHull::header_write(TeXMathStream & os) const
 {
 	bool n = numberedType();
 
@@ -1189,7 +1217,7 @@ void InsetMathHull::header_write(WriteStream & os) const
 }
 
 
-void InsetMathHull::footer_write(WriteStream & os) const
+void InsetMathHull::footer_write(TeXMathStream & os) const
 {
 	bool n = numberedType();
 
@@ -1372,8 +1400,11 @@ void InsetMathHull::delCol(col_type col)
 
 docstring InsetMathHull::nicelabel(row_type row) const
 {
-	if (!numbered(row))
-		return docstring();
+	if (!numbered(row)) {
+		if (!label_[row])
+			return docstring();
+		return '[' + label_[row]->screenLabel() + ']';
+	}
 	docstring const & val = numbers_[row];
 	if (!label_[row])
 		return '(' + val + ')';
@@ -1383,10 +1414,10 @@ docstring InsetMathHull::nicelabel(row_type row) const
 
 void InsetMathHull::glueall(HullType type)
 {
-	MathData ar;
+	MathData ar(buffer_);
 	for (idx_type i = 0; i < nargs(); ++i)
 		ar.append(cell(i));
-	InsetLabel * label = 0;
+	InsetLabel * label = nullptr;
 	if (type == hullEquation) {
 		// preserve first non-empty label
 		for (row_type row = 0; row < nrows(); ++row) {
@@ -1537,7 +1568,7 @@ void InsetMathHull::mutate(HullType newtype)
 			numbered(0, false);
 		} else {
 			setType(hullEquation);
-			numbered(0, label_[0] ? true : false);
+			numbered(0, label_[0] != nullptr);
 			mutate(newtype);
 		}
 		break;
@@ -1669,36 +1700,46 @@ void InsetMathHull::mutate(HullType newtype)
 
 	default:
 		// we passed the guard so we should not be here
-		LASSERT("Mutation not implemented, but should have been.", return);
+		LYXERR0("Mutation not implemented, but should have been.");
+		LASSERT(false, return);
 		break;
 	}// switch
 }
 
 
-docstring InsetMathHull::eolString(row_type row, bool fragile, bool latex,
-		bool last_eoln) const
+void InsetMathHull::eol(TeXMathStream & os, row_type row, bool fragile, bool latex,
+                        bool last_eoln) const
 {
-	docstring res;
 	if (numberedType()) {
-		if (label_[row] && numbered(row)) {
-			docstring const name =
-				latex ? escape(label_[row]->getParam("name"))
-				      : label_[row]->getParam("name");
-			res += "\\label{" + name + '}';
+		bool const for_preview =
+			(os.output() == TeXMathStream::wsPreview);
+		if (label_[row]) {
+			// Use utf8 strings for previewed labels when possible
+			bool use_utf8 = for_preview &&
+				(buffer().params().useNonTeXFonts ||
+				 buffer().params().encoding().package() == Encoding::japanese);
+			docstring const name = (latex && !use_utf8)
+				? escape(label_[row]->getParam("name"))
+				: label_[row]->getParam("name");
+			os << "\\label{" + name + '}';
 		}
 		if (type_ != hullMultline) {
 			if (numbered_[row]  == NONUMBER)
-				res += "\\nonumber ";
+				os << "\\nonumber ";
 			else if (numbered_[row]  == NOTAG)
-				res += "\\notag ";
+				os<< "\\notag ";
 		}
+		if (for_preview && !numbers_[row].empty()) {
+			os << "\\global\\def\\theequation{" << numbers_[row] << "}\n";
+		}
+
 	}
 	// Never add \\ on the last empty line of eqnarray and friends
 	last_eoln = false;
-	return res + InsetMathGrid::eolString(row, fragile, latex, last_eoln);
+	InsetMathGrid::eol(os, row, fragile, latex, last_eoln);
 }
 
-void InsetMathHull::write(WriteStream & os) const
+void InsetMathHull::write(TeXMathStream & os) const
 {
 	ModeSpecifier specifier(os, MATH_MODE);
 	header_write(os);
@@ -1731,17 +1772,15 @@ void InsetMathHull::check() const
 
 void InsetMathHull::doExtern(Cursor & cur, FuncRequest & func)
 {
-	docstring dlang;
-	docstring extra;
-	idocstringstream iss(func.argument());
-	iss >> dlang >> extra;
+	//FIXME: sort out whether we want std::string or docstring for those
+	string const lang = func.getArg(0);
+	docstring extra = from_utf8(func.getArg(1));
 	if (extra.empty())
 		extra = from_ascii("noextra");
-	string const lang = to_ascii(dlang);
 
 	// replace selection with result of computation
 	if (reduceSelectionToOneCell(cur)) {
-		MathData ar;
+		MathData ar(buffer_);
 		asArray(grabAndEraseSelection(cur), ar);
 		lyxerr << "use selection: " << ar << endl;
 		cur.insert(pipeThroughExtern(lang, extra, ar));
@@ -1762,8 +1801,8 @@ void InsetMathHull::doExtern(Cursor & cur, FuncRequest & func)
 		return;
 	}
 
-	MathData eq;
-	eq.push_back(MathAtom(new InsetMathChar('=')));
+	MathData eq(buffer_);
+	eq.push_back(MathAtom(new InsetMathChar(buffer_, '=')));
 
 	// go to first item in line
 	cur.idx() -= cur.idx() % ncols();
@@ -1771,7 +1810,7 @@ void InsetMathHull::doExtern(Cursor & cur, FuncRequest & func)
 
 	if (getType() == hullSimple) {
 		size_type pos = cur.cell().find_last(eq);
-		MathData ar;
+		MathData ar(buffer_);
 		if (pos == cur.cell().size()) {
 			ar = cur.cell();
 			lyxerr << "use whole cell: " << ar << endl;
@@ -1853,11 +1892,22 @@ void InsetMathHull::doDispatch(Cursor & cur, FuncRequest & cmd)
 		//lyxerr << "toggling all numbers" << endl;
 		cur.recordUndoInset();
 		bool old = numberedType();
-		if (type_ == hullMultline)
-			numbered(nrows() - 1, !old);
-		else
-			for (row_type row = 0; row < nrows(); ++row)
+		if (type_ == hullMultline) {
+			row_type row = nrows() - 1;
+			numbered(row, !old);
+			if (old && label_[row]) {
+				delete label_[row];
+				label_[row] = 0;
+			}
+		} else {
+			for (row_type row = 0; row < nrows(); ++row) {
 				numbered(row, !old);
+				if (old && label_[row]) {
+					delete label_[row];
+					label_[row] = 0;
+				}
+			}
+		}
 
 		cur.message(old ? _("No number") : _("Number"));
 		cur.forceBufferUpdate();
@@ -1870,6 +1920,10 @@ void InsetMathHull::doDispatch(Cursor & cur, FuncRequest & cmd)
 		bool old = numbered(r);
 		cur.message(old ? _("No number") : _("Number"));
 		numbered(r, !old);
+		if (old && label_[r]) {
+			delete label_[r];
+			label_[r] = 0;
+		}
 		cur.forceBufferUpdate();
 		break;
 	}
@@ -1904,7 +1958,7 @@ void InsetMathHull::doDispatch(Cursor & cur, FuncRequest & cmd)
 			// if there is an argument, find the corresponding label, else
 			// check whether there is at least one label.
 			for (row = 0; row != nrows(); ++row)
-				if (numbered(row) && label_[row]
+				if (label_[row]
 					  && (cmd.argument().empty() || label(row) == cmd.argument()))
 					break;
 		}
@@ -2073,15 +2127,15 @@ bool InsetMathHull::getStatus(Cursor & cur, FuncRequest const & cmd,
 		return true;
 	}
 	case LFUN_MATH_DISPLAY: {
-		status.setEnabled(display() != Inline || allowDisplayMath(cur));
-		status.setOnOff(display() != Inline);
+		status.setEnabled(display() || allowDisplayMath(cur));
+		status.setOnOff(display());
 		return true;
 	}
 
 	case LFUN_MATH_NUMBER_TOGGLE:
 		// FIXME: what is the right test, this or the one of
 		// LABEL_INSERT?
-		status.setEnabled(display() != Inline);
+		status.setEnabled(display());
 		status.setOnOff(numberedType());
 		return true;
 
@@ -2090,7 +2144,7 @@ bool InsetMathHull::getStatus(Cursor & cur, FuncRequest const & cmd,
 		// LABEL_INSERT?
 		bool const enable = (type_ == hullMultline)
 			? (nrows() - 1 == cur.row())
-			: display() != Inline;
+			: display();
 		row_type const r = (type_ == hullMultline) ? nrows() - 1 : cur.row();
 		status.setEnabled(enable);
 		status.setOnOff(enable && numbered(r));
@@ -2103,17 +2157,16 @@ bool InsetMathHull::getStatus(Cursor & cur, FuncRequest const & cmd,
 
 	case LFUN_LABEL_COPY_AS_REFERENCE: {
 		bool enabled = false;
-		row_type row;
 		if (cmd.argument().empty() && &cur.inset() == this) {
 			// if there is no argument and we're inside math, we retrieve
 			// the row number from the cursor position.
-			row = (type_ == hullMultline) ? nrows() - 1 : cur.row();
-			enabled = numberedType() && label_[row] && numbered(row);
+			row_type row = (type_ == hullMultline) ? nrows() - 1 : cur.row();
+			enabled = numberedType() && label_[row];
 		} else {
 			// if there is an argument, find the corresponding label, else
 			// check whether there is at least one label.
 			for (row_type row = 0; row != nrows(); ++row) {
-				if (numbered(row) && label_[row] &&
+				if (label_[row] &&
 					(cmd.argument().empty() || label(row) == cmd.argument())) {
 						enabled = true;
 						break;
@@ -2199,28 +2252,6 @@ int InsetMathHull::border() const
 
 
 
-// simply scrap this function if you want
-void InsetMathHull::mutateToText()
-{
-#if 0
-	// translate to latex
-	ostringstream os;
-	latex(os, false, false);
-	string str = os.str();
-
-	// insert this text
-	Text * lt = view_->cursor().innerText();
-	string::const_iterator cit = str.begin();
-	string::const_iterator end = str.end();
-	for (; cit != end; ++cit)
-		view_->getIntl()->getTransManager().TranslateAndInsert(*cit, lt);
-
-	// remove ourselves
-	//dispatch(LFUN_ESCAPE);
-#endif
-}
-
-
 void InsetMathHull::handleFont(Cursor & cur, docstring const & arg,
 	docstring const & font)
 {
@@ -2244,7 +2275,7 @@ void InsetMathHull::handleFont2(Cursor & cur, docstring const & arg)
 	font.fromString(to_utf8(arg), b);
 	if (font.fontInfo().color() != Color_inherit) {
 		MathAtom at = MathAtom(new InsetMathColor(buffer_, true, font.fontInfo().color()));
-		cur.handleNest(at, 0);
+		cur.handleNest(at);
 	}
 }
 
@@ -2262,91 +2293,14 @@ void InsetMathHull::edit(Cursor & cur, bool front, EntryDirection entry_from)
 }
 
 
-void InsetMathHull::revealCodes(Cursor & cur) const
-{
-	if (!cur.inMathed())
-		return;
-	odocstringstream os;
-	cur.info(os, false);
-	cur.message(os.str());
-/*
-	// write something to the minibuffer
-	// translate to latex
-	cur.markInsert(bv);
-	ostringstream os;
-	write(os);
-	string str = os.str();
-	cur.markErase(bv);
-	string::size_type pos = 0;
-	string res;
-	for (string::iterator it = str.begin(); it != str.end(); ++it) {
-		if (*it == '\n')
-			res += ' ';
-		else if (*it == '\0') {
-			res += "  -X-  ";
-			pos = it - str.begin();
-		}
-		else
-			res += *it;
-	}
-	if (pos > 30)
-		res = res.substr(pos - 30);
-	if (res.size() > 60)
-		res = res.substr(0, 60);
-	cur.message(res);
-*/
-}
-
-
 /////////////////////////////////////////////////////////////////////
-
-
-#if 0
-bool InsetMathHull::searchForward(BufferView * bv, string const & str,
-				     bool, bool)
-{
-	// FIXME: completely broken
-	static InsetMathHull * lastformula = 0;
-	static CursorBase current = DocIterator(ibegin(nucleus()));
-	static MathData ar;
-	static string laststr;
-
-	if (lastformula != this || laststr != str) {
-		//lyxerr << "reset lastformula to " << this << endl;
-		lastformula = this;
-		laststr = str;
-		current	= ibegin(nucleus());
-		ar.clear();
-		mathed_parse_cell(ar, str, Parse::NORMAL, &buffer());
-	} else {
-		increment(current);
-	}
-	//lyxerr << "searching '" << str << "' in " << this << ar << endl;
-
-	for (DocIterator it = current; it != iend(nucleus()); increment(it)) {
-		CursorSlice & top = it.back();
-		MathData const & a = top.asInsetMath()->cell(top.idx_);
-		if (a.matchpart(ar, top.pos_)) {
-			bv->cursor().setSelection(it, ar.size());
-			current = it;
-			top.pos_ += ar.size();
-			bv->update();
-			return true;
-		}
-	}
-
-	//lyxerr << "not found!" << endl;
-	lastformula = 0;
-	return false;
-}
-#endif
 
 
 void InsetMathHull::write(ostream & os) const
 {
 	odocstringstream oss;
 	otexrowstream ots(oss);
-	WriteStream wi(ots, false, false, WriteStream::wsDefault);
+	TeXMathStream wi(ots, false, false, TeXMathStream::wsDefault);
 	oss << "Formula ";
 	write(wi);
 	os << to_utf8(oss.str());
@@ -2374,8 +2328,8 @@ bool InsetMathHull::readQuiet(Lexer & lex)
 int InsetMathHull::plaintext(odocstringstream & os,
         OutputParams const & op, size_t max_length) const
 {
-	// disables ASCII-art for export of equations. See #2275.
-	if (0 && display()) {
+	// Try enabling this now that there is a flag as requested at #2275.
+	if (buffer().isExporting() && display()) {
 		Dimension dim;
 		TextMetricsInfo mi;
 		metricsT(mi, dim);
@@ -2390,12 +2344,19 @@ int InsetMathHull::plaintext(odocstringstream & os,
 	odocstringstream oss;
 	otexrowstream ots(oss);
 	Encoding const * const enc = encodings.fromLyXName("utf8");
-	WriteStream wi(ots, false, true, WriteStream::wsDefault, enc);
 
+	TeXMathStream::OutputType ot;
+	if (op.find_effective())
+		ot = TeXMathStream::wsSearchAdv;
+	else
+		ot = TeXMathStream::wsDefault;
 	// Fix Bug #6139
-	if (type_ == hullRegexp)
+	if (type_ == hullRegexp) {
+		TeXMathStream wi(ots, false, true, ot, enc);
 		write(wi);
+	}
 	else {
+		TeXMathStream wi(ots, false, true, ot, enc);
 		for (row_type r = 0; r < nrows(); ++r) {
 			for (col_type c = 0; c < ncols(); ++c)
 				wi << (c == 0 ? "" : "\t") << cell(index(r, c));
@@ -2413,60 +2374,105 @@ int InsetMathHull::plaintext(odocstringstream & os,
 }
 
 
-int InsetMathHull::docbook(odocstream & os, OutputParams const & runparams) const
-{
-	MathStream ms(os);
-	int res = 0;
+void InsetMathHull::docbook(XMLStream & xs, OutputParams const & runparams) const {
+	// Choose the tag around the MathML equation.
 	docstring name;
+	bool doCR = false;
 	if (getType() == hullSimple)
 		name = from_ascii("inlineequation");
-	else
+	else {
+		doCR = true; // This is a block equation, always have <informalequation> on its own line.
 		name = from_ascii("informalequation");
-
-	docstring bname = name;
-	if (!label(0).empty())
-		bname += " id='" + sgml::cleanID(buffer(), runparams, label(0)) + "'";
-
-	++ms.tab(); ms.cr(); ms.os() << '<' << bname << '>';
-
-	odocstringstream ls;
-	otexstream ols(ls);
-	if (runparams.flavor == OutputParams::XML) {
-		ms << MTag("alt role='tex' ");
-		// Workaround for db2latex: db2latex always includes equations with
-		// \ensuremath{} or \begin{display}\end{display}
-		// so we strip LyX' math environment
-		WriteStream wi(ols, false, false, WriteStream::wsDefault, runparams.encoding);
-		InsetMathGrid::write(wi);
-		ms << from_utf8(subst(subst(to_utf8(ls.str()), "&", "&amp;"), "<", "&lt;"));
-		ms << ETag("alt");
-		ms << MTag("math");
-		ms << ETag("alt");
-		ms << MTag("math");
-		InsetMathGrid::mathmlize(ms);
-		ms << ETag("math");
-	} else {
-		ms << MTag("alt role='tex'");
-		latex(ols, runparams);
-		res = ols.texrow().rows();
-		ms << from_utf8(subst(subst(to_utf8(ls.str()), "&", "&amp;"), "<", "&lt;"));
-		ms << ETag("alt");
 	}
 
-	ms << from_ascii("<graphic fileref=\"eqn/");
-	if (!label(0).empty())
-		ms << sgml::cleanID(buffer(), runparams, label(0));
-	else
-		ms << sgml::uniqueID(from_ascii("anon"));
+	// DocBook also has <equation>, but it comes with a title.
+	// TODO: recognise \tag from amsmath? This would allow having <equation> with a proper title.
 
-	if (runparams.flavor == OutputParams::XML)
-		ms << from_ascii("\"/>");
-	else
-		ms << from_ascii("\">");
+	docstring attr;
 
-	ms.cr(); --ms.tab(); ms.os() << "</" << name << '>';
+	bool mathmlNamespaceInline = buffer().params().docbook_mathml_prefix == BufferParams::NoPrefix;
+	if (mathmlNamespaceInline)
+		attr += "xmlns=\"http://www.w3.org/1998/Math/MathML\"";
 
-	return ms.line() + res;
+	for (row_type i = 0; i < nrows(); ++i) {
+		if (!label(i).empty()) {
+			if (!attr.empty())
+				attr += " ";
+
+			attr += "xml:id=\"" + xml::cleanID(label(i)) + "\"";
+			break;
+		}
+	}
+
+	if (doCR)
+		if (!xs.isLastTagCR())
+			xs << xml::CR();
+
+	xs << xml::StartTag(name, attr);
+	xs << xml::CR();
+
+	// With DocBook 5, MathML must be within its own namespace (defined in Buffer.cpp::writeDocBookSource, except when
+	// it should be inlined).
+	// Output everything in a separate stream so that this does not interfere with the standard flow of DocBook tags.
+	std::string mathmlNamespacePrefix;
+	if (!mathmlNamespaceInline) {
+		if (buffer().params().docbook_mathml_prefix == BufferParams::MPrefix)
+			mathmlNamespacePrefix = "m";
+		else if (buffer().params().docbook_mathml_prefix == BufferParams::MMLPrefix)
+			mathmlNamespacePrefix = "mml";
+	}
+
+	odocstringstream osmath;
+	MathMLStream ms(osmath, mathmlNamespacePrefix);
+
+	// Output the MathML subtree.
+	// TeX transcription. Avoid MTag/ETag so that there are no extraneous spaces.
+	ms << "<" << from_ascii("alt") << " role='tex'" << ">";
+	// Workaround for db2latex: db2latex always includes equations with
+	// \ensuremath{} or \begin{display}\end{display}
+	// so we strip LyX' math environment
+	odocstringstream ls;
+	otexstream ols(ls);
+	TeXMathStream wi(ols, false, false, TeXMathStream::wsDefault, runparams.encoding);
+	InsetMathGrid::write(wi);
+	ms << from_utf8(subst(subst(to_utf8(ls.str()), "&", "&amp;"), "<", "&lt;"));
+	ms << "</" << from_ascii("alt") << ">";
+
+	// Actual transformation of the formula into MathML. This translation may fail (for example, due to custom macros).
+	// The new output stream is required to deal with the errors: first write completely the formula into this
+	// temporary stream; then, if it is possible without error, then copy it back to the "real" stream. Otherwise,
+	// some incomplete tags might be put into the real stream.
+	try {
+		// First, generate the MathML expression. If there is an error in the generation, this block is not fully
+		// executed, and the formula is not output to the DocBook stream.
+		odocstringstream ostmp;
+		MathMLStream mstmp(ostmp, ms.xmlns());
+		mathmlize(mstmp);
+
+		// Choose the display style for the formula, to be output as an attribute near the formula root.
+		std::string mathmlAttr;
+		if (getType() == hullSimple)
+			mathmlAttr = "display=\"inline\"";
+		else
+			mathmlAttr = "display=\"block\"";
+
+		// Then, output the formula.
+		ms << MTag("math", mathmlAttr);
+		ms.cr();
+		osmath << ostmp.str(); // osmath is not a XMLStream, so no need for XMLStream::ESCAPE_NONE.
+		ms << ETag("math");
+	} catch (MathExportException const &) {
+		ms.cr();
+		osmath << "<mathphrase>MathML export failed. Please report this as a bug to the LyX developers: "
+			"https://www.lyx.org/trac.</mathphrase>";
+	}
+
+	// Output the complete formula to the DocBook stream.
+	xs << XMLStream::ESCAPE_NONE << osmath.str();
+	xs << xml::CR();
+	xs << xml::EndTag(name);
+	if (doCR)
+		xs << xml::CR();
 }
 
 
@@ -2526,75 +2532,113 @@ void InsetMathHull::htmlize(HtmlStream & os) const
 // this duplicates code from InsetMathGrid, but
 // we need access here to number information,
 // and we simply do not have that in InsetMathGrid.
-void InsetMathHull::mathmlize(MathStream & os) const
+void InsetMathHull::mathmlize(MathMLStream & ms) const
+{
+	bool const havetable = haveNumbers() || nrows() > 1 || ncols() > 1;
+
+	// Simplest case: single row, single column, no numbering.
+	if (!havetable) {
+		ms << cell(index(0, 0));
+		return;
+	}
+
+	// More complex case: wrap elements in a table.
+    if (getType() == hullSimple) {
+        ms << MTag("mtable");
+    } else if (getType() >= hullAlign && getType() <= hullXXAlignAt) {
+		// hullAlign, hullAlignAt, hullXAlignAt, hullXXAlignAt
+        string alignment;
+        for (col_type col = 0; col < ncols(); ++col) {
+            alignment += (col % 2) ? "left " : "right ";
+        }
+        ms << MTag("mtable", "displaystyle='true' columnalign='" + alignment + "'");
+    } else {
+        ms << MTag("mtable", "displaystyle='true'");
+    }
+
+	for (row_type row = 0; row < nrows(); ++row) {
+		// No Wed browser supports mlabeledtr in 2023, even though it has been introduced in
+		// MathML 2 (2003). Moreover, it is not supported in MathML 4 Core.
+		ms << MTag("mtr");
+
+		for (col_type col = 0; col < ncols(); ++col) {
+			ms << MTag("mtd")
+			   << cell(index(row, col))
+			   << ETag("mtd");
+		}
+
+		// fleqn?
+		if (haveNumbers()) {
+			ms << MTag("mtd");
+			docstring const & num = numbers_[row];
+			if (!num.empty()) {
+				SetMode textmode(ms, true);
+				ms << '(' << num << ')';
+			}
+		    ms << ETag("mtd");
+		}
+
+		ms << ETag("mtr");
+	}
+
+	ms << ETag("mtable");
+}
+
+
+docstring InsetMathHull::mathAsLatex() const
 {
 	bool const havenumbers = haveNumbers();
 	bool const havetable = havenumbers || nrows() > 1 || ncols() > 1;
 
-	if (havetable)
-		os << MTag("mtable");
-	char const * const celltag = havetable ? "mtd" : "mrow";
-	// FIXME There does not seem to be wide support at the moment
-	// for mlabeledtr, so we have to use just mtr for now.
-	// char const * const rowtag = havenumbers ? "mlabeledtr" : "mtr";
-	char const * const rowtag = "mtr";
-	for (row_type row = 0; row < nrows(); ++row) {
-		if (havetable)
-			os << MTag(rowtag);
-		for (col_type col = 0; col < ncols(); ++col) {
-			os << MTag(celltag)
-			   << cell(index(row, col))
-			   << ETag(celltag);
-		}
-		// fleqn?
-		if (havenumbers) {
-			os << MTag("mtd");
-			docstring const & num = numbers_[row];
-			if (!num.empty())
-				os << '(' << num << ')';
-		  os << ETag("mtd");
-		}
-		if (havetable)
-			os << ETag(rowtag);
-	}
-	if (havetable)
-		os << ETag("mtable");
-}
-
-
-void InsetMathHull::mathAsLatex(WriteStream & os) const
-{
-	MathEnsurer ensurer(os, false);
-	bool havenumbers = haveNumbers();
-	bool const havetable = havenumbers || nrows() > 1 || ncols() > 1;
-
 	if (!havetable) {
+		odocstringstream ls;
+		otexrowstream ots(ls);
+		TeXMathStream os(ots, false, true, TeXMathStream::wsPreview);
+		ModeSpecifier specifier(os, MATH_MODE);
+		MathEnsurer ensurer(os, false);
+
 		os << cell(index(0, 0));
-		return;
+		return ls.str();
 	}
 
-	os << "<table class='mathtable'>";
+	odocstringstream ods;
+	XMLStream xs(ods);
+
+	xs << xml::StartTag("table", "class='mathtable'");
 	for (row_type row = 0; row < nrows(); ++row) {
-		os << "<tr>";
+		xs << xml::StartTag("tr");
 		for (col_type col = 0; col < ncols(); ++col) {
-			os << "<td class='math'>";
-			os << cell(index(row, col));
-			os << "</td>";
+			xs << xml::StartTag("td", "class='math'");
+
+			odocstringstream ls;
+			otexrowstream ots(ls);
+			TeXMathStream os(ots, false, true, TeXMathStream::wsPreview);
+			ModeSpecifier specifier(os, MATH_MODE);
+			MathEnsurer ensurer(os, false);
+
+			os << cell(index(0, 0));
+			// ls.str() contains a raw LaTeX string, which might require some encoding before being valid XML.
+			xs << ls.str();
+
+			xs << xml::EndTag("td");
 		}
 		if (havenumbers) {
-			os << "<td>";
+			xs << xml::StartTag("td");
 			docstring const & num = numbers_[row];
-			if (!num.empty())
-				os << '(' << num << ')';
-		  os << "</td>";
+			if (!num.empty()) {
+				xs << '(' << num << ')';
+			}
+			xs << xml::EndTag("td");
 		}
-		os << "</tr>";
+		xs << xml::EndTag("tr");
 	}
-	os << "</table>";
+	xs << xml::EndTag("table");
+
+	return ods.str();
 }
 
 
-docstring InsetMathHull::xhtml(XHTMLStream & xs, OutputParams const & op) const
+docstring InsetMathHull::xhtml(XMLStream & xs, OutputParams const & op) const
 {
 	BufferParams::MathOutput const mathtype =
 		buffer().masterBuffer()->params().html_math_output;
@@ -2613,22 +2657,29 @@ docstring InsetMathHull::xhtml(XHTMLStream & xs, OutputParams const & op) const
 	// FIXME Eventually we would like to do this inset by inset.
 	if (mathtype == BufferParams::MathML) {
 		odocstringstream os;
-		MathStream ms(os);
+		MathMLStream ms(os);
 		try {
 			mathmlize(ms);
 			success = true;
 		} catch (MathExportException const &) {}
 		if (success) {
+			string const name_space_declaration = "xmlns='http://www.w3.org/1998/Math/MathML'";
 			if (getType() == hullSimple)
-				xs << html::StartTag("math",
-							"xmlns=\"http://www.w3.org/1998/Math/MathML\"", true);
-			else
-				xs << html::StartTag("math",
-				      "display=\"block\" xmlns=\"http://www.w3.org/1998/Math/MathML\"", true);
-			xs << XHTMLStream::ESCAPE_NONE
-				 << os.str()
-				 << html::EndTag("math");
+			    xs << xml::StartTag("math", name_space_declaration, true);
+			else {
+	            if (!xs.isLastTagCR())
+	                 xs << xml::CR();
+	            xs << xml::StartTag("math", name_space_declaration + " display='block'", true);
+		    }
+
+			xs << XMLStream::ESCAPE_NONE
+			   << os.str();
+
+			if (!xs.isLastTagCR())
+				xs << xml::CR();
+			xs << xml::EndTag("math") << xml::CR();
 		}
+		// In case of failure, generate an image.
 	} else if (mathtype == BufferParams::HTML) {
 		odocstringstream os;
 		HtmlStream ms(os);
@@ -2638,11 +2689,12 @@ docstring InsetMathHull::xhtml(XHTMLStream & xs, OutputParams const & op) const
 		} catch (MathExportException const &) {}
 		if (success) {
 			string const tag = (getType() == hullSimple) ? "span" : "div";
-			xs << html::StartTag(tag, "class='formula'", true)
-			   << XHTMLStream::ESCAPE_NONE
+			xs << xml::StartTag(tag, "class='formula'", true)
+			   << XMLStream::ESCAPE_NONE
 			   << os.str()
-			   << html::EndTag(tag);
+			   << xml::EndTag(tag);
 		}
+		// In case of failure, generate an image.
 	}
 
 	// what we actually want is this:
@@ -2657,7 +2709,7 @@ docstring InsetMathHull::xhtml(XHTMLStream & xs, OutputParams const & op) const
 	//
 	// so this is for Images.
 	if (!success && mathtype != BufferParams::LaTeX) {
-		graphics::PreviewImage const * pimage = 0;
+		graphics::PreviewImage const * pimage = nullptr;
 		if (!op.dryrun) {
 			loadPreview(docit_);
 			pimage = preview_->getPreviewImage(buffer());
@@ -2681,11 +2733,11 @@ docstring InsetMathHull::xhtml(XHTMLStream & xs, OutputParams const & op) const
 			}
 
 			string const tag = (getType() == hullSimple) ? "span" : "div";
-			xs << html::CR()
-			   << html::StartTag(tag, "style = \"text-align: center;\"")
-				 << html::CompTag("img", "src=\"" + filename + "\" alt=\"Mathematical Equation\"")
-				 << html::EndTag(tag)
-				 << html::CR();
+			xs << xml::CR()
+			   << xml::StartTag(tag, "style = \"text-align: center;\"")
+			   << xml::CompTag("img", "src=\"" + filename + R"(" alt="Mathematical Equation")")
+			   << xml::EndTag(tag)
+			   << xml::CR();
 			success = true;
 		}
 	}
@@ -2696,22 +2748,18 @@ docstring InsetMathHull::xhtml(XHTMLStream & xs, OutputParams const & op) const
 	if (!success /* || mathtype != BufferParams::LaTeX */) {
 		// Unfortunately, we cannot use latexString() because we do not want
 		// $...$ or whatever.
-		odocstringstream ls;
-		otexrowstream ots(ls);
-		WriteStream wi(ots, false, true, WriteStream::wsPreview);
-		ModeSpecifier specifier(wi, MATH_MODE);
-		mathAsLatex(wi);
-		docstring const latex = ls.str();
+		// The returned value already has the correct escaping for HTML.
+		docstring const latex = mathAsLatex();
 
 		// class='math' allows for use of jsMath
 		// http://www.math.union.edu/~dpvc/jsMath/
 		// FIXME XHTML
 		// probably should allow for some kind of customization here
 		string const tag = (getType() == hullSimple) ? "span" : "div";
-		xs << html::StartTag(tag, "class='math'")
-		   << latex
-		   << html::EndTag(tag)
-		   << html::CR();
+		xs << xml::StartTag(tag, "class='math'")
+		   << XMLStream::ESCAPE_NONE << latex // Don't escape anything: latex might contain XML.
+		   << xml::EndTag(tag)
+		   << xml::CR();
 	}
 	return docstring();
 }
@@ -2720,7 +2768,7 @@ docstring InsetMathHull::xhtml(XHTMLStream & xs, OutputParams const & op) const
 void InsetMathHull::toString(odocstream & os) const
 {
 	odocstringstream ods;
-	plaintext(ods, OutputParams(0));
+	plaintext(ods, OutputParams(nullptr));
 	os << ods.str();
 }
 
@@ -2728,7 +2776,7 @@ void InsetMathHull::toString(odocstream & os) const
 void InsetMathHull::forOutliner(docstring & os, size_t const, bool const) const
 {
 	odocstringstream ods;
-	OutputParams op(0);
+	OutputParams op(nullptr);
 	op.for_toc = true;
 	// FIXME: this results in spilling TeX into the LyXHTML output since the
 	// outliner is used to generate the LyXHTML list of figures/etc.
@@ -2752,7 +2800,7 @@ void InsetMathHull::recordLocation(DocIterator const & di)
 bool InsetMathHull::canPaintChange(BufferView const &) const
 {
 	// We let RowPainter do it seamlessly for inline insets
-	return display() != Inline;
+	return display();
 }
 
 

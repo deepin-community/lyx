@@ -1,6 +1,6 @@
 # -*- text -*-
 
-# file cua.bind
+# file site.bind
 # This file is part of LyX, the document processor.
 # Licence details can be found in the file COPYING.
 #
@@ -20,7 +20,7 @@
 # with every new install of LyX and your changes will be lost.
 # 
 
-Format 4
+Format 5
 
 \bind "Right"      "char-right"
 \bind "Left"       "char-left"
@@ -38,8 +38,8 @@ Format 4
 \bind "Prior"      "screen-up"
 \bind "Next"       "screen-down"
 \bind "Return"     "paragraph-break"
-\bind "Delete"     "char-delete-forward"
-\bind "BackSpace"  "char-delete-backward"
+\bind "Delete"     "char-delete-forward confirm"
+\bind "BackSpace"  "char-delete-backward confirm"
 
 \bind "KP_Enter"   "paragraph-break"
 \bind "KP_Right"   "char-right"

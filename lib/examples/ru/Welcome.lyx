@@ -1,0 +1,320 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/ru/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language russian
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "DejaVu Serif"
+\font_sans "default" "DejaVu Sans"
+\font_typewriter "default" "DejaVu Sans Mono"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Предметный указатель
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style swiss
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Добро пожаловать в \SpecialChar LyX
+!
+\end_layout
+
+\begin_layout Section*
+Главные вещи,
+ которые нужно знать при работе в \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ поставляется с отличной документацией —
+ пожалуйста,
+ пользуйтесь ей!
+ Начните с выбора пункта меню 
+\family sans
+Помощь\SpecialChar menuseparator
+Введение
+\family default
+,
+ где вы сможете найти очень краткое введение в систему документации.
+ Затем изучите принципы работы в \SpecialChar LyX
+,
+ выбрав в меню пункт 
+\family sans
+Помощь\SpecialChar menuseparator
+Самоучитель
+\family default
+.
+\end_layout
+
+\begin_layout Enumerate
+Мы называем \SpecialChar LyX
+ «процессором документов».
+ Эта программа отличается по замыслу от обычных «текстовых процессоров» —
+ с помощью \SpecialChar LyX
+ процесс создания документа упрощается.
+ Но не пугайтесь,
+ если этот процесс несколько отличается от того,
+ к которому вы привыкли.
+ Возникшие у вас вопросы может прояснить документация
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Мы,
+ кажется,
+ уже упоминали,
+ что документацию читать очень полезно?
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Enumerate
+Вывод программы \SpecialChar LyX
+ выглядит потрясающе!
+ Чтобы в этом убедиться,
+ выберите пункт меню 
+\family sans
+Документ\SpecialChar menuseparator
+Просмотреть
+\begin_inset space ~
+\end_inset
+
+[PDF
+\begin_inset space ~
+\end_inset
+
+(pdflatex)]
+\family default
+ или нажмите кнопку 
+\begin_inset Info
+type  "icon"
+arg   "buffer-view"
+\end_inset
+
+ на панели инструментов.
+\end_layout
+
+\begin_layout Enumerate
+Да,
+ \SpecialChar LyX
+ может использовать (почти) все возможности системы \SpecialChar LaTeX
+.
+ И да,
+ \SpecialChar LyX
+ может импортировать файлы \SpecialChar LaTeX
+.
+ Опытные пользователи \SpecialChar LaTeX
+ могут лишь бегло просмотреть остальную часть 
+\emph on
+Самоучителя
+\emph default
+ и затем приступить к чтению раздела 
+\emph on
+\SpecialChar LyX
+ для пользователей \SpecialChar LaTeX
+
+\emph default
+ (всем остальным:
+ не беспокойтесь,
+ вам необязательно знать \SpecialChar LaTeX
+ для работы в \SpecialChar LyX
+).
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ содержит множество возможностей для пользователей,
+ читающих или пишущих на языке,
+ отличном от английского.
+ В дополнение к этому,
+ привязки клавиш,
+ набор кнопок панели инструментов и многие другие свойства программы допускают очень гибкую настройку.
+ Для более подробной информации найдите в меню пункт 
+\family sans
+Помощь\SpecialChar menuseparator
+Руководство по настройке
+\family default
+.
+\end_layout
+
+\begin_layout Enumerate
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+sloppy 
+\end_layout
+
+\end_inset
+
+Домашняя страница \SpecialChar LyX
+ находится по адресу 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org/WebRu.Home
+\end_layout
+
+\end_inset
+
+.
+ Там вы сможете получить информацию о программе \SpecialChar LyX
+,
+ подписаться на списки рассылки,
+ совершить графический тур по ключевым возможностям \SpecialChar LyX
+ (
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org/WebRu.Walkthrough
+\end_layout
+
+\end_inset
+
+) и многое другое.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Замечание для пользователей Linux:
+
+\series default
+ пожалуйста,
+ не забудьте установить необходимые языковые пакеты дистрибутива \SpecialChar LaTeX
+ 
+\family sans
+\SpecialChar TeX
+
+\begin_inset space ~
+\end_inset
+
+Live
+\family default
+.
+ Если этого не сделать,
+ то \SpecialChar LaTeX
+ будет выдавать ошибки.
+\begin_inset Newline newline
+\end_inset
+
+Например,
+ в дистрибутивах Linux 
+\family sans
+Ubuntu
+\family default
+ и 
+\family sans
+Debian
+\family default
+ пакет поддержки русского языка называется 
+\family typewriter
+texlive-lang-cyrillic
+\family default
+.
+\begin_inset Newline newline
+\end_inset
+
+После установки языковых пакетов необходимо использовать пункт меню
+\family sans
+ Инструменты
+\family default
+\SpecialChar menuseparator
+
+\family sans
+Обновить
+\begin_inset space ~
+\end_inset
+
+конфигурацию
+\family default
+.
+\end_layout
+
+\end_body
+\end_document

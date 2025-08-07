@@ -20,7 +20,7 @@
 #include "Language.h"
 #include "LaTeXFeatures.h"
 #include "Layout.h"
-#include "OutputParams.h"
+#include "output_docbook.h"
 #include "ParIterator.h"
 #include "TextClass.h"
 #include "TocBackend.h"
@@ -49,7 +49,7 @@ docstring InsetFoot::layoutName() const
 }
 
 
-void InsetFoot::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetFoot::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
 	BufferParams const & bp = buffer().masterBuffer()->params();
 	Counters & cnts = bp.documentClass().counters();
@@ -85,16 +85,20 @@ void InsetFoot::updateBuffer(ParIterator const & it, UpdateType utype)
 	docstring const & count = il.counter();
 	custom_label_ = translateIfPossible(il.labelstring());
 
-	Paragraph const & par = it.paragraph();
-	if (!par.isDeleted(it.pos())) {
-		if (cnts.hasCounter(count))
-			cnts.step(count, utype);
-		custom_label_ += ' ' + cnts.theCounter(count, lang->code());
+	int val = cnts.value(count);
+	if (cnts.hasCounter(count)) {
+		cnts.step(count, utype);
+		if (!custom_label_.empty())
+			custom_label_ += ' ';
+		custom_label_ += cnts.theCounter(count, lang->code());
+		if (deleted)
+			// un-step after deleted counter
+			cnts.set(count, val);
 	} else
 		custom_label_ += ' ' + from_ascii("#");
 	setLabel(custom_label_);
 
-	InsetCollapsible::updateBuffer(it, utype);
+	InsetCollapsible::updateBuffer(it, utype, deleted);
 	if (utype == OutputUpdate)
 		cnts.restoreLastCounter();
 }
@@ -105,7 +109,17 @@ docstring InsetFoot::toolTip(BufferView const & bv, int x, int y) const
 	if (isOpen(bv))
 		// this will give us something useful if there is no button
 		return InsetCollapsible::toolTip(bv, x, y);
-	return toolTipText(custom_label_+ ": ");
+	return toolTipText(custom_label_+ " ");
+}
+
+
+void InsetFoot::latex(otexstream & os, OutputParams const & runparams) const
+{
+	// We need to maintain the runparams values set
+	// by InsetText::latex. hence we use no copy
+	runparams.inFootnote = true;
+	InsetText::latex(os, runparams);
+	runparams.inFootnote = false;
 }
 
 
@@ -120,13 +134,14 @@ int InsetFoot::plaintext(odocstringstream & os,
 }
 
 
-int InsetFoot::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetFoot::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	os << "<footnote>";
-	int const i = InsetText::docbook(os, runparams);
-	os << "</footnote>";
-
-	return i;
+	OutputParams rp = runparams;
+	rp.docbook_force_pars = true;
+	rp.docbook_in_par = false;
+	rp.docbook_consider_allow_multi_par = false;
+	rp.docbook_make_pars = true;
+	InsetText::docbook(xs, rp);
 }
 
 

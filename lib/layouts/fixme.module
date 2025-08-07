@@ -1,4 +1,5 @@
-#\DeclareLyXModule[fixme.sty]{FiXme}
+#\DeclareLyXModule[fixme.sty]{FiXme Notes}
+#\DeclareCategory{Annotation & Revision}
 #DescriptionBegin
 #Provides 'FiXme' (marginal) annotations for document revision purposes.
 #A list of annotations can be produced by using the 'List of FIXMEs' paragraph style.
@@ -12,7 +13,7 @@
 # Authors: Mark Edgington <edgimar@gmail.com>
 #          Jürgen Spitzmüller <spitz@lyx.org>
 
-Format 66
+Format 104
 
 OutlinerName fixme "Fixme"
 
@@ -57,7 +58,7 @@ InsetLayout Flex:Fixme_Note
         LatexName             fxnote
         Decoration            classic
         LabelFont
-          Color               magenta
+          Color               textlabel3
           Size                Small
         EndFont
         MultiPar              false

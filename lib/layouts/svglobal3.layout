@@ -15,7 +15,7 @@
 #
 # see ftp://ftp.springer.de/pub/tex/latex/svjour3/ for class files
 
-Format 66
+Format 104
 
 Input svcommon.inc
 
@@ -50,7 +50,7 @@ NoStyle TOC_Title
 NoStyle TOC_Author
 NoStyle Proof(smartQED)
 
-NoStyle Acknowledgement
+NoStyle Acknowledgment
 NoStyle Keywords
 
 
@@ -59,27 +59,61 @@ InsetLayout Flex:Keywords
 	LatexName	keywords
 	LabelString	"Keywords"
 	LabelFont
-	  Color		green
+	  Color		textlabel2
 	  Size		Small
 	EndFont
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 InsetLayout Flex:PACS
 	CopyStyle	Flex:Keywords
 	LatexName	PACS
 	LabelString	"PACS"
+	DocBookTag          subjectset
+	DocBookAttr         role='pacs'
+	DocBookTagType      block
+	DocBookItemWrapperTag      subject
+	DocBookItemWrapperTagType  paragraph
+	DocBookItemTag      subjectterm
+	DocBookItemTagType  inline
+	DocBookWrapperTag   NONE
+	DocBookWrapperAttr  ""
+	DocBookInInfo       always
 End
 
 InsetLayout Flex:Subclass
 	CopyStyle	Flex:Keywords
 	LatexName	subclass
 	LabelString	"Mathematics Subject Classification"
+	DocBookTag          subjectset
+	DocBookAttr         role='mcs'
+	DocBookTagType      block
+	DocBookItemWrapperTag      subject
+	DocBookItemWrapperTagType  paragraph
+	DocBookItemTag      subjectterm
+	DocBookItemTagType  inline
+	DocBookWrapperTag   NONE
+	DocBookWrapperAttr  ""
+	DocBookInInfo       always
 End
 
 InsetLayout Flex:CRSC
 	CopyStyle	Flex:PACS
 	LatexName	CRclass
 	LabelString	"CR Subject Classification"
+	DocBookTag          subjectset
+	DocBookAttr         role='crsc'
+	DocBookTagType      block
+	DocBookItemWrapperTag      subject
+	DocBookItemWrapperTagType  paragraph
+	DocBookItemTag      subjectterm
+	DocBookItemTagType  inline
+	DocBookWrapperTag   NONE
+	DocBookWrapperAttr  ""
+	DocBookInInfo       always
 End
 
 # this label has no dot at the end

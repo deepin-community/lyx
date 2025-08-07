@@ -1,0 +1,50 @@
+From: "Dr. Tobias Quathamer" <toddy@debian.org>
+Date: Sun, 1 Sep 2019 21:08:40 +0200
+Subject: Fix path to perl
+
+As this is a Debian specific change to comply with policy,
+it's not needed to incorporate the patch in the LyX
+upstream sources.
+
+Forwarded: not-needed
+---
+ lib/scripts/checkKeys.pl.in | 2 +-
+ lib/scripts/lyx_batch.pl.in | 2 +-
+ lib/scripts/prefTest.pl.in  | 3 +--
+ 3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/lib/scripts/checkKeys.pl.in b/lib/scripts/checkKeys.pl.in
+index 47df9cc..4ea8f1c 100644
+--- a/lib/scripts/checkKeys.pl.in
++++ b/lib/scripts/checkKeys.pl.in
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env perl
++#! /usr/bin/perl
+ # -*- mode: perl; -*-
+ 
+ # checkKeys.pl testname
+diff --git a/lib/scripts/lyx_batch.pl.in b/lib/scripts/lyx_batch.pl.in
+index 11c9627..7640d5d 100644
+--- a/lib/scripts/lyx_batch.pl.in
++++ b/lib/scripts/lyx_batch.pl.in
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env perl
++#! /usr/bin/perl
+ # -*- mode: perl; -*-
+ 
+ # lyx_batch.pl testname
+diff --git a/lib/scripts/prefTest.pl.in b/lib/scripts/prefTest.pl.in
+index d999b6a..2f55f34 100755
+--- a/lib/scripts/prefTest.pl.in
++++ b/lib/scripts/prefTest.pl.in
+@@ -1,4 +1,4 @@
+-#! /usr/bin/env perl
++#! /usr/bin/perl
+ # -*- mode: perl; -*-
+ 
+ use strict;
+@@ -85,4 +85,3 @@ if (@ctestpars) {
+ }
+ 
+ exit($res);
+-

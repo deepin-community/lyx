@@ -53,7 +53,7 @@ bool isHexChar(char_type);
 
 bool isHex(docstring const & str);
 
-int hexToInt(docstring const & str);
+unsigned int hexToInt(docstring const & str);
 
 /// is \p str pure ascii?
 bool isAscii(docstring const & str);
@@ -181,6 +181,8 @@ docstring const token(docstring const & a, char_type delim, int n);
 int tokenPos(std::string const & a, char delim, std::string const & tok);
 int tokenPos(docstring const & a, char_type delim, docstring const & tok);
 
+///
+docstring capitalize(docstring const & s);
 
 /// Substitute all \a oldchar with \a newchar
 std::string const subst(std::string const & a, char oldchar, char newchar);
@@ -194,13 +196,17 @@ std::string const subst(std::string const & a,
 
 /// substitutes all instances of \a oldstr with \a newstr
 docstring const subst(docstring const & a,
-		docstring const & oldstr, docstring const & newstr);
+		docstring const & oldstr, docstring const & newstr,
+		bool case_sens = true);
 
 /// Count all occurrences of char \a chr inside \a str
 int count_char(std::string const & str, char chr);
 
 /// Count all occurrences of char \a chr inside \a str
 int count_char(docstring const & str, docstring::value_type chr);
+
+/// get an approximate word count
+int wordCount(docstring const &);
 
 /** Count all occurrences of binary chars inside \a str.
     It is assumed that \a str is utf-8 encoded and that a binary char
@@ -241,7 +247,7 @@ docstring const rtrim(docstring const & a, char const * p = " ");
 std::string const ltrim(std::string const & a, char const * p = " ");
 docstring const ltrim(docstring const & a, char const * p = " ");
 
-/** Splits the string given in the first argument at the first occurence
+/** Splits the string given in the first argument at the first occurrence
     of the third argument, delim.
     What precedes delim is returned in the second argument, piece; this
     will be the whole of the string if no delimiter is found.
@@ -276,6 +282,8 @@ docstring const protectArgument(docstring & arg, char const l = '[',
 /// Truncates a string with an ellipsis at the end.  Leaves str unchanged and
 /// returns false if it is shorter than len. Otherwise resizes str to len, with
 /// U+2026 HORIZONTAL ELLIPSIS at the end, and returns true.
+/// If mid is true, the ellipsis will be put to the mid of the string, and the first
+/// and last half is appended/prepended. 
 ///
 /// Warning (Unicode): The cases where we want to truncate the text and it does
 /// not end up converted into a QString for UI display must be really
@@ -294,7 +302,8 @@ docstring const protectArgument(docstring & arg, char const l = '[',
 ///
 /// FIXME: apply those principles in the current code.
 ///
-bool truncateWithEllipsis(docstring & str, size_t const len);
+bool truncateWithEllipsis(docstring & str, size_t const len,
+			  bool const mid = false);
 
 /// Word-wraps the provided docstring, returning a line-broken string
 /// of width no wider than width, with the string broken at spaces.
@@ -346,7 +355,7 @@ docstring const getStringFromVector(std::vector<docstring> const & vec,
 int findToken(char const * const str[], std::string const & search_token);
 
 
-/// Format a floating point number with at least 6 siginificant digits, but
+/// Format a floating point number with at least 6 significant digits, but
 /// without scientific notation.
 /// Scientific notation would be invalid in some contexts, such as lengths for
 /// LaTeX. Simply using std::ostream with std::fixed would produce results
@@ -357,10 +366,17 @@ std::string formatFPNumber(double);
 /// \p ex defines a string of characters that are excluded from the transformation
 docstring to_percent_encoding(docstring const & in, docstring const & ex = docstring());
 
+/// Returns a string decoded from an URI/URL-style percent-encoded string \p in.
+std::string from_percent_encoding(std::string const & in);
+
+/// returns the number of expanding characters taken into account for
+/// increased inter-word spacing during justification
+int countExpanders(docstring const & str);
+
 
 docstring bformat(docstring const & fmt, int arg1);
 docstring bformat(docstring const & fmt, long arg1);
-#ifdef LYX_USE_LONG_LONG
+#ifdef HAVE_LONG_LONG_INT
 docstring bformat(docstring const & fmt, long long arg1);
 #endif
 docstring bformat(docstring const & fmt, unsigned int arg1);
@@ -372,6 +388,7 @@ docstring bformat(docstring const & fmt, char const * arg1, docstring const & ar
 docstring bformat(docstring const & fmt, int arg1, int arg2);
 docstring bformat(docstring const & fmt, docstring const & arg1, docstring const & arg2, docstring const & arg3);
 docstring bformat(docstring const & fmt, docstring const & arg1, docstring const & arg2, docstring const & arg3, docstring const & arg4);
+docstring bformat(docstring const & fmt, docstring const & arg1, docstring const & arg2, docstring const & arg3, docstring const & arg4, docstring const & arg5);
 
 
 } // namespace support

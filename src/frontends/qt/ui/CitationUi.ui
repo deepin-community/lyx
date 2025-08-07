@@ -1,0 +1,469 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CitationUi</class>
+ <widget class="QDialog" name="CitationUi">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>614</width>
+    <height>522</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string/>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_3">
+   <item row="0" column="0">
+    <layout class="QHBoxLayout" name="horizontalLayout_6">
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_5">
+       <item>
+        <widget class="QLabel" name="findKeysLA">
+         <property name="text">
+          <string>&amp;Filter:</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="filterBarL"/>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QComboBox" name="fieldsCO">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Select the fields on which the filter applies</string>
+       </property>
+       <property name="maxVisibleItems">
+        <number>16</number>
+       </property>
+       <property name="insertPolicy">
+        <enum>QComboBox::NoInsert</enum>
+       </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QComboBox::AdjustToContents</enum>
+       </property>
+       <item>
+        <property name="text">
+         <string>All fields</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="entriesCO">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="toolTip">
+        <string>Select the entry types on which the filter applies</string>
+       </property>
+       <property name="insertPolicy">
+        <enum>QComboBox::NoInsert</enum>
+       </property>
+       <property name="sizeAdjustPolicy">
+        <enum>QComboBox::AdjustToContents</enum>
+       </property>
+       <item>
+        <property name="text">
+         <string>All entry types</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="searchOptionsPB">
+       <property name="toolTip">
+        <string>Click for more filter options</string>
+       </property>
+       <property name="text">
+        <string>O&amp;ptions</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="1" column="0">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="0" column="0">
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_3">
+           <item>
+            <widget class="QLabel" name="availableKeysLA">
+             <property name="text">
+              <string>A&amp;vailable Citations:</string>
+             </property>
+             <property name="buddy">
+              <cstring>availableLV</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QListView" name="availableLV">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="editTriggers">
+              <set>QAbstractItemView::NoEditTriggers</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout">
+           <item>
+            <widget class="QLabel" name="spacerLA"/>
+           </item>
+           <item>
+            <widget class="QPushButton" name="addPB">
+             <property name="toolTip">
+              <string>Click or press Enter to add the selected citation to the list</string>
+             </property>
+             <property name="text">
+              <string>&amp;Add</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="deletePB">
+             <property name="toolTip">
+              <string>Click or press Delete to delete the selected citation from the list</string>
+             </property>
+             <property name="text">
+              <string>&amp;Delete</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer>
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>77</width>
+               <height>1</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="upPB">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="toolTip">
+              <string>Move the selected citation up (Ctrl-Up)</string>
+             </property>
+             <property name="text">
+              <string>&amp;Up</string>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="downPB">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="toolTip">
+              <string>Move the selected citation down (Ctrl-Down)</string>
+             </property>
+             <property name="text">
+              <string>Do&amp;wn</string>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>.</normaloff>.</iconset>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_4">
+           <item>
+            <widget class="QLabel" name="selectedKeysLA">
+             <property name="text">
+              <string>Selected &amp;Citations:</string>
+             </property>
+             <property name="buddy">
+              <cstring>selectedLV</cstring>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QTableView" name="selectedLV">
+             <property name="toolTip">
+              <string/>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+       <item row="1" column="0">
+        <widget class="QTextEdit" name="infoML">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>60</height>
+          </size>
+         </property>
+         <property name="acceptDrops">
+          <bool>false</bool>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item row="2" column="0">
+    <widget class="QGroupBox" name="FormattingGB">
+     <property name="title">
+      <string>Formatting</string>
+     </property>
+     <property name="flat">
+      <bool>true</bool>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <item row="0" column="0">
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_5">
+          <item>
+           <widget class="QLabel" name="citationStyleLA">
+            <property name="text">
+             <string>Citation st&amp;yle:</string>
+            </property>
+            <property name="buddy">
+             <cstring>citationStyleCO</cstring>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="textBeforeLA">
+            <property name="text">
+             <string>Text befo&amp;re:</string>
+            </property>
+            <property name="buddy">
+             <cstring>textBeforeED</cstring>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QVBoxLayout" name="verticalLayout_6">
+          <item>
+           <widget class="QComboBox" name="citationStyleCO">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Citation style to use, if different styles are provided</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <item>
+             <widget class="QLineEdit" name="textBeforeED">
+              <property name="toolTip">
+               <string>Text that precedes the reference (e.g., &quot;cf.&quot;), if the current citation style supports this.</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="textAfterLA">
+              <property name="text">
+               <string>&amp;Text after:</string>
+              </property>
+              <property name="buddy">
+               <cstring>textAfterED</cstring>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="textAfterED">
+              <property name="toolTip">
+               <string>Text that follows the reference (e.g., pages), if the current citation style supports this.</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="0">
+       <layout class="QHBoxLayout">
+        <property name="spacing">
+         <number>6</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QCheckBox" name="literalCB">
+          <property name="toolTip">
+           <string>Pass content of `Text before' and `Text after' fields literally to LaTeX. Check this if you want to enter LaTeX code.</string>
+          </property>
+          <property name="text">
+           <string>Li&amp;teral</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>21</width>
+            <height>26</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="forceuppercaseCB">
+          <property name="toolTip">
+           <string>Force upper case in names (&quot;Del Piero&quot;, not &quot;del Piero&quot;), if the current citation style supports this.</string>
+          </property>
+          <property name="text">
+           <string>Force upcas&amp;ing</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="starredCB">
+          <property name="toolTip">
+           <string>Always list all authors (rather than using &quot;et al.&quot;), if the current citation style supports this.</string>
+          </property>
+          <property name="text">
+           <string>All aut&amp;hors</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <layout class="QHBoxLayout">
+     <property name="spacing">
+      <number>6</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QDialogButtonBox" name="buttonBox">
+       <property name="standardButtons">
+        <set>QDialogButtonBox::Apply|QDialogButtonBox::Cancel|QDialogButtonBox::Ok|QDialogButtonBox::Reset</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>fieldsCO</tabstop>
+  <tabstop>entriesCO</tabstop>
+  <tabstop>searchOptionsPB</tabstop>
+  <tabstop>availableLV</tabstop>
+  <tabstop>addPB</tabstop>
+  <tabstop>deletePB</tabstop>
+  <tabstop>upPB</tabstop>
+  <tabstop>downPB</tabstop>
+  <tabstop>citationStyleCO</tabstop>
+  <tabstop>textBeforeED</tabstop>
+  <tabstop>textAfterED</tabstop>
+  <tabstop>forceuppercaseCB</tabstop>
+  <tabstop>starredCB</tabstop>
+  <tabstop>infoML</tabstop>
+ </tabstops>
+ <includes>
+  <include location="local">qt_i18n.h</include>
+ </includes>
+ <resources/>
+ <connections/>
+</ui>

@@ -2,7 +2,7 @@
 # Probably broken by Jean-Marc Lasgouttes <Jean-Marc.Lasgouttes@inria.fr>
 # modified and modularized by Emmanuel GUREGHIAN <gureghia@boston.bertin.fr>
 # Tinkered with Sep. '07 by Paul Rubin <rubin@msu.edu>
-# Modularized Jan 08 by Richard Heck <rgheck@comcast.net>
+# Modularized Jan 08 by Richard Kimberly Heck <rikiheck@lyx.org>
 
 # The environments defined are :
 # - Theorem
@@ -20,7 +20,7 @@
 # - Claim
 # - Case (by inclusion)
 
-Format 66
+Format 104
 
 OutlinerName thm "Definitions & Theorems"
 
@@ -69,6 +69,11 @@ Style Theorem
 		\addto\captions$$lang{\renewcommand{\theoremname}{_(Theorem)}}
 	EndBabelPreamble
 	Requires              amsthm
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='theorem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -87,6 +92,11 @@ Style Corollary
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\corollaryname}{_(Corollary)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='corollary'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -105,6 +115,11 @@ Style Lemma
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\lemmaname}{_(Lemma)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='lemma'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -123,6 +138,11 @@ Style Proposition
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\propositionname}{_(Proposition)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='proposition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -141,6 +161,11 @@ Style Conjecture
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\conjecturename}{_(Conjecture)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='conjecture'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -159,6 +184,11 @@ Style Fact
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\factname}{_(Fact)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='fact'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -184,6 +214,11 @@ Style Definition
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\definitionname}{_(Definition)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='definition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -201,6 +236,9 @@ Style Example
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\examplename}{_(Example)}}
 	EndBabelPreamble
+	DocBookWrapperTag     example
+	DocBookTag            para
+	DocBookAttr           ""
 End
 
 
@@ -218,6 +256,11 @@ Style Problem
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\problemname}{_(Problem)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='problem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -235,6 +278,11 @@ Style Exercise
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\exercisename}{_(Exercise)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='exercise'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -252,6 +300,11 @@ Style Solution
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\solutionname}{_(Solution)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='solution'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -278,6 +331,11 @@ Style Remark
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\remarkname}{_(Remark)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='remark'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -295,6 +353,11 @@ Style Claim
 	BabelPreamble
 		\addto\captions$$lang{\renewcommand{\claimname}{_(Claim)}}
 	EndBabelPreamble
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='claim'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 Input theorems-case.inc

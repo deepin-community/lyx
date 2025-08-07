@@ -18,7 +18,7 @@
 
 # Important: Keep the version formatting in sync with LyX and
 #            tex2lyx (bug 7951)
-version = "2.3"
+version = "2.4"
 
 if __name__ == "__main__":
     pass

@@ -21,7 +21,6 @@ dist_doc_DATA = \
 
 bibliodocdir = $(docdir)/biblio
 dist_bibliodoc_DATA = \
-	biblio/alphadin.bst \
 	biblio/LyXDocs.bib
 
 clipartdocdir = $(docdir)/clipart
@@ -63,11 +62,18 @@ ardocdir = $(docdir)/ar
 dist_ardoc_DATA = \
 	ar/Intro.lyx \
 	ar/Shortcuts.lyx \
-	ar/Tutorial.lyx
+	ar/Tutorial.lyx \
+	ar/UserGuide.lyx
 
 cadocdir = $(docdir)/ca
 dist_cadoc_DATA = \
-	ca/Intro.lyx
+	ca/Intro.lyx \
+	ca/Shortcuts.lyx
+
+caclipartdocdir = $(cadocdir)/clipart
+dist_caclipartdoc_DATA = \
+	ca/clipart/notapeu.png \
+	ca/clipart/referencia.png
 
 csdocdir = $(docdir)/cs
 dist_csdoc_DATA = \
@@ -277,12 +283,20 @@ dist_rodoc_DATA = \
 
 rudocdir = $(docdir)/ru
 dist_rudoc_DATA = \
+	ru/Additional.lyx \
+	ru/EmbeddedObjects.lyx \
 	ru/Intro.lyx \
-	ru/Tutorial.lyx
+	ru/Math.lyx \
+	ru/Shortcuts.lyx \
+	ru/Tutorial.lyx \
+	ru/UserGuide.lyx
 
 ruclipartdocdir = $(rudocdir)/clipart
 dist_ruclipartdoc_DATA = \
-	ru/clipart/ToolbarEnvBox.png
+	ru/clipart/ERT.png \
+	ru/clipart/StandardToolbar.png \
+	ru/clipart/ToolbarEnvBox.png \
+	ru/clipart/Abstract.pdf
 
 skdocdir = $(docdir)/sk
 dist_skdoc_DATA = \

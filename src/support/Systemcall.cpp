@@ -24,13 +24,12 @@
 #include "support/ProgressInterface.h"
 
 #include "LyX.h"
-#include "LyXRC.h"
 
 #include <cstdlib>
 #include <iostream>
 
 #include <QProcess>
-#include <QTime>
+#include <QElapsedTimer>
 #include <QThread>
 #include <QCoreApplication>
 #include <QDebug>
@@ -60,26 +59,26 @@ class ProgressDummy : public ProgressInterface
 public:
 	ProgressDummy() {}
 
-	void processStarted(QString const &) {}
-	void processFinished(QString const &) {}
-	void appendMessage(QString const &) {}
-	void appendError(QString const &) {}
-	void clearMessages() {}
-	void lyxerrFlush() {}
+	void processStarted(QString const &) override {}
+	void processFinished(QString const &) override {}
+	void appendMessage(QString const &) override {}
+	void appendError(QString const &) override {}
+	void clearMessages() override {}
+	void lyxerrFlush() override {}
 
-	void lyxerrConnect() {}
-	void lyxerrDisconnect() {}
+	void lyxerrConnect() override {}
+	void lyxerrDisconnect() override {}
 
-	void warning(QString const &, QString const &) {}
-	void toggleWarning(QString const &, QString const &, QString const &) {}
-	void error(QString const &, QString const &, QString const &) {}
-	void information(QString const &, QString const &) {}
+	void warning(QString const &, QString const &) override {}
+	void toggleWarning(QString const &, QString const &, QString const &) override {}
+	void error(QString const &, QString const &, QString const &) override {}
+	void information(QString const &, QString const &) override {}
 	int prompt(docstring const &, docstring const &, int default_but, int,
-		   docstring const &, docstring const &) { return default_but; }
+		   docstring const &, docstring const &) override { return default_but; }
 };
 
 
-static ProgressInterface * progress_instance = 0;
+static ProgressInterface * progress_instance = nullptr;
 
 void ProgressInterface::setInstance(ProgressInterface* p)
 {
@@ -170,7 +169,7 @@ string const parsecmd(string const & incmd, string & infile, string & outfile,
 	bool in_single_quote = false;
 	bool in_double_quote = false;
 	bool escaped = false;
-	string const python_call = "python -tt";
+	string const python_call = os::python();
 	vector<string> outcmd(4);
 	size_t start = 0;
 
@@ -206,7 +205,7 @@ string const parsecmd(string const & incmd, string & infile, string & outfile,
 				in_double_quote = !in_double_quote;
 			}
 		} else if (c == '\\' && !escaped) {
-			escaped = !escaped;
+			escaped = true;
 		} else if (c == '>' && !(in_double_quote || escaped)) {
 			if (suffixIs(outcmd[o], " 2")) {
 				outcmd[o] = rtrim(outcmd[o], "2");
@@ -218,6 +217,21 @@ string const parsecmd(string const & incmd, string & infile, string & outfile,
 			}
 		} else if (c == '<' && !(in_double_quote || escaped)) {
 			o = 3;
+#if defined (USE_MACOSX_PACKAGING)
+		} else if (o == 0 && i > 4 && c == ' ' && !(in_double_quote || escaped)) {
+			// if a macOS app is detected with an additional argument
+			// use open command as prefix to get it work
+			const size_t apos = outcmd[o].rfind(".app");
+			const size_t len = outcmd[o].length();
+			const bool quoted = outcmd[o].at(len - 1) == '"' && outcmd[o].at(0) == '"';
+			const string & ocmd = "open -a ";
+			if (apos != string::npos &&
+				(apos == (len - 4) || (apos == (len - 5) && quoted)) &&
+				!prefixIs(trim(outcmd[o]), ocmd)) {
+				outcmd[o] = ocmd + outcmd[o];
+			}
+			outcmd[o] += c;
+#endif
 		} else {
 			if (escaped && in_double_quote)
 				outcmd[o] += '\\';
@@ -232,6 +246,12 @@ string const parsecmd(string const & incmd, string & infile, string & outfile,
 }
 
 } // namespace
+
+
+void Systemcall::killscript()
+{
+	SystemcallPrivate::kill_script = true;
+}
 
 
 int Systemcall::startscript(Starttype how, string const & what,
@@ -251,24 +271,34 @@ int Systemcall::startscript(Starttype how, string const & what,
 			parsecmd(what_ss, infile, outfile, errfile).c_str());
 
 	SystemcallPrivate d(infile, outfile, errfile);
+	bool do_events = process_events || how == WaitLoop;
 
 	d.startProcess(cmd, path, lpath, how == DontWait);
 	if (how == DontWait && d.state == SystemcallPrivate::Running)
-		return 0;
+		return OK;
 
 	if (d.state == SystemcallPrivate::Error
-			|| !d.waitWhile(SystemcallPrivate::Starting, process_events, -1)) {
-		LYXERR0("Systemcall: '" << cmd << "' did not start!");
-		LYXERR0("error " << d.errorMessage());
-		return 10;
+			|| !d.waitWhile(SystemcallPrivate::Starting, do_events, -1)) {
+		if (d.state == SystemcallPrivate::Error) {
+			LYXERR0("Systemcall: '" << cmd << "' did not start!");
+			LYXERR0("error " << d.errorMessage());
+			return NOSTART;
+		} else if (d.state == SystemcallPrivate::Killed) {
+			LYXERR0("Killed: " << cmd);
+			return KILLED;
+		}
 	}
 
-	if (!d.waitWhile(SystemcallPrivate::Running, process_events,
-			 os::timeout_min() * 60 * 1000)) {
+	if (!d.waitWhile(SystemcallPrivate::Running, do_events,
+			 os::timeout_ms())) {
+		if (d.state == SystemcallPrivate::Killed) {
+			LYXERR0("Killed: " << cmd);
+			return KILLED;
+		}
 		LYXERR0("Systemcall: '" << cmd << "' did not finish!");
 		LYXERR0("error " << d.errorMessage());
 		LYXERR0("status " << d.exitStatusMessage());
-		return 20;
+		return TIMEOUT;
 	}
 
 	int const exit_code = d.exitCode();
@@ -278,6 +308,9 @@ int Systemcall::startscript(Starttype how, string const & what,
 
 	return exit_code;
 }
+
+
+bool SystemcallPrivate::kill_script = false;
 
 
 SystemcallPrivate::SystemcallPrivate(std::string const & sf, std::string const & of,
@@ -350,6 +383,28 @@ void SystemcallPrivate::startProcess(QString const & cmd, string const & path,
                                      string const & lpath, bool detached)
 {
 	cmd_ = cmd;
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+	// FIXME pass command and arguments separated in the first place
+	/* The versions of startDetached() and start() that accept a
+	 * QStringList object exist since Qt4, but it is only in Qt 5.15
+	 * that splitCommand() was introduced and the plain versions of
+	 * start/startDetached() have been deprecated.
+	 * The cleanest solution would be to have parsecmd() produce a
+	 * QStringList for arguments, instead of transforming the string
+	 * into something that the QProcess splitter accepts.
+	 *
+	 * Another reason for doing that is that the Qt parser ignores
+	 * empty "" arguments, which are needed in some instances (see
+	 * e.g. the work around for modules in Converter:convert. See
+	 * QTBUG-80640 for a discussion.
+	*/
+	QStringList arguments = QProcess::splitCommand(toqstr(latexEnvCmdPrefix(path, lpath)) + cmd_);
+	QString command = (arguments.empty()) ? QString() : arguments.first();
+	if (arguments.size() == 1)
+		arguments.clear();
+	else if (!arguments.empty())
+		arguments.removeFirst();
+#endif
 	if (detached) {
 		state = SystemcallPrivate::Running;
 #ifdef Q_OS_WIN32
@@ -361,7 +416,11 @@ void SystemcallPrivate::startProcess(QString const & cmd, string const & path,
 		if (err_file_.empty())
 			process_->setStandardErrorFile(QProcess::nullDevice());
 #endif
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+		if (!QProcess::startDetached(command, arguments)) {
+#else
 		if (!QProcess::startDetached(toqstr(latexEnvCmdPrefix(path, lpath)) + cmd_)) {
+#endif
 			state = SystemcallPrivate::Error;
 			return;
 		}
@@ -369,23 +428,28 @@ void SystemcallPrivate::startProcess(QString const & cmd, string const & path,
 		delete released;
 	} else if (process_) {
 		state = SystemcallPrivate::Starting;
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
+		process_->start(command, arguments);
+#else
 		process_->start(toqstr(latexEnvCmdPrefix(path, lpath)) + cmd_);
+#endif
 	}
 }
 
 
-void SystemcallPrivate::processEvents()
-{
-	if (process_events_) {
-		QCoreApplication::processEvents(/*QEventLoop::ExcludeUserInputEvents*/);
-	}
-}
-
-
-void SystemcallPrivate::waitAndProcessEvents()
+bool SystemcallPrivate::waitAndCheck()
 {
 	Sleep::millisec(100);
-	processEvents();
+	if (kill_script) {
+		// is there a better place to reset this?
+		process_->kill();
+		state = Killed;
+		kill_script = false;
+		LYXERR0("Export Canceled!!");
+		return false;
+	}
+	QCoreApplication::processEvents(/*QEventLoop::ExcludeUserInputEvents*/);
+	return true;
 }
 
 
@@ -421,7 +485,7 @@ bool SystemcallPrivate::waitWhile(State waitwhile, bool process_events, int time
 			while (!timedout) {
 				if (process_->waitForFinished(timeout))
 					return true;
-				bool stop = queryStopCommand(cmd_);
+				bool const stop = queryStopCommand(cmd_);
 				// The command may have finished in the meantime
 				if (process_->state() == QProcess::NotRunning)
 					return true;
@@ -440,18 +504,23 @@ bool SystemcallPrivate::waitWhile(State waitwhile, bool process_events, int time
 	// process events while waiting, no timeout
 	if (timeout == -1) {
 		while (state == waitwhile && state != Error) {
-			waitAndProcessEvents();
+			// check for cancellation of background process
+			if (!waitAndCheck())
+				return false;
 		}
 		return state != Error;
 	}
 
 	// process events while waiting with timeout
-	QTime timer;
+	QElapsedTimer timer;
 	timer.start();
 	while (state == waitwhile && state != Error && !timedout) {
-		waitAndProcessEvents();
+		// check for cancellation of background process
+		if (!waitAndCheck())
+			return false;
+
 		if (timer.elapsed() > timeout) {
-			bool stop = queryStopCommand(cmd_);
+			bool const stop = queryStopCommand(cmd_);
 			// The command may have finished in the meantime
 			if (process_->state() == QProcess::NotRunning)
 				break;
@@ -615,7 +684,7 @@ int SystemcallPrivate::exitCode()
 QProcess* SystemcallPrivate::releaseProcess()
 {
 	QProcess* released = process_;
-	process_ = 0;
+	process_ = nullptr;
 	return released;
 }
 

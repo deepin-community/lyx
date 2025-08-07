@@ -2,35 +2,26 @@
 
 #include <iostream>
 #include <map>
-
-#include "support/regex.h"
+#include <regex>
 
 using namespace std;
 
 // Escape special chars.
 // All characters are literals except: '.|*?+(){}[]^$\'
 // These characters are literals when preceded by a "\", which is done here
-// This function is unfortunately copied from ../qt4/GuiCitation.cpp, so we
+// This function is unfortunately copied from ../qt/GuiCitation.cpp, so we
 // should try to make sure to keep the two in sync.
 string const escape_special_chars(string const & expr)
 {
 	// Search for all chars '.|*?+(){}[^$]\'
 	// Note that '[', ']', and '\' must be escaped.
-	lyx::regex reg("[.|*?+(){}^$\\[\\]\\\\]");
+	regex reg("[.|*?+(){}^$\\[\\]\\\\]");
 
 	// $& is a ECMAScript format expression that expands to all
 	// of the current match
-#ifdef LYX_USE_STD_REGEX
 	// To prefix a matched expression with a single literal backslash, we
 	// need to escape it for the C++ compiler and use:
-	return lyx::regex_replace(expr, reg, "\\$&");
-#else
-	// A backslash in the format string starts an escape sequence in boost.
-	// Thus, to prefix a matched expression with a single literal backslash,
-	// we need to give two backslashes to the regex engine, and escape both
-	// for the C++ compiler and use:
-	return lyx::regex_replace(expr, reg, "\\\\$&");
-#endif
+	return regex_replace(expr, reg, "\\$&");
 }
 
 
@@ -40,7 +31,7 @@ typedef map<string, string> InfoMap;
 // data entry matches the required regex_
 // This class is unfortunately copied from ../frontend_helpers.cpp, so we should
 // try to make sure to keep the two in sync.
-class RegexMatch : public unary_function<string, bool>
+class RegexMatch
 {
 public:
 	// re is used to construct an instance of lyx::regex.
@@ -57,11 +48,11 @@ public:
 
 		// Attempts to find a match for the current RE
 		// somewhere in data.
-		return lyx::regex_search(data, regex_);
+		return regex_search(data, regex_);
 	}
 private:
 	InfoMap const map_;
-	mutable lyx::regex regex_;
+	mutable regex regex_;
 };
 
 
@@ -85,7 +76,7 @@ void test_RegexMatch()
 		cout << rm("hello") << endl;
 		cout << rm("hei") << endl;
 	}
-	catch (lyx::regex_error & regerr) {
+	catch (regex_error & regerr) {
 		cout << regerr.what() << endl;
 	}
 }

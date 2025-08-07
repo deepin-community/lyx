@@ -28,12 +28,13 @@ using namespace std;
 namespace lyx {
 
 InsetMathBrace::InsetMathBrace(Buffer * buf)
-	: InsetMathNest(buf, 1)
+	: InsetMathNest(buf, 1), current_mode_(UNDECIDED_MODE)
 {}
 
 
-InsetMathBrace::InsetMathBrace(MathData const & ar)
-	: InsetMathNest(const_cast<Buffer *>(ar.buffer()), 1)
+InsetMathBrace::InsetMathBrace(Buffer * buf, MathData const & ar)
+	: InsetMathNest(buf, 1),
+	  current_mode_(UNDECIDED_MODE)
 {
 	cell(0) = ar;
 }
@@ -47,10 +48,11 @@ Inset * InsetMathBrace::clone() const
 
 void InsetMathBrace::metrics(MetricsInfo & mi, Dimension & dim) const
 {
+	current_mode_ = isTextFont(mi.base.fontname) ? TEXT_MODE : MATH_MODE;
 	Dimension dim0;
 	cell(0).metrics(mi, dim0);
 	FontInfo font = mi.base.font;
-	augmentFont(font, "mathnormal");
+	augmentFont(font, current_mode_ == MATH_MODE ? "mathnormal" : "text");
 	Dimension t = theFontMetrics(font).dimension('{');
 	dim.asc = max(dim0.asc, t.asc);
 	dim.des = max(dim0.des, t.des);
@@ -60,8 +62,9 @@ void InsetMathBrace::metrics(MetricsInfo & mi, Dimension & dim) const
 
 void InsetMathBrace::draw(PainterInfo & pi, int x, int y) const
 {
+	current_mode_ = isTextFont(pi.base.fontname) ? TEXT_MODE : MATH_MODE;
 	FontInfo font = pi.base.font;
-	augmentFont(font, "mathnormal");
+	augmentFont(font, current_mode_ == MATH_MODE ? "mathnormal" : "text");
 	font.setShape(UP_SHAPE);
 	font.setColor(Color_latex);
 	Dimension t = theFontMetrics(font).dimension('{');
@@ -72,7 +75,7 @@ void InsetMathBrace::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-void InsetMathBrace::write(WriteStream & os) const
+void InsetMathBrace::write(TeXMathStream & os) const
 {
 	os << '{' << cell(0) << '}';
 }
@@ -96,9 +99,9 @@ void InsetMathBrace::octave(OctaveStream & os) const
 }
 
 
-void InsetMathBrace::mathmlize(MathStream & os) const
+void InsetMathBrace::mathmlize(MathMLStream & ms) const
 {
-	os << MTag("mrow") << cell(0) << ETag("mrow");
+	ms << MTag("mrow") << cell(0) << ETag("mrow");
 }
 
 

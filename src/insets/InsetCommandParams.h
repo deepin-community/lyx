@@ -6,7 +6,7 @@
  *
  * \author Angus Leeming
  * \author Georg Baum
- * \author Richard Heck
+ * \author Richard Kimberly Heck
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -15,8 +15,6 @@
 #define INSETCOMMANDPARAMS_H
 
 #include "InsetCode.h"
-
-#include "OutputParams.h"
 
 #include "support/docstring.h"
 
@@ -27,8 +25,9 @@
 
 namespace lyx {
 
-class Lexer;
 class Buffer;
+class Lexer;
+class OutputParams;
 
 class ParamInfo {
 public:
@@ -88,10 +87,10 @@ public:
 	};
 
 	/// adds a new parameter
-	/// If ignore is true, then the parameter is never saved, and is always
+	/// If ignoreval is true, then the parameter is never saved, and is always
 	/// given the default value.
 	void add(std::string const & name, ParamType type,
-	         ParamHandling = HANDLING_NONE, bool ignore = false,
+	         ParamHandling = HANDLING_NONE, bool ignoreval = false,
 	         docstring default_value = docstring());
 	///
 	bool empty() const { return info_.empty(); }
@@ -137,7 +136,7 @@ public:
 	///
 	void Write(std::ostream & os, Buffer const * buf) const;
 	/// Build the complete LaTeX command
-	docstring getCommand(OutputParams const &) const;
+	docstring getCommand(OutputParams const &, bool starred = false, bool unhandled = false) const;
 	/// Return the command name
 	std::string const & getCmdName() const { return cmdName_; }
 	/// Set the name to \p n. This must be a known name. All parameters
@@ -147,6 +146,10 @@ public:
 	/// FIXME Would be better removed, but is used in BufferView.cpp in
 	/// ways that make removal hard.
 	docstring getFirstNonOptParam() const;
+	/// Determine whether a parameter is set
+	bool hasParam(std::string const & name) const;
+	/// Get the parameter \p name if it is set, \p defaultValue otherwise
+	docstring const & getParamOr(std::string const & name, docstring const & defaultValue) const;
 	/// get parameter \p name
 	/// LyX will assert if name is not a valid parameter.
 	docstring const & operator[](std::string const & name) const;

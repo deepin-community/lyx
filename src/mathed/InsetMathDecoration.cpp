@@ -13,12 +13,14 @@
 
 #include "InsetMathDecoration.h"
 
+#include "InsetMathChar.h"
 #include "MathData.h"
 #include "MathParser.h"
 #include "MathSupport.h"
 #include "MathStream.h"
 #include "MetricsInfo.h"
 
+#include "BufferView.h"
 #include "LaTeXFeatures.h"
 
 #include "support/debug.h"
@@ -27,6 +29,7 @@
 #include "support/lassert.h"
 #include "support/lstrings.h"
 
+#include <algorithm>
 #include <ostream>
 
 using namespace lyx::support;
@@ -37,7 +40,7 @@ namespace lyx {
 
 
 InsetMathDecoration::InsetMathDecoration(Buffer * buf, latexkeys const * key)
-	: InsetMathNest(buf, 1), key_(key), dh_(0), dy_(0), dw_(0)
+	: InsetMathNest(buf, 1), key_(key), outer_mode_(UNDECIDED_MODE)
 {
 //	lyxerr << " creating deco " << key->name << endl;
 }
@@ -51,7 +54,11 @@ Inset * InsetMathDecoration::clone() const
 
 bool InsetMathDecoration::upper() const
 {
-	return key_->name.substr(0, 5) != "under" && key_->name != "utilde";
+	return key_->name.substr(0, 5) != "under" &&
+	       key_->name != "utilde" &&
+	       key_->name != "uline" &&
+	       key_->name != "uuline" &&
+	       key_->name != "uwave";
 }
 
 
@@ -63,9 +70,12 @@ MathClass InsetMathDecoration::mathClass() const
 }
 
 
-bool InsetMathDecoration::isScriptable() const
+Limits InsetMathDecoration::defaultLimits(bool /*display*/) const
 {
-	return mathClass() == MC_OP;
+	if (allowsLimitsChange())
+		return LIMITS;
+	else
+		return NO_LIMITS;
 }
 
 
@@ -88,6 +98,9 @@ bool InsetMathDecoration::wide() const
 	return
 			key_->name == "overline" ||
 			key_->name == "underline" ||
+			key_->name == "uline" ||
+			key_->name == "uuline" ||
+			key_->name == "uwave" ||
 			key_->name == "overbrace" ||
 			key_->name == "underbrace" ||
 			key_->name == "overleftarrow" ||
@@ -105,57 +118,91 @@ bool InsetMathDecoration::wide() const
 
 InsetMath::mode_type InsetMathDecoration::currentMode() const
 {
-	return key_->name == "underbar" ? TEXT_MODE : MATH_MODE;
+	if (key_->name == "underbar")
+		return TEXT_MODE;
+
+	if (key_->name == "uline" || key_->name == "uuline" ||
+	    key_->name == "uwave")
+		return outer_mode_;
+
+	return MATH_MODE;
 }
 
 
 void InsetMathDecoration::metrics(MetricsInfo & mi, Dimension & dim) const
 {
+	outer_mode_ = isTextFont(mi.base.fontname) ? TEXT_MODE : MATH_MODE;
+
 	Changer dummy = mi.base.changeEnsureMath(currentMode());
 
 	cell(0).metrics(mi, dim);
 
-	dh_  = 6; //mathed_char_height(LM_TC_VAR, mi, 'I', ascent_, descent_);
-	dw_  = 6; //mathed_char_width(LM_TC_VAR, mi, 'x');
+	int const l1 = mi.base.bv->zoomedPixels(1);
+	int const l2 = mathed_char_width(mi.base.font, 'x') - l1;
+	int const l3 = l2;
+
+	dh_  = l2; //mathed_char_height(LM_TC_VAR, mi, 'I', ascent_, descent_);
+	dw_  = l3; //mathed_char_width(LM_TC_VAR, mi, 'x');
 
 	if (upper()) {
-		dy_ = -dim.asc - dh_;
-		dim.asc += dh_ + 1;
+		dy_ = -dim.asc - dh_ - l1;
+		dim.asc += dh_ + l1;
 	} else {
-		dy_ = dim.des + 1;
-		dim.des += dh_ + 2;
+		dy_ = dim.des + l1;
+		dim.des += dh_ + l2;
 	}
 }
 
 
 void InsetMathDecoration::draw(PainterInfo & pi, int x, int y) const
 {
+	outer_mode_ = isTextFont(pi.base.fontname) ? TEXT_MODE : MATH_MODE;
+
 	Changer dummy = pi.base.changeEnsureMath(currentMode());
 
 	cell(0).draw(pi, x, y);
 	Dimension const & dim0 = cell(0).dimension(*pi.base.bv);
-	if (wide())
-		mathed_draw_deco(pi, x + 1, y + dy_, dim0.wid, dh_, key_->name);
-	else
-		mathed_draw_deco(pi, x + 1 + (dim0.wid - dw_) / 2,
-			y + dy_, dw_, dh_, key_->name);
+	if (wide()) {
+		mathed_draw_deco(pi, x, y + dy_, dim0.wid, dh_, key_->name);
+		return;
+	}
+	// Lacking the necessary font parameters, in order to properly align
+	// the decoration we have to resort to heuristics for choosing a
+	// suitable value for shift
+	char_type c = (cell(0).empty() || !cell(0)[0]->asCharInset())
+		? 0 : cell(0)[0]->asCharInset()->getChar();
+	double slope = (c == 0) ? 0.0 : mathed_char_slope(pi.base, c);
+	int kerning = (c == 0) ? 0 : mathed_char_kerning(pi.base.font, c);
+	int shift = (kerning == 0) ? int(dim0.asc * slope) : kerning;
+	mathed_draw_deco(pi, x + (dim0.wid - dw_) / 2 + shift,
+	                 y + dy_, dw_, dh_, key_->name);
 }
 
 
-void InsetMathDecoration::write(WriteStream & os) const
+void InsetMathDecoration::write(TeXMathStream & os) const
 {
-	MathEnsurer ensurer(os);
+	bool needs_mathmode = currentMode() == MATH_MODE;
+	bool textmode_macro = currentMode() == TEXT_MODE
+	                      && key_->extra != "everymode";
+	MathEnsurer ensurer(os, needs_mathmode, true, textmode_macro);
 	if (os.fragile() && protect())
 		os << "\\protect";
 	os << '\\' << key_->name << '{';
 	ModeSpecifier specifier(os, currentMode());
 	os << cell(0) << '}';
+	writeLimits(os);
 }
 
 
 void InsetMathDecoration::normalize(NormalStream & os) const
 {
 	os << "[deco " << key_->name << ' ' <<  cell(0) << ']';
+}
+
+
+docstring InsetMathDecoration::name() const
+{
+	return key_->name;
 }
 
 
@@ -168,45 +215,48 @@ void InsetMathDecoration::infoize(odocstream & os) const
 namespace {
 	struct Attributes {
 		Attributes() : over(false) {}
-		Attributes(bool o, string t)
-			: over(o), tag(t) {}
+		Attributes(bool o, string const & entity)
+			: over(o), entity(entity) {}
 		bool over;
-		string tag;
+		string entity;
 	};
 
 	typedef map<string, Attributes> TranslationMap;
 
 	void buildTranslationMap(TranslationMap & t) {
 		// the decorations we need to support are listed in lib/symbols
-		t["acute"] = Attributes(true, "&acute;");
-		t["bar"]   = Attributes(true, "&OverBar;");
-		t["breve"] = Attributes(true, "&breve;");
-		t["check"] = Attributes(true, "&caron;");
-		t["ddddot"] = Attributes(true, "&DotDot;");
-		t["dddot"] = Attributes(true, "&TripleDot;");
-		t["ddot"] = Attributes(true, "&Dot;");
-		t["dot"] = Attributes(true, "&dot;");
-		t["grave"] = Attributes(true, "&grave;");
-		t["hat"] = Attributes(true, "&circ;");
-		t["mathring"] = Attributes(true, "&ring;");
-		t["overbrace"] = Attributes(true, "&OverBrace;");
-		t["overleftarrow"] = Attributes(true, "&xlarr;");
-		t["overleftrightarrow"] = Attributes(true, "&xharr;");
-		t["overline"] = Attributes(true, "&macr;");
-		t["overrightarrow"] = Attributes(true, "&xrarr;");
-		t["tilde"] = Attributes(true, "&tilde;");
-		t["underbar"] = Attributes(false, "&UnderBar;");
-		t["underbrace"] = Attributes(false, "&UnderBrace;");
-		t["underleftarrow"] = Attributes(false, "&xlarr;");
-		t["underleftrightarrow"] = Attributes(false, "&xharr;");
+		t["acute"] = Attributes(true, "&#x00B4;");
+		t["bar"]   = Attributes(true, "&#x00AF;");
+		t["breve"] = Attributes(true, "&#x02D8;");
+		t["check"] = Attributes(true, "&#x02C7;");
+		t["ddddot"] = Attributes(true, "&#x20DC;");
+		t["dddot"] = Attributes(true, "&#x20DB;");
+		t["ddot"] = Attributes(true, "&#x00A8;");
+		t["dot"] = Attributes(true, "&#x02D9;");
+		t["grave"] = Attributes(true, "&#x0060;");
+		t["hat"] = Attributes(true, "&#x02C6;");
+		t["mathring"] = Attributes(true, "&#x02DA;");
+		t["overbrace"] = Attributes(true, "&#x23DE;");
+		t["overleftarrow"] = Attributes(true, "&#x27F5;");
+		t["overleftrightarrow"] = Attributes(true, "&#x27F7;");
+		t["overline"] = Attributes(true, "&#x00AF;");
+		t["overrightarrow"] = Attributes(true, "&#x27F6;");
+		t["tilde"] = Attributes(true, "&#x02DC;");
+		t["uline"] = Attributes(false, "&#x00AF;");
+		t["underbar"] = Attributes(false, "&#x0332;");
+		t["underbrace"] = Attributes(false, "&#x23DF;");
+		t["underleftarrow"] = Attributes(false, "&#x27F5;");
+		t["underleftrightarrow"] = Attributes(false, "&#x27F7;");
 		// this is the macron, again, but it works
-		t["underline"] = Attributes(false, "&macr;");
-		t["underrightarrow"] = Attributes(false, "&xrarr;");
-		t["undertilde"] = Attributes(false, "&Tilde;");
-		t["utilde"] = Attributes(false, "&Tilde;");
-		t["vec"] = Attributes(true, "&rarr;");
-		t["widehat"] = Attributes(true, "&Hat;");
-		t["widetilde"] = Attributes(true, "&Tilde;");
+		t["underline"] = Attributes(false, "&#x00AF;");
+		t["underrightarrow"] = Attributes(false, "&#x27F6;");
+		t["undertilde"] = Attributes(false, "&#x223C;");
+		t["utilde"] = Attributes(false, "&#x223C;");
+		t["uuline"] = Attributes(false, "&#x2017;");
+		t["uwave"] = Attributes(false, "&#x223C;");
+		t["vec"] = Attributes(true, "&#x2192;");
+		t["widehat"] = Attributes(true, "&#x005E;");
+		t["widetilde"] = Attributes(true, "&#x223C;");
 	}
 
 	TranslationMap const & translationMap() {
@@ -217,16 +267,19 @@ namespace {
 	}
 } // namespace
 
-void InsetMathDecoration::mathmlize(MathStream & os) const
+void InsetMathDecoration::mathmlize(MathMLStream & ms) const
 {
 	TranslationMap const & t = translationMap();
 	TranslationMap::const_iterator cur = t.find(to_utf8(key_->name));
 	LASSERT(cur != t.end(), return);
 	char const * const outag = cur->second.over ? "mover" : "munder";
-	os << MTag(outag)
-		 << MTag("mrow") << cell(0) << ETag("mrow")
-		 << from_ascii("<mo stretchy=\"true\">" + cur->second.tag + "</mo>")
-		 << ETag(outag);
+	std::string decoration = cur->second.entity;
+	ms << MTag(outag)
+	   << cell(0)
+	   << MTagInline("mo", "stretchy='true'")
+	   << from_ascii(decoration)
+	   << ETagInline("mo")
+	   << ETag(outag);
 }
 
 
@@ -238,7 +291,8 @@ void InsetMathDecoration::htmlize(HtmlStream & os) const
 		return;
 	}
 
-	if (name == "underbar" || name == "underline") {
+	if (name == "underbar" || name == "underline" || name == "uline"
+	    || name == "uuline" || name == "uwave") {
 		os << MTag("span", "class='underbar'") << cell(0) << ETag("span");
 		return;
 	}
@@ -253,14 +307,14 @@ void InsetMathDecoration::htmlize(HtmlStream & os) const
 	   << '\n';
 
 	if (symontop)
-		os << MTag("span", "class='symbol'") << from_ascii(cur->second.tag);
+		os << MTag("span", "class='symbol'") << from_ascii(cur->second.entity);
 	else
 		os << MTag("span", "class='base'") << cell(0);
 	os << ETag("span") << '\n';
 	if (symontop)
 		os << MTag("span", "class='base'") << cell(0);
 	else
-		os << MTag("span", "class='symbol'") << from_ascii(cur->second.tag);
+		os << MTag("span", "class='symbol'") << from_ascii(cur->second.entity);
 	os << ETag("span") << '\n' << ETag("span") << '\n';
 }
 
@@ -272,7 +326,8 @@ void InsetMathDecoration::validate(LaTeXFeatures & features) const
 		string const name = to_utf8(key_->name);
 		if (name == "bar") {
 			features.addCSSSnippet("span.overbar{border-top: thin black solid;}");
-		} else if (name == "underbar" || name == "underline") {
+		} else if (name == "underbar" || name == "underline" ||
+		           name == "uline" || name == "uuline" || name == "uwave") {
 			features.addCSSSnippet("span.underbar{border-bottom: thin black solid;}");
 		} else {
 			features.addCSSSnippet(
@@ -283,8 +338,8 @@ void InsetMathDecoration::validate(LaTeXFeatures & features) const
 				"span.symbol{height: 0.5ex;}");
 		}
 	} else {
-		if (!key_->requires.empty())
-			features.require(key_->requires);
+		if (!key_->required.empty())
+			features.require(key_->required);
 	}
 	InsetMathNest::validate(features);
 }

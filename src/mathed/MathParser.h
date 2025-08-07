@@ -52,12 +52,15 @@ public:
 	 * on screen.
 	 */
 	docstring draw;
+	/// the same thing, but as an alternative in display mode
+	// Useful for \sum operator, for example
+	docstring dsp_draw;
 	/// operator/..., fontname e
 	docstring extra;
 	/// how is this called as XML entity in MathML?
 	docstring xmlname;
 	/// required LaTeXFeatures
-	std::string requires;
+	std::string required;
 	/// Should this macro be hidden from autocompletion (since it requires
 	/// user preamble code)?
 	bool hidden;

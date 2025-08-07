@@ -13,40 +13,55 @@
 #ifndef MATH_ENSUREMATHINSET_H
 #define MATH_ENSUREMATHINSET_H
 
-#include "InsetMathNest.h"
+#include "InsetMathGrid.h"
 
 
 namespace lyx {
 
 
 /// Inset for ensuring math mode
-class InsetMathEnsureMath : public InsetMathNest {
+class InsetMathEnsureMath : public InsetMathGrid {
 public:
-	InsetMathEnsureMath(Buffer * buf);
+	explicit InsetMathEnsureMath(Buffer * buf);
 	///
-	mode_type currentMode() const { return MATH_MODE; }
+	mode_type currentMode() const override { return MATH_MODE; }
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	void metricsT(TextMetricsInfo const & mi, Dimension & dim) const;
+	void metricsT(TextMetricsInfo const & mi, Dimension & dim) const override;
 	///
-	void drawT(TextPainter & pi, int x, int y) const;
+	void drawT(TextPainter & pi, int x, int y) const override;
 	///
-	void write(WriteStream & os) const;
+	void addRow(row_type) override {}
 	///
-	void mathmlize(MathStream &) const;
+	void delRow(row_type) override {}
 	///
-	void htmlize(HtmlStream &) const;
+	void swapRow(row_type) override {}
 	///
-	void infoize(odocstream & os) const;
+	void addCol(col_type) override {}
 	///
-	void validate(LaTeXFeatures & features) const;
+	void delCol(col_type) override {}
 	///
-	InsetCode lyxCode() const { return MATH_ENSUREMATH_CODE; }
+	void eol(TeXMathStream &, row_type, bool, bool, bool) const override {}
+	///
+	docstring eocString(col_type, col_type) const override
+	{ return docstring(); }
+	///
+	void write(TeXMathStream & os) const override;
+	///
+	void mathmlize(MathMLStream &) const override;
+	///
+	void htmlize(HtmlStream &) const override;
+	///
+	void infoize(odocstream & os) const override;
+	///
+	void validate(LaTeXFeatures & features) const override;
+	///
+	InsetCode lyxCode() const override { return MATH_ENSUREMATH_CODE; }
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 };
 
 

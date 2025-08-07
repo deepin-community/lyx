@@ -22,18 +22,18 @@
 #include "FuncStatus.h"
 #include "Language.h"
 #include "LaTeXFeatures.h"
-#include "Length.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
-#include "output_xhtml.h"
 #include "texstream.h"
+#include "xml.h"
 
 #include "support/debug.h"
 #include "support/docstream.h"
 #include "support/gettext.h"
 #include "support/lassert.h"
+#include "support/Length.h"
 #include "support/lstrings.h"
+#include "support/qstring_helpers.h"
 
 #include "frontends/Application.h"
 #include "frontends/FontMetrics.h"
@@ -45,7 +45,7 @@ namespace lyx {
 
 
 InsetSpace::InsetSpace(InsetSpaceParams const & params)
-	: Inset(0), params_(params)
+	: Inset(nullptr), params_(params)
 {}
 
 
@@ -66,77 +66,77 @@ docstring InsetSpace::toolTip(BufferView const &, int, int) const
 	docstring message;
 	switch (params_.kind) {
 	case InsetSpaceParams::NORMAL:
-		message = _("Interword Space");
+		message = _("Normal Space");
 		break;
 	case InsetSpaceParams::PROTECTED:
-		message = _("Protected Space");
+		message = _("Non-Breaking Normal Space");
 		break;
 	case InsetSpaceParams::VISIBLE:
-		message = _("Visible Space");
+		message = _("Non-Breaking Visible Normal Space");
 		break;
 	case InsetSpaceParams::THIN:
-		message = _("Thin Space");
+		message = _("Non-Breaking Thin Space (1/6 em)");
 		break;
 	case InsetSpaceParams::MEDIUM:
-		message = _("Medium Space");
+		message = _("Non-Breaking Medium Space (2/9 em)");
 		break;
 	case InsetSpaceParams::THICK:
-		message = _("Thick Space");
+		message = _("Non-Breaking Thick Space (5/18 em)");
 		break;
 	case InsetSpaceParams::QUAD:
-		message = _("Quad Space");
+		message = _("Quad Space (1 em)");
 		break;
 	case InsetSpaceParams::QQUAD:
-		message = _("Double Quad Space");
+		message = _("Double Quad Space (2 em)");
 		break;
 	case InsetSpaceParams::ENSPACE:
-		message = _("Enspace");
+		message = _("Non-Breaking Half Quad Space (1/2 em)");
 		break;
 	case InsetSpaceParams::ENSKIP:
-		message = _("Enskip");
+		message = _("Half Quad Space (1/2 em)");
 		break;
 	case InsetSpaceParams::NEGTHIN:
-		message = _("Negative Thin Space");
+		message = _("Non-Breaking Negative Thin Space (-1/6 em)");
 		break;
 	case InsetSpaceParams::NEGMEDIUM:
-		message = _("Negative Medium Space");
+		message = _("Non-Breaking Negative Medium Space (-2/9 em)");
 		break;
 	case InsetSpaceParams::NEGTHICK:
-		message = _("Negative Thick Space");
+		message = _("Non-Breaking Negative Thick Space (-5/18 em)");
 		break;
 	case InsetSpaceParams::HFILL:
 		message = _("Horizontal Fill");
 		break;
 	case InsetSpaceParams::HFILL_PROTECTED:
-		message = _("Protected Horizontal Fill");
+		message = _("Non-Breaking Horizontal Fill");
 		break;
 	case InsetSpaceParams::DOTFILL:
-		message = _("Horizontal Fill (Dots)");
+		message = _("Non-Breaking Horizontal Fill (Dots)");
 		break;
 	case InsetSpaceParams::HRULEFILL:
-		message = _("Horizontal Fill (Rule)");
+		message = _("Non-Breaking Horizontal Fill (Rule)");
 		break;
 	case InsetSpaceParams::LEFTARROWFILL:
-		message = _("Horizontal Fill (Left Arrow)");
+		message = _("Non-Breaking Horizontal Fill (Left Arrow)");
 		break;
 	case InsetSpaceParams::RIGHTARROWFILL:
-		message = _("Horizontal Fill (Right Arrow)");
+		message = _("Non-Breaking Horizontal Fill (Right Arrow)");
 		break;
 	case InsetSpaceParams::UPBRACEFILL:
-		message = _("Horizontal Fill (Up Brace)");
+		message = _("Non-Breaking Horizontal Fill (Up Brace)");
 		break;
 	case InsetSpaceParams::DOWNBRACEFILL:
-		message = _("Horizontal Fill (Down Brace)");
+		message = _("Non-Breaking Horizontal Fill (Down Brace)");
 		break;
 	case InsetSpaceParams::CUSTOM:
 		// FIXME unicode
 		message = support::bformat(_("Horizontal Space (%1$s)"),
-				from_ascii(params_.length.asString()));
+					   locLengthDocString(from_ascii(params_.length.asString())));
 		break;
 	case InsetSpaceParams::CUSTOM_PROTECTED:
 		// FIXME unicode
-		message = support::bformat(_("Protected Horizontal Space (%1$s)"),
-				from_ascii(params_.length.asString()));
+		message = support::bformat(_("Non-Breaking Horizontal Space (%1$s)"),
+					   locLengthDocString(from_ascii(params_.length.asString())));
 		break;
 	}
 	return message;
@@ -193,6 +193,41 @@ bool InsetSpace::getStatus(Cursor & cur, FuncRequest const & cmd,
 }
 
 
+int InsetSpace::rowFlags() const
+{
+	switch (params_.kind) {
+		case InsetSpaceParams::PROTECTED:
+		case InsetSpaceParams::CUSTOM_PROTECTED:
+		case InsetSpaceParams::HFILL_PROTECTED:
+		case InsetSpaceParams::THIN:
+		case InsetSpaceParams::NEGTHIN:
+		case InsetSpaceParams::MEDIUM:
+		case InsetSpaceParams::NEGMEDIUM:
+		case InsetSpaceParams::THICK:
+		case InsetSpaceParams::NEGTHICK:
+		case InsetSpaceParams::ENSPACE:
+		case InsetSpaceParams::VISIBLE:
+			// no break after these
+			return Inline;
+		case InsetSpaceParams::NORMAL:
+		case InsetSpaceParams::QUAD:
+		case InsetSpaceParams::QQUAD:
+		case InsetSpaceParams::ENSKIP:
+		case InsetSpaceParams::CUSTOM:
+		case InsetSpaceParams::HFILL:
+		case InsetSpaceParams::DOTFILL:
+		case InsetSpaceParams::HRULEFILL:
+		case InsetSpaceParams::LEFTARROWFILL:
+		case InsetSpaceParams::RIGHTARROWFILL:
+		case InsetSpaceParams::UPBRACEFILL:
+		case InsetSpaceParams::DOWNBRACEFILL:
+			// these allow line breaking
+			break;
+	}
+	return CanBreakAfter;
+}
+
+
 namespace {
 int const arrow_size = 8;
 }
@@ -202,7 +237,7 @@ void InsetSpace::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	if (isHfill()) {
 		// The width for hfills is calculated externally in
-		// TextMetrics::computeRowMetrics. The value of 5 is the
+		// TextMetrics::setRowAlignment. The value of 5 is the
 		// minimal value when the hfill is not active.
 		dim = Dimension(5, 10, 10);
 		return;
@@ -243,8 +278,7 @@ void InsetSpace::metrics(MetricsInfo & mi, Dimension & dim) const
 			break;
 		case InsetSpaceParams::CUSTOM:
 		case InsetSpaceParams::CUSTOM_PROTECTED: {
-			int const w =
-				params_.length.len().inPixels(mi.base);
+			int const w = mi.base.inPixels(params_.length.len());
 			int const minw = (w < 0) ? 3 * arrow_size : 4;
 			dim.wid = max(minw, abs(w));
 			break;
@@ -353,7 +387,7 @@ void InsetSpace::draw(PainterInfo & pi, int x, int y) const
 	}
 
 	int const w = dim.wid;
-	int const h = theFontMetrics(pi.base.font).ascent('x');
+	int const h = theFontMetrics(pi.base.font).xHeight();
 	int xp[4], yp[4];
 
 	xp[0] = x;
@@ -361,20 +395,23 @@ void InsetSpace::draw(PainterInfo & pi, int x, int y) const
 	if (params_.kind == InsetSpaceParams::NORMAL ||
 	    params_.kind == InsetSpaceParams::PROTECTED ||
 	    params_.kind == InsetSpaceParams::VISIBLE) {
-		xp[1] = x;     yp[1] = y;
-		xp[2] = x + w; yp[2] = y;
+		xp[1] = x;         yp[1] = y;
+		xp[2] = x + w - 1; yp[2] = y;
 	} else {
-		xp[1] = x;     yp[1] = y + max(h / 4, 1);
-		xp[2] = x + w; yp[2] = y + max(h / 4, 1);
+		xp[1] = x;         yp[1] = y + max(h / 4, 1);
+		xp[2] = x + w - 1; yp[2] = y + max(h / 4, 1);
 	}
-	xp[3] = x + w;
+	xp[3] = x + w - 1;
 	yp[3] = y - max(h / 4, 1);
 
 	Color col = Color_special;
 	if (params_.kind == InsetSpaceParams::PROTECTED ||
 	    params_.kind == InsetSpaceParams::ENSPACE ||
+	    params_.kind == InsetSpaceParams::THIN ||
 	    params_.kind == InsetSpaceParams::NEGTHIN ||
+	    params_.kind == InsetSpaceParams::MEDIUM ||
 	    params_.kind == InsetSpaceParams::NEGMEDIUM ||
+	    params_.kind == InsetSpaceParams::THICK ||
 	    params_.kind == InsetSpaceParams::NEGTHICK ||
 	    params_.kind == InsetSpaceParams::CUSTOM_PROTECTED)
 		col = Color_latex;
@@ -479,9 +516,9 @@ void InsetSpaceParams::read(Lexer & lex)
 		kind = InsetSpaceParams::VISIBLE;
 	else if (command == "\\thinspace{}")
 		kind = InsetSpaceParams::THIN;
-	else if (math && command == "\\medspace{}")
+	else if (command == "\\medspace{}")
 		kind = InsetSpaceParams::MEDIUM;
-	else if (math && command == "\\thickspace{}")
+	else if (command == "\\thickspace{}")
 		kind = InsetSpaceParams::THICK;
 	else if (command == "\\quad{}")
 		kind = InsetSpaceParams::QUAD;
@@ -543,81 +580,119 @@ void InsetSpace::latex(otexstream & os, OutputParams const & runparams) const
 {
 	switch (params_.kind) {
 	case InsetSpaceParams::NORMAL:
-		os << (runparams.free_spacing ? " " : "\\ ");
+		if (runparams.find_effective())
+			os << "~";
+		else
+			os << (runparams.free_spacing ? " " : "\\ ");
 		break;
 	case InsetSpaceParams::PROTECTED:
-		if (runparams.local_font &&
-		    runparams.local_font->language()->lang() == "polutonikogreek")
+		if (runparams.find_effective())
+			os.put(0xa0);
+		else if (getLocalOrDefaultLang(runparams)->lang() == "polutonikogreek")
 			// in babel's polutonikogreek, ~ is active
 			os << (runparams.free_spacing ? " " : "\\nobreakspace{}");
 		else
 			os << (runparams.free_spacing ? ' ' : '~');
 		break;
 	case InsetSpaceParams::VISIBLE:
-		os << (runparams.free_spacing ? " " : "\\textvisiblespace{}");
+		if (runparams.find_effective())
+			os.put(0x2423);
+		else
+			os << (runparams.free_spacing ? " " : "\\textvisiblespace{}");
 		break;
 	case InsetSpaceParams::THIN:
-		os << (runparams.free_spacing ? " " : "\\,");
+		if (runparams.find_effective())
+			os.put(0x202f);
+		else
+			os << (runparams.free_spacing ? " " : "\\,");
 		break;
 	case InsetSpaceParams::MEDIUM:
-		os << (runparams.free_spacing ? " " : "\\:");
+		if (runparams.find_effective())
+			os.put(0x2005);
+		else if (params_.math)
+			os << (runparams.free_spacing ? " " : "\\:");
+		else
+			os << (runparams.free_spacing ? " " : "\\medspace{}");
 		break;
 	case InsetSpaceParams::THICK:
-		os << (runparams.free_spacing ? " " : "\\;");
+		if (runparams.find_effective())
+			os.put(0x2004);
+		else if (params_.math)
+			os << (runparams.free_spacing ? " " : "\\;");
+		else
+			os << (runparams.free_spacing ? " " : "\\thickspace{}");
 		break;
 	case InsetSpaceParams::QUAD:
-		os << (runparams.free_spacing ? " " : "\\quad{}");
+		if (runparams.find_effective())
+			os.put(0x2003);
+		else
+			os << (runparams.free_spacing ? " " : "\\quad{}");
 		break;
 	case InsetSpaceParams::QQUAD:
-		os << (runparams.free_spacing ? " " : "\\qquad{}");
+		if (runparams.find_effective()) {
+			os.put(0x2003);
+			os.put(0x2003);
+		}
+		else
+			os << (runparams.free_spacing ? " " : "\\qquad{}");
 		break;
 	case InsetSpaceParams::ENSPACE:
-		os << (runparams.free_spacing ? " " : "\\enspace{}");
+		if (runparams.find_effective())
+			os.put(0x2002);
+		else
+			os << (runparams.free_spacing ? " " : "\\enspace{}");
 		break;
 	case InsetSpaceParams::ENSKIP:
-		os << (runparams.free_spacing ? " " : "\\enskip{}");
+		if (runparams.find_effective())
+			os.put(0x2002);
+		else
+			os << (runparams.free_spacing ? " " : "\\enskip{}");
 		break;
 	case InsetSpaceParams::NEGTHIN:
-		os << (runparams.free_spacing ? " " : "\\negthinspace{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\negthinspace{}");
 		break;
 	case InsetSpaceParams::NEGMEDIUM:
-		os << (runparams.free_spacing ? " " : "\\negmedspace{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\negmedspace{}");
 		break;
 	case InsetSpaceParams::NEGTHICK:
-		os << (runparams.free_spacing ? " " : "\\negthickspace{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\negthickspace{}");
 		break;
 	case InsetSpaceParams::HFILL:
-		os << (runparams.free_spacing ? " " : "\\hfill{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\hfill{}");
 		break;
 	case InsetSpaceParams::HFILL_PROTECTED:
-		os << (runparams.free_spacing ? " " : "\\hspace*{\\fill}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\hspace*{\\fill}");
 		break;
 	case InsetSpaceParams::DOTFILL:
-		os << (runparams.free_spacing ? " " : "\\dotfill{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\dotfill{}");
 		break;
 	case InsetSpaceParams::HRULEFILL:
-		os << (runparams.free_spacing ? " " : "\\hrulefill{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\hrulefill{}");
 		break;
 	case InsetSpaceParams::LEFTARROWFILL:
-		os << (runparams.free_spacing ? " " : "\\leftarrowfill{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\leftarrowfill{}");
 		break;
 	case InsetSpaceParams::RIGHTARROWFILL:
-		os << (runparams.free_spacing ? " " : "\\rightarrowfill{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\rightarrowfill{}");
 		break;
 	case InsetSpaceParams::UPBRACEFILL:
-		os << (runparams.free_spacing ? " " : "\\upbracefill{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\upbracefill{}");
 		break;
 	case InsetSpaceParams::DOWNBRACEFILL:
-		os << (runparams.free_spacing ? " " : "\\downbracefill{}");
+		os << (runparams.free_spacing && runparams.find_effective() ? " " : "\\downbracefill{}");
 		break;
 	case InsetSpaceParams::CUSTOM:
-		if (runparams.free_spacing)
+		if (runparams.find_effective())
+			os.put(0x00a0);
+		else if (runparams.free_spacing)
 			os << " ";
 		else
 			os << "\\hspace{" << from_ascii(params_.length.asLatexString()) << "}";
 		break;
 	case InsetSpaceParams::CUSTOM_PROTECTED:
-		if (runparams.free_spacing)
+		if (runparams.find_effective())
+			os.put(0x00a0);
+		else if (runparams.free_spacing)
 			os << " ";
 		else
 			os << "\\hspace*{" << from_ascii(params_.length.asLatexString()) << "}";
@@ -627,7 +702,7 @@ void InsetSpace::latex(otexstream & os, OutputParams const & runparams) const
 
 
 int InsetSpace::plaintext(odocstringstream & os,
-        OutputParams const &, size_t) const
+        OutputParams const & rp, size_t) const
 {
 	switch (params_.kind) {
 	case InsetSpaceParams::HFILL:
@@ -671,7 +746,11 @@ int InsetSpace::plaintext(odocstringstream & os,
 		os.put(0x2003);
 		return 2;
 	case InsetSpaceParams::THIN:
-		os.put(0x202f);
+		if (rp.find_effective())
+			// simple search
+			os << ' ';
+		else
+			os.put(0x202f);
 		return 1;
 	case InsetSpaceParams::MEDIUM:
 		os.put(0x200b); // ZERO WIDTH SPACE, makes the unbreakable medium space breakable
@@ -685,12 +764,21 @@ int InsetSpace::plaintext(odocstringstream & os,
 		return 1;
 	case InsetSpaceParams::PROTECTED:
 	case InsetSpaceParams::CUSTOM_PROTECTED:
-		os.put(0x00a0);
+		if (rp.find_effective())
+			// simple search
+			os << ' ';
+		else
+			os.put(0x00a0);
 		return 1;
 	case InsetSpaceParams::NEGTHIN:
 	case InsetSpaceParams::NEGMEDIUM:
 	case InsetSpaceParams::NEGTHICK:
-		return 0;
+		if (rp.find_effective()) {
+			os << ' ';
+			return 1;
+		}
+		else
+			return 0;
 	default:
 		os << ' ';
 		return 1;
@@ -698,140 +786,81 @@ int InsetSpace::plaintext(odocstringstream & os,
 }
 
 
-int InsetSpace::docbook(odocstream & os, OutputParams const &) const
-{
-	switch (params_.kind) {
+namespace {
+std::string spaceToXMLEntity(InsetSpaceParams::Kind kind) {
+	switch (kind) {
 	case InsetSpaceParams::NORMAL:
-		os << " ";
-		break;
+		return " ";
 	case InsetSpaceParams::QUAD:
-		os << "&emsp;";
-		break;
+		return "&#x2003;"; // HTML: &emsp;
 	case InsetSpaceParams::QQUAD:
-		os << "&emsp;&emsp;";
-		break;
+		return "&#x2003;&#x2003;"; // HTML: &emsp;&emsp;
 	case InsetSpaceParams::ENSKIP:
-		os << "&ensp;";
-		break;
-	case InsetSpaceParams::PROTECTED:
-		os << "&nbsp;";
-		break;
+		return "&#x2002;"; // HTML: &ensp;
 	case InsetSpaceParams::VISIBLE:
-		os << "&#x2423;";
-		break;
-	case InsetSpaceParams::ENSPACE:
-		os << "&#x2060;&ensp;&#x2060;";
-		break;
+		return "&#x2423;";
+	case InsetSpaceParams::ENSPACE: // HTML: &#x2060;&ensp;&#x2060; (word joiners)
+		return "&#x2060;&#x2002;&#x2060;";
 	case InsetSpaceParams::THIN:
-		os << "&thinsp;";
-		break;
+		return "&#x202F;"; // HTML: &thinspace;
 	case InsetSpaceParams::MEDIUM:
-		os << "&emsp14;";
-		break;
+		return "&#x2005;"; // HTML: &emsp14;
 	case InsetSpaceParams::THICK:
-		os << "&emsp13;";
-		break;
+		return "&#x2004;"; // HTML: &emsp13;
+	case InsetSpaceParams::PROTECTED:
 	case InsetSpaceParams::NEGTHIN:
 	case InsetSpaceParams::NEGMEDIUM:
 	case InsetSpaceParams::NEGTHICK:
-		// FIXME
-		os << "&nbsp;";
-		break;
+		return "&#xA0;"; // HTML: &nbsp;
+	case InsetSpaceParams::CUSTOM_PROTECTED:
+		// FIXME XHTML/DocBook
+		// Probably we could do some sort of blank span?
+		return "&#160;";
 	case InsetSpaceParams::HFILL:
 	case InsetSpaceParams::HFILL_PROTECTED:
-		os << '\n';
-		break;
 	case InsetSpaceParams::DOTFILL:
-		// FIXME
-		os << '\n';
-		break;
 	case InsetSpaceParams::HRULEFILL:
-		// FIXME
-		os << '\n';
-		break;
 	case InsetSpaceParams::LEFTARROWFILL:
 	case InsetSpaceParams::RIGHTARROWFILL:
 	case InsetSpaceParams::UPBRACEFILL:
 	case InsetSpaceParams::DOWNBRACEFILL:
 	case InsetSpaceParams::CUSTOM:
-	case InsetSpaceParams::CUSTOM_PROTECTED:
-		// FIXME
-		os << '\n';
-		break;
+		// FIXME XHTML/DocBook
+		// Can we do anything with those?
+		return "\n";
 	}
-	return 0;
+	return "";
+}
 }
 
 
-docstring InsetSpace::xhtml(XHTMLStream & xs, OutputParams const &) const
+void InsetSpace::docbook(XMLStream & xs, OutputParams const &) const
 {
-	string output;
-	switch (params_.kind) {
-	case InsetSpaceParams::NORMAL:
-		output = " ";
-		break;
-	case InsetSpaceParams::ENSKIP:
-		output ="&ensp;";
-		break;
-	case InsetSpaceParams::ENSPACE:
-		output ="&#x2060;&ensp;&#x2060;";
-		break;
-	case InsetSpaceParams::QQUAD:
-		output ="&emsp;&emsp;";
-		break;
-	case InsetSpaceParams::THICK:
-		output ="&#x2004;";
-		break;
-	case InsetSpaceParams::QUAD:
-		output ="&emsp;";
-		break;
-	case InsetSpaceParams::MEDIUM:
-		output ="&#x2005;";
-		break;
-	case InsetSpaceParams::THIN:
-		output ="&thinsp;";
-		break;
-	case InsetSpaceParams::PROTECTED:
-	case InsetSpaceParams::NEGTHIN:
-	case InsetSpaceParams::NEGMEDIUM:
-	case InsetSpaceParams::NEGTHICK:
-		output ="&nbsp;";
-		break;
-	// no XHTML entity, only unicode code for space character exists
-	case InsetSpaceParams::VISIBLE:
-		output ="&#x2423;";
-		break;
-	case InsetSpaceParams::HFILL:
-	case InsetSpaceParams::HFILL_PROTECTED:
-	case InsetSpaceParams::DOTFILL:
-	case InsetSpaceParams::HRULEFILL:
-	case InsetSpaceParams::LEFTARROWFILL:
-	case InsetSpaceParams::RIGHTARROWFILL:
-	case InsetSpaceParams::UPBRACEFILL:
-	case InsetSpaceParams::DOWNBRACEFILL:
-		// FIXME XHTML
-		// Can we do anything with those in HTML?
-		break;
-	case InsetSpaceParams::CUSTOM:
-		// FIXME XHTML
-		// Probably we could do some sort of blank span?
-		break;
-	case InsetSpaceParams::CUSTOM_PROTECTED:
-		// FIXME XHTML
-		// Probably we could do some sort of blank span?
-		output ="&nbsp;";
-		break;
-	}
-	// don't escape the entities!
-	xs << XHTMLStream::ESCAPE_NONE << from_ascii(output);
+	xs << XMLStream::ESCAPE_NONE << from_ascii(spaceToXMLEntity(params_.kind));
+}
+
+
+docstring InsetSpace::xhtml(XMLStream & xs, OutputParams const &) const
+{
+	xs << XMLStream::ESCAPE_NONE << from_ascii(spaceToXMLEntity(params_.kind));
 	return docstring();
 }
 
 
 void InsetSpace::validate(LaTeXFeatures & features) const
 {
-	if (params_.kind == InsetSpaceParams::NEGMEDIUM ||
-	    params_.kind == InsetSpaceParams::NEGTHICK)
+	if (features.isAvailableAtLeastFrom("LaTeX", 2020, 10))
+		// As of this version, the LaTeX kernel
+		// includes all spaces.
+		return;
+
+	// In earlier versions, we require amsmath
+	// for some text and math spaces
+	if ((params_.kind == InsetSpaceParams::NEGMEDIUM
+	     || params_.kind == InsetSpaceParams::NEGTHICK)
+	    || (!params_.math
+		&& (params_.kind == InsetSpaceParams::MEDIUM
+		    || params_.kind == InsetSpaceParams::THICK)))
 		features.require("amsmath");
 }
 

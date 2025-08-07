@@ -16,14 +16,17 @@
 #ifndef PARAGRAPH_H
 #define PARAGRAPH_H
 
-#include "FontEnums.h"
 #include "LayoutEnums.h"
 #include "SpellChecker.h"
 
 #include "support/strfwd.h"
 #include "support/types.h"
 
+#include "insets/InsetCode.h"
+#include "insets/InsetLayout.h"
+
 #include <set>
+#include <vector>
 
 namespace lyx {
 
@@ -31,27 +34,25 @@ class AuthorList;
 class Buffer;
 class BufferParams;
 class Change;
-class Counters;
 class Cursor;
-class CursorSlice;
 class DocIterator;
 class docstring_list;
 class DocumentClass;
 class Inset;
-class InsetBibitem;
 class LaTeXFeatures;
 class InsetList;
 class Language;
 class Layout;
 class Font;
-class MetricsInfo;
 class OutputParams;
-class PainterInfo;
 class ParagraphParameters;
 class TocBackend;
 class WordLangTuple;
-class XHTMLStream;
+class XMLStream;
 class otexstream;
+
+/// Inset identifier (above 0x10ffff, for ucs-4)
+char_type const META_INSET = 0x200001;
 
 class FontSpan {
 public:
@@ -126,7 +127,8 @@ enum AsStringParameter
 	AS_STR_INSETS = 2, ///< Go into insets.
 	AS_STR_NEWLINES = 4, ///< Get also newline characters.
 	AS_STR_SKIPDELETE = 8, ///< Skip deleted text in change tracking.
-	AS_STR_PLAINTEXT = 16 ///< Don't export formatting when descending into insets.
+	AS_STR_PLAINTEXT = 16, ///< Don't export formatting when descending into insets.
+	AS_STR_MATHED = 32 ///< Use a format suitable for mathed (eg. for InsetRef).
 };
 
 
@@ -153,10 +155,6 @@ public:
 	///
 	void addChangesToToc(DocIterator const & cdit, Buffer const & buf,
 	                     bool output_active, TocBackend & backend) const;
-	/// set the buffer flag if there are changes in the paragraph
-	void addChangesToBuffer(Buffer const & buf) const;
-	///
-	bool isChangeUpdateRequired() const;
 	///
 	Language const * getParLanguage(BufferParams const &) const;
 	///
@@ -200,30 +198,37 @@ public:
 	/// Can we drop the standard paragraph wrapper?
 	bool emptyTag() const;
 
-	/// Get the id of the paragraph, usefull for docbook
+	/// Get the id of the paragraph, useful for DocBook
 	std::string getID(Buffer const & buf, OutputParams const & runparams) const;
 
-	/// Output the first word of a paragraph, return the position where it left.
-	pos_type firstWordDocBook(odocstream & os, OutputParams const & runparams) const;
+	/// Return the string of the (first) \label (cross-referencing target)
+	/// in this paragraph, or an empty string
+	std::string getLabelForXRef() const;
 
 	/// Output the first word of a paragraph, return the position where it left.
-	pos_type firstWordLyXHTML(XHTMLStream & xs, OutputParams const & runparams) const;
+	pos_type firstWordDocBook(XMLStream & xs, OutputParams const & runparams) const;
 
-	/// Writes to stream the docbook representation
-	void simpleDocBookOnePar(Buffer const & buf,
-				 odocstream &,
-				 OutputParams const & runparams,
-				 Font const & outerfont,
-				 pos_type initial = 0) const;
+	/// Output the first word of a paragraph, return the position where it left.
+	pos_type firstWordLyXHTML(XMLStream & xs, OutputParams const & runparams) const;
+
+	/// Outputs to stream the DocBook representation, one element per paragraph.
+	std::tuple<std::vector<docstring>, std::vector<docstring>, std::vector<docstring>>
+	simpleDocBookOnePar(Buffer const & buf,
+							                   OutputParams const & runparams,
+							                   Font const & outerfont,
+							                   pos_type initial = 0,
+							                   bool is_last_par = false,
+							                   bool ignore_fonts = false) const;
+
 	/// \return any material that has had to be deferred until after the
 	/// paragraph has closed.
 	docstring simpleLyXHTMLOnePar(Buffer const & buf,
-				 XHTMLStream & xs,
-				 OutputParams const & runparams,
-				 Font const & outerfont,
-				 bool start_paragraph = true,
-				 bool close_paragraph = true,
-				 pos_type initial = 0) const;
+								  XMLStream & xs,
+								  OutputParams const & runparams,
+								  Font const & outerfont,
+								  bool start_paragraph = true,
+								  bool close_paragraph = true,
+								  pos_type initial = 0) const;
 
 	///
 	bool hasSameLayout(Paragraph const & par) const;
@@ -241,6 +246,12 @@ public:
 	bool usePlainLayout() const;
 	///
 	bool isPassThru() const;
+	///
+	bool parbreakIsNewline() const;
+	///
+	bool allowedInContext(Cursor const & cur, InsetLayout const & il) const;
+	///
+	bool isPartOfTextSequence() const;
 	///
 	pos_type size() const;
 	///
@@ -266,8 +277,12 @@ public:
 	/// is there a change within the given range (does not
 	/// check contained paragraphs)
 	bool isChanged(pos_type start, pos_type end) const;
+	/// Are there insets containing changes in the range?
+	bool hasChangedInsets(pos_type start, pos_type end) const;
 	/// is there an unchanged char at the given pos ?
 	bool isChanged(pos_type pos) const;
+	/// is there a change in the paragraph ?
+	bool isChanged() const;
 
 	/// is there an insertion at the given pos ?
 	bool isInserted(pos_type pos) const;
@@ -279,6 +294,8 @@ public:
 	/// will the paragraph be physically merged with the next
 	/// one if the imaginary end-of-par character is logically deleted?
 	bool isMergedOnEndOfParDeletion(bool trackChanges) const;
+	/// Return Change form of paragraph break
+	Change parEndChange() const;
 
 	/// set change for the entire par
 	void setChange(Change const & change);
@@ -303,8 +320,6 @@ public:
 
 	///
 	docstring expandLabel(Layout const &, BufferParams const &) const;
-	///
-	docstring expandDocBookLabel(Layout const &, BufferParams const &) const;
 	///
 	docstring const & labelString() const;
 	/// the next two functions are for the manual labels
@@ -339,12 +354,8 @@ public:
 	///
 	Font const & getFirstFontSettings(BufferParams const &) const;
 
-	/** Get fully instantiated font. If pos == -1, use the layout
-	    font attached to this paragraph.
-	    If pos == -2, use the label font of the layout attached here.
-	    In all cases, the font is instantiated, i.e. does not have any
-	    attributes with values FONT_INHERIT, FONT_IGNORE or
-	    FONT_TOGGLE.
+	/** Get fully instantiated font, i.e., one that does not have any
+	    attributes with values FONT_INHERIT, FONT_IGNORE or FONT_TOGGLE.
 	*/
 	Font const getFont(BufferParams const &, pos_type pos,
 			      Font const & outerfont) const;
@@ -402,7 +413,7 @@ public:
 	///
 	InsetList const & insetList() const;
 	///
-	void setBuffer(Buffer &);
+	void setInsetBuffers(Buffer &);
 	///
 	void resetBuffer();
 
@@ -421,7 +432,7 @@ public:
 	bool isLineSeparator(pos_type pos) const;
 	/// True if the character/inset at this point is a word separator.
 	/// Note that digits in particular are not considered as word separator.
-	bool isWordSeparator(pos_type pos) const;
+	bool isWordSeparator(pos_type pos, bool const ignore_deleted = false) const;
 	/// True if the element at this point is a character that is not a letter.
 	bool isChar(pos_type pos) const;
 	/// True if the element at this point is a space
@@ -429,6 +440,9 @@ public:
 	/// True if the element at this point is a hard hyphen or a apostrophe
 	/// If it is enclosed by spaces return false
 	bool isHardHyphenOrApostrophe(pos_type pos) const;
+	/// Return true if this paragraph has verbatim content that needs to be
+	/// protected by \cprotect
+	bool needsCProtection(bool const fragile = false) const;
 
 	/// returns true if at least one line break or line separator has been deleted
 	/// at the beginning of the paragraph (either physically or logically)
@@ -475,7 +489,7 @@ public:
 		bool del = true) const;
 
 	void locateWord(pos_type & from, pos_type & to,
-		word_location const loc) const;
+		word_location const loc, bool const ignore_deleted = false) const;
 	///
 	void updateWords();
 
@@ -524,6 +538,9 @@ private:
 	void collectWords();
 	///
 	void registerWords();
+	///
+	int getInsetPos(InsetCode const code, int startpos,
+			bool ignore_deleted=false) const;
 
 	/// Pimpl away stuff
 	class Private;

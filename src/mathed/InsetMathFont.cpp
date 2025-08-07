@@ -58,13 +58,11 @@ InsetMath::mode_type InsetMathFont::currentMode() const
 
 bool InsetMathFont::lockedMode() const
 {
-	if (key_->extra == "forcetext")
-		return true;
-	return false;
+	return key_->extra == "forcetext";
 }
 
 
-void InsetMathFont::write(WriteStream & os) const
+void InsetMathFont::write(TeXMathStream & os) const
 {
 	// Close the mode changing command inserted during export if
 	// we are going to output another mode changing command that
@@ -128,7 +126,7 @@ void InsetMathFont::validate(LaTeXFeatures & features) const
 		if (fontname == "text" || fontname == "textnormal"
 		    || (fontname.length() == 6 && fontname.substr(0, 4) == "text"))
 			features.require("amstext");
-		if (fontname == "mathscr")
+		if (fontname == "mathscr" && !features.isRequired("unicode-math"))
 			features.require("mathrsfs");
 		if (fontname == "textipa")
 			features.require("tipa");
@@ -193,29 +191,25 @@ void InsetMathFont::htmlize(HtmlStream & os) const
 
 
 // The fonts we want to support are listed in lib/symbols
-void InsetMathFont::mathmlize(MathStream & os) const
+void InsetMathFont::mathmlize(MathMLStream & ms) const
 {
 	// FIXME These are not quite right, because they do not nest
 	// correctly. A proper fix would presumably involve tracking
 	// the fonts already in effect.
 	std::string variant;
 	docstring const & tag = key_->name;
-	if (tag == "mathnormal" || tag == "mathrm"
-	    || tag == "text" || tag == "textnormal"
-	    || tag == "textrm" || tag == "textup"
-	    || tag == "textmd")
+	if (tag == "mathnormal" || tag == "mathrm")
 		variant = "normal";
 	else if (tag == "frak" || tag == "mathfrak")
 		variant = "fraktur";
 	else if (tag == "mathbf" || tag == "textbf")
 		variant = "bold";
-	else if (tag == "mathbb" || tag == "mathbbm"
-	         || tag == "mathds")
+	else if (tag == "mathbb" || tag == "mathbbm" || tag == "mathds")
 		variant = "double-struck";
 	else if (tag == "mathcal")
 		variant = "script";
-	else if (tag == "mathit" || tag == "textsl"
-	         || tag == "emph" || tag == "textit")
+	else if (tag == "mathit" || tag == "textsl" || tag == "emph" ||
+			tag == "textit")
 		variant = "italic";
 	else if (tag == "mathsf" || tag == "textsf")
 		variant = "sans-serif";
@@ -223,12 +217,17 @@ void InsetMathFont::mathmlize(MathStream & os) const
 		variant = "monospace";
 	// no support at present for textipa, textsc, noun
 
-	if (!variant.empty())
-		os << MTag("mstyle", "mathvariant='" + variant + "'")
-		   << cell(0)
-		   << ETag("mstyle");
-	else
-		os << cell(0);
+	if (tag == "text" || tag == "textnormal" || tag == "textrm" ||
+			tag == "textup" || tag == "textmd") {
+		SetMode textmode(ms, true);
+		ms << cell(0);
+	} else if (!variant.empty()) {
+		ms << MTag("mstyle", "mathvariant='" + variant + "'");
+		ms << cell(0);
+		ms << ETag("mstyle");
+	} else {
+		ms << cell(0);
+	}
 }
 
 

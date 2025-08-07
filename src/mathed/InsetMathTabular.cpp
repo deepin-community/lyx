@@ -14,7 +14,6 @@
 
 #include "MathData.h"
 #include "MathStream.h"
-#include "MathStream.h"
 
 #include "MetricsInfo.h"
 
@@ -57,7 +56,7 @@ void InsetMathTabular::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-void InsetMathTabular::write(WriteStream & os) const
+void InsetMathTabular::write(TeXMathStream & os) const
 {
 	ModeSpecifier specifier(os, TEXT_MODE);
 

@@ -1,15 +1,18 @@
 #% Do not delete the line below; configure depends on this
-#  \DeclareDocBookClass[chapter]{DocBook Chapter (SGML)}
-#  \DeclareCategory{Books (DocBook)}
+#  \DeclareLaTeXClass[docbook5_chapter]{DocBook Chapter (XML)}
+#  \DeclareCategory{Books}
 # DocBook textclass definition file.
 # Author : Jose' Matos <jamatos@lyx.org>
 
-Format 66
+Format 104
 Input db_stdclass.inc
+
+SecNumDepth             2
+TocDepth                2
+DocBookRoot		chapter
 
 Style Title
 	LatexType             Command
-	LatexName             "!-- --"
 	CommandDepth          2
 End
 

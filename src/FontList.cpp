@@ -20,8 +20,6 @@
 
 #include "FontList.h"
 
-#include "support/lyxalgo.h"
-
 using namespace std;
 
 namespace lyx {
@@ -109,14 +107,6 @@ void FontList::decreasePosAfterPos(pos_type pos)
 	List::iterator it = fontIterator(pos);
 	for (; it != end; ++it)
 		--it->pos_;
-}
-
-
-void FontList::setRange(pos_type startpos, pos_type endpos, Font const & font)
-{
-	// FIXME: Optimize!!!
-	for (pos_type pos = startpos; pos != endpos; ++pos)
-		set(pos, font);
 }
 
 

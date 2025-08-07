@@ -33,10 +33,10 @@
 /* Define to 1 if you have the <aspell.h> header file. */
 #undef HAVE_ASPELL_H
 
-/* Define to 1 if you have the `chmod' function. */
+/* Define to 1 if you have the 'chmod' function. */
 #undef HAVE_CHMOD
 
-/* Define to 1 if you have the `close' function. */
+/* Define to 1 if you have the 'close' function. */
 #undef HAVE_CLOSE
 
 /* Define to 1 if `make_unique' is defined in `memory' */
@@ -48,16 +48,16 @@
 /* Define to 1 if enchant 2.x is detected */
 #undef HAVE_ENCHANT2
 
-/* Define to 1 if you have the `fcntl' function. */
+/* Define to 1 if you have the 'fcntl' function. */
 #undef HAVE_FCNTL
 
-/* Define to 1 if you have the `fork' function. */
+/* Define to 1 if you have the 'fork' function. */
 #undef HAVE_FORK
 
-/* Define to 1 if you have the `getc_unlocked' function. */
+/* Define to 1 if you have the 'getc_unlocked' function. */
 #undef HAVE_GETC_UNLOCKED
 
-/* Define to 1 if you have the `getpid' function. */
+/* Define to 1 if you have the 'getpid' function. */
 #undef HAVE_GETPID
 
 /* Define to 1 if hunspell C++ (rather than C) ABI is detected */
@@ -72,43 +72,43 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the `gdi32' library (-lgdi32). */
+/* Define to 1 if you have the 'gdi32' library (-lgdi32). */
 #undef HAVE_LIBGDI32
 
-/* Define to 1 if you have the `ole32' library (-lole32). */
+/* Define to 1 if you have the 'ole32' library (-lole32). */
 #undef HAVE_LIBOLE32
+
+/* Define to 1 if you have the 'xcb' library (-lxcb). */
+#undef HAVE_LIBXCB
 
 /* Define to 1 if you have the <locale.h> header file. */
 #undef HAVE_LOCALE_H
 
-/* Define to 1 if you have the `lockf' function. */
+/* Define to 1 if you have the 'lockf' function. */
 #undef HAVE_LOCKF
 
-/* Define to 1 if the system has the type `long long int'. */
+/* Define to 1 if the system has the type 'long long int'. */
 #undef HAVE_LONG_LONG_INT
 
-/* Define to 1 if you have the `lstat' function. */
+/* Define to 1 if you have the 'lstat' function. */
 #undef HAVE_LSTAT
 
 /* Define to 1 if you have the <magic.h> header file. */
 #undef HAVE_MAGIC_H
 
-/* Define to 1 if you have the `mbrtowc' function. */
+/* Define to 1 if you have the 'mbrtowc' function. */
 #undef HAVE_MBRTOWC
 
-/* Define to 1 if you have the `mbsinit' function. */
+/* Define to 1 if you have the 'mbsinit' function. */
 #undef HAVE_MBSINIT
 
 /* Define to 1 if <wchar.h> declares mbstate_t. */
 #undef HAVE_MBSTATE_T
 
-/* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
-
-/* Define to 1 if you have the `mkdir' function. */
+/* Define to 1 if you have the 'mkdir' function. */
 #undef HAVE_MKDIR
 
-/* Define to 1 if you have the `mkfifo' function. */
+/* Define to 1 if you have the 'mkfifo' function. */
 #undef HAVE_MKFIFO
 
 /* Define this to 1 if your compiler supports the mode_t type. */
@@ -120,37 +120,40 @@
 /* Define to 1 if you have the <mythes/mythes.hxx> header file. */
 #undef HAVE_MYTHES_MYTHES_HXX
 
-/* Define to 1 if you have the `open' function. */
+/* Define to 1 if you have the 'open' function. */
 #undef HAVE_OPEN
 
-/* Define to 1 if you have the `pclose' function. */
+/* Define to 1 if you have the 'pclose' function. */
 #undef HAVE_PCLOSE
 
-/* Define to 1 if you have the `popen' function. */
+/* Define to 1 if you have the 'popen' function. */
 #undef HAVE_POPEN
 
-/* Define to 1 if you have the `putenv' function. */
+/* Define to 1 if you have the 'putenv' function. */
 #undef HAVE_PUTENV
 
 /* Define if you have the Qt5X11Extras module */
 #undef HAVE_QT5_X11_EXTRAS
 
-/* Define to 1 if you have the `readlink' function. */
+/* Define to 1 if you have the 'readlink' function. */
 #undef HAVE_READLINK
 
-/* Define to 1 if you have the `setenv' function. */
+/* Define to 1 if you have the 'setenv' function. */
 #undef HAVE_SETENV
 
-/* Define to 1 if you have the `setlocale' function. */
+/* Define to 1 if you have the 'setlocale' function. */
 #undef HAVE_SETLOCALE
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define to 1 if you have the `strerror' function. */
+/* Define to 1 if you have the 'strerror' function. */
 #undef HAVE_STRERROR
 
 /* Define to 1 if you have the <strings.h> header file. */
@@ -180,10 +183,10 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have the `unsetenv' function. */
+/* Define to 1 if you have the 'unsetenv' function. */
 #undef HAVE_UNSETENV
 
-/* Define to 1 if the system has the type `unsigned long long int'. */
+/* Define to 1 if the system has the type 'unsigned long long int'. */
 #undef HAVE_UNSIGNED_LONG_LONG_INT
 
 /* Define to 1 if you have the <utime.h> header file. */
@@ -195,28 +198,34 @@
 /* Define if you have the 'wchar_t' type. */
 #undef HAVE_WCHAR_T
 
-/* Define to 1 if you have the `wcrtomb' function. */
+/* Define to 1 if you have the 'wcrtomb' function. */
 #undef HAVE_WCRTOMB
+
+/* Define to 1 if O_NOFOLLOW works. */
+#undef HAVE_WORKING_O_NOFOLLOW
+
+/* Define to 1 if you have the <xcb/xcb.h> header file. */
+#undef HAVE_XCB_XCB_H
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #undef HAVE_ZLIB_H
 
-/* Define to 1 if you have the `_close' function. */
+/* Define to 1 if you have the '_close' function. */
 #undef HAVE__CLOSE
 
-/* Define to 1 if you have the `_getpid' function. */
+/* Define to 1 if you have the '_getpid' function. */
 #undef HAVE__GETPID
 
-/* Define to 1 if you have the `_mkdir' function. */
+/* Define to 1 if you have the '_mkdir' function. */
 #undef HAVE__MKDIR
 
-/* Define to 1 if you have the `_open' function. */
+/* Define to 1 if you have the '_open' function. */
 #undef HAVE__OPEN
 
-/* Define to 1 if you have the `_pclose' function. */
+/* Define to 1 if you have the '_pclose' function. */
 #undef HAVE__PCLOSE
 
-/* Define to 1 if you have the `_popen' function. */
+/* Define to 1 if you have the '_popen' function. */
 #undef HAVE__POPEN
 
 /* Define as const if the declaration of iconv() needs const. */
@@ -258,14 +267,11 @@
 /* define to 1 if std::call_once is supported by the compiler */
 #undef LYX_USE_STD_CALL_ONCE
 
-/* define to 1 if std::regex should be preferred to boost::regex */
-#undef LYX_USE_STD_REGEX
-
-/* Define to 1 if `major', `minor', and `makedev' are declared in <mkdev.h>.
+/* Define to 1 if 'major', 'minor', and 'makedev' are declared in <mkdev.h>.
    */
 #undef MAJOR_IN_MKDEV
 
-/* Define to 1 if `major', `minor', and `makedev' are declared in
+/* Define to 1 if 'major', 'minor', and 'makedev' are declared in
    <sysmacros.h>. */
 #undef MAJOR_IN_SYSMACROS
 
@@ -299,28 +305,21 @@
 /* Program version suffix */
 #undef PROGRAM_SUFFIX
 
-/* Define if Qt uses the X Window System */
-#undef QPA_XCB
-
-/* Define to the type of arg 1 for `select'. */
+/* Define to the type of arg 1 for 'select'. */
 #undef SELECT_TYPE_ARG1
 
-/* Define to the type of args 2, 3 and 4 for `select'. */
+/* Define to the type of args 2, 3 and 4 for 'select'. */
 #undef SELECT_TYPE_ARG234
 
-/* Define to the type of arg 5 for `select'. */
+/* Define to the type of arg 5 for 'select'. */
 #undef SELECT_TYPE_ARG5
 
-/* The size of `long', as computed by sizeof. */
-#undef SIZEOF_LONG
-
-/* The size of `long long', as computed by sizeof. */
-#undef SIZEOF_LONG_LONG
-
-/* The size of `wchar_t', as computed by sizeof. */
+/* The size of 'wchar_t', as computed by sizeof. */
 #undef SIZEOF_WCHAR_T
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
 
 /* std::string uses copy-on-write */
@@ -371,28 +370,31 @@
 /* Define to 1 if the X Window System is missing or not being used. */
 #undef X_DISPLAY_MISSING
 
+/* libstdc++ assertions mode */
+#undef _GLIBCXX_ASSERTIONS
+
 /* libstdc++ debug mode */
 #undef _GLIBCXX_DEBUG
 
 /* libstdc++ pedantic debug mode */
 #undef _GLIBCXX_DEBUG_PEDANTIC
 
-/* Define to `int' if <sys/types.h> doesn't define. */
+/* Define as 'int' if <sys/types.h> doesn't define. */
 #undef gid_t
 
 /* Define to a type if <wchar.h> does not define. */
 #undef mbstate_t
 
-/* Define to `long int' if <sys/types.h> does not define. */
+/* Define to 'long int' if <sys/types.h> does not define. */
 #undef off_t
 
-/* Define to `int' if <sys/types.h> does not define. */
+/* Define as a signed integer type capable of holding a process identifier. */
 #undef pid_t
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
 #undef size_t
 
-/* Define to `int' if <sys/types.h> doesn't define. */
+/* Define as 'int' if <sys/types.h> doesn't define. */
 #undef uid_t
 
 
@@ -435,11 +437,6 @@ char * strerror(int n);
 #  define USE_WCHAR_T
 #endif
 
-#ifdef HAVE_LONG_LONG_INT
-#if SIZEOF_LONG_LONG > SIZEOF_LONG
-#define LYX_USE_LONG_LONG
-#endif
-#endif
 
 #endif
 

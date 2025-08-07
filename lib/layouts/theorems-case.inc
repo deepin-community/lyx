@@ -1,32 +1,39 @@
 # Original Author : Paul Rubin <rubin@msu.edu>
-# Modified by Richard Heck to use enumitem
+# Modified by Richard Kimberly Heck to use enumitem
 
 # Definition of case environment as an enumeration
 
 # Define Case as an enumeration environment
 # with its own counters
 
-Format 66
+Format 104
 
 Counter casei
-        LabelString "Case \arabic{casei}."
+	GuiName "Case (Level 1)" 
+	PrettyFormat "Case \arabic{casei}"
+	LabelString "Case \arabic{casei}."
 End
 Counter caseii
-        Within casei
-        LabelString "Case \roman{caseii}."
+	GuiName "Case (Level 2)"
+	Within casei
+	LabelString "Case \roman{caseii}."
+	PrettyFormat "Case \roman{caseii}"
 End
 Counter caseiii
-        Within caseii
-        LabelString "Case \alph{caseiii}."
+	GuiName "Case (Level 3)"
+	Within caseii
+	LabelString "Case \alph{caseiii}."
+	PrettyFormat "Case \alph{caseiii}"
 End
 Counter caseiv
-        Within caseiii
-        LabelString "Case \arabic{caseiv}."
+	GuiName "Case (Level 4)"
+	Within caseiii
+	PrettyFormat "Case \arabic{caseiv}"
+	LabelString "Case \arabic{caseiv}."
 End
 
 Style Case
   Category              Reasoning
-
   Margin                Static
   LatexType             Item_Environment
   LatexName             casenv
@@ -48,7 +55,18 @@ Style Case
   HTMLTag               ol
   HTMLItem              li
   HTMLLabel             NONE
+  HTMLClass             lyxcase
   RefPrefix             enu
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
   Argument item:1
     LabelString   "Custom Item|s"
     Tooltip       "A customized item string"
@@ -73,4 +91,6 @@ Style Case
     \addto\captions$$lang{\renewcommand{\casename}{_(Case)}}
   EndBabelPreamble
   RefPrefix OFF
+  DocBookTag            para
+  DocBookAttr           role='cases'
 End

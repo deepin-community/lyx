@@ -13,11 +13,12 @@
 
 #include <config.h>
 
+#include "TexRow.h"
+
 #include "Buffer.h"
 #include "Cursor.h"
 #include "FuncRequest.h"
 #include "Paragraph.h"
-#include "TexRow.h"
 
 #include "mathed/InsetMath.h"
 
@@ -37,14 +38,14 @@ namespace lyx {
 
 
 TexString::TexString(docstring s)
-	: str(move(s)), texrow(TexRow())
+	: str(std::move(s)), texrow(TexRow())
 {
 	texrow.setRows(1 + count(str.begin(), str.end(), '\n'));
 }
 
 
 TexString::TexString(docstring s, TexRow t)
-	: str(move(s)), texrow(move(t))
+	: str(std::move(s)), texrow(std::move(t))
 {
 	validate();
 }
@@ -234,7 +235,7 @@ void TexRow::append(TexRow other)
 	RowList::iterator it = other.rowlist_.begin();
 	RowList::iterator const end = other.rowlist_.end();
 	LASSERT(it != end, return);
-	currentRow().append(move(*it++));
+	currentRow().append(std::move(*it++));
 	move(it, end, back_inserter(rowlist_));
 }
 
@@ -250,7 +251,7 @@ TexRow::getEntriesFromRow(int const row) const
 	//        correspond to no output by delaying their addition, at the level
 	//        of otexrowstream, until a character is actually output.
 	//
-	LYXERR(Debug::LATEX, "getEntriesFromRow: row " << row << " requested");
+	LYXERR(Debug::OUTFILE, "getEntriesFromRow: row " << row << " requested");
 
 	// check bounds for row - 1, our target index
 	if (row <= 0)
@@ -359,7 +360,7 @@ FuncRequest TexRow::goToFuncFromRow(int const row) const
 {
 	TextEntry start, end;
 	tie(start,end) = getEntriesFromRow(row);
-	LYXERR(Debug::LATEX,
+	LYXERR(Debug::OUTFILE,
 	       "goToFuncFromRow: for row " << row << ", TexRow has found "
 	       "start (id=" << start.id << ",pos=" << start.pos << "), "
 	       "end (id=" << end.id << ",pos=" << end.pos << ")");

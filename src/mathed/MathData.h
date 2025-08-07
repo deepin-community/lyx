@@ -15,18 +15,16 @@
 #ifndef MATH_DATA_H
 #define MATH_DATA_H
 
-#include "Dimension.h"
-
 #include "MathAtom.h"
-#include "MathRow.h"
+#include "MathClass.h"
 
+#include "Dimension.h"
 #include "OutputEnums.h"
 
 #include "support/strfwd.h"
 
 #include <cstddef>
 #include <vector>
-#include <map>
 
 
 namespace lyx {
@@ -34,14 +32,16 @@ namespace lyx {
 class Buffer;
 class BufferView;
 class Cursor;
+class Dimension;
 class DocIterator;
-class LaTeXFeatures;
-class ReplaceData;
-class MacroContext;
 class InsetMathMacro;
+class LaTeXFeatures;
+class MacroContext;
+class MathRow;
 class MetricsInfo;
 class PainterInfo;
 class ParIterator;
+class ReplaceData;
 class TextMetricsInfo;
 class TextPainter;
 
@@ -59,7 +59,6 @@ public:
 	using base_type::clear;
 	using base_type::begin;
 	using base_type::end;
-	using base_type::push_back;
 	using base_type::pop_back;
 	using base_type::back;
 	using base_type::front;
@@ -69,8 +68,9 @@ public:
 
 public:
 	///
-	MathData(Buffer * buf = 0) : minasc_(0), mindes_(0), slevel_(0),
-				     sshift_(0), kerning_(0), buffer_(buf) {}
+	MathData() = delete;
+	///
+	explicit MathData(Buffer * buf) : buffer_(buf) {}
 	///
 	MathData(Buffer * buf, const_iterator from, const_iterator to);
 	///
@@ -84,6 +84,8 @@ public:
 	void insert(size_type pos, MathAtom const & at);
 	/// inserts multiple atoms at position pos
 	void insert(size_type pos, MathData const & ar);
+	/// inserts single atom at end
+	void push_back(MathAtom const & at);
 
 	/// erase range from pos1 to pos2
 	void erase(iterator pos1, iterator pos2);
@@ -124,12 +126,10 @@ public:
 	/// Add this array to a math row. Return true if contents got added
 	bool addToMathRow(MathRow &, MetricsInfo & mi) const;
 
-	// return true if caret is in this cell in this buffer view
-	bool hasCaret(BufferView * bv) const;
-
 	/// rebuild cached metrics information
 	/** When \c tight is true, the height of the cell will be at least
-	 *  that of 'x'. Otherwise, it will be the max height of the font.
+	 *  the x height of the font. Otherwise, it will be the max height
+	 *  of the font.
 	 */
 	void metrics(MetricsInfo & mi, Dimension & dim, bool tight = true) const;
 	///
@@ -143,10 +143,14 @@ public:
 	void metricsT(TextMetricsInfo const & mi, Dimension & dim) const;
 	/// redraw cell using cache metrics information
 	void drawT(TextPainter & pi, int x, int y) const;
-	/// mark cell for re-drawing
-	void touch() const;
-	/// approximate the math class of the data
+	/// approximate mathclass of the data
 	MathClass mathClass() const;
+	/// math class of first interesting element
+	MathClass firstMathClass() const;
+	/// math class of last interesting element
+	MathClass lastMathClass() const;
+	/// is the cell in display style
+	bool displayStyle() const { return display_style_; }
 
 	/// access to cached x coordinate of last drawing
 	int xo(BufferView const & bv) const;
@@ -175,7 +179,7 @@ public:
 	/// additional super/subscript shift
 	int sshift() const { return sshift_; }
 	/// Italic correction as described in InsetMathScript.h
-	int kerning(BufferView const *) const { return kerning_; }
+	int kerning(BufferView const *) const;
 	///
 	void swap(MathData & ar) { base_type::swap(ar); }
 
@@ -183,21 +187,21 @@ public:
 	/// stay visually at the same position (cur==0 is allowed)
 	void updateMacros(Cursor * cur, MacroContext const & mc, UpdateType, int nesting);
 	///
-	void updateBuffer(ParIterator const &, UpdateType);
-	///
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false);
+	/// Change associated buffer for this object and its contents
 	void setBuffer(Buffer & b);
+	/// Update assiociated buffer for the contents of the object
+	void setContentsBuffer();
 
 protected:
 	/// cached values for super/subscript placement
-	mutable int minasc_;
-	mutable int mindes_;
-	mutable int slevel_;
-	mutable int sshift_;
-	mutable int kerning_;
-	Buffer * buffer_;
-
-	/// cached object that describes typeset data
-	mutable std::map<BufferView*, MathRow> mrow_cache_;
+	mutable int minasc_ = 0;
+	mutable int mindes_ = 0;
+	mutable int slevel_ = 0;
+	mutable int sshift_ = 0;
+	/// cached value for display style
+	mutable bool display_style_ = false;
+	Buffer * buffer_ = nullptr;
 
 private:
 	/// is this an exact match at this position?

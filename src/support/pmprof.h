@@ -112,12 +112,7 @@
 
 #else
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <sys/time.h>
-#endif
-
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 
@@ -126,32 +121,33 @@
 #error Profiling is not usable when run-time debugging is in effect
 #endif
 
-#ifdef _WIN32
-/* This function does not really returns the "time of day",
- * but it will suffice to evaluate elapsed times.
- */
-int gettimeofday(struct timeval * tv, struct timezone * /*tz*/)
-{
-	LARGE_INTEGER frequency, t;
-	QueryPerformanceFrequency(&frequency);
-	QueryPerformanceCounter(&t);
+namespace _pmprof {
 
-	tv->tv_sec = long(t.QuadPart / frequency.QuadPart);
-	tv->tv_usec = long((1000000.0 * (t.QuadPart % frequency.QuadPart)) / frequency.QuadPart);
-	return 0;
-}
-
-#endif // _WIN32
+using namespace std;
+using namespace chrono;
 
 namespace {
 
-void dump(long long sec, long long usec, unsigned long long count) {
-	double const total = sec * 1000000 + usec;
-	std::cerr << std::fixed << std::setprecision(2)
-			  << total / count
-			  << "usec, count=" << count
-			  << ", total=" << total * 0.001 << "msec"
-			  << std::endl;
+void dump_time(system_clock::duration value)
+{
+	auto musec = duration_cast<microseconds>(value).count();
+	cerr << fixed << setprecision(2);
+	if (musec >= 1000000)
+		cerr << musec / 1000000.0 << " s";
+	else if (musec >= 1000)
+		cerr << musec / 1000.0 << " ms";
+	else
+		cerr << musec << " us";
+}
+
+void dump(system_clock::duration total, unsigned long long count) {
+	if (count > 0) {
+		dump_time(total / count);
+		cerr << ", count=" << count << ", total=";
+		dump_time(total);
+	} else
+		std::cerr << "no data";
+	cerr << endl;
 }
 
 } // namespace
@@ -161,83 +157,76 @@ void dump(long long sec, long long usec, unsigned long long count) {
  * variable, so that its destructor will be executed when the program
  * ends.
  */
-
-
-class PMProfStat {
+class stat {
 public:
-	PMProfStat(char const * name) : name_(name), sec_(0), usec_(0), count_(0),
-                                    miss_sec_(0), miss_usec_(0), miss_count_(0) {}
+	stat(char const * name) : name_(name) {}
 
-	~PMProfStat() {
-		if (count_>0) {
+	~stat() {
+		if (count_ + miss_count_ > 0) {
 			if (miss_count_ == 0) {
-				std::cerr << "#pmprof# " << name_ << ": ";
-				dump(sec_, usec_, count_);
+				cerr << "#pmprof# " << name_ << ": ";
+				dump(dur_, count_);
 			}
 			else {
-				std::cerr << "#pmprof# " << name_ << ": ";
-				dump(sec_ + miss_sec_, usec_ + miss_usec_, count_ + miss_count_);
-				std::cerr << "   hit: " << 100 * count_ / (count_ + miss_count_) << "%, ";
-				dump(sec_, usec_, count_);
-				std::cerr << "  miss: " << 100 * miss_count_ / (count_ + miss_count_) << "%, ";
-				dump(miss_sec_, miss_usec_, miss_count_);
+				cerr << "#pmprof# " << name_ << ": ";
+				dump(dur_ + miss_dur_, count_ + miss_count_);
+				cerr << "   hit: " << 100 * count_ / (count_ + miss_count_) << "%, ";
+				dump(dur_, count_);
+				cerr << "  miss: " << 100 * miss_count_ / (count_ + miss_count_) << "%, ";
+				dump(miss_dur_, miss_count_);
 			}
-		}
+		} else
+			std::cerr << "#pmprof# " << name_ << ": no data" << std::endl;
 	}
 
-	void add(const long long s, const long long u, const bool hit) {
+	void add(system_clock::duration d, const bool hit) {
 		if (hit) {
-			sec_ += s;
-			usec_ += u;
+			dur_ += d;
 			count_++;
 		} else {
-			miss_sec_ += s;
-			miss_usec_ += u;
+			miss_dur_ += d;
 			miss_count_++;
 		}
 	}
 
 private:
 	char const * name_;
-	long long sec_, usec_;
-	unsigned long long count_;
-	long long miss_sec_, miss_usec_;
-	unsigned long long miss_count_;
+	system_clock::duration dur_, miss_dur_;
+	unsigned long long count_ = 0, miss_count_ = 0;
 };
 
 
 /* Helper class which gathers data at the end of the scope. One
  * instance of this one should be created at each execution of the
  * block. At the end of the block, it sends statistics to the static
- * PMProfStat object.
+ * stat object.
  */
-class PMProfInstance {
+class instance {
 public:
-	PMProfInstance(PMProfStat * stat) : hit(true), stat_(stat)
+	instance(stat * stat) : hit(true), stat_(stat)
 	{
-		gettimeofday(&before_, 0);
+		before_ = system_clock::now();
 	}
 
-	~PMProfInstance() {
-		gettimeofday(&after_, 0);
-		stat_->add(after_.tv_sec - before_.tv_sec,
-		           after_.tv_usec - before_.tv_usec, hit);
+	~instance() {
+		stat_->add(system_clock::now() - before_, hit);
 	}
 
 	bool hit;
 
 private:
-	timeval before_, after_;
-	PMProfStat * stat_;
+	system_clock::time_point before_;
+	stat * stat_;
 };
 
+}
 
 #define PROFILE_THIS_BLOCK(a) \
-	static PMProfStat PMPS_##a(#a);\
-	PMProfInstance PMPI_##a(&PMPS_##a);
+	static _pmprof::stat _pmps_##a(#a);	\
+	_pmprof::instance _pmpi_##a(&_pmps_##a);
 
 #define PROFILE_CACHE_MISS(a) \
-	PMPI_##a.hit = false;
+	_pmpi_##a.hit = false;
 
 #endif // !defined(DISABLE_PMPROF)
 

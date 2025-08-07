@@ -30,6 +30,48 @@ using namespace std;
 
 namespace lyx {
 
+HullType hullType(docstring const & name)
+{
+	if (name == "none")      return hullNone;
+	if (name == "simple")    return hullSimple;
+	if (name == "equation")  return hullEquation;
+	if (name == "eqnarray")  return hullEqnArray;
+	if (name == "align")     return hullAlign;
+	if (name == "alignat")   return hullAlignAt;
+	if (name == "xalignat")  return hullXAlignAt;
+	if (name == "xxalignat") return hullXXAlignAt;
+	if (name == "multline")  return hullMultline;
+	if (name == "gather")    return hullGather;
+	if (name == "flalign")   return hullFlAlign;
+	if (name == "regexp")    return hullRegexp;
+	lyxerr << "unknown hull type '" << to_utf8(name) << "'" << endl;
+	return hullUnknown;
+}
+
+
+docstring hullName(HullType type)
+{
+	switch (type) {
+	case hullNone:       return from_ascii("none");
+	case hullSimple:     return from_ascii("simple");
+	case hullEquation:   return from_ascii("equation");
+	case hullEqnArray:   return from_ascii("eqnarray");
+	case hullAlign:      return from_ascii("align");
+	case hullAlignAt:    return from_ascii("alignat");
+	case hullXAlignAt:   return from_ascii("xalignat");
+	case hullXXAlignAt:  return from_ascii("xxalignat");
+	case hullMultline:   return from_ascii("multline");
+	case hullGather:     return from_ascii("gather");
+	case hullFlAlign:    return from_ascii("flalign");
+	case hullRegexp:     return from_ascii("regexp");
+	case hullUnknown:
+		lyxerr << "unknown hull type" << endl;
+		break;
+	}
+	return from_ascii("none");
+}
+
+
 docstring InsetMath::name() const
 {
 	return from_utf8("Unknown");
@@ -46,21 +88,15 @@ MathData & InsetMath::cell(idx_type)
 
 MathData const & InsetMath::cell(idx_type) const
 {
-	static MathData dummyCell;
+	static MathData dummyCell(const_cast<Buffer *>(&buffer()));
 	LYXERR0("I don't have any cell");
 	return dummyCell;
 }
 
 
-MathClass InsetMath::mathClass() const
+marker_type InsetMath::marker(BufferView const *) const
 {
-	return MC_ORD;
-}
-
-
-InsetMath::marker_type InsetMath::marker(BufferView const *) const
-{
-	return nargs() > 0 ? MARKER : NO_MARKER;
+	return nargs() > 0 ? marker_type::MARKER : marker_type::NO_MARKER;
 }
 
 
@@ -68,9 +104,22 @@ bool InsetMath::addToMathRow(MathRow & mrow, MetricsInfo & mi) const
 {
 	MathRow::Element e(mi, MathRow::INSET, mathClass());
 	e.inset = this;
-	e.marker = mi.base.macro_nesting ? NO_MARKER : marker(mi.base.bv);
+	e.marker = mi.base.macro_nesting ? marker_type::NO_MARKER : marker(mi.base.bv);
 	mrow.push_back(e);
 	return true;
+}
+
+
+/// write LaTeX and LyX code
+void InsetMath::writeLimits(TeXMathStream & os) const
+{
+	if (limits() == LIMITS) {
+		os << "\\limits";
+		os.pendingSpace(true);
+	} else if (limits() == NO_LIMITS) {
+		os << "\\nolimits";
+		os.pendingSpace(true);
+	}
 }
 
 
@@ -79,7 +128,7 @@ void InsetMath::dump() const
 	lyxerr << "---------------------------------------------" << endl;
 	odocstringstream os;
 	otexrowstream ots(os);
-	WriteStream wi(ots, false, true, WriteStream::wsDefault);
+	TeXMathStream wi(ots, false, true, TeXMathStream::wsDefault);
 	write(wi);
 	lyxerr << to_utf8(os.str());
 	lyxerr << "\n---------------------------------------------" << endl;
@@ -98,7 +147,7 @@ void InsetMath::drawT(TextPainter &, int, int) const
 }
 
 
-void InsetMath::write(WriteStream & os) const
+void InsetMath::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	docstring const s = name();
@@ -153,13 +202,16 @@ void InsetMath::mathematica(MathematicaStream & os) const
 }
 
 
-void InsetMath::mathmlize(MathStream & os) const
+void InsetMath::mathmlize(MathMLStream & ms) const
 {
-	os << "<!-- " << from_utf8(insetName(lyxCode())) << " -->";
-	os << MTag("mi");
-	NormalStream ns(os.os());
+	SetMode rawmode(ms, false);
+	ms << "<!-- " << from_utf8(insetName(lyxCode())) << " -->";
+	ms << MTagInline("mi");
+	odocstringstream ods;
+	NormalStream ns(ods);
 	normalize(ns);
-	os << ETag("mi");
+	ms << ods.str();
+	ms << ETagInline("mi");
 }
 
 
@@ -183,7 +235,7 @@ ostream & operator<<(ostream & os, MathAtom const & at)
 {
 	odocstringstream oss;
 	otexrowstream ots(oss);
-	WriteStream wi(ots, false, false, WriteStream::wsDefault);
+	TeXMathStream wi(ots, false, false, TeXMathStream::wsDefault);
 	at->write(wi);
 	return os << to_utf8(oss.str());
 }
@@ -192,7 +244,7 @@ ostream & operator<<(ostream & os, MathAtom const & at)
 odocstream & operator<<(odocstream & os, MathAtom const & at)
 {
 	otexrowstream ots(os);
-	WriteStream wi(ots, false, false, WriteStream::wsDefault);
+	TeXMathStream wi(ots, false, false, TeXMathStream::wsDefault);
 	at->write(wi);
 	return os;
 }

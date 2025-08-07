@@ -1,12 +1,13 @@
-#\DeclareLyXModule[hpstatement.sty]{Hazard and Precautionary Statements}
+#\DeclareLyXModule[hpstatement.sty]{Chemistry: Hazard and Precautionary Statements}
+#\DeclareCategory{Academic Field Specifics}
 #DescriptionBegin
 #Provides two insets to typeset numbers and phrases of chemical hazard
-#and precautionary statements. For a description see the file 
-#H-P-statements.lyx in LyX's examples folder.
+#and precautionary statements. For a description see 
+#Help > Specific Manuals > Hazard and Precautionary Statements.
 #DescriptionEnd
 #Author: Uwe Stöhr <uwestoehr@web.de>
 
-Format 66
+Format 104
 
 InsetLayout "Flex:H-P number"
 	LyxType			custom
@@ -27,7 +28,7 @@ InsetLayout "Flex:H-P number"
 	  Misc			No_Bar
 	EndFont
 	LabelFont
-	  Color			green
+	  Color			textlabel2
 	  Size			Small
 	EndFont
 End

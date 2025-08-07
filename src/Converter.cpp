@@ -13,17 +13,19 @@
 #include "Converter.h"
 
 #include "Buffer.h"
-#include "buffer_funcs.h"
 #include "BufferParams.h"
 #include "ConverterCache.h"
+#include "TextClass.h"
 #include "Encoding.h"
 #include "ErrorList.h"
+#include "Exporter.h"
 #include "Format.h"
 #include "InsetList.h"
 #include "Language.h"
 #include "LaTeX.h"
 #include "LyXRC.h"
 #include "Mover.h"
+#include "OutputParams.h"
 #include "ParagraphList.h"
 #include "Session.h"
 
@@ -58,9 +60,11 @@ string const token_to("$$o");
 string const token_path("$$p");
 string const token_orig_path("$$r");
 string const token_orig_from("$$f");
+string const token_textclass("$$c");
+string const token_modules("$$m");
 string const token_encoding("$$e");
 string const token_latex_encoding("$$E");
-
+string const token_python("$${python}");
 
 string const add_options(string const & command, string const & options)
 {
@@ -105,7 +109,7 @@ private:
 Converter::Converter(string const & f, string const & t,
 		     string const & c, string const & l)
 	: from_(f), to_(t), command_(c), flags_(l),
-	  From_(0), To_(0), latex_(false), xml_(false),
+	  From_(nullptr), To_(nullptr), latex_(false), docbook_(false),
 	  need_aux_(false), nice_(false), need_auth_(false)
 {}
 
@@ -122,10 +126,12 @@ void Converter::readFlags()
 			latex_flavor_ = flag_value.empty() ?
 				"latex" : flag_value;
 		} else if (flag_name == "xml")
-			xml_ = true;
-		else if (flag_name == "needaux")
+			docbook_ = true;
+		else if (flag_name == "needaux") {
 			need_aux_ = true;
-		else if (flag_name == "resultdir")
+			latex_flavor_ = flag_value.empty() ?
+				"latex" : flag_value;
+		} else if (flag_name == "resultdir")
 			result_dir_ = (flag_value.empty())
 				? token_base : flag_value;
 		else if (flag_name == "resultfile")
@@ -138,11 +144,19 @@ void Converter::readFlags()
 			need_auth_ = true;
 		else if (flag_name == "hyperref-driver")
 			href_driver_ = flag_value;
+		else if (flag_name == "needcopiesfrom")
+			need_renamed_copies_from_ = flag_value;
 	}
 	if (!result_dir_.empty() && result_file_.empty())
 		result_file_ = "index." + theFormats().extension(to_);
 	//if (!contains(command, token_from))
 	//	latex = true;
+}
+
+
+void Converter::setCommand(std::string const & command)
+{
+	command_ = subst(command, token_python, os::python());
 }
 
 
@@ -155,7 +169,7 @@ Converter const * Converters::getConverter(string const & from,
 	if (cit != converterlist_.end())
 		return &(*cit);
 	else
-		return 0;
+		return nullptr;
 }
 
 
@@ -238,11 +252,9 @@ void Converters::erase(string const & from, string const & to)
 // a list (instead of a vector), but this will cause other problems).
 void Converters::update(Formats const & formats)
 {
-	ConverterList::iterator it = converterlist_.begin();
-	ConverterList::iterator end = converterlist_.end();
-	for (; it != end; ++it) {
-		it->setFrom(formats.getFormat(it->from()));
-		it->setTo(formats.getFormat(it->to()));
+	for (auto & cv : converterlist_) {
+		cv.setFrom(formats.getFormat(cv.from()));
+		cv.setTo(formats.getFormat(cv.to()));
 	}
 }
 
@@ -259,37 +271,35 @@ void Converters::updateLast(Formats const & formats)
 }
 
 
-OutputParams::FLAVOR Converters::getFlavor(Graph::EdgePath const & path,
-					   Buffer const * buffer)
+Flavor Converters::getFlavor(Graph::EdgePath const & path,
+					   Buffer const * buffer) const
 {
-	for (Graph::EdgePath::const_iterator cit = path.begin();
-	     cit != path.end(); ++cit) {
-		Converter const & conv = converterlist_[*cit];
-		if (conv.latex()) {
+	for (auto const & edge : path) {
+		Converter const & conv = converterlist_[edge];
+		if (conv.latex() || conv.need_aux()) {
 			if (conv.latex_flavor() == "latex")
-				return OutputParams::LATEX;
+				return Flavor::LaTeX;
 			if (conv.latex_flavor() == "xelatex")
-				return OutputParams::XETEX;
+				return Flavor::XeTeX;
 			if (conv.latex_flavor() == "lualatex")
-				return OutputParams::LUATEX;
+				return Flavor::LuaTeX;
 			if (conv.latex_flavor() == "dvilualatex")
-				return OutputParams::DVILUATEX;
+				return Flavor::DviLuaTeX;
 			if (conv.latex_flavor() == "pdflatex")
-				return OutputParams::PDFLATEX;
+				return Flavor::PdfLaTeX;
 		}
-		if (conv.xml())
-			return OutputParams::XML;
+		if (conv.docbook())
+			return Flavor::DocBook5;
 	}
 	return buffer ? buffer->params().getOutputFlavor()
-		      : OutputParams::LATEX;
+		      : Flavor::LaTeX;
 }
 
 
-string Converters::getHyperrefDriver(Graph::EdgePath const & path)
+string Converters::getHyperrefDriver(Graph::EdgePath const & path) const
 {
-	for (Graph::EdgePath::const_iterator cit = path.begin();
-	     cit != path.end(); ++cit) {
-		Converter const & conv = converterlist_[*cit];
+	for (auto const & edge : path) {
+		Converter const & conv = converterlist_[edge];
 		if (!conv.hyperref_driver().empty())
 			return conv.hyperref_driver();
 	}
@@ -304,16 +314,19 @@ bool Converters::checkAuth(Converter const & conv, string const & doc_fname,
 	bool const has_shell_escape = contains(conv_command, "-shell-escape")
 				|| contains(conv_command, "-enable-write18");
 	if (conv.latex() && has_shell_escape && !use_shell_escape) {
+		// Only change font if gui is available otherwise Qt6 crashes
+		string const cmd = use_gui ? "<tt>" + conv_command + "</tt>"
+					   : conv_command;
 		docstring const shellescape_warning =
 		      bformat(_("<p>The following LaTeX backend has been "
 		        "configured to allow execution of external programs "
 		        "for any document:</p>"
-		        "<center><p><tt>%1$s</tt></p></center>"
+		        "<center><p>%1$s</p></center>"
 		        "<p>This is a dangerous configuration. Please, "
 		        "consider using the support offered by LyX for "
 		        "allowing this privilege only to documents that "
 			"actually need it, instead.</p>"),
-		        from_utf8(conv_command));
+		        from_utf8(cmd));
 		frontend::Alert::error(_("Security Warning"),
 					shellescape_warning , false);
 	} else if (!conv.latex())
@@ -326,21 +339,23 @@ bool Converters::checkAuth(Converter const & conv, string const & doc_fname,
 		? (has_token ? conv_command.insert(token_pos, "-shell-escape ")
 			     : conv_command.append(" -shell-escape"))
 		: conv_command;
+	// Only change font if gui is available otherwise Qt6 crashes
+	string const cmd = use_gui ? "<tt>" + command + "</tt>" : command;
 	docstring const security_warning = (use_shell_escape
 	    ? bformat(_("<p>The following LaTeX backend has been requested "
 	        "to allow execution of external programs:</p>"
-	        "<center><p><tt>%1$s</tt></p></center>"
+	        "<center><p>%1$s</p></center>"
 	        "<p>The external programs can execute arbitrary commands on "
 	        "your system, including dangerous ones, if instructed to do "
 	        "so by a maliciously crafted LyX document.</p>"),
-	      from_utf8(command))
+	      from_utf8(cmd))
 	    : bformat(_("<p>The requested operation requires the use of a "
 	        "converter from %2$s to %3$s:</p>"
-	        "<blockquote><p><tt>%1$s</tt></p></blockquote>"
+	        "<blockquote><p>%1$s</p></blockquote>"
 	        "<p>This external program can execute arbitrary commands on "
 	        "your system, including dangerous ones, if instructed to do "
 	        "so by a maliciously crafted LyX document.</p>"),
-	      from_utf8(command), from_utf8(conv.from()),
+	      from_utf8(cmd), from_utf8(conv.from()),
 	      from_utf8(conv.to())));
 	if (lyxrc.use_converter_needauth_forbidden && !use_shell_escape) {
 		frontend::Alert::error(
@@ -398,18 +413,21 @@ bool Converters::checkAuth(Converter const & conv, string const & doc_fname,
 }
 
 
-bool Converters::convert(Buffer const * buffer,
+Converters::RetVal Converters::convert(Buffer const * buffer,
 			 FileName const & from_file, FileName const & to_file,
 			 FileName const & orig_from,
 			 string const & from_format, string const & to_format,
-			 ErrorList & errorList, int conversionflags)
+			 ErrorList & errorList, int conversionflags, bool includeall,
+			 shared_ptr<ExportData> exportdata)
 {
 	if (from_format == to_format)
-		return move(from_format, from_file, to_file, false);
+		return move(from_format, from_file, to_file, false) ?
+		      SUCCESS : FAILURE;
 
 	if ((conversionflags & try_cache) &&
 	    ConverterCache::get().inCache(orig_from, to_format))
-		return ConverterCache::get().copy(orig_from, to_format, to_file);
+		return ConverterCache::get().copy(orig_from, to_format, to_file) ?
+		      SUCCESS : FAILURE;
 
 	Graph::EdgePath edgepath = getPath(from_format, to_format);
 	if (edgepath.empty()) {
@@ -430,21 +448,31 @@ bool Converters::convert(Buffer const * buffer,
 			LYXERR(Debug::FILES, "No converter defined! "
 				   "I use convertDefault.py:\n\t" << command);
 			Systemcall one;
-			one.startscript(Systemcall::Wait, command,
-			                buffer ? buffer->filePath() : string(),
-			                buffer ? buffer->layoutPos() : string());
+			Systemcall::Starttype starttype =
+				(buffer && buffer->isClone()) ?
+					Systemcall::WaitLoop : Systemcall::Wait;
+			int const exitval = one.startscript(starttype, command,
+					buffer ? buffer->filePath() : string(),
+					buffer ? buffer->layoutPos() : string());
+			if (exitval == Systemcall::KILLED) {
+				frontend::Alert::warning(
+					_("Converter killed"),
+					bformat(_("The following converter was killed by the user.\n %1$s\n"),
+						from_utf8(command)));
+				return KILLED;
+			}
 			if (to_file.isReadableFile()) {
 				if (conversionflags & try_cache)
 					ConverterCache::get().add(orig_from,
 							to_format, to_file);
-				return true;
+				return SUCCESS;
 			}
 		}
 
 		// only warn once per session and per file type
 		static std::map<string, string> warned;
 		if (warned.find(from_format) != warned.end() && warned.find(from_format)->second == to_format) {
-			return false;
+			return FAILURE;
 		}
 		warned.insert(make_pair(from_format, to_format));
 
@@ -453,27 +481,31 @@ bool Converters::convert(Buffer const * buffer,
 						    "format files to %2$s.\n"
 						    "Define a converter in the preferences."),
 							from_ascii(from_format), from_ascii(to_format)));
-		return false;
+		return FAILURE;
 	}
 
-	// buffer is only invalid for importing, and then runparams is not
+	// buffer can only be null for importing, and then runparams is not
 	// used anyway.
-	OutputParams runparams(buffer ? &buffer->params().encoding() : 0);
+	OutputParams runparams(buffer ? &buffer->params().encoding() : nullptr);
 	runparams.flavor = getFlavor(edgepath, buffer);
 
 	if (buffer) {
+		BufferParams const & bp = buffer->params();
 		runparams.use_japanese =
-			(buffer->params().bufferFormat() == "latex"
-			 || suffixIs(buffer->params().bufferFormat(), "-ja"))
-			&& buffer->params().encoding().package() == Encoding::japanese;
-		runparams.use_indices = buffer->params().use_indices;
-		runparams.bibtex_command = buffer->params().bibtexCommand();
-		runparams.index_command = (buffer->params().index_command == "default") ?
-			string() : buffer->params().index_command;
-		runparams.document_language = buffer->params().language->babel();
-		runparams.only_childbibs = !buffer->params().useBiblatex()
-				&& !buffer->params().useBibtopic()
-				&& buffer->params().multibib == "child";
+			(bp.bufferFormat() == "latex"
+			 || suffixIs(bp.bufferFormat(), "-ja"))
+			&& bp.encoding().package() == Encoding::japanese;
+		runparams.use_indices = bp.use_indices;
+		runparams.bibtex_command = bp.bibtexCommand(true);
+		runparams.index_command = (bp.index_command == "default") ?
+			string() : bp.index_command;
+		runparams.document_language = bp.language->lang();
+		// Some macros rely on font encoding
+		runparams.main_fontenc = bp.main_font_encoding();
+		runparams.only_childbibs = !bp.useBiblatex()
+				&& !bp.useBibtopic()
+				&& bp.multibib == "child";
+		runparams.includeall = includeall;
 	}
 
 	// Some converters (e.g. lilypond) can only output files to the
@@ -496,9 +528,24 @@ bool Converters::convert(Buffer const * buffer,
 	string to_base = changeExtension(to_file.absFileName(), "");
 	FileName infile;
 	FileName outfile = from_file;
-	for (Graph::EdgePath::const_iterator cit = edgepath.begin();
-	     cit != edgepath.end(); ++cit) {
-		Converter const & conv = converterlist_[*cit];
+	for (auto const & edge : edgepath) {
+		Converter const & conv = converterlist_[edge];
+		// If the converter requires renamed file copies from an involved
+		// converter, handle this here. These copies stay in the tmp dir
+		if (exportdata && conv.need_renamed_copies_from() == conv.from()) {
+			vector<ExportedFile> const extfiles =
+				exportdata->externalFiles(conv.from());
+			CopyStatus status = FORCE;
+			for (ExportedFile const & exp : extfiles) {
+				string const fmt = theFormats().getFormatFromFile(exp.sourceName);
+				FileName expFileName = makeAbsPath(exp.exportName,
+								   exp.sourceName.onlyPath().realPath());
+				status = copyFile(fmt, exp.sourceName,
+					expFileName,
+					exp.exportName, status == FORCE,
+					true);
+			}
+		}
 		bool dummy = conv.To()->dummy() && conv.to() != "program";
 		if (!dummy) {
 			LYXERR(Debug::FILES, "Converting from  "
@@ -564,11 +611,11 @@ bool Converters::convert(Buffer const * buffer,
 
 		if (!checkAuth(conv, buffer ? buffer->absFileName() : string(),
 			       buffer && buffer->params().shell_escape))
-			return false;
+			return FAILURE;
 
 		if (conv.latex()) {
 			// We are not importing, we have a buffer
-			LATTEST(buffer);
+			LASSERT(buffer, return FAILURE);
 			run_latex = true;
 			string command = conv.command();
 			command = subst(command, token_from, "");
@@ -578,24 +625,27 @@ bool Converters::convert(Buffer const * buffer,
 			    && !contains(command, "-shell-escape"))
 				command += " -shell-escape ";
 			LYXERR(Debug::FILES, "Running " << command);
-			if (!runLaTeX(*buffer, command, runparams, errorList))
-				return false;
+			// FIXME KILLED
+			// Check changed return value here.
+			RetVal const retval = runLaTeX(*buffer, command, runparams, errorList);
+			if (retval != SUCCESS)
+				return retval;
 		} else {
 			if (conv.need_aux() && !run_latex) {
 				// We are not importing, we have a buffer
-				LATTEST(buffer);
+				LASSERT(buffer, return FAILURE);
 				string command;
 				switch (runparams.flavor) {
-				case OutputParams::DVILUATEX:
+				case Flavor::DviLuaTeX:
 					command = dvilualatex_command_;
 					break;
-				case OutputParams::LUATEX:
+				case Flavor::LuaTeX:
 					command = lualatex_command_;
 					break;
-				case OutputParams::PDFLATEX:
+				case Flavor::PdfLaTeX:
 					command = pdflatex_command_;
 					break;
-				case OutputParams::XETEX:
+				case Flavor::XeTeX:
 					command = xelatex_command_;
 					break;
 				default:
@@ -606,9 +656,11 @@ bool Converters::convert(Buffer const * buffer,
 					LYXERR(Debug::FILES, "Running "
 						<< command
 						<< " to update aux file");
-					if (!runLaTeX(*buffer, command,
-						      runparams, errorList))
-						return false;
+					// FIXME KILLED
+					// Check changed return value here.
+					RetVal const retval = runLaTeX(*buffer, command, runparams, errorList);
+						if (retval != SUCCESS)
+							return retval;
 				}
 			}
 
@@ -619,13 +671,25 @@ bool Converters::convert(Buffer const * buffer,
 				to_utf8(makeRelPath(from_utf8(outfile.absFileName()), from_utf8(path)));
 
 			string command = conv.command();
+			BufferParams const & bparams = buffer ? buffer->params() : defaultBufferParams();
 			command = subst(command, token_from, quoteName(infile2));
 			command = subst(command, token_base, quoteName(from_base));
 			command = subst(command, token_to, quoteName(outfile2));
 			command = subst(command, token_path, quoteName(onlyPath(infile.absFileName())));
 			command = subst(command, token_orig_path, quoteName(onlyPath(orig_from.absFileName())));
 			command = subst(command, token_orig_from, quoteName(onlyFileName(orig_from.absFileName())));
-			command = subst(command, token_encoding, buffer ? buffer->params().encoding().iconvName() : string());
+			command = subst(command, token_textclass, quoteName(bparams.documentClass().name()));
+			string modules = bparams.getModules().asString();
+			// FIXME: remove when SystemCall uses QProcess with the list API.
+			// Currently the QProcess parser is not able to encode an
+			// empty argument as ""; work around this by passing a
+			// single comma, that will be interpreted as a list of two
+			// empty module names.
+			if (modules.empty())
+				modules = ",";
+			command = subst(command, token_modules, quoteName(modules));
+			command = subst(command, token_encoding, quoteName(bparams.encoding().iconvName()));
+			command = subst(command, token_python, os::python());
 
 			if (!conv.parselog().empty())
 				command += " 2> " + quoteName(infile2 + ".out");
@@ -654,12 +718,23 @@ bool Converters::convert(Buffer const * buffer,
 				// We're not waiting for the result, so we can't do anything
 				// else here.
 			} else {
-				res = one.startscript(Systemcall::Wait,
+				Systemcall::Starttype starttype =
+						(buffer && buffer->isClone()) ?
+							Systemcall::WaitLoop : Systemcall::Wait;
+				res = one.startscript(starttype,
 						to_filesystem8bit(from_utf8(command)),
 						buffer ? buffer->filePath()
 						       : string(),
 						buffer ? buffer->layoutPos()
 						       : string());
+				if (res == Systemcall::KILLED) {
+					frontend::Alert::warning(
+						_("Converter killed"),
+						bformat(_("The following converter was killed by the user.\n %1$s\n"),
+							from_utf8(command)));
+					return KILLED;
+				}
+
 				if (!real_outfile.empty()) {
 					Mover const & mover = getMover(conv.to());
 					if (!mover.rename(outfile, real_outfile))
@@ -677,16 +752,35 @@ bool Converters::convert(Buffer const * buffer,
 					string const command2 = conv.parselog() +
 						" < " + quoteName(infile2 + ".out") +
 						" > " + quoteName(logfile);
-					one.startscript(Systemcall::Wait,
+					res = one.startscript(starttype,
 						to_filesystem8bit(from_utf8(command2)),
-						buffer->filePath(),
-						buffer->layoutPos());
-					if (!scanLog(*buffer, command, makeAbsPath(logfile, path), errorList))
-						return false;
+						buffer ? buffer->filePath() : string(),
+						buffer ? buffer->layoutPos() : string());
+					if (res == Systemcall::KILLED) {
+						frontend::Alert::warning(
+							_("Converter killed"),
+							bformat(_("The following converter was killed by the user.\n %1$s\n"),
+								from_utf8(command)));
+						return KILLED;
+					}
+					if (buffer && !scanLog(*buffer, command, makeAbsPath(logfile, path), errorList))
+						return FAILURE;
 				}
 			}
 
 			if (res) {
+				if (res == Systemcall::KILLED) {
+					Alert::information(_("Process Killed"),
+						bformat(_("The conversion process was killed while running:\n%1$s"),
+							wrapParas(from_utf8(command))));
+					return KILLED;
+				}
+				if (res == Systemcall::TIMEOUT) {
+					Alert::information(_("Process Timed Out"),
+						bformat(_("The conversion process:\n%1$s\ntimed out before completing."),
+							wrapParas(from_utf8(command))));
+					return KILLED;
+				}
 				if (conv.to() == "program") {
 					Alert::error(_("Build errors"),
 						_("There were errors during the build process."));
@@ -697,14 +791,14 @@ bool Converters::convert(Buffer const * buffer,
 						bformat(_("An error occurred while running:\n%1$s"),
 						wrapParas(from_utf8(command))));
 				}
-				return false;
+				return FAILURE;
 			}
 		}
 	}
 
 	Converter const & conv = converterlist_[edgepath.back()];
 	if (conv.To()->dummy())
-		return true;
+		return SUCCESS;
 
 	if (!conv.result_dir().empty()) {
 		// The converter has put the file(s) in a directory.
@@ -719,14 +813,14 @@ bool Converters::convert(Buffer const * buffer,
 				Alert::error(_("Cannot convert file"),
 					bformat(_("Could not move a temporary directory from %1$s to %2$s."),
 						from_utf8(from), from_utf8(to)));
-				return false;
+				return FAILURE;
 			}
 		}
-		return true;
+		return SUCCESS;
 	} else {
 		if (conversionflags & try_cache)
 			ConverterCache::get().add(orig_from, to_format, outfile);
-		return move(conv.to(), outfile, to_file, conv.latex());
+		return move(conv.to(), outfile, to_file, conv.latex()) ? SUCCESS : FAILURE;
 	}
 }
 
@@ -744,9 +838,8 @@ bool Converters::move(string const & fmt,
 	string const to_extension = getExtension(to.absFileName());
 
 	support::FileNameList const files = FileName(path).dirList(getExtension(from.absFileName()));
-	for (support::FileNameList::const_iterator it = files.begin();
-	     it != files.end(); ++it) {
-		string const from2 = it->absFileName();
+	for (auto const & f : files) {
+		string const from2 = f.absFileName();
 		string const file2 = onlyFileName(from2);
 		if (prefixIs(file2, base)) {
 			string const to2 = changeExtension(
@@ -756,8 +849,8 @@ bool Converters::move(string const & fmt,
 
 			Mover const & mover = getMover(fmt);
 			bool const moved = copy
-				? mover.copy(*it, FileName(to2))
-				: mover.rename(*it, FileName(to2));
+				? mover.copy(f, FileName(to2))
+				: mover.rename(f, FileName(to2));
 			if (!moved && no_errors) {
 				Alert::error(_("Cannot convert file"),
 					bformat(copy ?
@@ -772,12 +865,10 @@ bool Converters::move(string const & fmt,
 }
 
 
-bool Converters::formatIsUsed(string const & format)
+bool Converters::formatIsUsed(string const & format) const
 {
-	ConverterList::const_iterator cit = converterlist_.begin();
-	ConverterList::const_iterator end = converterlist_.end();
-	for (; cit != end; ++cit) {
-		if (cit->from() == format || cit->to() == format)
+	for (auto const & cvt : converterlist_) {
+		if (cvt.from() == format || cvt.to() == format)
 			return true;
 	}
 	return false;
@@ -787,8 +878,8 @@ bool Converters::formatIsUsed(string const & format)
 bool Converters::scanLog(Buffer const & buffer, string const & /*command*/,
 			 FileName const & filename, ErrorList & errorList)
 {
-	OutputParams runparams(0);
-	runparams.flavor = OutputParams::LATEX;
+	OutputParams runparams(nullptr);
+	runparams.flavor = Flavor::LaTeX;
 	LaTeX latex("", runparams, filename);
 	TeXErrors terr;
 	int const result = latex.scanLogFile(terr);
@@ -800,7 +891,7 @@ bool Converters::scanLog(Buffer const & buffer, string const & /*command*/,
 }
 
 
-bool Converters::runLaTeX(Buffer const & buffer, string const & command,
+Converters::RetVal Converters::runLaTeX(Buffer const & buffer, string const & command,
 			  OutputParams const & runparams, ErrorList & errorList)
 {
 	buffer.setBusy(true);
@@ -808,9 +899,9 @@ bool Converters::runLaTeX(Buffer const & buffer, string const & command,
 
 	// do the LaTeX run(s)
 	string const name = buffer.latexName();
-	LaTeX latex(command, runparams, FileName(makeAbsPath(name)),
+	LaTeX latex(command, runparams, makeAbsPath(name),
 	            buffer.filePath(), buffer.layoutPos(),
-	            buffer.lastPreviewError());
+	            buffer.isClone(), buffer.freshStartRequired());
 	TeXErrors terr;
 	// The connection closes itself at the end of the scope when latex is
 	// destroyed. One cannot close (and destroy) buffer while the converter is
@@ -820,8 +911,23 @@ bool Converters::runLaTeX(Buffer const & buffer, string const & command,
 		});
 	int const result = latex.run(terr);
 
+	if (result == Systemcall::KILLED || result == Systemcall::TIMEOUT) {
+		Alert::error(_("Export canceled"),
+			_("The export process was terminated by the user."));
+		return KILLED;
+	}
+
 	if (result & LaTeX::ERRORS)
 		buffer.bufferErrors(terr, errorList);
+
+	if ((result & LaTeX::UNDEF_CIT) || (result & LaTeX::UNDEF_UNKNOWN_REF)) {
+		buffer.bufferRefs(terr, errorList);
+		if (errorList.empty())
+			errorList.push_back(ErrorItem(_("Undefined reference"),
+				_("Undefined references or citations were found during the build.\n"
+				  "Please check the warnings in the LaTeX log (Document > LaTeX Log)."),
+				&buffer));
+	}
 
 	if (!errorList.empty()) {
 	  // We will show the LaTeX Errors GUI later which contains
@@ -846,15 +952,16 @@ bool Converters::runLaTeX(Buffer const & buffer, string const & command,
 			       _("No output file was generated."));
 	}
 
-
 	buffer.setBusy(false);
 
 	int const ERROR_MASK =
 			LaTeX::NO_LOGFILE |
 			LaTeX::ERRORS |
+			LaTeX::UNDEF_CIT |
+			LaTeX::UNDEF_UNKNOWN_REF |
 			LaTeX::NO_OUTPUT;
 
-	return (result & ERROR_MASK) == 0;
+	return (result & ERROR_MASK) == 0 ? SUCCESS : FAILURE;
 }
 
 
@@ -866,11 +973,9 @@ void Converters::buildGraph()
 	// each of the converters knows how to convert one format to another
 	// so, for each of them, we create an arrow on the graph, going from
 	// the one to the other
-	ConverterList::iterator it = converterlist_.begin();
-	ConverterList::iterator const end = converterlist_.end();
-	for (; it != end ; ++it) {
-		int const from = theFormats().getNumber(it->from());
-		int const to   = theFormats().getNumber(it->to());
+	for (auto const & cvt : converterlist_) {
+		int const from = theFormats().getNumber(cvt.from());
+		int const to   = theFormats().getNumber(cvt.to());
 		LASSERT(from >= 0, continue);
 		LASSERT(to >= 0, continue);
 		G_.addEdge(from, to);
@@ -908,10 +1013,8 @@ FormatList const Converters::getReachable(string const & from,
 {
 	set<int> excluded_numbers;
 
-	set<string>::const_iterator sit = excludes.begin();
-	set<string>::const_iterator const end = excludes.end();
-	for (; sit != end; ++sit)
-		excluded_numbers.insert(theFormats().getNumber(*sit));
+	for (auto const & ex : excludes)
+		excluded_numbers.insert(theFormats().getNumber(ex));
 
 	vector<int> const & reachables =
 		G_.getReachable(theFormats().getNumber(from),

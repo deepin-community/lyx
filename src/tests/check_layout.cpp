@@ -1,8 +1,8 @@
 #include <config.h>
 
+#include "../support/debug.h"
 #include "../support/FileName.h"
 #include "../support/filetools.h"
-#include "../Format.h"
 #include "../LayoutFile.h"
 #include "../LaTeXFeatures.h"
 #include "../Lexer.h"
@@ -20,7 +20,7 @@ using namespace std;
 namespace lyx {
 namespace frontend {
 namespace Alert {
-void warning(docstring const & title, docstring const & message, bool const &)
+void warning(docstring const & title, docstring const & message, bool)
 {
 	LYXERR0(title);
 	LYXERR0(message);
@@ -33,11 +33,6 @@ bool LaTeXFeatures::isAvailable(std::string const &)
 	return false;
 }
 
-Formats formats;
-bool Formats::isZippedFile(support::FileName const &) const
-{
-	return false;
-}
 } // namespace lyx
 
 
@@ -57,7 +52,7 @@ bool test_Layout(string const & input, string const & output)
 		return false;
 	}
 	LayoutFile const & f = l[i];
-	ostream * os = NULL;
+	ostream * os = nullptr;
 	if (output == "-")
 		os = &cout;
 	else if (!output.empty())

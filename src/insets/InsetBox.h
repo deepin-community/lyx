@@ -15,7 +15,8 @@
 #define INSETBOX_H
 
 #include "InsetCollapsible.h"
-#include "Length.h"
+
+#include "support/Length.h"
 
 
 namespace lyx {
@@ -24,7 +25,7 @@ class InsetBoxParams
 {
 public:
 	///
-	InsetBoxParams(std::string const &);
+	explicit InsetBoxParams(std::string const &);
 	///
 	void write(std::ostream & os) const;
 	///
@@ -101,68 +102,73 @@ public:
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	InsetCode lyxCode() const { return BOX_CODE; }
+	InsetCode lyxCode() const override { return BOX_CODE; }
 	///
-	docstring layoutName() const;
+	docstring layoutName() const override;
 	///
-	void write(std::ostream &) const;
+	void write(std::ostream &) const override;
 	///
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	///
-	void metrics(MetricsInfo &, Dimension &) const;
+	void metrics(MetricsInfo &, Dimension &) const override;
 	///
-	DisplayType display() const { return Inline; }
+	ColorCode backgroundColor(PainterInfo const &) const override;
 	///
-	ColorCode backgroundColor(PainterInfo const &) const;
+	LyXAlignment contentAlignment() const override;
 	///
-	LyXAlignment contentAlignment() const;
+	bool allowParagraphCustomization(idx_type = 0) const override { return !forcePlainLayout(); }
 	///
-	bool allowParagraphCustomization(idx_type = 0) const { return !forcePlainLayout(); }
+	bool allowMultiPar() const override;
 	///
-	bool allowMultiPar() const;
+	bool forcePlainLayout(idx_type = 0) const override;
 	///
-	bool forcePlainLayout(idx_type = 0) const;
+	bool needsCProtection(bool const maintext = false,
+			      bool const fragile = false) const override;
 	///
-	bool neverIndent() const { return true; }
+	bool neverIndent() const override { return true; }
 	///
-	bool inheritFont() const { return false; }
-	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures &) const;
+	void validate(LaTeXFeatures &) const override;
 	///
-	bool hasFixedWidth() const;
+	bool hasFixedWidth() const override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	//@}
 
 	/// \name Public functions inherited from InsetCollapsible class
 	//@{
 	///
-	void setButtonLabel();
+	void setButtonLabel() override;
 	//@}
 
 protected:
 	/// \name Protected functions inherited from Inset class
 	//@{
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	Inset * clone() const { return new InsetBox(*this); }
+	Inset * clone() const override { return new InsetBox(*this); }
 	//@}
 
 private:
 	/// used by the constructors
 	void init();
+	///
+	std::string const getFrameColor(bool const gui = false) const;
+	///
+	std::string const getBackgroundColor() const;
+	///
+	bool useFColorBox() const;
 
 	///
 	friend class InsetBoxParams;

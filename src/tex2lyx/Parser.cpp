@@ -10,11 +10,16 @@
 
 #include <config.h>
 
-#include "Encoding.h"
 #include "Parser.h"
+
+#include "tex2lyx.h"
+
+#include "Encoding.h"
+#include "support/convert.h"
 #include "support/lstrings.h"
 #include "support/textutils.h"
 
+#include <cstdint>
 #include <iostream>
 
 using namespace std;
@@ -129,7 +134,7 @@ void iparserdocstream::putback(char_type c)
 }
 
 
-void iparserdocstream::putback(docstring s)
+void iparserdocstream::putback(docstring const & s)
 {
 	s_ = s + s_;
 }
@@ -140,7 +145,7 @@ iparserdocstream & iparserdocstream::get(char_type &c)
 	if (s_.empty())
 		is_.get(c);
 	else {
-		//cerr << "unparsed: " << to_utf8(s_) <<endl;
+		//warning_message("unparsed: " + to_utf8(s_));
 		c = s_[0];
 		s_.erase(0,1);
 	}
@@ -154,7 +159,7 @@ iparserdocstream & iparserdocstream::get(char_type &c)
 
 
 Parser::Parser(idocstream & is, std::string const & fixedenc)
-	: lineno_(0), pos_(0), iss_(0), is_(is),
+	: lineno_(0), pos_(0), iss_(nullptr), is_(is),
 	  encoding_iconv_(fixedenc.empty() ? "UTF-8" : fixedenc),
 	  theCatcodesType_(NORMAL_CATCODES), curr_cat_(UNDECIDED_CATCODES),
 	  fixed_enc_(!fixedenc.empty())
@@ -196,7 +201,7 @@ void Parser::deparse()
 }
 
 
-bool Parser::setEncoding(std::string const & e, int const & p)
+bool Parser::setEncoding(std::string const & e, int p)
 {
 	// We may (and need to) use unsafe encodings here: Since the text is
 	// converted to unicode while reading from is_, we never see text in
@@ -204,7 +209,7 @@ bool Parser::setEncoding(std::string const & e, int const & p)
 	// instead. Therefore, we cannot misparse high bytes as {, } or \\.
 	Encoding const * const enc = encodings.fromLaTeXName(e, p, true);
 	if (!enc) {
-		cerr << "Unknown encoding " << e << ". Ignoring." << std::endl;
+		warning_message("Unknown encoding " + e + ". Ignoring.");
 		return false;
 	}
 	return setEncoding(enc->iconvName());
@@ -266,7 +271,7 @@ void Parser::setCatcodes(cat_type t)
 
 bool Parser::setEncoding(std::string const & e)
 {
-	//cerr << "setting encoding to " << e << std::endl;
+	//warning_message("setting encoding to " + e);
 	encoding_iconv_ = e;
 	// If the encoding is fixed, we must not change the stream encoding
 	// (because the whole input uses that encoding, e.g. if it comes from
@@ -339,15 +344,15 @@ Token const Parser::get_token()
 		if (pos_ >= tokens_.size())
 			return dummy;
 	}
-	// cerr << "looking at token " << tokens_[pos_]
-	//      << " pos: " << pos_ << '\n';
+	// warning_message("looking at token " + tokens_[pos_]
+	//      + " pos: " + pos_ <<);
 	return tokens_[pos_++];
 }
 
 
 bool Parser::isParagraph()
 {
-	// A new paragraph in TeX ist started
+	// A new paragraph in TeX is started
 	// - either by a newline, following any amount of whitespace
 	//   characters (including zero), and another newline
 	// - or the token \par
@@ -385,8 +390,7 @@ bool Parser::skip_spaces(bool skip_comments)
 			// If positions_ is not empty we are doing some kind
 			// of look ahead
 			if (!positions_.empty())
-				cerr << "  Ignoring comment: "
-				     << curr_token().asInput();
+				warning_message("Ignoring comment: " + curr_token().asInput());
 		} else {
 			putback();
 			break;
@@ -407,8 +411,7 @@ void Parser::unskip_spaces(bool skip_comments)
 			// If positions_ is not empty we are doing some kind
 			// of look ahead
 			if (!positions_.empty())
-				cerr << "Unignoring comment: "
-				     << curr_token().asInput();
+				warning_message("Unignoring comment: " + curr_token().asInput());
 			putback();
 		}
 		else
@@ -443,7 +446,7 @@ void Parser::dropPosition()
 }
 
 
-bool Parser::good()
+bool Parser::good() const
 {
 	if (pos_ < tokens_.size())
 		return true;
@@ -453,7 +456,7 @@ bool Parser::good()
 }
 
 
-bool Parser::hasOpt(string const l)
+bool Parser::hasOpt(string const & l)
 {
 	// An optional argument can occur in any of the following forms:
 	// - \foo[bar]
@@ -485,7 +488,40 @@ bool Parser::hasOpt(string const l)
 }
 
 
-Parser::Arg Parser::getFullArg(char left, char right, bool allow_escaping)
+bool Parser::hasIdxMacros(string const & c, string const & e)
+{
+	// Check for index entry separator (! or @),
+	// consider escaping via "
+	// \p e marks a terminating delimiter¸
+
+	// remember current position
+	unsigned int oldpos = pos_;
+	// skip spaces and comments
+	bool retval = false;
+	while (good()) {
+		get_token();
+		if (isParagraph()) {
+			putback();
+			break;
+		}
+		if (curr_token().cat() == catEnd)
+			break;
+		if (!e.empty() && curr_token().asInput() == e
+		    && prev_token().asInput() != "\"")
+			break;
+		if (curr_token().asInput() == c
+		    && prev_token().asInput() != "\"") {
+			retval = true;
+			break;
+		}
+		continue;
+	}
+	pos_ = oldpos;
+	return retval;
+}
+
+
+Parser::Arg Parser::getFullArg(char left, char right, bool allow_escaping, char e)
 {
 	skip_spaces(true);
 
@@ -494,34 +530,41 @@ Parser::Arg Parser::getFullArg(char left, char right, bool allow_escaping)
 	if (! good())
 		return make_pair(false, string());
 
-	int group_level = 0;
+	int group_level = (left == '{') ? 1 : 0;
 	string result;
 	Token t = get_token();
 
-	if (t.cat() == catComment || t.cat() == catEscape ||
-	    t.character() != left) {
+	if (left != char()
+	    && (t.cat() == catComment || t.cat() == catEscape
+		|| t.character() != left)) {
 		putback();
 		return make_pair(false, string());
 	} else {
 		while (good()) {
 			t = get_token();
 			// honor grouping
-			if (left != '{' && t.cat() == catBegin) {
+			if (t.cat() == catBegin) {
 				++group_level;
-				continue;
+				if (left != '{')
+					continue;
 			}
-			if (left != '{' && t.cat() == catEnd) {
+			if (group_level > 0 && t.cat() == catEnd) {
 				--group_level;
-				continue;
+				if (left != '{')
+					continue;
 			}
 			// Ignore comments
 			if (t.cat() == catComment) {
 				if (!t.cs().empty())
-					cerr << "Ignoring comment: " << t.asInput();
+					warning_message("Ignoring comment: " + t.asInput());
 				continue;
 			}
 			if (allow_escaping) {
 				if (t.cat() != catEscape && t.character() == right
+				    && group_level == 0)
+					break;
+			} else if (e != char()) {
+				if (prev_token().character() != e && t.character() == right
 				    && group_level == 0)
 					break;
 			} else {
@@ -539,9 +582,9 @@ Parser::Arg Parser::getFullArg(char left, char right, bool allow_escaping)
 }
 
 
-string Parser::getArg(char left, char right, bool allow_escaping)
+string Parser::getArg(char left, char right, bool allow_escaping, char e)
 {
-	return getFullArg(left, right, allow_escaping).second;
+	return getFullArg(left, right, allow_escaping, e).second;
 }
 
 
@@ -577,6 +620,26 @@ string Parser::getFullParentheseArg()
 }
 
 
+bool Parser::hasListPreamble(string const & itemcmd)
+{
+	// remember current position
+	unsigned int oldpos = pos_;
+	// jump over arguments
+	if (hasOpt())
+		getOpt();
+	if (hasOpt("{"))
+		getArg('{', '}');
+	// and swallow spaces and comments
+	skip_spaces(true);
+	// we have a list preamble if the next thing
+	// that follows is not the \item command
+	bool res =  next_token().cs() != itemcmd;
+	// back to orig position
+	pos_ = oldpos;
+	return res;
+}
+
+
 string const Parser::ertEnvironment(string const & name)
 {
 	if (!good())
@@ -595,14 +658,14 @@ string const Parser::ertEnvironment(string const & name)
 		} else if (t.asInput() == "\\end") {
 			string const end = getArg('{', '}');
 			if (end != name)
-				cerr << "\\end{" << end
-				     << "} does not match \\begin{" << name
-				     << "}." << endl;
+				warning_message("\\end{" + end
+						+ "} does not match \\begin{"
+						+ name + "}.");
 			return os.str();
 		} else
 			os << t.asInput();
 	}
-	cerr << "unexpected end of input" << endl;
+	warning_message("unexpected end of input");
 	return os.str();
 }
 
@@ -623,7 +686,7 @@ string const Parser::plainEnvironment(string const & name)
 		} else
 			os << t.asInput();
 	}
-	cerr << "unexpected end of input" << endl;
+	warning_message("unexpected end of input");
 	return os.str();
 }
 
@@ -635,7 +698,7 @@ string const Parser::plainCommand(char left, char right, string const & name)
 	// check if first token is really the start character
 	Token tok = get_token();
 	if (tok.character() != left) {
-		cerr << "first character does not match start character of command \\" << name << endl;
+		warning_message("first character does not match start character of command \\" + name);
 		return string();
 	}
 	ostringstream os;
@@ -645,7 +708,7 @@ string const Parser::plainCommand(char left, char right, string const & name)
 		} else
 			os << t.asInput();
 	}
-	cerr << "unexpected end of input" << endl;
+	warning_message("unexpected end of input");
 	return os.str();
 }
 
@@ -689,7 +752,7 @@ Parser::Arg Parser::verbatimStuff(string const & end_string, bool const allow_li
 				break;
 		} else {
 			if (!allow_linebreak && t.asInput() == "\n") {
-				cerr << "unexpected end of input" << endl;
+				warning_message("unexpected end of input");
 				popPosition();
 				setCatcodes(NORMAL_CATCODES);
 				return Arg(false, string());
@@ -704,7 +767,7 @@ Parser::Arg Parser::verbatimStuff(string const & end_string, bool const allow_li
 	}
 
 	if (!good()) {
-		cerr << "unexpected end of input" << endl;
+		warning_message("unexpected end of input");
 		popPosition();
 		setCatcodes(NORMAL_CATCODES);
 		return Arg(false, string());
@@ -753,7 +816,7 @@ string Parser::verbatim_item()
 	if (next_token().cat() == catBegin) {
 		Token t = get_token(); // skip brace
 		string res;
-		for (Token t = get_token(); t.cat() != catEnd && good(); t = get_token()) {
+		for (t = get_token(); t.cat() != catEnd && good(); t = get_token()) {
 			if (t.cat() == catBegin) {
 				putback();
 				res += '{' + verbatim_item() + '}';
@@ -833,14 +896,14 @@ void Parser::tokenize_one()
 	}
 
 	case catIgnore: {
-		cerr << "ignoring a char: " << c << "\n";
+		warning_message("ignoring a char: " + std::to_string(static_cast<uint32_t>(c)));
 		break;
 	}
 
 	default:
 		push_back(Token(docstring(1, c), catcode(c)));
 	}
-	//cerr << tokens_.back();
+	//warning_message(tokens_.back());
 }
 
 
@@ -856,9 +919,9 @@ void Parser::dump() const
 }
 
 
-void Parser::error(string const & msg)
+void Parser::error(string const & msg) const
 {
-	cerr << "Line ~" << lineno_ << ":  parse error: " << msg << endl;
+	error_message("Line ~" + convert<string>(lineno_) + ":  parse error: " + msg);
 	dump();
 	//exit(1);
 }

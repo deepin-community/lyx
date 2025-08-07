@@ -1,4 +1,5 @@
 #\DeclareLyXModule{Variable-width Minipages}
+#\DeclareCategory{Boxes}
 #DescriptionBegin
 # Adds a 'Minipage (Var. Width)' inset using the varwidth LaTeX package.
 # The varwidth package provides a variable-width minipage, whose resulting
@@ -7,12 +8,14 @@
 #
 # The inset has two optional arguments: vertical adjustment (c|t|b) and
 # maximum width (defaults to \linewidth).
+#
+# For an example, see File > Open Example > Modules > Variable-width Minipages.
 #DescriptionEnd
 #
 # Authors: Guillaume Munch <gm@lyx.org>
 # 	   Jürgen Spitzmüller <spitz@lyx.org>
 
-Format 66
+Format 104
 
 InsetLayout Flex:Minipage_(Var._Width)
   LyXType     		custom
@@ -30,12 +33,14 @@ InsetLayout Flex:Minipage_(Var._Width)
   Argument 1
     LabelString 	"Vert. Adjustment"
     Tooltip 		"Vertical adjustment: c (center), t (top) or b (bottom)"
+    DocBookTag      IGNORE
   EndArgument
   Argument 2
     LabelString 	"Max. Width"
     Tooltip 		"Maximum width (default: \linewidth)"
     DefaultArg 		"\linewidth"
     Mandatory 		1
+    DocBookTag      IGNORE
   EndArgument
   Requires		varwidth
 End

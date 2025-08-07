@@ -1,18 +1,35 @@
-#\DeclareLyXModule{Theorems (Numbered by Section)}
+#\DeclareLyXModule{Standard Theorems (Numbered by Section)}
+#\DeclareCategory{Maths}
 #DescriptionBegin
 #Numbers theorems and the like by section (i.e., the counter is reset at
 #each section start).
 #DescriptionEnd
 #Requires: theorems-std | theorems-ams
 #Excludes: theorems-chap
-#Category: theorems
 
-# Author: Richard Heck <rgheck@comcast.net>
+# Author: Richard Kimberly Heck <rikiheck@lyx.org>
 
-Format 66
+Format 104
 
 Counter theorem
-	Within         section
+	GuiName Theorem
+	Within section
+	LaTeXName thm
+	RefFormat thm "Theorem \thesection.\arabic{theorem}"
+	RefFormat cor "Corollary \thesection.\arabic{theorem}"
+	RefFormat lem "Lemma \thesection.\arabic{theorem}"
+	RefFormat prop "Proposition \thesection.\arabic{theorem}"
+	RefFormat conj "Conjecture \thesection.\arabic{theorem}"
+	RefFormat def "Definition \thesection.\arabic{theorem}"
+	RefFormat exa "Example \thesection.\arabic{theorem}"
+	RefFormat prob "Problem \thesection.\arabic{theorem}"
+	RefFormat exer "Exercise \thesection.\arabic{theorem}"
+	RefFormat solu "Solution \thesection.\arabic{theorem}"
+	RefFormat rem "Remark \thesection.\arabic{theorem}"
+	RefFormat claim "Claim \thesection.\arabic{theorem}"
+	RefFormat fact "Fact \thesection.\arabic{theorem}"
+	RefFormat cri "Criterion \thesection.\arabic{theorem}"
+	RefFormat alg "Algorithm \thesection.\arabic{theorem}"
 End
 
 Style Theorem

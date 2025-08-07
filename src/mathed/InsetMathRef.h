@@ -23,34 +23,40 @@ class Buffer;
 class InsetMathRef : public InsetMathCommand {
 public:
 	///
-	InsetMathRef(Buffer * buf);
+	explicit InsetMathRef(Buffer * buf);
 	///
 	explicit InsetMathRef(Buffer * buf, docstring const & data);
 	///
-	void updateBuffer(ParIterator const &, UpdateType);
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false) override;
 	///
-	//void write(WriteStream & os) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void infoize(odocstream & os) const;
+	void infoize(odocstream & os) const override;
 	///
-	mode_type currentMode() const { return TEXT_MODE; }
+	bool hasSettings() const override { return true; }
 	///
-	bool lockedMode() const { return true; }
+	bool clickable(BufferView const &, int, int) const override { return true; }
 	///
-	bool asciiOnly() const { return true; }
+	std::string contextMenuName() const override { return "context-mathref"; }
 	///
-	docstring const screenLabel() const;
+	mode_type currentMode() const override { return TEXT_MODE; }
 	///
-	void validate(LaTeXFeatures & features) const;
+	bool lockedMode() const override { return true; }
+	///
+	bool asciiOnly() const override { return true; }
+	///
+	docstring const screenLabel() const override;
+	///
+	void validate(LaTeXFeatures & features) const override;
 	///
 	void changeTarget(docstring const & target);
 	///
-	virtual InsetMathRef * asRefInset() { return this; }
+	InsetMathRef * asRefInset() override { return this; }
 
 	/// docbook output
-	int docbook(odocstream & os, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	/// generate something that will be understood by the Dialogs.
-	std::string const createDialogStr() const;
+	std::string const createDialogStr(std::string const & type = std::string()) const;
 
 	struct ref_type_info {
 		///
@@ -62,22 +68,18 @@ public:
 	};
 	static ref_type_info types[];
 	///
-	static int getType(docstring const & name);
-	///
-	static docstring const & getName(int type);
-	///
 	docstring const getTarget() const;
 	///
-	InsetCode lyxCode() const { return MATH_REF_CODE; }
+	InsetCode lyxCode() const override { return MATH_REF_CODE; }
 
 protected:
 	///
-	virtual void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 private:
 	///
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 };
 
 

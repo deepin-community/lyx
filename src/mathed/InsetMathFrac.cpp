@@ -50,7 +50,7 @@ bool InsetMathFracBase::idxUpDown(Cursor & cur, bool up) const
 {
 	// If we only have one cell, target = 0, otherwise
 	// target = up ? 0 : 1, since upper cell has idx 0
-	InsetMath::idx_type target = nargs() > 1 ? !up : 0;
+	idx_type target = nargs() > 1 ? !up : 0;
 	if (cur.idx() == target)
 		return false;
 	cur.idx() = target;
@@ -67,7 +67,7 @@ bool InsetMathFracBase::idxUpDown(Cursor & cur, bool up) const
 /////////////////////////////////////////////////////////////////////
 
 
-InsetMathFrac::InsetMathFrac(Buffer * buf, Kind kind, InsetMath::idx_type ncells)
+InsetMathFrac::InsetMathFrac(Buffer * buf, Kind kind, idx_type ncells)
 	: InsetMathFracBase(buf, ncells), kind_(kind)
 {}
 
@@ -80,19 +80,19 @@ Inset * InsetMathFrac::clone() const
 
 InsetMathFrac * InsetMathFrac::asFracInset()
 {
-	return kind_ == ATOP ? 0 : this;
+	return kind_ == ATOP ? nullptr : this;
 }
 
 
 InsetMathFrac const * InsetMathFrac::asFracInset() const
 {
-	return kind_ == ATOP ? 0 : this;
+	return kind_ == ATOP ? nullptr : this;
 }
 
 
 bool InsetMathFrac::idxForward(Cursor & cur) const
 {
-	InsetMath::idx_type target = 0;
+	idx_type target = 0;
 	if (kind_ == UNIT || (kind_ == UNITFRAC && nargs() == 3)) {
 		if (nargs() == 3)
 			target = 0;
@@ -110,7 +110,7 @@ bool InsetMathFrac::idxForward(Cursor & cur) const
 
 bool InsetMathFrac::idxBackward(Cursor & cur) const
 {
-	InsetMath::idx_type target = 0;
+	idx_type target = 0;
 	if (kind_ == UNIT || (kind_ == UNITFRAC && nargs() == 3)) {
 		if (nargs() == 3)
 			target = 2;
@@ -140,6 +140,7 @@ MathClass InsetMathFrac::mathClass() const
 	case CFRAC:
 	case CFRACLEFT:
 	case CFRACRIGHT:
+	case AASTEX_CASE:
 		mc = MC_INNER;
 		break;
 	case NICEFRAC:
@@ -215,7 +216,7 @@ void InsetMathFrac::metrics(MetricsInfo & mi, Dimension & dim) const
 			dim.des = dim2.des;
 		}
 		Changer dummy = (kind_ == UNITFRAC) ? mi.base.font.changeShape(UP_SHAPE)
-			: Changer();
+			: noChange();
 		Changer dummy2 = mi.base.changeScript();
 		if (latexkeys const * slash = slash_symbol()) {
 			Dimension dimslash;
@@ -239,16 +240,18 @@ void InsetMathFrac::metrics(MetricsInfo & mi, Dimension & dim) const
 	case DFRAC:
 	case TFRAC:
 	case OVER:
-	case ATOP: {
+	case ATOP:
+	case AASTEX_CASE: {
 		int const dy = axis_height(mi.base);
 		Changer dummy =
 			// \tfrac is always in text size
-			(kind_ == TFRAC) ? mi.base.font.changeStyle(LM_ST_SCRIPT) :
+			(kind_ == TFRAC) ? mi.base.font.changeStyle(SCRIPT_STYLE) :
 			// \cfrac and \dfrac are always in display size
 			(kind_ == CFRAC
 			 || kind_ == CFRACLEFT
 			 || kind_ == CFRACRIGHT
-			 || kind_ == DFRAC) ? mi.base.font.changeStyle(LM_ST_DISPLAY) :
+			 || kind_ == DFRAC
+			 || kind_ == AASTEX_CASE) ? mi.base.font.changeStyle(DISPLAY_STYLE) :
 			// all others
 			                      mi.base.changeFrac();
 		Changer dummy2 = mi.base.changeEnsureMath();
@@ -297,7 +300,7 @@ void InsetMathFrac::draw(PainterInfo & pi, int x, int y) const
 			xx += cell(2).dimension(*pi.base.bv).wid + 4;
 		}
 		Changer dummy = (kind_ == UNITFRAC) ? pi.base.font.changeShape(UP_SHAPE)
-			: Changer();
+			: noChange();
 		// nice fraction
 		Changer dummy2 = pi.base.changeScript();
 		cell(0).draw(pi, xx + 1, y - dy);
@@ -321,16 +324,18 @@ void InsetMathFrac::draw(PainterInfo & pi, int x, int y) const
 	case DFRAC:
 	case TFRAC:
 	case OVER:
-	case ATOP: {
+	case ATOP:
+	case AASTEX_CASE: {
 		int const dy = axis_height(pi.base);
 		Changer dummy =
 			// \tfrac is always in text size
-			(kind_ == TFRAC) ? pi.base.font.changeStyle(LM_ST_SCRIPT) :
+			(kind_ == TFRAC) ? pi.base.font.changeStyle(SCRIPT_STYLE) :
 			// \cfrac and \dfrac are always in display size
 			(kind_ == CFRAC
 			 || kind_ == CFRACLEFT
 			 || kind_ == CFRACRIGHT
-			 || kind_ == DFRAC) ? pi.base.font.changeStyle(LM_ST_DISPLAY) :
+			 || kind_ == DFRAC
+			 || kind_ == AASTEX_CASE) ? pi.base.font.changeStyle(DISPLAY_STYLE) :
 			// all others
 			                      pi.base.changeFrac();
 		Dimension const dim1 = cell(1).dimension(*pi.base.bv);
@@ -386,7 +391,7 @@ void InsetMathFrac::drawT(TextPainter & /*pain*/, int /*x*/, int /*y*/) const
 }
 
 
-void InsetMathFrac::write(WriteStream & os) const
+void InsetMathFrac::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	switch (kind_) {
@@ -422,6 +427,9 @@ void InsetMathFrac::write(WriteStream & os) const
 	case CFRACRIGHT:
 		os << "\\cfrac[r]{" << cell(0) << "}{" << cell(1) << '}';
 		break;
+	case AASTEX_CASE:
+		os << "\\case{" << cell(0) << "}{" << cell(1) << '}';
+		break;
 	}
 }
 
@@ -449,9 +457,11 @@ docstring InsetMathFrac::name() const
 		return from_ascii("unit");
 	case ATOP:
 		return from_ascii("atop");
+	case AASTEX_CASE:
+		return from_ascii("case");
+	default:
+		return docstring();
 	}
-	// shut up stupid compiler
-	return docstring();
 }
 
 
@@ -491,14 +501,14 @@ void InsetMathFrac::octave(OctaveStream & os) const
 }
 
 
-void InsetMathFrac::mathmlize(MathStream & os) const
+void InsetMathFrac::mathmlize(MathMLStream & ms) const
 {
 	switch (kind_) {
 	case ATOP:
-		os << MTag("mfrac", "linethickeness='0'")
-		   << MTag("mrow") << cell(0) << ETag("mrow")
-			 << MTag("mrow") << cell(1) << ETag("mrow")
-			 << ETag("mfrac");
+		ms << MTag("mfrac", "linethickness='0'")
+		   << cell(0)
+		   << cell(1)
+		   << ETag("mfrac");
 		break;
 
 	// we do not presently distinguish these
@@ -509,40 +519,42 @@ void InsetMathFrac::mathmlize(MathStream & os) const
 	case CFRAC:
 	case CFRACLEFT:
 	case CFRACRIGHT:
-		os << MTag("mfrac")
-		   << MTag("mrow") << cell(0) << ETag("mrow")
-			 << MTag("mrow") << cell(1) << ETag("mrow")
-			 << ETag("mfrac");
+	case AASTEX_CASE:
+		ms << MTag("mfrac")
+		   << cell(0)
+		   << cell(1)
+		   << ETag("mfrac");
 		break;
 
 	case NICEFRAC:
-		os << MTag("mfrac", "bevelled='true'")
-		   << MTag("mrow") << cell(0) << ETag("mrow")
-			 << MTag("mrow") << cell(1) << ETag("mrow")
-			 << ETag("mfrac");
+		ms << MTag("mfrac", "bevelled='true'")
+		   << cell(0)
+		   << cell(1)
+		   << ETag("mfrac");
 		break;
 
 	case UNITFRAC:
 		if (nargs() == 3)
-			os << cell(2);
-		os << MTag("mfrac", "bevelled='true'")
-		   << MTag("mrow") << cell(0) << ETag("mrow")
-			 << MTag("mrow") << cell(1) << ETag("mrow")
-			 << ETag("mfrac");
+			ms << cell(2);
+		ms << MTag("mfrac", "bevelled='true'")
+		   << cell(0)
+		   << cell(1)
+		   << ETag("mfrac");
 		break;
 
 	case UNIT:
-		// FIXME This is not right, because we still output mi, etc,
-		// when we output the cell. So we need to prevent that somehow.
-		if (nargs() == 2)
-			os << cell(0)
-			   << MTag("mstyle mathvariant='normal'")
-			   << cell(1)
-			   << ETag("mstyle");
-		else
-			os << MTag("mstyle mathvariant='normal'")
-			   << cell(0)
-			   << ETag("mstyle");
+		if (nargs() == 2) {
+			ms << MTag("mrow");
+			ms << cell(0);
+			ms << MTagInline("mstyle mathvariant='normal'");
+			ms << cell(1);
+			ms << ETagInline("mstyle");
+			ms << ETag("mrow");
+		} else {
+			ms << MTag("mstyle mathvariant='normal'");
+			ms << cell(0);
+			ms << ETag("mstyle");
+		}
 	}
 }
 
@@ -565,6 +577,7 @@ void InsetMathFrac::htmlize(HtmlStream & os) const
 	case CFRAC:
 	case CFRACLEFT:
 	case CFRACRIGHT:
+	case AASTEX_CASE:
 		os << MTag("span", "class='frac'")
 			 << MTag("span", "class='numer'") << cell(0) << ETag("span")
 			 << MTag("span", "class='denom'") << cell(1) << ETag("span")
@@ -604,12 +617,16 @@ void InsetMathFrac::validate(LaTeXFeatures & features) const
 	if (kind_ == CFRAC || kind_ == CFRACLEFT || kind_ == CFRACRIGHT
 		  || kind_ == DFRAC || kind_ == TFRAC)
 		features.require("amsmath");
+	if (kind_ == AASTEX_CASE)
+		features.require("aastex_case");
+
 	if (features.runparams().math_flavor == OutputParams::MathAsHTML)
 		// CSS adapted from eLyXer
 		features.addCSSSnippet(
 			"span.frac{display: inline-block; vertical-align: middle; text-align:center;}\n"
 			"span.numer{display: block;}\n"
 			"span.denom{display: block; border-top: thin solid #000040;}");
+
 	InsetMathNest::validate(features);
 }
 
@@ -649,8 +666,8 @@ void InsetMathBinom::metrics(MetricsInfo & mi, Dimension & dim) const
 	Dimension dim0, dim1;
 	int const dy = axis_height(mi.base);
 	Changer dummy =
-		(kind_ == DBINOM) ? mi.base.font.changeStyle(LM_ST_DISPLAY) :
-		(kind_ == TBINOM) ? mi.base.font.changeStyle(LM_ST_SCRIPT) :
+		(kind_ == DBINOM) ? mi.base.font.changeStyle(DISPLAY_STYLE) :
+		(kind_ == TBINOM) ? mi.base.font.changeStyle(SCRIPT_STYLE) :
 		                    mi.base.changeFrac();
 	cell(0).metrics(mi, dim0);
 	cell(1).metrics(mi, dim1);
@@ -676,8 +693,8 @@ void InsetMathBinom::draw(PainterInfo & pi, int x, int y) const
 	int m = x + dim.width() / 2;
 	{
 		Changer dummy =
-			(kind_ == DBINOM) ? pi.base.font.changeStyle(LM_ST_DISPLAY) :
-			(kind_ == TBINOM) ? pi.base.font.changeStyle(LM_ST_SCRIPT) :
+			(kind_ == DBINOM) ? pi.base.font.changeStyle(DISPLAY_STYLE) :
+			(kind_ == TBINOM) ? pi.base.font.changeStyle(SCRIPT_STYLE) :
 			                    pi.base.changeFrac();
 		// take dy both for the vertical alignment and for the spacing between
 		// cells
@@ -698,7 +715,7 @@ bool InsetMathBinom::extraBraces() const
 }
 
 
-void InsetMathBinom::write(WriteStream & os) const
+void InsetMathBinom::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	switch (kind_) {
@@ -730,7 +747,7 @@ void InsetMathBinom::normalize(NormalStream & os) const
 }
 
 
-void InsetMathBinom::mathmlize(MathStream & os) const
+void InsetMathBinom::mathmlize(MathMLStream & ms) const
 {
 	char ldelim = ' ';
 	char rdelim = ' ';
@@ -751,11 +768,20 @@ void InsetMathBinom::mathmlize(MathStream & os) const
 		rdelim = ']';
 		break;
 	}
-	os << "<mo fence='true' stretchy='true' form='prefix'>" << ldelim << "</mo>"
-	   << "<mfrac linethickness='0'>"
+
+	if (ldelim != ' ') {
+	    ms << MTagInline("mo", "fence='true' stretchy='true' form='prefix'")
+	       << ldelim
+	       << ETagInline("mo");
+	}
+	ms << MTagInline("mfrac", "linethickness='0'")
 	   << cell(0) << cell(1)
-	   << "</mfrac>"
-	   << "<mo fence='true' stretchy='true' form='postfix'>" << rdelim << "</mo>";
+	   << ETagInline("mfrac");
+	if (rdelim != ' ') {
+	    ms << MTagInline("mo", "fence='true' stretchy='true' form='postfix'")
+	       << rdelim
+	       << ETagInline("mo");
+	}
 }
 
 

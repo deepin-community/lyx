@@ -36,14 +36,14 @@ namespace lyx {
 
 
 RenderGraphic::RenderGraphic(Inset const * inset)
-	: loader_(inset->buffer().fileName())
+	: inset_(inset), loader_(inset->buffer().fileName())
 {
 	loader_.connect(bind(&Inset::updateFrontend, inset));
 }
 
 
 RenderGraphic::RenderGraphic(RenderGraphic const & other, Inset const * inset)
-	: RenderBase(other), loader_(other.loader_), params_(other.params_)
+	: RenderBase(other), inset_(inset), loader_(other.loader_), params_(other.params_)
 {
 	loader_.connect(bind(&Inset::updateFrontend, inset));
 }
@@ -147,7 +147,8 @@ void RenderGraphic::metrics(MetricsInfo & mi, Dimension & dim) const
 
 	bool const image_ready = displayGraphic(params_) && readyToDisplay(loader_);
 	if (image_ready) {
-		dim.wid = loader_.image()->width() + 2 * Inset::TEXT_TO_INSET_OFFSET;
+		dim.wid = loader_.image()->width() + inset_->leftOffset(mi.base.bv)
+			+ inset_->rightOffset(mi.base.bv);
 		dim.asc = loader_.image()->height();
 		dim_ = dim;
 		return;
@@ -165,14 +166,14 @@ void RenderGraphic::metrics(MetricsInfo & mi, Dimension & dim) const
 	// FIXME UNICODE
 	docstring const justname = from_utf8(params_.filename.onlyFileName());
 	if (!justname.empty()) {
-		msgFont.setSize(FONT_SIZE_FOOTNOTE);
+		msgFont.setSize(FOOTNOTE_SIZE);
 		font_width = theFontMetrics(msgFont).width(justname);
 		font_height = theFontMetrics(msgFont).maxHeight();
 	}
 
 	docstring const msg = statusMessage(params_, loader_.status());
 	if (!msg.empty()) {
-		msgFont.setSize(FONT_SIZE_TINY);
+		msgFont.setSize(TINY_SIZE);
 		font_width = max(font_width,
 			theFontMetrics(msgFont).width(msg));
 		font_height += theFontMetrics(msgFont).maxAscent();
@@ -186,20 +187,20 @@ void RenderGraphic::metrics(MetricsInfo & mi, Dimension & dim) const
 }
 
 
-void RenderGraphic::draw(PainterInfo & pi, int x, int y) const
+void RenderGraphic::draw(PainterInfo & pi, int x, int y, bool const darkmode) const
 {
 	// This will draw the graphics. If the graphics has not been
 	// loaded yet, we draw just a rectangle.
-	int const x1 = x + Inset::TEXT_TO_INSET_OFFSET;
+	int const x1 = x + inset_->leftOffset(pi.base.bv);
 	int const y1 = y - dim_.asc;
-	int const w = dim_.wid - 2 * Inset::TEXT_TO_INSET_OFFSET;
+	int const w = dim_.wid - inset_->leftOffset(pi.base.bv) - inset_->rightOffset(pi.base.bv);
 	int const h = dim_.height();
 
 	if (displayGraphic(params_) && readyToDisplay(loader_))
-		pi.pain.image(x1, y1, w, h, *loader_.image());
+		pi.pain.image(x1, y1, w, h, *loader_.image(), darkmode);
 
 	else {
-		Color c = pi.change_.changed() ? pi.change_.color() : Color_foreground;
+		Color c = pi.change.changed() ? pi.change.color() : Color_foreground;
 		pi.pain.rectangle(x1, y1, w, h, c);
 
 		// Print the file name.
@@ -209,7 +210,7 @@ void RenderGraphic::draw(PainterInfo & pi, int x, int y) const
 		string const justname = params_.filename.onlyFileName();
 
 		if (!justname.empty()) {
-			msgFont.setSize(FONT_SIZE_FOOTNOTE);
+			msgFont.setSize(FOOTNOTE_SIZE);
 			pi.pain.text(x1 + 6, y - theFontMetrics(msgFont).maxAscent() - 4,
 			             from_utf8(justname), msgFont);
 		}
@@ -217,11 +218,11 @@ void RenderGraphic::draw(PainterInfo & pi, int x, int y) const
 		// Print the message.
 		docstring const msg = statusMessage(params_, loader_.status());
 		if (!msg.empty()) {
-			msgFont.setSize(FONT_SIZE_TINY);
+			msgFont.setSize(TINY_SIZE);
 			pi.pain.text(x1 + 6, y - 4, msg, msgFont);
 		}
 	}
-	pi.change_.paintCue(pi, x1, y1, x1 + w, y1 + h);
+	pi.change.paintCue(pi, x1, y1, x1 + w, y1 + h);
 }
 
 

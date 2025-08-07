@@ -4,12 +4,14 @@
 # KOMA scrlettr textclass definition file.
 # Bernd Rellermeyer <100.41728@germanynet.de>, 1999/2/17.
 
-Format 66
+Format 104
+
 Style Standard
 	Category              MainText
 	LatexName             dummy
 	ParSep                0.4
 	AlignPossible         Block, Left, Right, Center
+	DocBookTag            para
 End
 
 Input stdlists.inc
@@ -55,8 +57,9 @@ Style Letter
 	  Series              Bold
 	  Shape               Italic
 	  Size                Small
-	  Color               Blue
+	  Color               textlabel1
 	EndFont
+	# TODO: not supported by DocBook, it's related to having several letters in one document.
 End
 
 
@@ -67,6 +70,8 @@ Style Opening
 	Preamble
 	  \newcommand{\lyxopening}[1]{\pagebreak\startbreaks\opening{#1}}
 	EndPreamble
+	DocBookTag            para
+	DocBookAttr           role='opening'
 End
 
 
@@ -79,6 +84,8 @@ Style Closing
 	BottomSep             1.5
 	ParSep                1.5
 	Align                 Left
+	DocBookTag            para
+	DocBookAttr           role='closing'
 End
 
 
@@ -89,6 +96,8 @@ Style PS
 	BottomSep             0.4
 	ParSep                0.4
 	Align                 Left
+	DocBookTag            para
+	DocBookAttr           role='post-scriptum'
 End
 
 
@@ -103,6 +112,8 @@ Style CC
 	Align                 Left
 	LabelType             Static
 	LabelString           "cc:"
+	DocBookTag            para
+	DocBookAttr           role='carbon-copy'
 End
 
 
@@ -110,6 +121,8 @@ Style Encl
 	CopyStyle             CC
 	LatexName             encl
 	LabelString           "encl:"
+	DocBookTag            para
+	DocBookAttr           role='enclosed'
 End
 
 
@@ -129,8 +142,13 @@ Style Name
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               Blue
+	  Color               textlabel1
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always 
 End
 
 
@@ -138,6 +156,8 @@ Style Signature
 	CopyStyle             Name
 	LatexName             signature
 	LabelString           "Signature:"
+	DocBookTag            para
+	DocBookAttr           role='signature'
 End
 
 
@@ -145,6 +165,11 @@ Style Address
 	CopyStyle             Name
 	LatexName             address
 	LabelString           "Address:"
+    DocBookTag            NONE
+    DocBookWrapperTag     address
+	DocBookWrapperAttr    role='send-to-address'
+    DocBookWrapperMergeWithPrevious  true
+    DocBookInInfo         always
 End
 
 
@@ -152,6 +177,13 @@ Style Telephone
 	CopyStyle             Name
 	LatexName             telephone
 	LabelString           "Telephone:"
+	# TODO: to be valid DocBook, this should be in the address.
+	DocBookTag            phone
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType paragraph
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always    
 End
 
 
@@ -159,6 +191,12 @@ Style Place
 	CopyStyle             Name
 	LatexName             place
 	LabelString           "Place:"
+	DocBookTag            country
+	DocBookTagType        paragraph
+	DocBookWrapperTag     address
+	DocBookWrapperTagType paragraph
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -166,6 +204,11 @@ Style Date
 	CopyStyle             Name
 	LatexName             date
 	LabelString           "Date:"
+	DocBookTag            date
+	DocBookTagType        paragraph
+	DocBookWrapperTag     NONE
+	DocBookInInfo         always
+    DocBookNoFontInside   true
 End
 
 
@@ -173,6 +216,11 @@ Style Backaddress
 	CopyStyle             Name
 	LatexName             backaddress
 	LabelString           "Backaddress:"
+	DocBookTag            NONE
+	DocBookWrapperTag     address
+	DocBookWrapperTagType paragraph
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -180,6 +228,7 @@ Style Specialmail
 	CopyStyle             Name
 	LatexName             specialmail
 	LabelString           "Specialmail:"
+	# TODO: not implemented for DocBook, what is the meaning of this?
 End
 
 
@@ -187,6 +236,7 @@ Style Location
 	CopyStyle             Name
 	LatexName             location
 	LabelString           "Location:"
+	# TODO: not implemented for DocBook, what is the meaning of this?
 End
 
 
@@ -195,6 +245,11 @@ Style Title
 	LatexName             title
 	LabelString           "Title:"
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookAttr           role='title' # As opposed to subject.
+	DocBookTagType        paragraph
+	DocBookWrapperTag     NONE
+	DocBookInInfo         maybe
 End
 
 
@@ -202,6 +257,11 @@ Style Subject
 	CopyStyle             Name
 	LatexName             subject
 	LabelString           "Subject:"
+	DocBookTag            title
+	DocBookAttr           role='title'
+	DocBookTagType        paragraph
+	DocBookWrapperTag     NONE
+	DocBookInInfo         maybe
 End
 
 

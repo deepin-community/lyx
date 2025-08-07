@@ -18,7 +18,7 @@
 # 2013-05-26  Updated for aa.cls version 8.2
 
 
-Format 66
+Format 104
 Columns		2
 Sides		2
 SecNumDepth	3
@@ -30,7 +30,7 @@ Provides inputenc	1
 Provides natbib		1
 
 ClassOptions
-	Other		latin9
+	Other		utf8
 End
 
 Style Standard
@@ -43,6 +43,7 @@ Style Standard
 	Align		Block
 	AlignPossible	Block, Left, Right, Center
 	LabelType	No_Label
+	DocBookTag  para
 End
 
 Input stdinsets.inc
@@ -84,6 +85,8 @@ Style Subtitle
 	  Size		Larger
 	  Series	Bold
 	EndFont
+	DocBookTag            subtitle
+	DocBookInInfo         maybe
 End
 
 
@@ -102,6 +105,8 @@ Style Address
 	  Family	Roman
 	  Size		Small
 	EndFont
+	DocBookTag      address
+	DocBookInInfo   always
 End
 
 
@@ -125,6 +130,12 @@ Style Offprint
 	  Size		Small
 	  Shape		Slanted
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperAttr    role='offprint'
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -148,10 +159,14 @@ Style Mail
 	  Size		Small
 	  Shape		Slanted
 	EndFont
+	DocBookTag      author
+	DocBookAttr     role='mail'
+	DocBookTagType  paragraph
+	DocBookInInfo   always
 End
 
 
-Style Acknowledgement
+Style Acknowledgments
 	Margin		First_Dynamic
 	LatexType	Environment
 	LatexName	acknowledgements
@@ -163,7 +178,7 @@ Style Acknowledgement
 	ParSep		0
 	Align		Block
 	LabelType	Static
-	LabelString	"Acknowledgements."
+	LabelString	"Acknowledgments."
 	LabelSep	M
 	Font
 	  Size		Small
@@ -172,6 +187,9 @@ Style Acknowledgement
 	  Size		Small
 	  Shape		Italic
 	EndFont
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
+	DocBookSection        true
 End
 
 
@@ -180,6 +198,7 @@ Style Section
 	  Family	Sans
 	  Size		Large
 	EndFont
+	TocLevel 1
 End
 
 
@@ -190,6 +209,7 @@ Style Subsection
 	  Size		Normal
 	  Shape		Slanted
 	EndFont
+	TocLevel 2
 End
 
 
@@ -198,6 +218,7 @@ Style Subsubsection
 	  Series	Medium
 	  Size		Normal
 	EndFont
+	TocLevel 3
 End
 
 
@@ -210,6 +231,9 @@ Style Title
 	  Family	Sans
 	  Series	Bold
 	EndFont
+	DocBookTag      title
+	DocBookTagType  paragraph
+	DocBookInInfo   maybe
 End
 
 
@@ -221,6 +245,11 @@ Style Author
 	  Size		Large
 	  Series	Medium
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -233,6 +262,10 @@ Style Date
 	Font
 	  Size		Small
 	EndFont
+	DocBookTag      date
+	DocBookTagType  paragraph
+	DocBookInInfo   always
+    DocBookNoFontInside true
 End
 
 
@@ -252,10 +285,13 @@ InsetLayout "Flex:institutemark"
 	  Misc		No_Bar
 	EndFont
 	LabelFont
-	  Color		green
+	  Color		textlabel2
 	  Size		Small
 	EndFont
 	MultiPar	true
+	AllowedInLayouts
+	    Author
+	EndAllowedInLayouts
 End
 
 
@@ -285,6 +321,11 @@ Style Abstract_(unstructured)
 	  Series	Bold
 	  Size		Small
 	EndFont
+	DocBookTag         para
+	DocBookWrapperTag  abstract
+	DocBookWrapperAttr role='unstructured'
+	DocBookWrapperMergeWithPrevious  true
+	DocBookInInfo     always
 End
 
 
@@ -315,6 +356,11 @@ Style Abstract_(structured)
 	  LabelString	"Results"
 	  Tooltip	"Results of your work"
 	EndArgument
+	DocBookTag         para
+	DocBookWrapperTag  abstract
+	DocBookWrapperAttr role='structured'
+	DocBookWrapperMergeWithPrevious  true
+	DocBookInInfo      always
 End
 
 
@@ -345,6 +391,10 @@ Style Keywords
 	  Series	Bold
 	  Size		Small
 	EndFont
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 
@@ -353,9 +403,12 @@ InsetLayout Flex:Institute
 	LatexType	command
 	LatexName	inst
 	Font
-	  Color		blue
+	  Color		textlabel1
 	EndFont
-	ResetsFont true
+	ResetsFont      true
+	AllowedInLayouts
+	    Author
+	EndAllowedInLayouts
 End
 
 
@@ -365,9 +418,12 @@ InsetLayout Flex:E-Mail
 	LatexName	email
 	Font
 	  Family	Typewriter
-	  Color		blue
+	  Color		textlabel1
 	EndFont
-	ResetsFont true
+	ResetsFont      true
+	AllowedInLayouts
+	    Address
+	EndAllowedInLayouts
 End
 
 
@@ -391,5 +447,8 @@ InsetLayout "Flex:Email"
 	  Size		Small
 	EndFont
 	MultiPar	true
+	AllowedInLayouts
+	    Address
+	EndAllowedInLayouts
 End
 

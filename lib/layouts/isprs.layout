@@ -9,7 +9,7 @@
 # Heavily modifed and enhanced by serveral developers.
 
 # Input general definitions
-Format 66
+Format 104
 Input stdclass.inc
 Sides			2
 Columns			2
@@ -71,6 +71,10 @@ Style Keywords
   LabelFont
     Series              Bold
   EndFont
+  DocBookTag         keyword
+  DocBookTagType     paragraph
+  DocBookWrapperTag  keywordset
+  DocBookInInfo      always
 End
 
 # Author style definition
@@ -88,6 +92,11 @@ Style Author
   Font
     Size              	Large
   EndFont
+  DocBookTag            personname
+  DocBookTagType        paragraph
+  DocBookWrapperTag     author
+  DocBookWrapperTagType inline
+  DocBookInInfo         always
 
 End
 # Title style definition
@@ -106,7 +115,10 @@ Style Title
     Series              Bold
     Size		LARGE
   EndFont
-	HTMLTitle             true
+  HTMLTitle             true
+  DocBookTag            title
+  DocBookTagType        paragraph
+  DocBookInInfo         maybe
 End
 
 Style Address
@@ -205,8 +217,8 @@ Style Subsubsection*
   EndFont
 End
 
-# Acknowledgement(s) style definitions
-Style Acknowledgements
+# Acknowledgment(s) style definitions
+Style Acknowledgments
   Category              BackMatter
   Margin                Static
   LatexType             Command
@@ -233,3 +245,4 @@ Style Acknowledgements
     Size		Normal
   EndFont
 End
+

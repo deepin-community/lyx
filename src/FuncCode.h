@@ -241,7 +241,7 @@ enum FuncCode
 	LFUN_PREFERENCES_SAVE,
 	LFUN_HELP_OPEN,                 // Jug 990627
 	// 175
-	LFUN_DATE_INSERT,               // jdblair 20000131
+	LFUN_LAYOUT_TOGGLE,             // lasgouttes 20180514
 	LFUN_LANGUAGE,                  // Dekel 20000203
 	LFUN_ERT_INSERT,                // Jug 20000218
 	LFUN_FOOTNOTE_INSERT,           // Jug 20000307
@@ -404,7 +404,7 @@ enum FuncCode
 	LFUN_COMPLETE,
 	// 310
 	LFUN_COMPLETION_COMPLETE,
-	LFUN_SET_GRAPHICS_GROUP,
+	LFUN_GRAPHICS_SET_GROUP,
 	LFUN_COMPLETION_CANCEL,
 	LFUN_COMPLETION_ACCEPT,
 	LFUN_COMMAND_ALTERNATIVES,
@@ -479,9 +479,39 @@ enum FuncCode
 	LFUN_BUFFER_ANONYMIZE,          // sanda, 20180201
 	LFUN_GRAPHICS_UNIFY,            // sanda, 20180207
 	LFUN_MASTER_BUFFER_EXPORT,      // rkh, 20180417
-	LFUN_LAYOUT_TOGGLE,             // lasgouttes 20180514
-	// 375
 	LFUN_INSET_END_EDIT,            // gb/rkh, 20180605
+	// 375
+	LFUN_SEARCH_IGNORE,		// kornel, 20181115
+	LFUN_BUFFER_WRITE_AS_TEMPLATE,	// spitz, 20190323
+	LFUN_TABULAR_STYLE_INSERT,	// spitz, 20190325
+	LFUN_PARAGRAPH_SELECT,          // Kornel, 20190416
+	LFUN_BUFFER_RESET_EXPORT,       // spitz 20191226
+	// 380
+	LFUN_MASTER_BUFFER_FORALL,      // spitz 20191231
+	LFUN_IF_RELATIVES,              // spitz 20200102
+	LFUN_WINDOW_RAISE,              // forenr, 20202104
+	LFUN_CITATION_OPEN,             // sanda, 20200815
+	LFUN_TOOLBAR_SET,               // spitz 20201217
+	// 385
+	LFUN_INSET_SPLIT,               // jspitzm 20201222
+	LFUN_LYXFILES_OPEN,             // jspitzm 20210210
+	LFUN_SEARCH_STRING_SET,         // stwitt/jspitzm 20210212
+	LFUN_FONT_NO_SPELLCHECK,        // jspitzm 20210305
+	LFUN_SPELLING_ADD_LOCAL,        // jspitzm 20210306
+	// 390
+	LFUN_SPELLING_REMOVE_LOCAL,     // jspitzm 20210307
+	LFUN_BRANCH_SYNC_ALL,           // sanda 20220415
+	LFUN_INDEXMACRO_INSERT,         // spitz 20220220
+	LFUN_INSET_INSERT_COPY,         // spitz 20221101
+	LFUN_INDEX_TAG_ALL,             // spitz 20221105
+	// 395
+	LFUN_TAB_GROUP_NEXT,            // daniel 20220130
+	LFUN_TAB_GROUP_PREVIOUS,        // daniel 20220130
+	LFUN_BIBTEX_DATABASE_LIST,      // bpiwowar, 20221218
+	LFUN_STATISTICS_REFERENCE_CLAMP,// sanda, 20240324
+	LFUN_REFERENCE_INSERT,          // spitz, 20240728
+	// 400
+	LFUN_REFERENCE_TO_PARAGRAPH,    // spitz, 20240728
 	LFUN_LASTACTION                 // end of the table
 };
 

@@ -22,34 +22,17 @@
 #include "Buffer.h"
 #include "BufferParams.h"
 #include "BufferView.h"
-#include "Counters.h"
-#include "Encoding.h"
-#include "Language.h"
-#include "LaTeXFeatures.h"
-#include "Layout.h"
 #include "Font.h"
-#include "LyXRC.h"
-#include "Row.h"
-#include "OutputParams.h"
-#include "sgml.h"
+#include "Layout.h"
+#include "LayoutEnums.h"
+#include "Paragraph.h"
 #include "TextClass.h"
-#include "TexRow.h"
 
 #include "frontends/FontMetrics.h"
 
-#include "insets/InsetBibitem.h"
-#include "insets/InsetArgument.h"
-
 #include "support/lassert.h"
 #include "support/debug.h"
-#include "support/ExceptionMessage.h"
-#include "support/gettext.h"
-#include "support/lstrings.h"
-#include "support/textutils.h"
 
-#include <algorithm>
-#include <list>
-#include <stack>
 #include <sstream>
 
 using namespace std;
@@ -57,9 +40,10 @@ using namespace lyx::support;
 
 namespace lyx {
 
+const int pm_npos = -10000;
 
 ParagraphMetrics::ParagraphMetrics(Paragraph const & par) :
-	position_(-1), par_(&par)
+	position_(pm_npos), id_(par.id()), par_(&par)
 {}
 
 
@@ -78,7 +62,14 @@ void ParagraphMetrics::reset(Paragraph const & par)
 {
 	par_ = &par;
 	dim_ = Dimension();
-	//position_ = -1;
+	//position_ = pm_npos;
+}
+
+
+int ParagraphMetrics::position() const
+{
+	LASSERT(hasPosition(), return -1);
+	return position_;
 }
 
 
@@ -88,22 +79,15 @@ void ParagraphMetrics::setPosition(int position)
 }
 
 
-Row & ParagraphMetrics::getRow(pos_type pos, bool boundary)
+void ParagraphMetrics::resetPosition()
 {
-	LBUFERR(!rows().empty());
+	position_ = pm_npos;
+}
 
-	// If boundary is set we should return the row on which
-	// the character before is inside.
-	if (pos > 0 && boundary)
-		--pos;
 
-	RowList::iterator rit = rows_.end();
-	RowList::iterator const begin = rows_.begin();
-
-	for (--rit; rit != begin && rit->pos() > pos; --rit)
-		;
-
-	return *rit;
+bool ParagraphMetrics::hasPosition() const
+{
+	return position_ != pm_npos;
 }
 
 

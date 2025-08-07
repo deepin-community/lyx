@@ -14,7 +14,11 @@
 #ifndef FONT_METRICS_H
 #define FONT_METRICS_H
 
+
+#include "support/mute_warning.h"
 #include "support/strfwd.h"
+
+#include <vector>
 
 /**
  * A class holding helper functions for determining
@@ -65,6 +69,8 @@ public:
 	virtual Dimension const defaultDimension() const = 0;
 	/// return the em size
 	virtual int em() const = 0;
+	/// return the x height
+	virtual int xHeight() const = 0;
 	/// return the width of a line for underlining
 	virtual int lineWidth() const = 0;
 	/// return the distance from the base line to where an underline
@@ -73,27 +79,41 @@ public:
 	/// return the distance from the base line to where the strike out line
 	/// should be drawn.
 	virtual int strikeoutPos() const = 0;
+	/// return true if font is not upright (italic or oblique)
+	virtual bool italic() const = 0;
+	/// return slope for italic font
+	virtual double italicSlope() const = 0;
 
-	/// return the width of the char in the font
-	virtual int width(char_type c) const = 0;
 	/// return the ascent of the char in the font
 	virtual int ascent(char_type c) const = 0;
 	/// return the descent of the char in the font
 	virtual int descent(char_type c) const = 0;
+	/// return the maximum height of the font
+	inline int maxHeight() const { return maxAscent() + maxDescent(); }
+	/// return the height of the char in the font
+	inline int height(char_type c) const { return ascent(c) + descent(c); }
+
 	/// return the left bearing of the char in the font
 	virtual int lbearing(char_type c) const = 0;
 	/// return the right bearing of the char in the font
 	virtual int rbearing(char_type c) const = 0;
+	/// return the width of the char in the font
+	virtual int width(char_type c) const = 0;
 	/// return the width of the string in the font
 	virtual int width(docstring const & s) const = 0;
 	/// FIXME ??
 	virtual int signedWidth(docstring const & s) const = 0;
+	/// return the inner width of the char in the font
+	inline int center(char_type c) const {
+		return (rbearing(c) - lbearing(c)) / 2;
+	}
+
 	/**
 	 * return the x offset of a position in the string. The
 	 * direction of the string is forced, and the returned value
 	 * is from the left edge of the word, not from the start of the string.
 	 * \param rtl is true for right-to-left layout
-	 * \param ws is the amount of extra inter-word space applied text justication.
+	 * \param ws is the amount of extra inter-word space applied text justification.
 	 */
 	virtual int pos2x(docstring const & s, int pos, bool rtl, double ws) const = 0;
 	/**
@@ -102,17 +122,35 @@ public:
 	 * is from the left edge of the word, not from the start of the string.
 	 * the offset x is updated to match the closest position in the string.
 	 * \param rtl is true for right-to-left layout
-	 * \param ws is the amount of extra inter-word space applied text justication.
+	 * \param ws is the amount of extra inter-word space applied text justification.
 	 */
 	virtual int x2pos(docstring const & s, int & x, bool rtl, double ws) const = 0;
+
+	// The places where to break a string and the width of the resulting lines.
+	struct Break {
+		Break(int l, int w, int nsw) : len(l), wid(w), nspc_wid(nsw) {}
+		// Number of characters
+		int len = 0;
+		// text width
+		int wid = 0;
+		// text width when trailing spaces are removed; only makes a
+		// difference for the last break.
+		int nspc_wid = 0;
+	};
+	typedef std::vector<Break> Breaks;
 	/**
-	 * Break string at width at most x.
-	 * \return true if successful
-	 * \param rtl is true for right-to-left layout
+	 * Break a string in multiple fragments according to width limits.
+	 * \return a sequence of Break elements.
+	 * \param s is the string to break.
+	 * \param first_wid is the available width for first line.
+	 * \param wid is the available width for the next lines.
+	 * \param rtl is true for right-to-left layout.
 	 * \param force is false for breaking at word separator, true for
 	 *   arbitrary position.
 	 */
-	virtual bool breakAt(docstring & s, int & x, bool rtl, bool force) const = 0;
+	virtual Breaks
+	breakString(docstring const & s, int first_wid, int wid, bool rtl, bool force) const = 0;
+
 	/// return char dimension for the font.
 	virtual Dimension const dimension(char_type c) const = 0;
 	/**
@@ -132,21 +170,6 @@ public:
 		int & width,
 		int & ascent,
 		int & descent) const = 0;
-
-	/// return the maximum descent of the font
-	inline int maxHeight() const { return maxAscent() + maxDescent(); }
-
-	/// return the descent of the char in the font
-	inline int height(char_type c) const { return ascent(c) + descent(c); }
-
-	/// return the inner width of the char in the font
-	inline int center(char_type c) const {
-		return (rbearing(c) - lbearing(c)) / 2;
-	}
-
-	/// return the number of expanding characters taken into account for
-	/// increased inter-word spacing during justification
-	virtual int countExpanders(docstring const & str) const = 0;
 };
 
 
@@ -156,8 +179,12 @@ class Font;
 class FontInfo;
 
 /// Implementation is in Application.cpp
+
+LYX_BEGIN_MUTE_GCC_WARNING(dangling-reference)
 frontend::FontMetrics const & theFontMetrics(Font const & f);
 frontend::FontMetrics const & theFontMetrics(FontInfo const & fi);
+LYX_END_MUTE_GCC_WARNING
+
 
 } // namespace lyx
 

@@ -155,7 +155,7 @@ variant (tests quoting as well):
 \include{\string"Dummy Document\string".tex}
 \include{\string"Dummy\string~Document\string"}
 \include{\string"Dummy\string~Document\string".tex}
-File names containg double quotes are not legal on windows, so no test file
+File names containing double quotes are not legal on windows, so no test file
 is provided. Nevertheless, they are legal on unix, so we test at least the
 parsing. File names containing spaces can not be handled by automake
 (make dist would fail), so no test file is provided as well.
@@ -165,11 +165,11 @@ not work (tex2lyx can't deduce the correct extension of nonexisting files).
 
 We can also import chess diagrams:
 
-\loadgame{../../../lib/examples/iecc05}\showboard
+\loadgame{../../../lib/examples/Graphics_and_Insets/iecc05}\showboard
 
 Spreadsheets:
 
-\def\inputGnumericTable{}\input{../../../lib/examples/longsheet.tex}
+\def\inputGnumericTable{}\input{../../../lib/examples/External_Material/longsheet.tex}
 
 XFig drawings:
 
@@ -177,7 +177,7 @@ XFig drawings:
 
 and PDF pages:
 
-\includepdf[pages=-,angle=22,origin=Bl,width=5cm,height=40mm,keepaspectratio]{../../../lib/examples/beamer-icsi-logo}
+\includepdf[pages=-,angle=22,origin=Bl,width=5cm,height=40mm,keepaspectratio]{../../../lib/examples/Presentations/beamer-icsi-logo}
 
 If you prefer verbatim input, you can choose
 between~\verbatiminput{foo} or~\verbatiminput*{foo}.

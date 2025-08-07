@@ -1,16 +1,17 @@
 #\DeclareLyXModule[sweave->latex,fancyvrb.sty]{Sweave}
+#\DeclareCategory{Literate Programming}
 #DescriptionBegin
 #Allows to use the statistical language S/R as a literate programming tool via the Sweave() function.
-#For more info see the LyX example file sweave.lyx.
+#For more info see Help > Specific Manuals > Sweave.
 #DescriptionEnd
-#Category: literate
 #Excludes: lilypond
 
-Format 66
+Format 104
 
 Input litinsets.inc
 
 Counter chunk
+	GuiName "Knitr Chunk"
     InitialValue 2
 End
 

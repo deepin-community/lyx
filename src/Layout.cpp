@@ -13,16 +13,14 @@
 #include <config.h>
 
 #include "Layout.h"
-#include "FontInfo.h"
-#include "Language.h"
 #include "Lexer.h"
 #include "output_xhtml.h"
 #include "TextClass.h"
 
 #include "support/debug.h"
+#include "support/docstream.h"
 #include "support/lassert.h"
 #include "support/lstrings.h"
-#include "support/Messages.h"
 #include "support/textutils.h"
 
 
@@ -31,7 +29,7 @@ using namespace lyx::support;
 
 namespace lyx {
 
-/// Special value of toclevel for layouts that to not belong in a TOC
+/// Special value of toclevel for layouts that do not belong to a TOC
 const int Layout::NOT_IN_TOC = -1000;
 
 //  The order of the LayoutTags enum is no more important. [asierra300396]
@@ -74,6 +72,8 @@ enum LayoutTags {
 	LT_LATEXTYPE,
 	LT_LEFTDELIM,
 	LT_LEFTMARGIN,
+	LT_NEED_CPROTECT,
+	LT_NEED_MBOXPROTECT,
 	LT_NEED_PROTECT,
 	LT_NEWLINE,
 	LT_NEXTNOINDENT,
@@ -94,6 +94,7 @@ enum LayoutTags {
 	LT_ITEMTAG,
 	LT_HTMLTAG,
 	LT_HTMLATTR,
+	LT_HTMLCLASS,
 	LT_HTMLITEM,
 	LT_HTMLITEMATTR,
 	LT_HTMLLABEL,
@@ -102,18 +103,48 @@ enum LayoutTags {
 	LT_HTMLPREAMBLE,
 	LT_HTMLSTYLE,
 	LT_HTMLFORCECSS,
+	LT_DOCBOOKTAG,
+	LT_DOCBOOKATTR,
+	LT_DOCBOOKTAGTYPE,
+	LT_DOCBOOKINNERATTR,
+	LT_DOCBOOKINNERTAG,
+	LT_DOCBOOKINNERTAGTYPE,
+	LT_DOCBOOKININFO,
+	LT_DOCBOOKABSTRACT,
+	LT_DOCBOOKGENERATETITLE,
+	LT_DOCBOOKWRAPPERTAG,
+	LT_DOCBOOKWRAPPERATTR,
+	LT_DOCBOOKWRAPPERTAGTYPE,
+	LT_DOCBOOKWRAPPERMERGEWITHPREVIOUS,
+	LT_DOCBOOKSECTION,
+	LT_DOCBOOKSECTIONTAG,
+	LT_DOCBOOKITEMWRAPPERTAG,
+	LT_DOCBOOKITEMWRAPPERATTR,
+	LT_DOCBOOKITEMWRAPPERTAGTYPE,
+	LT_DOCBOOKITEMTAG,
+	LT_DOCBOOKITEMATTR,
+	LT_DOCBOOKITEMTAGTYPE,
+	LT_DOCBOOKITEMLABELTAG,
+	LT_DOCBOOKITEMLABELATTR,
+	LT_DOCBOOKITEMLABELTAGTYPE,
+	LT_DOCBOOKITEMINNERTAG,
+	LT_DOCBOOKITEMINNERATTR,
+	LT_DOCBOOKITEMINNERTAGTYPE,
+	LT_DOCBOOKFORCEABSTRACTTAG,
+	LT_DOCBOOKNOFONTINSIDE,
 	LT_INPREAMBLE,
 	LT_HTMLTITLE,
 	LT_SPELLCHECK,
 	LT_REFPREFIX,
 	LT_RESETARGS,
 	LT_RESUMECOUNTER,
-	LT_STEPMASTERCOUNTER,
+	LT_STEPPARENTCOUNTER,
 	LT_RIGHTDELIM,
 	LT_FORCELOCAL,
 	LT_TOGGLE_INDENT,
 	LT_ADDTOTOC,
 	LT_ISTOCCAPTION,
+	LT_HTMLINTOC,
 	LT_INTITLE // keep this last!
 };
 
@@ -126,10 +157,13 @@ Layout::Layout()
 	margintype = MARGIN_STATIC;
 	latextype = LATEX_PARAGRAPH;
 	resumecounter = false;
-	stepmastercounter = false;
+	stepparentcounter = false;
 	intitle = false;
 	inpreamble = false;
 	needprotect = false;
+	needcprotect = false;
+	nocprotect = false;
+	needmboxprotect = false;
 	keepempty = false;
 	font = inherit_font;
 	labelfont = inherit_font;
@@ -157,6 +191,10 @@ Layout::Layout()
 	htmllabelfirst_ = false;
 	htmlforcecss_ = false;
 	htmltitle_ = false;
+	htmlintoc_ = true;
+	docbookabstract_ = false;
+	docbookwrappermergewithprevious_ = false;
+	docbooksection_ = false;
 	spellcheck = true;
 	forcelocal = 0;
 	itemcommand_ = "item";
@@ -165,15 +203,15 @@ Layout::Layout()
 }
 
 
-bool Layout::read(Lexer & lex, TextClass const & tclass)
+bool Layout::read(Lexer & lex, TextClass const & tclass, bool validating)
 {
 	// If this is an empty layout, or if no force local version is set,
 	// we know that we will not discard the stuff to read
 	if (forcelocal == 0)
-		return readIgnoreForcelocal(lex, tclass);
+		return readIgnoreForcelocal(lex, tclass, validating);
 	Layout tmp(*this);
 	tmp.forcelocal = 0;
-	bool const ret = tmp.readIgnoreForcelocal(lex, tclass);
+	bool const ret = tmp.readIgnoreForcelocal(lex, tclass, validating);
 	// Keep the stuff if
 	// - the read version is higher
 	// - both versions are infinity (arbitrary decision)
@@ -185,7 +223,8 @@ bool Layout::read(Lexer & lex, TextClass const & tclass)
 }
 
 
-bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
+bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass,
+								  bool validating)
 {
 	// This table is sorted alphabetically [asierra 30March96]
 	LexerKeyword layoutTags[] = {
@@ -200,6 +239,35 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 		{ "commanddepth",   LT_COMMANDDEPTH },
 		{ "copystyle",      LT_COPYSTYLE },
 		{ "dependson",      LT_DEPENDSON },
+		{ "docbookabstract",           LT_DOCBOOKABSTRACT },
+		{ "docbookattr",               LT_DOCBOOKATTR },
+		{ "docbookforceabstracttag",   LT_DOCBOOKFORCEABSTRACTTAG },
+		{ "docbookgeneratetitle",      LT_DOCBOOKGENERATETITLE },
+		{ "docbookininfo",             LT_DOCBOOKININFO },
+		{ "docbookinnerattr",          LT_DOCBOOKINNERATTR },
+		{ "docbookinnertag",           LT_DOCBOOKINNERTAG },
+		{ "docbookinnertagtype",       LT_DOCBOOKINNERTAGTYPE },
+		{ "docbookitemattr",           LT_DOCBOOKITEMATTR },
+		{ "docbookiteminnerattr",      LT_DOCBOOKITEMINNERATTR },
+		{ "docbookiteminnertag",       LT_DOCBOOKITEMINNERTAG },
+		{ "docbookiteminnertagtype",   LT_DOCBOOKITEMINNERTAGTYPE },
+		{ "docbookitemlabelattr",      LT_DOCBOOKITEMLABELATTR },
+		{ "docbookitemlabeltag",       LT_DOCBOOKITEMLABELTAG },
+		{ "docbookitemlabeltagtype",   LT_DOCBOOKITEMLABELTAGTYPE },
+		{ "docbookitemtag",            LT_DOCBOOKITEMTAG },
+		{ "docbookitemtagtype",        LT_DOCBOOKITEMTAGTYPE },
+		{ "docbookitemwrapperattr",    LT_DOCBOOKITEMWRAPPERATTR },
+		{ "docbookitemwrappertag",     LT_DOCBOOKITEMWRAPPERTAG },
+		{ "docbookitemwrappertagtype", LT_DOCBOOKITEMWRAPPERTAGTYPE },
+		{ "docbooknofontinside",       LT_DOCBOOKNOFONTINSIDE, },
+		{ "docbooksection",            LT_DOCBOOKSECTION },
+		{ "docbooksectiontag",         LT_DOCBOOKSECTIONTAG },
+		{ "docbooktag",                LT_DOCBOOKTAG },
+		{ "docbooktagtype",            LT_DOCBOOKTAGTYPE },
+		{ "docbookwrapperattr",        LT_DOCBOOKWRAPPERATTR },
+		{ "docbookwrappermergewithprevious", LT_DOCBOOKWRAPPERMERGEWITHPREVIOUS },
+		{ "docbookwrappertag",         LT_DOCBOOKWRAPPERTAG },
+		{ "docbookwrappertagtype",     LT_DOCBOOKWRAPPERTAGTYPE },
 		{ "end",            LT_END },
 		{ "endlabelstring", LT_ENDLABELSTRING },
 		{ "endlabeltype",   LT_ENDLABELTYPE },
@@ -207,7 +275,9 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 		{ "forcelocal",     LT_FORCELOCAL },
 		{ "freespacing",    LT_FREE_SPACING },
 		{ "htmlattr",       LT_HTMLATTR },
+		{ "htmlclass",      LT_HTMLCLASS },
 		{ "htmlforcecss",   LT_HTMLFORCECSS },
+		{ "htmlintoc",      LT_HTMLINTOC },
 		{ "htmlitem",       LT_HTMLITEM },
 		{ "htmlitemattr",   LT_HTMLITEMATTR },
 		{ "htmllabel",      LT_HTMLLABEL },
@@ -242,6 +312,8 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 		{ "leftdelim",      LT_LEFTDELIM },
 		{ "leftmargin",     LT_LEFTMARGIN },
 		{ "margin",         LT_MARGIN },
+		{ "needcprotect",    LT_NEED_CPROTECT },
+		{ "needmboxprotect", LT_NEED_MBOXPROTECT },
 		{ "needprotect",    LT_NEED_PROTECT },
 		{ "newline",        LT_NEWLINE },
 		{ "nextnoindent",   LT_NEXTNOINDENT },
@@ -262,7 +334,7 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 		{ "rightmargin",    LT_RIGHTMARGIN },
 		{ "spacing",        LT_SPACING },
 		{ "spellcheck",     LT_SPELLCHECK },
-		{ "stepmastercounter",  LT_STEPMASTERCOUNTER },
+		{ "stepparentcounter",  LT_STEPPARENTCOUNTER },
 		{ "textfont",       LT_TEXTFONT },
 		{ "toclevel",       LT_TOCLEVEL },
 		{ "toggleindent",   LT_TOGGLE_INDENT },
@@ -374,6 +446,7 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 				latexargs_.clear();
 				itemargs_.clear();
 				postcommandargs_.clear();
+				listpreamble_.clear();
 			}
 			break;
 
@@ -381,16 +454,32 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 			lex >> resumecounter;
 			break;
 
-		case LT_STEPMASTERCOUNTER:
-			lex >> stepmastercounter;
+		case LT_STEPPARENTCOUNTER:
+			lex >> stepparentcounter;
 			break;
 
 		case LT_ARGUMENT:
-			readArgument(lex);
+			readArgument(lex, validating);
 			break;
 
 		case LT_NEED_PROTECT:
 			lex >> needprotect;
+			break;
+
+		case LT_NEED_CPROTECT: {
+			int i;
+			lex >> i;
+			nocprotect = false;
+			needcprotect = false;
+			if (i == -1)
+				nocprotect = true;
+			else if (i == 1)
+				needcprotect = true;
+			break;
+		}
+
+		case LT_NEED_MBOXPROTECT:
+			lex >> needmboxprotect;
 			break;
 
 		case LT_KEEPEMPTY:
@@ -437,7 +526,7 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 
 		case LT_LATEXPARAM:
 			lex >> latexparam_;
-			latexparam_ = subst(latexparam_, "&quot;", "\"");
+			latexparam_ = subst(latexparam_, "&#34;", "\"");
 			break;
 
 		case LT_LEFTDELIM:
@@ -592,7 +681,7 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 			lex.eatLine();
 			vector<string> const req =
 				getVectorFromString(lex.getString(true));
-			requires_.insert(req.begin(), req.end());
+			required_.insert(req.begin(), req.end());
 			break;
 		}
 
@@ -630,12 +719,20 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 			break;
 		}
 
+		case LT_HTMLINTOC:
+			lex >> htmlintoc_;
+			break;
+
 		case LT_HTMLTAG:
 			lex >> htmltag_;
 			break;
 
 		case LT_HTMLATTR:
 			lex >> htmlattr_;
+			break;
+
+		case LT_HTMLCLASS:
+			lex >> htmlclass_;
 			break;
 
 		case LT_HTMLITEM:
@@ -673,6 +770,122 @@ bool Layout::readIgnoreForcelocal(Lexer & lex, TextClass const & tclass)
 		case LT_HTMLTITLE:
 			lex >> htmltitle_;
 			break;
+
+		case LT_DOCBOOKTAG:
+			lex >> docbooktag_;
+			break;
+
+		case LT_DOCBOOKATTR:
+			lex >> docbookattr_;
+			break;
+
+		case LT_DOCBOOKTAGTYPE:
+			lex >> docbooktagtype_;
+			break;
+
+		case LT_DOCBOOKINNERTAG:
+			lex >> docbookinnertag_;
+			break;
+
+		case LT_DOCBOOKINNERATTR:
+			lex >> docbookinnerattr_;
+			break;
+
+		case LT_DOCBOOKINNERTAGTYPE:
+			lex >> docbookinnertagtype_;
+			break;
+
+		case LT_DOCBOOKFORCEABSTRACTTAG:
+			lex >> docbookforceabstracttag_;
+			break;
+
+		case LT_DOCBOOKININFO:
+			lex >> docbookininfo_;
+			break;
+
+		case LT_DOCBOOKABSTRACT:
+			lex >> docbookabstract_;
+			break;
+
+		case LT_DOCBOOKWRAPPERTAG:
+			lex >> docbookwrappertag_;
+			break;
+
+		case LT_DOCBOOKWRAPPERATTR:
+			lex >> docbookwrapperattr_;
+			break;
+
+		case LT_DOCBOOKWRAPPERTAGTYPE:
+			lex >> docbookwrappertagtype_;
+			break;
+
+		case LT_DOCBOOKWRAPPERMERGEWITHPREVIOUS:
+			lex >> docbookwrappermergewithprevious_;
+			break;
+
+		case LT_DOCBOOKSECTION:
+			lex >> docbooksection_;
+			break;
+
+		case LT_DOCBOOKSECTIONTAG:
+			lex >> docbooksectiontag_;
+			break;
+
+		case LT_DOCBOOKITEMWRAPPERTAG:
+			lex >> docbookitemwrappertag_;
+			break;
+	
+		case LT_DOCBOOKITEMWRAPPERATTR:
+			lex >> docbookitemwrapperattr_;
+			break;
+
+		case LT_DOCBOOKITEMWRAPPERTAGTYPE:
+			lex >> docbookitemwrappertagtype_;
+			break;
+
+		case LT_DOCBOOKITEMTAG:
+			lex >> docbookitemtag_;
+			break;
+
+		case LT_DOCBOOKITEMATTR:
+			lex >> docbookitemattr_;
+			break;
+
+		case LT_DOCBOOKITEMTAGTYPE:
+			lex >> docbookitemtagtype_;
+			break;
+
+		case LT_DOCBOOKITEMLABELTAG:
+			lex >> docbookitemlabeltag_;
+			break;
+
+		case LT_DOCBOOKITEMLABELATTR:
+			lex >> docbookitemlabelattr_;
+			break;
+
+		case LT_DOCBOOKITEMLABELTAGTYPE:
+			lex >> docbookitemlabeltagtype_;
+			break;
+
+		case LT_DOCBOOKITEMINNERTAG:
+			lex >> docbookiteminnertag_;
+			break;
+
+		case LT_DOCBOOKITEMINNERATTR:
+			lex >> docbookiteminnerattr_;
+			break;
+
+		case LT_DOCBOOKITEMINNERTAGTYPE:
+			lex >> docbookiteminnertagtype_;
+			break;
+
+        case LT_DOCBOOKNOFONTINSIDE:
+            lex >> docbooknofontinside_;
+            break;
+
+        case LT_DOCBOOKGENERATETITLE:
+            lex >> docbookgeneratetitle_;
+            break;
 
 		case LT_SPELLCHECK:
 			lex >> spellcheck;
@@ -993,24 +1206,30 @@ void Layout::readSpacing(Lexer & lex)
 }
 
 
-void Layout::readArgument(Lexer & lex)
+void Layout::readArgument(Lexer & lex, bool validating)
 {
-	latexarg arg;
-	// writeArgument() makes use of these default values
-	arg.mandatory = false;
-	arg.autoinsert = false;
-	arg.insertcotext = false;
-	bool error = false;
-	bool finished = false;
-	arg.font = inherit_font;
-	arg.labelfont = inherit_font;
-	arg.is_toc_caption = false;
-	arg.passthru = PT_INHERITED;
-	string id;
-	lex >> id;
+	if (!lex.next()) {
+		LYXERR0("Unable to read argument ID!");
+		return;
+	}
+	string const id = lex.getString();
+
 	bool const itemarg = prefixIs(id, "item:");
 	bool const postcmd = prefixIs(id, "post:");
+	bool const listpreamble = prefixIs(id, "listpreamble:");
 
+	LaTeXArgMap & lam = itemarg ? itemargs_ :
+			(postcmd ? postcommandargs_ :
+			(listpreamble ? listpreamble_ :
+			latexargs_));
+	latexarg & arg = lam[id];
+
+	if (listpreamble)
+		// list preamble has no delimiters by default
+		arg.nodelims = true;
+
+	bool error = false;
+	bool finished = false;
 	while (!finished && lex.isOK() && !error) {
 		lex.next();
 		string const tok = ascii_lowercase(lex.getString());
@@ -1054,11 +1273,14 @@ void Layout::readArgument(Lexer & lex)
 			lex.next();
 			arg.tooltip = lex.getDocString();
 		} else if (tok == "requires") {
-			lex.next();
-			arg.requires = lex.getString();
+			lex.eatLine();
+			arg.required = lex.getString();
 		} else if (tok == "decoration") {
 			lex.next();
 			arg.decoration = lex.getString();
+		} else if (tok == "newlinecmd") {
+			lex.next();
+			arg.newlinecmd = lex.getString();
 		} else if (tok == "font") {
 			arg.font = lyxRead(lex, arg.font);
 		} else if (tok == "labelfont") {
@@ -1078,19 +1300,34 @@ void Layout::readArgument(Lexer & lex)
 		} else if (tok == "istoccaption") {
 			lex.next();
 			arg.is_toc_caption = lex.getBool();
+		} else if (tok == "freespacing") {
+			lex.next();
+			arg.free_spacing = lex.getBool();
+		} else if (tok == "docbooktag") {
+			lex.next();
+			arg.docbooktag = lex.getDocString();
+		} else if (tok == "docbookattr") {
+			lex.next();
+			arg.docbookattr = lex.getDocString();
+		} else if (tok == "docbooktagtype") {
+			lex.next();
+			arg.docbooktagtype = lex.getDocString();
+		} else if (tok == "docbookargumentaftermaintag") {
+			lex.next();
+			arg.docbookargumentaftermaintag = lex.getBool();
+		} else if (tok == "docbookargumentbeforemaintag") {
+			lex.next();
+			arg.docbookargumentbeforemaintag = lex.getBool();
 		} else {
 			lex.printError("Unknown tag");
 			error = true;
 		}
 	}
-	if (arg.labelstring.empty())
+	if (!validating && arg.labelstring.empty()) {
 		LYXERR0("Incomplete Argument definition!");
-	else if (itemarg)
-		itemargs_[id] = arg;
-	else if (postcmd)
-		postcommandargs_[id] = arg;
-	else
-		latexargs_[id] = arg;
+		// remove invalid definition
+		lam.erase(id);
+	}
 }
 
 
@@ -1121,10 +1358,12 @@ void writeArgument(ostream & os, string const & id, Layout::latexarg const & arg
 		os << "\t\tPresetArg \"" << to_utf8(arg.presetarg) << "\"\n";
 	if (!arg.tooltip.empty())
 		os << "\t\tToolTip \"" << to_utf8(arg.tooltip) << "\"\n";
-	if (!arg.requires.empty())
-		os << "\t\tRequires \"" << arg.requires << "\"\n";
+	if (!arg.required.empty())
+		os << "\t\tRequires " << arg.required << "\n";
 	if (!arg.decoration.empty())
 		os << "\t\tDecoration \"" << arg.decoration << "\"\n";
+	if (!arg.newlinecmd.empty())
+		os << "\t\tNewlineCmd \"" << arg.newlinecmd << "\"\n";
 	if (arg.font != inherit_font)
 		lyxWrite(os, arg.font, "Font", 2);
 	if (arg.labelfont != inherit_font)
@@ -1142,6 +1381,8 @@ void writeArgument(ostream & os, string const & id, Layout::latexarg const & arg
 	}
 	if (!arg.pass_thru_chars.empty())
 		os << "\t\tPassThruChars \"" << to_utf8(arg.pass_thru_chars) << "\"\n";
+	if (arg.free_spacing)
+		os << "\t\tFreeSpacing " << arg.free_spacing << "\n";
 	os << "\tEndArgument\n";
 }
 
@@ -1200,7 +1441,7 @@ void Layout::write(ostream & os) const
 	      "\tInPreamble " << inpreamble << "\n"
 	      "\tTocLevel " << toclevel << "\n"
 	      "\tResumeCounter " << resumecounter << "\n"
-	     "\tStepMasterCounter " << stepmastercounter << '\n';
+	      "\tStepParentCounter " << stepparentcounter << '\n';
 	// ResetArgs does not make sense here
 	for (LaTeXArgMap::const_iterator it = latexargs_.begin();
 	     it != latexargs_.end(); ++it)
@@ -1211,7 +1452,12 @@ void Layout::write(ostream & os) const
 	for (LaTeXArgMap::const_iterator it = postcommandargs_.begin();
 	     it != postcommandargs_.end(); ++it)
 		writeArgument(os, it->first, it->second);
+	for (LaTeXArgMap::const_iterator it = listpreamble_.begin();
+	     it != listpreamble_.end(); ++it)
+		writeArgument(os, it->first, it->second);
 	os << "\tNeedProtect " << needprotect << "\n"
+	      "\tNeedCProtect " << needcprotect << "\n"
+	      "\tNeedMBoxProtect " << needmboxprotect << "\n"
 	      "\tKeepEmpty " << keepempty << '\n';
 	if (labelfont == font)
 		lyxWrite(os, font, "Font", 1);
@@ -1224,7 +1470,7 @@ void Layout::write(ostream & os) const
 	if (!latexname_.empty())
 		os << "\tLatexName \"" << latexname_ << "\"\n";
 	if (!latexparam_.empty())
-		os << "\tLatexParam \"" << subst(latexparam_, "\"", "&quot;")
+		os << "\tLatexParam \"" << subst(latexparam_, "\"", "&#34;")
 		   << "\"\n";
 	if (!leftdelim_.empty())
 		os << "\tLeftDelim "
@@ -1405,11 +1651,11 @@ void Layout::write(ostream & os) const
 	case Spacing::Default:
 		break;
 	}
-	if (!requires_.empty()) {
+	if (!required_.empty()) {
 		os << "\tRequires ";
-		for (set<string>::const_iterator it = requires_.begin();
-		     it != requires_.end(); ++it) {
-			if (it != requires_.begin())
+		for (set<string>::const_iterator it = required_.begin();
+		     it != required_.end(); ++it) {
+			if (it != required_.begin())
 				os << ',';
 			os << *it;
 		}
@@ -1426,14 +1672,14 @@ void Layout::write(ostream & os) const
 		os << "\n\tEndAutoNests\n";
 	}
 	if (!autonested_by_.empty()) {
-		os << "\tIsAutoNestedBy\n\t";
+		os << "\tIsAutoNestedBy\n\t\t";
 		for (set<docstring>::const_iterator it = autonested_by_.begin();
 		     it != autonested_by_.end(); ++it) {
 			if (it != autonested_by_.begin())
 				os << ',';
 			os << to_utf8(*it);
 		}
-		os << "\n\tIsAutoNestedBy\n";
+		os << "\n\tEndIsAutoNestedBy\n";
 	}
 	if (refprefix.empty())
 		os << "\tRefPrefix OFF\n";
@@ -1443,6 +1689,10 @@ void Layout::write(ostream & os) const
 		os << "\tHTMLTag " << htmltag_ << '\n';
 	if (!htmlattr_.empty())
 		os << "\tHTMLAttr " << htmlattr_ << '\n';
+	if (!htmlclass_.empty())
+		os << "\tHTMLClass " << htmlclass_ << '\n';
+	if (!htmlintoc_)
+		os << "\tHTMLInToc " << htmlintoc_ << '\n';
 	if (!htmlitemtag_.empty())
 		os << "\tHTMLItem " << htmlitemtag_ << '\n';
 	if (!htmlitemattr_.empty())
@@ -1461,7 +1711,59 @@ void Layout::write(ostream & os) const
 		os << "\tHTMLPreamble\n"
 		   << to_utf8(rtrim(htmlpreamble_, "\n"))
 		   << "\n\tEndPreamble\n";
-	os << "\tHTMLTitle " << htmltitle_ << "\n"
+	os << "\tHTMLTitle " << htmltitle_ << "\n";
+	if (!docbooktag_.empty())
+		os << "\tDocBookTag " << docbooktag_ << '\n';
+	if (!docbookattr_.empty())
+		os << "\tDocBookAttr \"" << docbookattr_ << "\"\n";
+	if (!docbooktagtype_.empty())
+		os << "\tDocBookTagType " << docbooktagtype_ << '\n';
+	if (!docbookinnertag_.empty())
+		os << "\tDocBookInnerTag " << docbookinnertag_ << '\n';
+	if (!docbookinnerattr_.empty())
+		os << "\tDocBookInnerAttr \"" << docbookinnerattr_ << "\"\n";
+	if (!docbookinnertagtype_.empty())
+		os << "\tDocBookInnerTagType " << docbookinnertagtype_ << '\n';
+	if (!docbookininfo_.empty())
+		os << "\tDocBookInInfo " << docbookininfo_ << '\n';
+	os << "\tDocBookAbstract " << docbookabstract_ << '\n';
+	if (!docbookwrappertag_.empty())
+		os << "\tDocBookWrapperTag " << docbookwrappertag_ << '\n';
+	if (!docbookwrapperattr_.empty())
+		os << "\tDocBookWrapperAttr " << docbookwrapperattr_ << '\n';
+	if (!docbookwrappertagtype_.empty())
+		os << "\tDocBookWrapperTagType " << docbookwrappertagtype_ << '\n';
+	os << "\tDocBookSection " << docbooksection_ << '\n';
+	if (!docbooksectiontag_.empty())
+		os << "\tDocBookSectionTag " << docbooksectiontag_ << '\n';
+	if (!docbookitemtag_.empty())
+		os << "\tDocBookItemTag " << docbookitemtag_ << '\n';
+	if (!docbookitemattr_.empty())
+		os << "\tDocBookItemAttr " << docbookitemattr_ << '\n';
+	if (!docbookitemtagtype_.empty())
+		os << "\tDocBookItemTagType " << docbookitemtagtype_ << '\n';
+	if (!docbookitemwrappertag_.empty())
+		os << "\tDocBookItemWrapperTag " << docbookitemwrappertag_ << '\n';
+	if (!docbookitemwrapperattr_.empty())
+		os << "\tDocBookItemWrapperAttr " << docbookitemwrapperattr_ << '\n';
+	if (!docbookitemwrappertagtype_.empty())
+		os << "\tDocBookItemWrapperTagType " << docbookitemwrappertagtype_ << '\n';
+	os << "\tDocBookWrapperMergeWithPrevious " << docbookwrappermergewithprevious_ << '\n';
+	if (!docbookitemlabeltag_.empty())
+		os << "\tDocBookItemLabelTag " << docbookitemlabeltag_ << '\n';
+	if (!docbookitemlabelattr_.empty())
+		os << "\tDocBookItemLabelAttr " << docbookitemlabelattr_ << '\n';
+	if (!docbookitemlabeltagtype_.empty())
+		os << "\tDocBookItemLabelTagType " << docbookitemlabeltagtype_ << '\n';
+	if (!docbookiteminnertag_.empty())
+		os << "\tDocBookItemInnerTag " << docbookiteminnertag_ << '\n';
+	if (!docbookiteminnerattr_.empty())
+		os << "\tDocBookItemInnerAttr " << docbookiteminnerattr_ << '\n';
+	if (!docbookiteminnertagtype_.empty())
+		os << "\tDocBookItemInnerTagType " << docbookiteminnertagtype_ << '\n';
+	if (!docbookforceabstracttag_.empty())
+		os << "\tDocBookForceAbstractTag " << docbookforceabstracttag_ << '\n';
+    os << "\tDocBookNoFontInside " << docbooknofontinside_ << "\n"
 	      "\tSpellcheck " << spellcheck << "\n"
 	      "\tForceLocal " << forcelocal << "\n"
 	      "End\n";
@@ -1471,7 +1773,7 @@ void Layout::write(ostream & os) const
 bool Layout::hasArgs() const
 {
 	return !latexargs_.empty() || !postcommandargs_.empty() ||
-		!itemargs_.empty();
+		!itemargs_.empty() || !listpreamble_.empty();
 }
 
 
@@ -1480,6 +1782,8 @@ Layout::LaTeXArgMap Layout::args() const
 	LaTeXArgMap args = latexargs_;
 	if (!postcommandargs_.empty())
 		args.insert(postcommandargs_.begin(), postcommandargs_.end());
+	if (!listpreamble_.empty())
+		args.insert(listpreamble_.begin(), listpreamble_.end());
 	if (!itemargs_.empty())
 		args.insert(itemargs_.begin(), itemargs_.end());
 	return args;
@@ -1528,11 +1832,25 @@ string const & Layout::htmltag() const
 }
 
 
-string const & Layout::htmlattr() const
+string const & Layout::htmlclass() const
 {
-	if (htmlattr_.empty())
-		htmlattr_ = "class=\"" + defaultCSSClass() + "\"";
-	return htmlattr_;
+	// If it's an enumeration or itemize list, then we recalculate the class each
+	// time through (unless it has been given explicitly). So we do nothing here.
+	if (htmlclass_.empty() && labeltype != LABEL_ENUMERATE && labeltype != LABEL_ITEMIZE)
+		htmlclass_ = defaultCSSClass();
+	return htmlclass_;
+}
+
+
+string const & Layout::htmlGetAttrString() const {
+	if (!htmlfullattrs_.empty())
+		return htmlfullattrs_;
+	htmlfullattrs_ = htmlclass();
+	if (!htmlfullattrs_.empty())
+		htmlfullattrs_ = "class='" + htmlfullattrs_ + "'";
+	if (!htmlattr_.empty())
+		htmlfullattrs_ += " " + htmlattr_;
+	return htmlfullattrs_;
 }
 
 
@@ -1606,6 +1924,197 @@ string Layout::defaultCSSClass() const
 	defaultcssclass_ = to_utf8(d);
 	return defaultcssclass_;
 }
+
+
+string const & Layout::docbooktag() const
+{
+	if (docbooktag_.empty()) {
+		if (to_ascii(name_) == "Plain Layout")
+			docbooktag_ = "para";
+		else // No sensible default value, unhappily...
+			docbooktag_ = to_utf8(name_);
+	}
+	return docbooktag_;
+}
+
+
+string const & Layout::docbookattr() const
+{
+	// Perfectly OK to return no attributes, so docbookattr_ does not need to be filled.
+	return docbookattr_;
+}
+
+
+bool isValidTagType(std::string const & type)
+{
+	return !(type.empty() || (type != "block" && type != "paragraph" && type != "inline"));
+}
+
+
+string const & Layout::docbooktagtype() const
+{
+	if (!isValidTagType(docbooktagtype_))
+		docbooktagtype_ = "block";
+	return docbooktagtype_;
+}
+
+
+string const & Layout::docbookinnertag() const
+{
+	if (docbookinnertag_.empty())
+		docbookinnertag_ = "NONE";
+	return docbookinnertag_;
+}
+
+
+string const & Layout::docbookinnerattr() const
+{
+	return docbookinnerattr_;
+}
+
+
+string const & Layout::docbookinnertagtype() const
+{
+	if (!isValidTagType(docbookinnertagtype_))
+		docbookinnertagtype_ = "block";
+	return docbookinnertagtype_;
+}
+
+
+string const & Layout::docbookininfo() const
+{
+	// Indeed, a trilean. Only titles should be "maybe": otherwise, metadata is "always", content is "never". 
+	if (docbookininfo_.empty() || (docbookininfo_ != "never" && docbookininfo_ != "always" && docbookininfo_ != "maybe"))
+		docbookininfo_ = "never";
+	return docbookininfo_;
+}
+
+
+string const & Layout::docbookwrappertag() const
+{
+    if (docbookwrappertag_.empty())
+        docbookwrappertag_ = "NONE";
+    return docbookwrappertag_;
+}
+
+
+string const & Layout::docbookwrapperattr() const
+{
+    return docbookwrapperattr_;
+}
+
+
+string const & Layout::docbookwrappertagtype() const
+{
+	if (!isValidTagType(docbookwrappertagtype_))
+		docbookwrappertagtype_ = "block";
+	return docbookwrappertagtype_;
+}
+
+
+string const & Layout::docbooksectiontag() const
+{
+	if (docbooksectiontag_.empty())
+		docbooksectiontag_ = "section";
+	return docbooksectiontag_;
+}
+
+
+string const & Layout::docbookitemwrappertag() const
+{
+    if (docbookitemwrappertag_.empty())
+        docbookitemwrappertag_ = "NONE";
+    return docbookitemwrappertag_;
+}
+
+
+string const & Layout::docbookitemwrapperattr() const
+{
+    return docbookitemwrapperattr_;
+}
+
+
+string const & Layout::docbookitemwrappertagtype() const
+{
+	if (!isValidTagType(docbookitemwrappertagtype_))
+		docbookitemwrappertagtype_ = "block";
+	return docbookitemwrappertagtype_;
+}
+
+
+string const & Layout::docbookitemtag() const
+{
+	if (docbookitemtag_.empty())
+		docbookitemtag_ = "NONE";
+	return docbookitemtag_;
+}
+
+
+string const & Layout::docbookitemattr() const
+{
+    return docbookitemattr_;
+}
+
+
+string const & Layout::docbookitemtagtype() const
+{
+	if (!isValidTagType(docbookitemtagtype_))
+		docbookitemtagtype_ = "block";
+	return docbookitemtagtype_;
+}
+
+
+string const & Layout::docbookitemlabeltag() const
+{
+	if (docbookitemlabeltag_.empty())
+		docbookitemlabeltag_ = "NONE";
+	return docbookitemlabeltag_;
+}
+
+
+string const & Layout::docbookitemlabelattr() const
+{
+	return docbookitemlabelattr_;
+}
+
+
+string const & Layout::docbookitemlabeltagtype() const
+{
+	if (!isValidTagType(docbookitemlabeltagtype_))
+		docbookitemlabeltagtype_ = "block";
+	return docbookitemlabeltagtype_;
+}
+
+
+string const & Layout::docbookiteminnertag() const
+{
+	if (docbookiteminnertag_.empty())
+		docbookiteminnertag_ = "NONE";
+	return docbookiteminnertag_;
+}
+
+
+string const & Layout::docbookiteminnerattr() const
+{
+	return docbookiteminnerattr_;
+}
+
+
+string const & Layout::docbookiteminnertagtype() const
+{
+	if (!isValidTagType(docbookiteminnertagtype_))
+		docbookiteminnertagtype_ = "block";
+	return docbookiteminnertagtype_;
+}
+
+
+std::string const & Layout::docbookforceabstracttag() const
+{
+	if (docbookforceabstracttag_.empty())
+		docbookforceabstracttag_ = "NONE";
+	return docbookforceabstracttag_;
+}
+
 
 
 namespace {

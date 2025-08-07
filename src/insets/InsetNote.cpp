@@ -17,22 +17,18 @@
 #include "Buffer.h"
 #include "BufferParams.h"
 #include "BufferView.h"
-#include "BufferParams.h"
 #include "ColorSet.h"
-#include "Counters.h"
 #include "Cursor.h"
-#include "DispatchResult.h"
 #include "Exporter.h"
+#include "FontInfo.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
-#include "InsetIterator.h"
+#include "InsetLayout.h"
 #include "LaTeXFeatures.h"
 #include "Lexer.h"
 #include "LyXRC.h"
-#include "OutputParams.h"
-#include "ParIterator.h"
-#include "TextClass.h"
-#include "TocBackend.h"
+#include "output_docbook.h"
+#include "output_latex.h"
 
 #include "support/debug.h"
 #include "support/docstream.h"
@@ -118,12 +114,6 @@ docstring InsetNote::layoutName() const
 }
 
 
-Inset::DisplayType InsetNote::display() const
-{
-	return Inline;
-}
-
-
 void InsetNote::write(ostream & os) const
 {
 	params_.write(os);
@@ -151,6 +141,11 @@ void InsetNote::doDispatch(Cursor & cur, FuncRequest & cmd)
 	switch (cmd.action()) {
 
 	case LFUN_INSET_MODIFY: {
+		if (cmd.getArg(0) != "note") {
+			// not for us; might be handled higher up
+			cur.undispatched();
+			return;
+		}
 		// Do not do anything if converting to the same type of Note.
 		// A quick break here is done instead of disabling the LFUN
 		// because disabling the LFUN would lead to a greyed out
@@ -160,7 +155,7 @@ void InsetNote::doDispatch(Cursor & cur, FuncRequest & cmd)
 		InsetNoteParams params;
 		string2params(to_utf8(cmd.argument()), params);
 		if (params_.type == params.type)
-		  break;
+			break;
 
 		cur.recordUndoInset(this);
 		string2params(to_utf8(cmd.argument()), params_);
@@ -188,9 +183,6 @@ bool InsetNote::getStatus(Cursor & cur, FuncRequest const & cmd,
 	switch (cmd.action()) {
 
 	case LFUN_INSET_MODIFY:
-		// disallow comment and greyed out in commands
-		flag.setEnabled(!cur.paragraph().layout().isCommand() ||
-				cmd.getArg(2) == "Note");
 		if (cmd.getArg(0) == "note") {
 			InsetNoteParams params;
 			string2params(to_utf8(cmd.argument()), params);
@@ -220,11 +212,28 @@ bool InsetNote::isMacroScope() const
 
 void InsetNote::latex(otexstream & os, OutputParams const & runparams_in) const
 {
-	if (params_.type == InsetNoteParams::Note)
+	if (params_.type != InsetNoteParams::Greyedout
+	    && runparams_in.find_effective()
+	    && !runparams_in.find_with_non_output())
 		return;
+
+	if (params_.type == InsetNoteParams::Note) {
+		if (runparams_in.find_with_non_output()) {
+			OutputParams runparams(runparams_in);
+			InsetCollapsible::latex(os, runparams);
+			runparams_in.encoding = runparams.encoding;
+		}
+		return;
+	}
 
 	OutputParams runparams(runparams_in);
 	if (params_.type == InsetNoteParams::Comment) {
+		if (runparams_in.inComment) {
+			// Nested comments should just output the contents.
+			latexParagraphs(buffer(), text(), os, runparams);
+			return;
+		}
+
 		runparams.inComment = true;
 		// Ignore files that are exported inside a comment
 		runparams.exportdata.reset(new ExportData);
@@ -254,48 +263,56 @@ void InsetNote::latex(otexstream & os, OutputParams const & runparams_in) const
 int InsetNote::plaintext(odocstringstream & os,
 			 OutputParams const & runparams_in, size_t max_length) const
 {
-	if (params_.type == InsetNoteParams::Note)
-		return 0;
+	if (!runparams_in.find_with_non_output()) {
+		if (params_.type == InsetNoteParams::Note)
+			return 0;
+		else if (params_.type == InsetNoteParams::Comment
+		    && runparams_in.find_effective())
+			return 0;
+	}
 
 	OutputParams runparams(runparams_in);
-	if (params_.type == InsetNoteParams::Comment) {
+	if (params_.type != InsetNoteParams::Greyedout) {
 		runparams.inComment = true;
 		// Ignore files that are exported inside a comment
 		runparams.exportdata.reset(new ExportData);
 	}
-	os << '[' << buffer().B_("note") << ":\n";
+	if (!runparams_in.find_with_non_output())
+		os << '[' << buffer().B_("note") << ":\n";
 	InsetText::plaintext(os, runparams, max_length);
-	os << "\n]";
+	if (!runparams_in.find_with_non_output())
+		os << "\n]";
 
 	return PLAINTEXT_NEWLINE + 1; // one char on a separate line
 }
 
 
-int InsetNote::docbook(odocstream & os, OutputParams const & runparams_in) const
+void InsetNote::docbook(XMLStream & xs, OutputParams const & runparams_in) const
 {
 	if (params_.type == InsetNoteParams::Note)
-		return 0;
+		return;
 
 	OutputParams runparams(runparams_in);
 	if (params_.type == InsetNoteParams::Comment) {
-		os << "<remark>\n";
+		xs << xml::StartTag("remark");
+		xs << xml::CR();
 		runparams.inComment = true;
 		// Ignore files that are exported inside a comment
 		runparams.exportdata.reset(new ExportData);
 	}
+	// Greyed out text is output as such (no way to mark text as greyed out with DocBook).
 
-	int const n = InsetText::docbook(os, runparams);
+	InsetText::docbook(xs, runparams);
 
-	if (params_.type == InsetNoteParams::Comment)
-		os << "\n</remark>\n";
-
-	// Return how many newlines we issued.
-	//return int(count(str.begin(), str.end(), '\n'));
-	return n + 1 + 2;
+	if (params_.type == InsetNoteParams::Comment) {
+		xs << xml::CR();
+		xs << xml::EndTag("remark");
+		xs << xml::CR();
+	}
 }
 
 
-docstring InsetNote::xhtml(XHTMLStream & xs, OutputParams const & rp) const
+docstring InsetNote::xhtml(XMLStream & xs, OutputParams const & rp) const
 {
 	if (params_.type == InsetNoteParams::Note)
 		return docstring();
@@ -308,7 +325,7 @@ void InsetNote::validate(LaTeXFeatures & features) const
 {
 	switch (params_.type) {
 	case InsetNoteParams::Comment:
-		if (features.runparams().flavor == OutputParams::HTML)
+		if (features.runparams().flavor == Flavor::Html)
 			// we do output this but set display to "none" by default,
 			// but people might want to use it.
 			InsetCollapsible::validate(features);
@@ -317,11 +334,12 @@ void InsetNote::validate(LaTeXFeatures & features) const
 			features.useInsetLayout(getLayout());
 		break;
 	case InsetNoteParams::Greyedout:
-		if (features.hasRTLLanguage())
-			features.require("environ");
 		InsetCollapsible::validate(features);
 		break;
 	case InsetNoteParams::Note:
+		// Showing previews in this inset may require stuff
+		if (features.runparams().for_preview)
+			InsetCollapsible::validate(features);
 		break;
 	}
 }
@@ -340,12 +358,15 @@ bool InsetNote::allowSpellCheck() const
 FontInfo InsetNote::getFont() const
 {
 	FontInfo font = getLayout().font();
-	// FIXME: This hardcoded color is a hack!
 	if (params_.type == InsetNoteParams::Greyedout
-	    && buffer().params().notefontcolor != lyx::rgbFromHexName("#cccccc")) {
+	    && buffer().params().isnotefontcolor) {
 		ColorCode c = lcolor.getFromLyXName("notefontcolor");
 		if (c != Color_none)
 			font.setColor(c);
+		// This is the local color (not overridden by other documents)
+		ColorCode lc = lcolor.getFromLyXName("notefontcolor@" + buffer().fileName().absFileName());
+		if (lc != Color_none)
+			font.setPaintColor(lc);
 	}
 	return font;
 }

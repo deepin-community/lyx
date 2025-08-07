@@ -26,7 +26,7 @@
 namespace lyx {
 
 InsetMathEnsureMath::InsetMathEnsureMath(Buffer * buf)
-	: InsetMathNest(buf, 1)
+	: InsetMathGrid(buf, 1, 1)
 {}
 
 
@@ -62,17 +62,17 @@ void InsetMathEnsureMath::drawT(TextPainter & pain, int x, int y) const
 }
 
 
-void InsetMathEnsureMath::write(WriteStream & os) const
+void InsetMathEnsureMath::write(TeXMathStream & os) const
 {
 	ModeSpecifier specifier(os, MATH_MODE);
 	os << "\\ensuremath{" << cell(0) << "}";
 }
 
 
-void InsetMathEnsureMath::mathmlize(MathStream & os) const
+void InsetMathEnsureMath::mathmlize(MathMLStream & ms) const
 {
-	SetMode mathmode(os, false);
-	os << MTag("mstyle", "class='math'")
+	SetMode mathmode(ms, false);
+	ms << MTag("mstyle", "class='math'")
 	   << cell(0)
 	   << ETag("mstyle");
 }

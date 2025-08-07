@@ -15,12 +15,12 @@
 #include "BufferParams.h"
 #include "BufferView.h"
 #include "Cursor.h"
+#include "Dimension.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "LaTeXFeatures.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
 #include "RenderPreview.h"
 #include "texstream.h"
 
@@ -184,8 +184,8 @@ void InsetIPA::metrics(MetricsInfo & mi, Dimension & dim) const
 		dim.wid = max(dim.wid, 4);
 		dim.asc = max(dim.asc, 4);
 
-		dim.asc += TEXT_TO_INSET_OFFSET;
-		dim.des += TEXT_TO_INSET_OFFSET;
+		dim.asc += topOffset(mi.base.bv);
+		dim.des += bottomOffset(mi.base.bv);
 		// insert a one pixel gap
 		dim.wid += 1;
 		Dimension dim_dummy;
@@ -233,7 +233,15 @@ void InsetIPA::latex(otexstream & os, OutputParams const & runparams_in) const
 }
 
 
-docstring InsetIPA::xhtml(XHTMLStream & xs, OutputParams const & runparams_in) const
+void InsetIPA::docbook(XMLStream & xs, OutputParams const & runparams) const
+{
+	OutputParams rp(runparams);
+	rp.inIPA = true;
+	InsetText::docbook(xs, rp);
+}
+
+
+docstring InsetIPA::xhtml(XMLStream & xs, OutputParams const & runparams_in) const
 {
 	OutputParams runparams(runparams_in);
 	runparams.inIPA = true;

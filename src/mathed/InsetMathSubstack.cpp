@@ -15,6 +15,7 @@
 #include "MathData.h"
 #include "MathStream.h"
 
+#include "Cursor.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "LaTeXFeatures.h"
@@ -59,6 +60,24 @@ void InsetMathSubstack::draw(PainterInfo & pi, int x, int y) const
 }
 
 
+void InsetMathSubstack::doDispatch(Cursor & cur, FuncRequest & cmd)
+{
+	switch (cmd.action()) {
+	case LFUN_TABULAR_FEATURE: {
+		string s = cmd.getArg(0);
+		if (s == "append-column" || s == "delete-column"
+			|| s == "add-vline-left" || s == "add-vline-right") {
+			cur.undispatched();
+			return;
+		}
+	}
+	default:
+		break;
+	}
+	InsetMathGrid::doDispatch(cur, cmd);
+}
+
+
 bool InsetMathSubstack::getStatus(Cursor & cur, FuncRequest const & cmd,
 		FuncStatus & flag) const
 {
@@ -81,6 +100,14 @@ bool InsetMathSubstack::getStatus(Cursor & cur, FuncRequest const & cmd,
 			flag.setEnabled(false);
 			return true;
 		}
+		// disallow changing number of columns
+		if (s == "append-column" || s == "delete-column") {
+			flag.setEnabled(false);
+			flag.message(bformat(
+				from_utf8(N_("Changing number of columns not allowed in "
+					     "'%1$s'")), from_utf8("substack")));
+			return true;
+		}
 		break;
 	}
 
@@ -97,9 +124,11 @@ void InsetMathSubstack::infoize(odocstream & os) const
 }
 
 
-void InsetMathSubstack::write(WriteStream & os) const
+void InsetMathSubstack::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
+	if (os.fragile())
+		os << "\\protect";
 	os << "\\substack{";
 	bool open = os.startOuterRow();
 	InsetMathGrid::write(os);
@@ -125,19 +154,10 @@ void InsetMathSubstack::maple(MapleStream & os) const
 }
 
 
-void InsetMathSubstack::mathmlize(MathStream & os) const
+void InsetMathSubstack::mathmlize(MathMLStream & ms) const
 {
-	int movers = 0;
-	row_type const numrows = nrows();
-	for (row_type row = 0; row < nrows(); ++row) {
-		if (row < numrows - 1) {
-			movers ++;
-			os << MTag("munder");
-		}
-		os << MTag("mrow") << cell(index(row, 0)) << ETag("mrow");
-	}
-	for (int i = 1; i <= movers; ++i)
-		os << ETag("munder");
+	// Output the substack as a standard grid.
+	InsetMathGrid::mathmlize(ms);
 }
 
 

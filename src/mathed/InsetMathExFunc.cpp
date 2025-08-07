@@ -122,10 +122,15 @@ void InsetMathExFunc::mathematica(MathematicaStream & os) const
 }
 
 
-void InsetMathExFunc::mathmlize(MathStream & os) const
+void InsetMathExFunc::mathmlize(MathMLStream & ms) const
 {
-	os << "<mi>" << name_ << "</mi><mo>&af;</mo>";
-	os << cell(0);
+	ms << MTagInline("mi")
+	   << name_
+       << ETagInline("mi")
+	   << MTagInline("mo")
+	   << "&#x2061;"
+	   << ETagInline("mo")
+	   << cell(0);
 }
 
 

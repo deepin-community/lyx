@@ -2,7 +2,7 @@
 #
 # Author: Gioele Barabucci
 
-Format 66
+Format 104
 Input stdclass.inc
 
 Columns 2
@@ -26,6 +26,8 @@ Style Subtitle
 		Size   Large
 		Shape  Italic
 	EndFont
+	DocBookTag            subtitle
+	DocBookInInfo         maybe
 End
 
 Style Terms        
@@ -49,7 +51,11 @@ Style Terms
 End
 
 Style Keywords
-        CopyStyle             Terms
-        LatexName             keywords
-        LabelString           "Keywords:"
+	CopyStyle             Terms
+	LatexName             keywords
+	LabelString           "Keywords:"
+	DocBookTag          keyword
+	DocBookTagType      paragraph
+	DocBookWrapperTag   keywordset
+	DocBookInInfo       always
 End

@@ -40,7 +40,11 @@ static std::set<std::string> tmp_names_;
 * all used temp file names.
 * If you don't have to remove the temp file manually, use TempFile instead!
 */
-FileName const tempFileName(std::string const &);
+FileName const tempFileName(FileName, bool const dir = false);
+/// Get temporary file name with custom path
+FileName const tempFileName(FileName const &, std::string const &, bool const dir = false);
+/// Get temporary file name with default path
+FileName const tempFileName(std::string const &, bool const dir = false);
 
 /// Remove and unregister a temporary file.
 void removeTempFile(FileName const &);
@@ -114,12 +118,14 @@ bool isBinaryFile(FileName const & filename);
       -# user_lyxdir
       -# build_lyxdir (if not empty)
       -# system_lyxdir
-    The third parameter `ext' is optional.
+    \p onlyglobal determines whether user_lyxdir should be included.
+    ext, search_mode and onlyglobal are optional.
 */
 FileName const libFileSearch(std::string const & dir,
 				std::string const & name,
 				std::string const & ext = std::string(),
-				search_mode mode = must_exist);
+				search_mode mode = must_exist,
+				bool const onlyglobal = false);
 
 /** Same as libFileSearch(), but tries first to find an
   internationalized version of the file by prepending $LANG_ to the
@@ -140,10 +146,10 @@ imageLibFileSearch(std::string & dir, std::string const & name,
 
 /// How to quote a filename
 enum quote_style {
-	/** Quote for the (OS dependant) shell. This is needed for command
+	/** Quote for the (OS dependent) shell. This is needed for command
 	    line arguments of subprocesses. */
 	quote_shell,
-	/** Quote a file name for the (OS dependant) shell. This is needed
+	/** Quote a file name for the (OS dependent) shell. This is needed
 	    for file names as command line arguments of subprocesses. */
 	quote_shell_filename,
 	/** Quote for python. Use this if you want to store a filename in a
@@ -181,7 +187,7 @@ enum latex_path_dots {
  *  If @c path contains LaTeX special characters, these are escaped.
  *  Eg, '~' -> '\\string~'
  *  If @c path contains spaces, then the returned path is enclosed in
- *  "-quotes. This last fix will lead to successful compiliation of the
+ *  "-quotes. This last fix will lead to successful compilation of the
  *  LaTeX file only if a sufficiently modern LaTeX compiler is used.
  *  If @c ext == EXCLUDE_EXTENSION the extension is left outside the quotes.
  *  This is needed for pdfeTeX, Version 3.141592-1.21a-2.2 (Web2C 7.5.4)
@@ -206,7 +212,11 @@ std::string const quoteName(std::string const & file, quote_style style = quote_
 /// Add a filename to a path. Any path from filename is stripped first.
 std::string const addName(std::string const & path, std::string const & fname);
 
-/// Append sub-directory(ies) to path in an intelligent way
+/// Add a relative path to a path. Does not strip the pathname
+std::string const addPathName(std::string const & path, std::string const & fname);
+
+/// Append sub-directory(ies) to path in an intelligent way. Will append the
+/// trailing directory separator if that is not provided.
 std::string const addPath(std::string const & path, std::string const & path2);
 
 /** Change extension of oldname to extension.
@@ -229,6 +239,9 @@ addExtension(std::string const & name, std::string const & extension);
 
 /// Return the extension of the file (not including the .)
 std::string const getExtension(std::string const & name);
+
+/// Provide a scheme (such as "file") if not present. Assumes absolute path input.
+docstring const provideScheme(docstring const & name, docstring const & scheme);
 
 /** \return the name that LyX will give to the unzipped file \p zipped_file
   if the second argument of unzipFile() is empty.
@@ -324,12 +337,31 @@ bool prefs2prefs(FileName const & filename, FileName const & tempfile,
 /// Does file \p file need to be updated by configure.py?
 bool configFileNeedsUpdate(std::string const & file);
 
-typedef std::pair<int, std::string> cmd_ret;
+struct cmd_ret {
+	bool valid;
+	std::string result;
+};
 
 cmd_ret const runCommand(std::string const & cmd);
 
 int fileLock(const char * lock_file);
 void fileUnlock(int fd, const char * lock_file);
+
+/** Return the hex-encoded cryptographic hash of a string.
+ * This function is typically used to create relatively stable file names,
+ * because cryptographic hash functions ensure that very small changes in the
+ * input result in large changes in the output.
+ * Due to inherent limits of path length in Windows we allow very short version
+ * (effectively leftmost 6 bytes encoded via 12 chars in hex) while increasing the
+ * probability of collision (via shorten=true).
+ * There is no limit in the length of the input string: it can be a file name
+ * or the contents of a file, for instance.
+ */
+std::string toHexHash(const std::string & str, bool shorten=false);
+
+/// Replace non-ASCII characters to ensure that the string can be used as a
+/// file name on all platforms and as a LaTeX name.
+std::string sanitizeFileName(const std::string & str);
 
 } // namespace support
 } // namespace lyx

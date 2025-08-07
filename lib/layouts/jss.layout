@@ -8,7 +8,7 @@
 # License: GNU GPL version 2 or later
 # JSS LaTeX files can be downloaded from http://www.jstatsoft.org/downloads/JSSstyle.zip
 
-Format 66
+Format 104
 
 # Read the definitions from article.layout
 Input article.layout
@@ -24,10 +24,12 @@ NoStyle "Right Address"
 
 Style Section
 	LabelString			\thesection.
+	TocLevel 1
 End
 
 Style Subsection
 	LabelString			\thesubsection.
+	TocLevel 2
 End
 
 Style Subsubsection
@@ -35,6 +37,7 @@ Style Subsubsection
 	Font
 	  Shape				Italic
 	EndFont
+		TocLevel 3
 End
 
 Style Title
@@ -99,9 +102,13 @@ Style Keywords
 	LabelType			Static
 	LabelString			"Keywords:"
 	LabelFont
-	  Color				Green
+	  Color				textlabel2
 	  Series			Bold
 	EndFont
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 Style "Plain Keywords"
@@ -198,7 +205,7 @@ InsetLayout "Flex:Code Chunk"
 	  Family			Typewriter
 	EndFont
 	LabelFont
-	  Color				Green
+	  Color				textlabel2
 	EndFont
 End
 
@@ -224,7 +231,7 @@ Style "Code"
 	EndFont
 	LabelFont
 	  Series			Bold
-	  Color				Green
+	  Color				textlabel2
 	EndFont
 	HTMLTag				pre
 	HTMLItem			p

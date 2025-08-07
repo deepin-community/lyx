@@ -11,7 +11,7 @@
 # Modified from  amsart.layout May '08 by Andrew Corrigan <acorriga@gmu.edu>
 
 
-Format 66
+Format 104
 Columns                 1
 Sides                   2
 PageStyle               Headers
@@ -44,6 +44,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -212,6 +213,9 @@ Style Title
 	  Size                Larger
 	EndFont
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -231,6 +235,11 @@ Style Author
 	  Size                Large
 	  Shape               Smallcaps
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -313,6 +322,10 @@ Style Keywords
 	CopyStyle             Abstract
 	LatexName             keywords
 	LabelString           "Key words:"
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 
@@ -350,6 +363,16 @@ Style Bibliography
 	EndFont
 	TocLevel              1
 	IsTocCaption          0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
 End
 
 NoStyle                 Chapter

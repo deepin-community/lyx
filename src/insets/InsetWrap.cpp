@@ -26,7 +26,7 @@
 #include "FuncStatus.h"
 #include "LaTeXFeatures.h"
 #include "Lexer.h"
-#include "output_xhtml.h"
+#include "xml.h"
 #include "texstream.h"
 #include "TextClass.h"
 
@@ -47,10 +47,6 @@ InsetWrap::InsetWrap(Buffer * buf, string const & type)
 	: InsetCaptionable(buf)
 {
 	setCaptionType(type);
-	params_.lines = 0;
-	params_.placement = "o";
-	params_.overhang = Length(0, Length::PCW);
-	params_.width = Length(50, Length::PCW);
 }
 
 
@@ -65,7 +61,7 @@ void InsetWrap::setCaptionType(std::string const & type)
 {
 	InsetCaptionable::setCaptionType(type);
 	params_.type = captionType();
-	setLabel(_("wrap: ") + floatName(type));
+	setLabel(_("Wrap: ") + floatName(type));
 }
 
 
@@ -127,9 +123,9 @@ bool InsetWrap::getStatus(Cursor & cur, FuncRequest const & cmd,
 }
 
 
-void InsetWrap::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetWrap::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
-	InsetCaptionable::updateBuffer(it, utype);
+	InsetCaptionable::updateBuffer(it, utype, deleted);
 }
 
 
@@ -207,27 +203,27 @@ int InsetWrap::plaintext(odocstringstream & os,
 }
 
 
-int InsetWrap::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetWrap::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	// FIXME UNICODE
-	os << '<' << from_ascii(params_.type) << '>';
-	int const i = InsetText::docbook(os, runparams);
-	os << "</" << from_ascii(params_.type) << '>';
-	return i;
+	InsetLayout const & il = getLayout();
+
+	xs << xml::StartTag(il.docbooktag(), il.docbookattr()); // TODO: Detect when there is a title.
+	InsetText::docbook(xs, runparams);
+	xs << xml::EndTag(il.docbooktag());
 }
 
 
-docstring InsetWrap::xhtml(XHTMLStream & xs, OutputParams const & rp) const
+docstring InsetWrap::xhtml(XMLStream & xs, OutputParams const & rp) const
 {
 	string const len = params_.width.asHTMLString();
 	string const width = len.empty() ? "50%" : len;
 	InsetLayout const & il = getLayout();
 	string const & tag = il.htmltag();
-	string const attr = il.htmlattr() + " style='width:" + width + ";'";
-	xs << html::StartTag(tag, attr);
+	string const attr = il.htmlGetAttrString() + " style='width:" + width + ";'";
+	xs << xml::StartTag(tag, attr);
 	docstring const deferred =
 		InsetText::insetAsXHTML(xs, rp, InsetText::WriteInnerTag);
-	xs << html::EndTag(tag);
+	xs << xml::EndTag(tag);
 	return deferred;
 }
 

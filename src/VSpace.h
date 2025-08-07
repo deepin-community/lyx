@@ -12,7 +12,7 @@
 #ifndef VSPACE_H
 #define VSPACE_H
 
-#include "Length.h"
+#include "support/Length.h"
 
 
 namespace lyx {
@@ -31,6 +31,8 @@ public:
 		SMALLSKIP,
 		MEDSKIP,
 		BIGSKIP,
+		HALFLINE,
+		FULLLINE,
 		VFILL,
 		LENGTH ///< user-defined length
 	};

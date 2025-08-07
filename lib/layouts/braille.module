@@ -1,11 +1,12 @@
 #\DeclareLyXModule[braille.sty]{Braille}
+#\DeclareCategory{Accessibility}
 #DescriptionBegin
 #Defines an environment to typeset Braille.
-#For more details see Braille.lyx in examples.
+#For more details see Help > Specific Manuals > Braille.
 #DescriptionEnd
 # Author: Uwe Stöhr <uwestoehr@web.de>
 
-Format 66
+Format 104
 
 AddToPreamble
 	\usepackage{braille}
@@ -36,8 +37,10 @@ Style Braille_(default)
 	LabelString	"Braille:"
 	LabelFont
 	  Shape		Italic
-	  Color		Blue
+	  Color		textlabel1
 	EndFont
+	DocBookTag  para
+	DocBookAttr role='braille'
 End
 
 
@@ -59,8 +62,10 @@ Style Braille_(textsize)
 	LabelString	"Braille:"
 	LabelFont
 	  Shape		Italic
-	  Color		Blue
+	  Color		textlabel1
 	EndFont
+	DocBookTag  para
+	DocBookAttr role='braille-text'
 End
 
 
@@ -83,8 +88,10 @@ Style Braille_(dots_on)
 	LabelString	"Braille_dots_on"
 	LabelFont
 	  Shape		Italic
-	  Color		Green
+	  Color		textlabel2
 	EndFont
+	DocBookTag  para
+	DocBookAttr role='braille-dots-on'
 End
 
 
@@ -107,8 +114,10 @@ Style Braille_(dots_off)
 	LabelString	"Braille_dots_off"
 	LabelFont
 	  Shape		Italic
-	  Color		Green
+	  Color		textlabel2
 	EndFont
+	DocBookTag  para
+	DocBookAttr role='braille-dots-off'
 End
 
 
@@ -131,8 +140,10 @@ Style Braille_(mirror_on)
 	LabelString	"Braille_mirror_on"
 	LabelFont
 	  Shape		Italic
-	  Color		Green
+	  Color		textlabel2
 	EndFont
+	DocBookTag  para
+	DocBookAttr role='braille-mirror-on'
 End
 
 
@@ -155,8 +166,10 @@ Style Braille_(mirror_off)
 	LabelString	"Braille_mirror_off"
 	LabelFont
 	  Shape		Italic
-	  Color		Green
+	  Color		textlabel2
 	EndFont
+	DocBookTag  para
+	DocBookAttr role='braille-mirror-off'
 End
 
 
@@ -176,7 +189,7 @@ InsetLayout "Flex:Braillebox"
 	  Misc		No_Bar
 	EndFont
 	LabelFont
-	  Color		green
+	  Color		textlabel2
 	  Size		Small
 	EndFont
 End

@@ -1,0 +1,579 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/es/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language spanish
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Índice
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style french
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle plain
+\tablestyle default
+\tracking_changes true
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\author -1463541724 "Daniel" d3vf4n@tutanota.com
+\end_header
+
+\begin_body
+
+\begin_layout Title
+ESTE ES EL TÍTULO DEL DOCUMENTO
+\end_layout
+
+\begin_layout Author
+por Fulanito
+\end_layout
+
+\begin_layout Date
+12 de junio de 1972
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Filosofía general
+\end_layout
+
+\begin_layout Standard
+La filosofía básica de \SpecialChar LyX
+ es que te preocupes del contenido de lo que escribes,
+ no de su 
+\change_deleted -1463541724 1694116684
+aspecto
+\change_inserted -1463541724 1694116686
+presentación
+\change_unchanged
+.
+\end_layout
+
+\begin_layout Subsection
+Cómo lo hace \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ utiliza \SpecialChar LaTeX
+,
+ un sistema de preparación de documentos diseñado por Leslie Lamport en 1985.
+ Fue construido sobre un lenguaje de composición llamado \SpecialChar TeX
+,
+ creado por Donald Knuth en 1984.
+ \SpecialChar LaTeX
+ está diseñado sobre una filosofía similar a la de \SpecialChar LyX
+.
+ Leslie Lamport dijo (ver referencia 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "lamport"
+literal "true"
+
+\end_inset
+
+):
+\end_layout
+
+\begin_layout Quote
+La función del diseño tipográfico es ayudar al lector a comprender las ideas del autor.
+ Para que un documento sea fácil de leer,
+ su estructura visual debe reflejar su estructura lógica.
+ Las citas y los programas de ordenador,
+ al ser elementos 
+\change_inserted -1463541724 1694116618
+lógica y 
+\change_unchanged
+estructuralmente distintos,
+ deberían distinguirse visualmente uno de otro [...] Como \SpecialChar LaTeX
+ no puede entenderte directamente,
+ debes indicarle explícitamente la estructura lógica mediante 
+\change_deleted -1463541724 1694116622
+comandos
+\change_inserted -1463541724 1694116634
+instrucciones
+\change_unchanged
+ especiales [...] Mientras escribes el documento,
+ deberías preocuparte de su estructura lógica,
+ no de su apariencia.
+\end_layout
+
+\begin_layout Subsection
+Por qué \SpecialChar LyX
+ es mejor
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Por-qué-LyX"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ puede ser útil a más gente que \SpecialChar LaTeX
+.
+ Es considerablemente más fácil de usar,
+ ya que no necesitas aprender \SpecialChar LaTeX
+ (que es prácticamente un lenguaje de programación).
+ \SpecialChar LyX
+ es básicamente como los demás procesadores de texto 
+\change_deleted -1463541724 1694116588
+
+\begin_inset Quotes eld
+\end_inset
+
+
+\change_inserted -1463541724 1694116588
+
+\begin_inset Quotes fld
+\end_inset
+
+
+\change_unchanged
+lo que ves es lo que obtienes
+\change_deleted -1463541724 1694116590
+
+\begin_inset Quotes erd
+\end_inset
+
+
+\change_inserted -1463541724 1694116590
+
+\begin_inset Quotes frd
+\end_inset
+
+
+\change_unchanged
+,
+ salvo que \SpecialChar LyX
+ es 
+\change_inserted -1463541724 1694116593
+
+\begin_inset Quotes fld
+\end_inset
+
+
+\change_deleted -1463541724 1694116592
+
+\begin_inset Quotes eld
+\end_inset
+
+
+\change_unchanged
+lo que ves es lo que quieres decir
+\change_deleted -1463541724 1694116595
+
+\begin_inset Quotes erd
+\end_inset
+
+
+\change_inserted -1463541724 1694116595
+
+\begin_inset Quotes frd
+\end_inset
+
+
+\change_unchanged
+.
+ De esta forma,
+ combina la facilidad de uso de los procesadores de texto con la potencia de \SpecialChar LaTeX
+.
+ 
+\change_deleted -1463541724 1694116581
+Esto es Bueno.
+
+\change_unchanged
+ Además,
+ el formato de archivo es independiente del ordenador o sistema que uses.
+ Y lo mejor de todo,
+ ¡es LIBRE y GRATUITO!
+\end_layout
+
+\begin_layout Section
+Características de \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ posee muchas características que hacen más fácil escribir documentos
+\change_deleted -1463541724 1694116541
+.
+\change_unchanged
+
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+Después de todo,
+ ¿por qué otra cosa lo querrías usar?
+\end_layout
+
+\end_inset
+
+
+\change_inserted -1463541724 1694116543
+.
+
+\change_unchanged
+ Estoy 
+\emph on
+muy emocionado
+\emph default
+ 
+\change_deleted -1463541724 1694116548
+de
+\change_inserted -1463541724 1694116549
+por
+\change_unchanged
+ hablarte de ellas.
+ Aquí tienes una lista con 
+\change_inserted -1463541724 1694116866
+solo
+\change_deleted -1463541724 1694116866
+sólo
+\change_unchanged
+ unas pocas.
+\end_layout
+
+\begin_layout Itemize
+\SpecialChar LyX
+ se en
+\change_inserted -1463541724 1694116563
+c
+\change_deleted -1463541724 1694116563
+g
+\change_unchanged
+arga él solo de los márgenes y la numeración de las notas a pie de página
+\change_inserted -1463541724 1694116941
+.
+\change_unchanged
+
+\end_layout
+
+\begin_layout Itemize
+\SpecialChar LyX
+ hace muy simple la edición de fórmulas matemáticas.
+\end_layout
+
+\begin_layout Standard
+Para una discusión más filosófica de por qué \SpecialChar LyX
+ es mejor que muchos procesadores de texto,
+ mira la sección
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Por-qué-LyX"
+nolink "false"
+
+\end_inset
+
+,
+ que se encuentra en la página
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand pageref
+reference "subsec:Por-qué-LyX"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Intentos simples de usar más cosas de \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+El otro día escribí un programa.
+ Era el siguiente:
+\end_layout
+
+\begin_layout LyX-Code
+5 REMARK MI IMPRESIONANTE PROGRAMA
+\end_layout
+
+\begin_layout LyX-Code
+10 PRINT 
+\begin_inset Quotes eld
+\end_inset
+
+¡SOY IMPRESIONANTE!
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout LyX-Code
+20 GOTO 10 
+\end_layout
+
+\begin_layout Standard
+Después de este gran esfuerzo científico,
+ empecé a sentirme más artístico,
+ así que escribí este haiku:
+\end_layout
+
+\begin_layout Verse
+\SpecialChar LyX
+ es 
+\change_inserted -1463541724 1694116516
+muy bueno
+\change_deleted -1463541724 1694116514
+un maravilloso
+\change_unchanged
+
+\begin_inset Newline newline
+\end_inset
+
+Procesador de textos
+\begin_inset Newline newline
+\end_inset
+
+Ahorra tanto tiempo
+\end_layout
+
+\begin_layout Section
+Matemáticas
+\end_layout
+
+\begin_layout Standard
+Mi 
+\change_deleted -1463541724 1694116475
+ecuación
+\change_inserted -1463541724 1694116476
+fórmula
+\change_unchanged
+ favorita es la solución de la ecuación de segundo grado.
+ Si 
+\begin_inset Formula $ax^{2}+bx+c=0$
+\end_inset
+
+ (ec.1),
+ entonces 
+\begin_inset Formula $x=\frac{-b\pm\sqrt{b^{2}-4ac}}{2a}$
+\end_inset
+
+ (ec.
+ 2).
+\end_layout
+
+\begin_layout Standard
+Otra de mis ecuaciones favoritas es la base del cálculo:
+ 
+\begin_inset Formula $f'(x)\equiv\lim_{\Delta x\rightarrow0}\frac{f(x+\Delta x)-f(x)}{\Delta x}$
+\end_inset
+
+ (ec.
+ 3).
+\end_layout
+
+\begin_layout Section
+Comentarios
+\end_layout
+
+\begin_layout Standard
+Un par de apuntes sobre la adaptación a \SpecialChar LyX
+ de este archivo:
+\end_layout
+
+\begin_layout Itemize
+He quitado la línea hecha a base de guiones.
+ Era simplemente para separar las referencias y el índice del resto del documento.
+ \SpecialChar LyX
+ (\SpecialChar LaTeX
+) ya sabe que debe separarlos dejando un espacio.
+\end_layout
+
+\begin_layout Itemize
+No me he molestado en poner las ecuaciones en modo demostración.
+ Tampoco he utilizado la numeración automática de ecuaciones,
+ porque no se ha explicado en el 
+\emph on
+Tutorial
+\emph default
+.
+\end_layout
+
+\begin_layout Itemize
+No tengo que escribir la palabra 
+\change_inserted -1463541724 1694116440
+
+\begin_inset Quotes fld
+\end_inset
+
+
+\change_deleted -1463541724 1694116413
+
+\begin_inset Quotes eld
+\end_inset
+
+
+\change_unchanged
+Referencias
+\change_deleted -1463541724 1694116442
+
+\begin_inset Quotes erd
+\end_inset
+
+
+\change_inserted -1463541724 1694116442
+
+\begin_inset Quotes frd
+\end_inset
+
+
+\change_unchanged
+ de abajo.
+ \SpecialChar LyX
+ la escribe automáticamente (o la palabra 
+\change_deleted -1463541724 1694116450
+
+\begin_inset Quotes eld
+\end_inset
+
+
+\change_inserted -1463541724 1694116451
+
+\begin_inset Quotes fld
+\end_inset
+
+
+\change_unchanged
+Bibliografía
+\change_inserted -1463541724 1694116453
+
+\begin_inset Quotes frd
+\end_inset
+
+
+\change_deleted -1463541724 1694116452
+
+\begin_inset Quotes erd
+\end_inset
+
+
+\change_unchanged
+,
+ dependiendo de la clase de documento) cuando seleccionas el estilo de párrafo 
+\family sans
+Bibliografía
+\family default
+.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "lamport"
+literal "true"
+
+\end_inset
+
+Lamport,
+ Leslie.
+ 
+\emph on
+\SpecialChar LaTeX
+:
+ A Document Preparation System.
+
+\emph default
+ Addison-Wesley,
+ Reading,
+ Massachusetts,
+ segunda edición,
+ 1994.
+\end_layout
+
+\end_body
+\end_document

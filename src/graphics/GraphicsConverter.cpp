@@ -12,12 +12,9 @@
 
 #include "GraphicsConverter.h"
 
-#include "Buffer.h"
 #include "Converter.h"
 #include "Format.h"
-#include "LyXRC.h"
 
-#include "frontends/alert.h"
 #include "support/lassert.h"
 #include "support/convert.h"
 #include "support/debug.h"
@@ -25,7 +22,6 @@
 #include "support/filetools.h"
 #include "support/ForkedCalls.h"
 #include "support/lstrings.h"
-#include "support/os.h"
 
 #include "support/TempFile.h"
 
@@ -42,7 +38,7 @@ namespace graphics {
 class Converter::Impl {
 public:
 	///
-	Impl(FileName const & doc_fname,
+	Impl(Converter const & parent, FileName const & doc_fname,
 	     FileName const & from_file, string const & to_file_base,
 	     string const & from_format, string const & to_format);
 
@@ -59,10 +55,12 @@ public:
 	/** At the end of the conversion process inform the outside world
 	 *  by emitting a signal.
 	 */
-	typedef signals2::signal<void(bool)> sig;
+	typedef signal<void(bool)> sig;
 	///
 	sig finishedConversion;
 
+	///
+	Converter const & parent_;
 	///
 	FileName const doc_fname_;
 	///
@@ -75,8 +73,6 @@ public:
 	bool valid_process_;
 	///
 	bool finished_;
-	///
-	Trackable tracker_;
 };
 
 
@@ -90,14 +86,8 @@ bool Converter::isReachable(string const & from_format_name,
 Converter::Converter(FileName const & doc_fname,
                      FileName const & from_file, string const & to_file_base,
                      string const & from_format, string const & to_format)
-	: pimpl_(new Impl(doc_fname, from_file, to_file_base, from_format, to_format))
+	: pimpl_(make_shared<Impl>(*this, doc_fname, from_file, to_file_base, from_format, to_format))
 {}
-
-
-Converter::~Converter()
-{
-	delete pimpl_;
-}
 
 
 void Converter::startConversion() const
@@ -106,7 +96,7 @@ void Converter::startConversion() const
 }
 
 
-signals2::connection Converter::connect(slot_type const & slot) const
+connection Converter::connect(slot_type const & slot) const
 {
 	return pimpl_->finishedConversion.connect(slot);
 }
@@ -127,10 +117,10 @@ static void build_script(string const & doc_fname,
 		  ostream & script);
 
 
-Converter::Impl::Impl(FileName const & doc_fname,
+Converter::Impl::Impl(Converter const & parent, FileName const & doc_fname,
 		      FileName const & from_file, string const & to_file_base,
 		      string const & from_format, string const & to_format)
-	: doc_fname_(doc_fname), valid_process_(false), finished_(false)
+	: parent_(parent), doc_fname_(doc_fname), valid_process_(false), finished_(false)
 {
 	LYXERR(Debug::GRAPHICS, "Converter c-tor:\n"
 		<< "doc_fname:        " << doc_fname
@@ -146,9 +136,17 @@ Converter::Impl::Impl(FileName const & doc_fname,
 
 	// The conversion commands are stored in a stringstream
 	ostringstream script;
-	build_script(doc_fname_.absFileName(), from_file.toFilesystemEncoding(),
-		     to_file_.toFilesystemEncoding(),
-		     from_format, to_format, script);
+	if (os::python_info()[0] == '2') {
+		build_script(doc_fname_.absFileName(),
+			     from_file.toFilesystemEncoding(),
+			     to_file_.toFilesystemEncoding(),
+			     from_format, to_format, script);
+	} else {
+		build_script(doc_fname_.absFileName(),
+			     from_file.absFileName(),
+			     to_file_.absFileName(),
+			     from_format, to_format, script);
+	}
 	LYXERR(Debug::GRAPHICS, "\tConversion script:"
 		   "\n--------------------------------------\n"
 		<< script.str()
@@ -192,9 +190,12 @@ void Converter::Impl::startConversion()
 	}
 
 	ForkedCall::sigPtr ptr = ForkedCallQueue::add(script_command_);
-	ptr->connect(ForkedCall::slot([this](pid_t pid, int retval){
-				converted(pid, retval);
-			}).track_foreign(tracker_.p()));
+	weak_ptr<Converter::Impl> this_ = parent_.pimpl_;
+	ptr->connect([this_](pid_t pid, int retval){
+			if (auto p = this_.lock()) {
+				p->converted(pid, retval);
+			}
+		});
 }
 
 
@@ -287,8 +288,7 @@ static void build_script(string const & doc_fname,
 	LYXERR(Debug::GRAPHICS, "build_script ... ");
 	typedef Graph::EdgePath EdgePath;
 
-	script << "#!/usr/bin/env python\n"
-		  "# -*- coding: utf-8 -*-\n"
+	script << "# -*- coding: utf-8 -*-\n"
 		  "import os, shutil, sys\n\n"
 		  "def unlinkNoThrow(file):\n"
 		  "  ''' remove a file, do not throw if an error occurs '''\n"
@@ -362,6 +362,7 @@ static void build_script(string const & doc_fname,
 	string const token_base  = "$$b";
 	string const token_to    = "$$o";
 	string const token_todir = "$$d";
+	string const token_python = "$${python}";
 
 	EdgePath::const_iterator it  = edgepath.begin();
 	EdgePath::const_iterator end = edgepath.end();
@@ -381,9 +382,9 @@ static void build_script(string const & doc_fname,
 
 		// If two formats share the same extension we may get identical names
 		if (outfile == infile && conv.result_file().empty()) {
-			TempFile tempfile(addExtension("gconvertXXXXXX", conv.To()->extension()));
-			tempfile.setAutoRemove(false);
-			outfile = tempfile.name().toFilesystemEncoding();
+			TempFile tmpfile(addExtension("gconvertXXXXXX", conv.To()->extension()));
+			tmpfile.setAutoRemove(false);
+			outfile = tmpfile.name().toFilesystemEncoding();
 		}
 
 		if (!theConverters().checkAuth(conv, doc_fname))
@@ -405,6 +406,7 @@ static void build_script(string const & doc_fname,
 		command = subst(command, token_base,  "' + '\"' + infile_base + '\"' + '");
 		command = subst(command, token_to,    "' + '\"' + outfile + '\"' + '");
 		command = subst(command, token_todir, "' + '\"' + outdir + '\"' + '");
+		command = subst(command, token_python, os::python());
 
 		build_conversion_command(command, script);
 	}

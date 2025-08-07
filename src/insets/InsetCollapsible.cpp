@@ -15,15 +15,18 @@
 #include "InsetCollapsible.h"
 
 #include "Buffer.h"
+#include "BufferParams.h"
 #include "BufferView.h"
+#include "CutAndPaste.h"
 #include "Cursor.h"
 #include "Dimension.h"
+#include "Format.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "InsetLayout.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
+#include "TextClass.h"
 #include "TocBackend.h"
 
 #include "frontends/FontMetrics.h"
@@ -31,10 +34,12 @@
 
 #include "support/debug.h"
 #include "support/docstream.h"
+#include "support/FileName.h"
 #include "support/gettext.h"
 #include "support/lassert.h"
 #include "support/lstrings.h"
-#include "support/RefChanger.h"
+#include "support/Changer.h"
+#include "support/TempFile.h"
 
 using namespace std;
 
@@ -55,7 +60,18 @@ InsetCollapsible::InsetCollapsible(InsetCollapsible const & rhs)
 	: InsetText(rhs),
 	  status_(rhs.status_),
 	  labelstring_(rhs.labelstring_)
-{}
+{
+	tempfile_.reset();
+}
+
+
+InsetCollapsible & InsetCollapsible::operator=(InsetCollapsible const & that)
+{
+	if (&that == this)
+		return *this;
+	*this = InsetCollapsible(that);
+	return *this;
+}
 
 
 InsetCollapsible::~InsetCollapsible()
@@ -70,7 +86,7 @@ InsetCollapsible::~InsetCollapsible()
 
 InsetCollapsible::CollapseStatus InsetCollapsible::status(BufferView const & bv) const
 {
-	if (decoration() == InsetLayout::CONGLOMERATE)
+	if (decoration() == InsetDecoration::CONGLOMERATE)
 		return status_;
 	return view_[&bv].auto_open_ ? Open : status_;
 }
@@ -79,18 +95,21 @@ InsetCollapsible::CollapseStatus InsetCollapsible::status(BufferView const & bv)
 InsetCollapsible::Geometry InsetCollapsible::geometry(BufferView const & bv) const
 {
 	switch (decoration()) {
-	case InsetLayout::CLASSIC:
+	case InsetDecoration::CLASSIC:
 		if (status(bv) == Open)
 			return view_[&bv].openinlined_ ? LeftButton : TopButton;
 		return ButtonOnly;
 
-	case InsetLayout::MINIMALISTIC:
-		return status(bv) == Open ? NoButton : ButtonOnly ;
+	case InsetDecoration::MINIMALISTIC: {
+		return status(bv) == Open ?
+			(tempfile_ ? LeftButton : NoButton)
+			: ButtonOnly;
+	}
 
-	case InsetLayout::CONGLOMERATE:
+	case InsetDecoration::CONGLOMERATE:
 		return status(bv) == Open ? SubLabel : Corners ;
 
-	case InsetLayout::DEFAULT:
+	case InsetDecoration::DEFAULT:
 		break; // this shouldn't happen
 	}
 
@@ -141,14 +160,44 @@ void InsetCollapsible::read(Lexer & lex)
 	setButtonLabel();
 }
 
+int InsetCollapsible::topOffset(BufferView const * bv) const
+{
+	switch (geometry(*bv)) {
+	case Corners:
+	case SubLabel:
+		return 0;
+	default:
+		return InsetText::topOffset(bv);
+	}
+}
+
+int InsetCollapsible::bottomOffset(BufferView const * bv) const
+{
+	switch (geometry(*bv)) {
+	case Corners:
+	case SubLabel:
+		return InsetText::bottomOffset(bv) / 4;
+	default:
+		return InsetText::bottomOffset(bv);
+	}
+}
+
 
 Dimension InsetCollapsible::dimensionCollapsed(BufferView const & bv) const
 {
 	Dimension dim;
 	FontInfo labelfont(getLabelfont());
 	labelfont.realize(sane_font);
+	int const offset = Inset::textOffset(&bv);
 	theFontMetrics(labelfont).buttonText(
-		buttonLabel(bv), TEXT_TO_INSET_OFFSET, dim.wid, dim.asc, dim.des);
+		buttonLabel(bv), offset, dim.wid, dim.asc, dim.des);
+	// remove spacing on the right for left buttons; we also do it for
+	// TopButton (although it is not useful per se), because
+	// openinlined_ is not always set properly at this point.
+	Geometry const geom = geometry(bv);
+	if (geom == LeftButton || geom == TopButton)
+		// this form makes a difference if offset is even
+		dim.wid -= offset - offset / 2;
 	return dim;
 }
 
@@ -156,10 +205,6 @@ Dimension InsetCollapsible::dimensionCollapsed(BufferView const & bv) const
 void InsetCollapsible::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	view_[mi.base.bv].auto_open_ = mi.base.bv->cursor().isInside(this);
-
-	FontInfo tmpfont = mi.base.font;
-	mi.base.font = getFont();
-	mi.base.font.realize(tmpfont);
 
 	BufferView const & bv = *mi.base.bv;
 
@@ -169,8 +214,6 @@ void InsetCollapsible::metrics(MetricsInfo & mi, Dimension & dim) const
 		break;
 	case Corners:
 		InsetText::metrics(mi, dim);
-		dim.des -= 3;
-		dim.asc -= 1;
 		break;
 	case SubLabel: {
 		InsetText::metrics(mi, dim);
@@ -184,6 +227,7 @@ void InsetCollapsible::metrics(MetricsInfo & mi, Dimension & dim) const
 		int d = 0;
 		theFontMetrics(font).rectText(buttonLabel(bv), w, a, d);
 		dim.des += a + d;
+		dim.wid = max(dim.wid, w);
 		break;
 		}
 	case TopButton:
@@ -200,19 +244,17 @@ void InsetCollapsible::metrics(MetricsInfo & mi, Dimension & dim) const
 			InsetText::metrics(mi, textdim);
 			view_[&bv].openinlined_ = (textdim.wid + dim.wid) < mi.base.textwidth;
 			if (view_[&bv].openinlined_) {
-				// Correct for button width.
-				dim.wid += textdim.wid;
+				// Correct for button width but remove spacing before frame
+				dim.wid += textdim.wid - leftOffset(mi.base.bv) / 2;
 				dim.des = max(dim.des - textdim.asc + dim.asc, textdim.des);
 				dim.asc = textdim.asc;
 			} else {
-				dim.des += textdim.height() + TEXT_TO_INSET_OFFSET;
+				dim.des += textdim.height() + topOffset(mi.base.bv);
 				dim.wid = max(dim.wid, textdim.wid);
 			}
 		}
 		break;
 	}
-
-	mi.base.font = tmpfont;
 }
 
 
@@ -221,6 +263,18 @@ bool InsetCollapsible::setMouseHover(BufferView const * bv, bool mouse_hover)
 {
 	view_[bv].mouse_hover_ = mouse_hover;
 	return true;
+}
+
+
+ColorCode InsetCollapsible::backgroundColor(PainterInfo const &) const
+{
+	return getLayout().bgcolor();
+}
+
+
+ColorCode InsetCollapsible::labelColor() const
+{
+	return getLayout().labelfont().color();
 }
 
 
@@ -248,11 +302,11 @@ void InsetCollapsible::draw(PainterInfo & pi, int x, int y) const
 		labelfont.realize(pi.base.font);
 		pi.pain.buttonText(x, y, buttonLabel(bv), labelfont,
 		                   view_[&bv].mouse_hover_ ? Color_buttonhoverbg : Color_buttonbg,
-		                   Color_buttonframe, TEXT_TO_INSET_OFFSET);
+		                   Color_buttonframe, Inset::textOffset(pi.base.bv));
 		// Draw the change tracking cue on the label, unless RowPainter already
 		// takes care of it.
 		if (canPaintChange(bv))
-			pi.change_.paintCue(pi, x, y, x + dimc.width(), labelfont);
+			pi.change.paintCue(pi, x, y, x + dimc.width(), labelfont);
 	} else {
 		view_[&bv].button_dim_.x1 = 0;
 		view_[&bv].button_dim_.y1 = 0;
@@ -268,7 +322,9 @@ void InsetCollapsible::draw(PainterInfo & pi, int x, int y) const
 	case LeftButton:
 	case TopButton: {
 		if (g == LeftButton) {
-			textx = x + dimc.width();
+			// correct for spacing added before the frame in
+			// InsetText::draw. We want the button to touch the frame.
+			textx = x + dimc.width() - leftOffset(pi.base.bv) / 2;
 			texty = baseline;
 		} else {
 			textx = x;
@@ -276,9 +332,9 @@ void InsetCollapsible::draw(PainterInfo & pi, int x, int y) const
 		}
 		// Do not draw the cue for INSERTED -- it is already in the button and
 		// that's enough.
-		Changer dummy = (pi.change_.type == Change::INSERTED)
-			? make_change(pi.change_, Change())
-			: Changer();
+		Changer cdummy = (pi.change.type == Change::INSERTED)
+			? changeVar(pi.change, Change())
+			: noChange();
 		InsetText::draw(pi, textx, texty);
 		break;
 	}
@@ -293,23 +349,22 @@ void InsetCollapsible::draw(PainterInfo & pi, int x, int y) const
 	case Corners:
 		textx = x;
 		texty = baseline;
-		{	// We will take care of the frame and the change tracking cue
-			// ourselves, below.
-			Changer dummy = make_change(pi.change_, Change());
+		// We will take care of the frame and the change tracking cue
+		// ourselves, below.
+		{
+			Changer cdummy = changeVar(pi.change, Change());
 			const_cast<InsetCollapsible *>(this)->setDrawFrame(false);
 			InsetText::draw(pi, textx, texty);
 			const_cast<InsetCollapsible *>(this)->setDrawFrame(true);
 		}
 
 		int desc = textdim.descent();
-		if (g == Corners)
-			desc -= 3;
 
 		// Colour the frame according to the change type. (Like for tables.)
-		Color colour = pi.change_.changed() ? pi.change_.color()
+		Color colour = pi.change.changed() ? pi.change.color()
 		                                    : Color_foreground;
-		const int xx1 = x + TEXT_TO_INSET_OFFSET - 1;
-		const int xx2 = x + textdim.wid - TEXT_TO_INSET_OFFSET + 1;
+		const int xx1 = x + leftOffset(pi.base.bv) - 1;
+		const int xx2 = x + textdim.wid - rightOffset(pi.base.bv) + 1;
 		pi.pain.line(xx1, y + desc - 4,
 		             xx1, y + desc, colour);
 		if (status_ == Open)
@@ -328,7 +383,7 @@ void InsetCollapsible::draw(PainterInfo & pi, int x, int y) const
 		// the label below the text. Can be toggled.
 		if (g == SubLabel) {
 			FontInfo font(getLabelfont());
-			if (pi.change_.changed())
+			if (pi.change.changed())
 				font.setPaintColor(colour);
 			font.realize(sane_font);
 			font.decSize();
@@ -354,8 +409,8 @@ void InsetCollapsible::draw(PainterInfo & pi, int x, int y) const
 		}
 		// Strike through the inset if deleted and not already handled by
 		// RowPainter.
-		if (pi.change_.deleted() && canPaintChange(bv))
-			pi.change_.paintCue(pi, xx1, y1, xx2, y + desc);
+		if (pi.change.deleted() && canPaintChange(bv))
+			pi.change.paintCue(pi, xx1, y1, xx2, y + desc);
 		break;
 	}
 }
@@ -372,7 +427,7 @@ void InsetCollapsible::cursorPos(BufferView const & bv,
 
 	switch (geometry(bv)) {
 	case LeftButton:
-		x += dimensionCollapsed(bv).wid;
+		x += dimensionCollapsed(bv).wid - leftOffset(&bv) / 2;
 		break;
 	case TopButton: {
 		y += dimensionCollapsed(bv).des + textdim.asc;
@@ -392,9 +447,12 @@ void InsetCollapsible::cursorPos(BufferView const & bv,
 
 bool InsetCollapsible::editable() const
 {
+	if (tempfile_)
+		return false;
+	
 	switch (decoration()) {
-	case InsetLayout::CLASSIC:
-	case InsetLayout::MINIMALISTIC:
+	case InsetDecoration::CLASSIC:
+	case InsetDecoration::MINIMALISTIC:
 		return status_ == Open;
 	default:
 		return true;
@@ -404,6 +462,9 @@ bool InsetCollapsible::editable() const
 
 bool InsetCollapsible::descendable(BufferView const & bv) const
 {
+	if (tempfile_)
+		return false;
+
 	return geometry(bv) != ButtonOnly;
 }
 
@@ -436,14 +497,15 @@ docstring const InsetCollapsible::getNewLabel(docstring const & l) const
 	if (paragraphs().size() > 1 || (i > 0 && j < p_siz)) {
 		label << "...";
 	}
-	docstring const lbl = label.str();
-	return lbl.empty() ? l : lbl;
+	return label.str().empty() ? l : label.str();
 }
 
 
 void InsetCollapsible::edit(Cursor & cur, bool front, EntryDirection entry_from)
 {
 	//lyxerr << "InsetCollapsible: edit left/right" << endl;
+	// We might have a selection if we moved the mouse on the button only
+	cur.clearSelection();
 	cur.push(*this);
 	InsetText::edit(cur, front, entry_from);
 }
@@ -517,9 +579,11 @@ void InsetCollapsible::doDispatch(Cursor & cur, FuncRequest & cmd)
 			cur.noScreenUpdate();
 			break;
 		}
-		// if we are selecting, we do not want to
-		// toggle the inset.
-		if (cur.selection())
+		// If we are selecting, we do not want to toggle the inset
+		// except if the selection started at the inset button we're still on.
+		// The latter addresses #12820.
+		if (cur.selection() && !clickable(cur.bv(), cur.bv().cursor().xClickPos(),
+						  cur.bv().cursor().yClickPos()))
 			break;
 		// Left button is clicked, the user asks to
 		// toggle the inset visual state.
@@ -549,6 +613,46 @@ void InsetCollapsible::doDispatch(Cursor & cur, FuncRequest & cmd)
 		cur.dispatched();
 		break;
 
+	case LFUN_INSET_EDIT: {
+		cur.push(*this);
+		text().selectAll(cur);
+		string const format =
+			cur.buffer()->params().documentClass().outputFormat();
+		string const ext = theFormats().extension(format);
+		tempfile_.reset(new support::TempFile("ert_editXXXXXX." + ext));
+		support::FileName const tempfilename = tempfile_->name();
+		string const name = tempfilename.toFilesystemEncoding();
+		ofdocstream os(name.c_str());
+		os << cur.selectionAsString(false);
+		os.close();
+		// Since we lock the inset while the external file is edited,
+		// we need to move the cursor outside and clear any selection inside
+		cur.clearSelection();
+		cur.pop();
+		cur.leaveInset(*this);
+
+		if (cmd.argument() == "nogui")
+			cur.message(from_utf8(name));
+		else
+			theFormats().edit(buffer(), tempfilename, format);
+
+		break;
+	}
+	case LFUN_INSET_END_EDIT: {
+		support::FileName const tempfilename = tempfile_->name();
+		docstring const s = tempfilename.fileContents("UTF-8");
+		cur.recordUndoInset(this);
+		cur.push(*this);
+		text().selectAll(cur);
+		cap::replaceSelection(cur);
+		cur.text()->insertStringAsLines(cur, s, cur.current_font);
+		// FIXME (gb) it crashes without this
+		cur.fixIfBroken();
+		tempfile_.reset();
+		cur.pop();
+		break;
+	}
+
 	default:
 		InsetText::doDispatch(cur, cmd);
 		break;
@@ -570,6 +674,16 @@ bool InsetCollapsible::getStatus(Cursor & cur, FuncRequest const & cmd,
 			flag.setOnOff(status_ == Open);
 		} else
 			flag.setEnabled(false);
+		return true;
+
+	case LFUN_INSET_EDIT:
+		flag.setEnabled(!buffer().hasReadonlyFlag() &&
+			getLayout().editExternally() && tempfile_ == nullptr);
+		return true;
+
+	case LFUN_INSET_END_EDIT:
+		flag.setEnabled(!buffer().hasReadonlyFlag() &&
+			getLayout().editExternally() && tempfile_ != nullptr);
 		return true;
 
 	default:
@@ -594,11 +708,17 @@ docstring InsetCollapsible::getLabel() const
 
 docstring const InsetCollapsible::buttonLabel(BufferView const & bv) const
 {
+	// U+1F512 LOCK
+	docstring const locked = tempfile_ ? docstring(1, 0x1F512) : docstring();
+	// indicate changed content in label (#8645)
+	// ✎ U+270E LOWER RIGHT PENCIL
+	docstring const indicator = (isChanged() && geometry(bv) == ButtonOnly)
+		? docstring(1, 0x270E) : docstring();
 	InsetLayout const & il = getLayout();
 	docstring const label = getLabel();
 	if (!il.contentaslabel() || geometry(bv) != ButtonOnly)
-		return label;
-	return getNewLabel(label);
+		return locked + indicator + label;
+	return locked + indicator + getNewLabel(label);
 }
 
 
@@ -606,15 +726,18 @@ void InsetCollapsible::setStatus(Cursor & cur, CollapseStatus status)
 {
 	status_ = status;
 	setButtonLabel();
-	if (status_ == Collapsed)
+	if (status_ == Collapsed) {
 		cur.leaveInset(*this);
+		// if cursor was inside the inset, it was now moved outside (#12830)
+		cur.setCurrentFont();
+	}
 }
 
 
-InsetLayout::InsetDecoration InsetCollapsible::decoration() const
+InsetDecoration InsetCollapsible::decoration() const
 {
-	InsetLayout::InsetDecoration const dec = getLayout().decoration();
-	return dec == InsetLayout::DEFAULT ? InsetLayout::CLASSIC : dec;
+	InsetDecoration const dec = getLayout().decoration();
+	return dec == InsetDecoration::DEFAULT ? InsetDecoration::CLASSIC : dec;
 }
 
 
@@ -623,7 +746,7 @@ string InsetCollapsible::contextMenu(BufferView const & bv, int x,
 {
 	string context_menu = contextMenuName();
 	string const it_context_menu = InsetText::contextMenuName();
-	if (decoration() == InsetLayout::CONGLOMERATE)
+	if (decoration() == InsetDecoration::CONGLOMERATE)
 		return context_menu + ";" + it_context_menu;
 
 	string const ic_context_menu = InsetCollapsible::contextMenuName();
@@ -637,13 +760,13 @@ string InsetCollapsible::contextMenu(BufferView const & bv, int x,
 	if (x < xo(bv) + dim.wid && y < yo(bv) + dim.des)
 		return context_menu;
 
-	return it_context_menu;
+	return context_menu + ";" + it_context_menu;
 }
 
 
 string InsetCollapsible::contextMenuName() const
 {
-	if (decoration() == InsetLayout::CONGLOMERATE)
+	if (decoration() == InsetDecoration::CONGLOMERATE)
 		return "context-conglomerate";
 	else
 		return "context-collapsible";
@@ -673,23 +796,23 @@ void InsetCollapsible::addToToc(DocIterator const & cpit, bool output_active,
 {
 	bool doing_output = output_active && producesOutput();
 	InsetLayout const & layout = getLayout();
-	if (layout.addToToc()) {
-		TocBuilder & b = backend.builder(layout.tocType());
-		// Cursor inside the inset
-		DocIterator pit = cpit;
-		pit.push_back(CursorSlice(const_cast<InsetCollapsible &>(*this)));
-		docstring const label = getLabel();
-		b.pushItem(pit, label + (label.empty() ? "" : ": "), output_active);
-		// Proceed with the rest of the inset.
-		InsetText::addToToc(cpit, doing_output, utype, backend);
-		if (layout.isTocCaption()) {
-			docstring str;
-			text().forOutliner(str, TOC_ENTRY_LENGTH);
-			b.argumentItem(str);
-		}
-		b.pop();
-	} else
-		InsetText::addToToc(cpit, doing_output, utype, backend);
+	if (!layout.addToToc())
+		return InsetText::addToToc(cpit, doing_output, utype, backend);
+
+	TocBuilder & b = backend.builder(layout.tocType());
+	// Cursor inside the inset
+	DocIterator pit = cpit;
+	pit.push_back(CursorSlice(const_cast<InsetCollapsible &>(*this)));
+	docstring const label = getLabel();
+	b.pushItem(pit, label + (label.empty() ? "" : ": "), output_active);
+	// Proceed with the rest of the inset.
+	InsetText::addToToc(cpit, doing_output, utype, backend);
+	if (layout.isTocCaption()) {
+		docstring str;
+		text().forOutliner(str, TOC_ENTRY_LENGTH);
+		b.argumentItem(str);
+	}
+	b.pop();
 }
 
 

@@ -10,8 +10,9 @@
 
 #include <config.h>
 
-#include "InsetMathSqrt.h"
 #include "MacroTable.h"
+
+#include "InsetMathSqrt.h"
 #include "InsetMathMacroTemplate.h"
 #include "InsetMathMacroArgument.h"
 #include "MathParser.h"
@@ -20,7 +21,6 @@
 #include "InsetMathNest.h"
 
 #include "Buffer.h"
-#include "DocIterator.h"
 #include "InsetList.h"
 #include "Text.h"
 
@@ -41,29 +41,24 @@ namespace lyx {
 //
 /////////////////////////////////////////////////////////////////////
 
-MacroData::MacroData(Buffer * buf)
-	: buffer_(buf), queried_(true), numargs_(0), sym_(0), optionals_(0),
-	  lockCount_(0), redefinition_(false), type_(MacroTypeNewcommand)
+MacroData::MacroData(const Buffer * buf)
+	: buffer_(buf), queried_(true)
 {}
 
 
-MacroData::MacroData(Buffer * buf, DocIterator const & pos)
-	: buffer_(buf), pos_(pos), queried_(false), numargs_(0), sym_(0),
-	  optionals_(0), lockCount_(0), redefinition_(false),
-	  type_(MacroTypeNewcommand)
-{
-}
+MacroData::MacroData(Buffer const * buf, DocIterator const & pos)
+	: buffer_(buf), pos_(pos)
+{}
 
 
-MacroData::MacroData(Buffer * buf, InsetMathMacroTemplate const & macro)
-	: buffer_(buf), queried_(false), numargs_(0), sym_(0), optionals_(0),
-	  lockCount_(0), redefinition_(false), type_(MacroTypeNewcommand)
+MacroData::MacroData(Buffer const * buf, InsetMathMacroTemplate const & macro)
+	: buffer_(buf)
 {
 	queryData(macro);
 }
 
 
-bool MacroData::expand(vector<MathData> const & args, MathData & to) const
+bool MacroData::expand(vector<MathData> const & from, MathData & to) const
 {
 	updateData();
 
@@ -82,9 +77,9 @@ bool MacroData::expand(vector<MathData> const & args, MathData & to) const
 		//it.cell().erase(it.pos());
 		//it.cell().insert(it.pos(), it.nextInset()->asInsetMath()
 		size_t n = static_cast<InsetMathMacroArgument*>(it.nextInset())->number();
-		if (n <= args.size()) {
+		if (n <= from.size()) {
 			it.cell().erase(it.pos());
-			it.cell().insert(it.pos(), args[n - 1]);
+			it.cell().insert(it.pos(), from[n - 1]);
 		}
 	}
 	//LYXERR0("MathData::expand: res: " << inset.cell(0));
@@ -110,10 +105,10 @@ vector<docstring> const & MacroData::defaults() const
 }
 
 
-string const MacroData::requires() const
+string const MacroData::required() const
 {
 	if (sym_)
-		return sym_->requires;
+		return sym_->required;
 	return string();
 }
 
@@ -201,7 +196,7 @@ int MacroData::write(odocstream & os, bool overwriteRedefinition) const
 	InsetMathMacroTemplate const & tmpl =
 		static_cast<InsetMathMacroTemplate const &>(*inset);
 	otexrowstream ots(os);
-	WriteStream wi(ots, false, true, WriteStream::wsDefault);
+	TeXMathStream wi(ots, false, true, TeXMathStream::wsDefault);
 	return tmpl.write(wi, overwriteRedefinition);
 }
 
@@ -241,11 +236,11 @@ MacroTable::insert(docstring const & name, MacroData const & data)
 
 
 MacroTable::iterator
-MacroTable::insert(Buffer * buf, docstring const & def)
+MacroTable::insert(Buffer * buf, docstring const & definition)
 {
 	//lyxerr << "MacroTable::insert, def: " << to_utf8(def) << endl;
 	InsetMathMacroTemplate mac(buf);
-	mac.fromString(def);
+	mac.fromString(definition);
 	MacroData data(buf, mac);
 	return insert(mac.name(), data);
 }

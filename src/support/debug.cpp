@@ -12,8 +12,9 @@
 
 #include <config.h>
 
-#include "support/convert.h"
 #include "support/debug.h"
+
+#include "support/convert.h"
 #include "support/FileName.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
@@ -46,7 +47,8 @@ DebugErrorItem errorTags[] = {
 	{ Debug::PARSER,    "parser",    N_("Lyxlex grammar parser")},
 	{ Debug::LYXRC,     "lyxrc",     N_("Configuration files reading")},
 	{ Debug::KBMAP,     "kbmap",     N_("Custom keyboard definition")},
-	{ Debug::LATEX,     "latex",     N_("LaTeX generation/execution")},
+	{ Debug::OUTFILE,   "outfile",   N_("Output source file generation/processing")},
+	{ Debug::OUTFILE,   "latex",     N_("Output source file generation/processing (alias to 'outfile')")},
 	{ Debug::MATHED,    "mathed",    N_("Math editor")},
 	{ Debug::FONT,      "font",      N_("Font handling")},
 	{ Debug::TCLASS,    "tclass",    N_("Textclass files reading")},
@@ -69,9 +71,11 @@ DebugErrorItem errorTags[] = {
 	{ Debug::RTL,       "rtl",       N_("RTL/Bidi")},
 	{ Debug::LOCALE,    "locale",    N_("Locale/Internationalisation")},
 	{ Debug::SELECTION, "selection", N_("Selection copy/paste mechanism")},
-	{ Debug::FIND,      "find",      N_("Find and replace mechanism")},
+	{ Debug::FIND,      "find",      N_("Find and replace mechanism, terse version")},
+	{ Debug::FINDVERBOSE,"findverbose", N_("Find and replace mechanism, verbose version")},
 	{ Debug::DEBUG,     "debug",     N_("Developers' general debug messages")},
-	{ Debug::ANY,       "any",       N_("All debugging messages")}
+	{ Debug::ANY,       "any",       N_("All debugging messages")},
+	{ Debug::ANY,       "all",       N_("All debugging messages (alias to 'all')")}
 };
 
 
@@ -96,9 +100,9 @@ Debug::Type Debug::value(int idx)
 
 string const Debug::description(Debug::Type val)
 {
-	for (int i = 0 ; i < numErrorTags ; ++i) {
-		if (errorTags[i].level == val)
-			return errorTags[i].desc;
+	for (const auto & errorTag : errorTags) {
+		if (errorTag.level == val)
+			return errorTag.desc;
 	}
 	return "unknown level";
 }
@@ -106,11 +110,19 @@ string const Debug::description(Debug::Type val)
 
 string const Debug::name(Debug::Type val)
 {
-	for (int i = 0 ; i < numErrorTags ; ++i) {
-		if (errorTags[i].level == val)
-			return errorTags[i].name;
+	for (const auto & errorTag : errorTags) {
+		if (errorTag.level == val)
+			return errorTag.name;
 	}
 	return "unknown level";
+}
+
+
+string const Debug::realName(int idx)
+{
+	if (idx < numErrorTags)
+		return errorTags[idx].name;
+	return "unknown index";
 }
 
 
@@ -125,33 +137,61 @@ Debug::Type Debug::value(string const & val)
 			break;
 		// Is it a number?
 		if (isStrInt(tmp))
-			l |= static_cast<Type>(convert<int>(tmp));
+			l |= static_cast<Type>(convert<unsigned long long>(tmp));
 		else
-		// Search for an explicit name
-		for (int i = 0 ; i < numErrorTags ; ++i)
-			if (tmp == errorTags[i].name) {
-				l |= errorTags[i].level;
-				break;
-			}
+			// Search for an explicit name
+			for (DebugErrorItem const & item : errorTags)
+				if (tmp == item.name) {
+					l |= item.level;
+					break;
+				}
 		if (st == string::npos)
-		break;
+			break;
 		v.erase(0, st + 1);
 	}
 	return l;
 }
 
 
+string Debug::badValue(string const & val)
+{
+	string v = val;
+	while (!v.empty()) {
+		size_t const st = v.find(',');
+		string const tmp = ascii_lowercase(v.substr(0, st));
+		if (tmp.empty())
+			break;
+		// Is it a number?
+		if (!tmp.empty() && !isStrInt(tmp)) {
+			// Search for an explicit name
+			bool found = false;
+			for (DebugErrorItem const & item : errorTags)
+				if (tmp == item.name) {
+					found = true;
+					break;
+				}
+			if (!found)
+				return tmp;
+		}
+		if (st == string::npos)
+			break;
+		v.erase(0, st + 1);
+	}
+	return empty_string();
+}
+
+
 void Debug::showLevel(ostream & os, Debug::Type level)
 {
 	// Show what features are traced
-	for (int i = 0; i < numErrorTags; ++i) {
-		if (errorTags[i].level != Debug::ANY
-		      && errorTags[i].level != Debug::NONE
-		      && errorTags[i].level & level) {
+	for (DebugErrorItem const & item : errorTags) {
+		if (item.level != Debug::ANY
+		      && item.level != Debug::NONE
+		      && item.level & level) {
 			// avoid to_utf8(_(...)) re-entrance problem
-			docstring const s = _(errorTags[i].desc);
+			docstring const s = _(item.desc);
 			os << to_utf8(bformat(_("Debugging `%1$s' (%2$s)"),
-					from_utf8(errorTags[i].name), s))
+					from_utf8(item.name), s))
 			   << '\n';
 		}
 	}
@@ -161,10 +201,10 @@ void Debug::showLevel(ostream & os, Debug::Type level)
 
 void Debug::showTags(ostream & os)
 {
-	for (int i = 0; i != numErrorTags ; ++i)
-		os << setw(10) << static_cast<unsigned int>(errorTags[i].level)
-		   << setw(13) << errorTags[i].name
-		   << "  " << to_utf8(_(errorTags[i].desc)) << '\n';
+	for (DebugErrorItem const & item : errorTags)
+		os << setw(12) << static_cast<Debug::base_type>(item.level)
+		   << setw(13) << item.name
+		   << "  " << to_utf8(_(item.desc)) << '\n';
 	os.flush();
 }
 
@@ -181,7 +221,7 @@ void LyXErr::enable()
 }
 
 
-bool LyXErr::debugging(Debug::Type t) const
+bool LyXErr::debugging(Debug::base_type t) const
 {
 	return (dt_ & t);
 }
@@ -200,7 +240,7 @@ void LyXErr::endl()
 char const * LyXErr::stripName(char const * n)
 {
 	string const name = n;
-	// find the last occurence of /src/ in name
+	// find the last occurrence of /src/ in name
 	size_t pos = name.rfind("/src/");
 	if (pos == string::npos)
 		pos = name.rfind("\\src\\");
@@ -240,7 +280,7 @@ LyXErr & operator<<(LyXErr & l, long t)
 { return toStream(l, t); }
 LyXErr & operator<<(LyXErr & l, unsigned long t)
 { return toStream(l, t); }
-#ifdef LYX_USE_LONG_LONG
+#ifdef HAVE_LONG_LONG_INT
 LyXErr & operator<<(LyXErr & l, long long t)
 { return toStream(l, t); }
 LyXErr & operator<<(LyXErr & l, unsigned long long t)

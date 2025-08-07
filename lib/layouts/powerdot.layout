@@ -5,7 +5,7 @@
 # Created: 29-Aug-05 by Mael Hilléreau
 # Modified: 20-May-06 by Uwe Stöhr, 18-Mar-2013 Jürgen Spitzmüller
 
-Format 66
+Format 104
 
 Input stdcounters.inc
 Input stdinsets.inc
@@ -57,9 +57,12 @@ Style Title
   Font
     Series      Bold
     Size        Largest
-    Color       Blue
+    Color       textlabel1
   EndFont
   HTMLTitle     true
+  DocBookTag      title
+  DocBookTagType  paragraph
+  DocBookInInfo   maybe
 End
 
 ###
@@ -80,8 +83,13 @@ Style Author
   LabelType     No_Label
   Font
     Size        Large
-    Color       Blue
+    Color       textlabel1
   EndFont
+  DocBookTag            personname
+  DocBookTagType        paragraph
+  DocBookWrapperTag     author
+  DocBookWrapperTagType inline
+  DocBookInInfo         always
 End
 
 ###
@@ -102,7 +110,7 @@ Style Date
   LabelType     No_Label
   Font
     Size        Large
-    Color       Blue
+    Color       textlabel1
   EndFont
 End
 
@@ -118,6 +126,7 @@ Style Standard
   Align         Block
   AlignPossible Block, Left, Right, Center
   LabelType     No_Label
+  DocBookTag    para
 End
 
 ###
@@ -145,7 +154,7 @@ Style Slide
   Font
     Series      Bold
     Size        Large
-    Color       Magenta
+    Color       textlabel3
   EndFont
 End
 
@@ -181,7 +190,7 @@ Style WideSlide
   CopyStyle     Slide
   LatexName     lyxend\lyxwideslide
   Font
-    Color       Green
+    Color       textlabel2
   EndFont
 End
 
@@ -196,7 +205,7 @@ Style EmptySlide
   LabelType     Static
   KeepEmpty     1
   Font
-    Color       Cyan
+    Color       greyedouttext
   EndFont
 End
 
@@ -223,7 +232,7 @@ Style Note
   Font
     Series      Bold
     Size        Large
-    Color       Red
+    Color       textlabel3
   EndFont
 End
 
@@ -240,13 +249,14 @@ Style Section
   LabelString   "\arabic{section}"
   Font
     Size        Larger
-    Color       Blue
+    Color       textlabel1
   EndFont
   LabelStringAppendix "\Alph{section}"
   Argument 1
     LabelString   "Section Option"
     Tooltip       "Optional arguments to the section command (see powerdot manual)"
   EndArgument
+  HTMLTag       h2
 End
 
 ###
@@ -276,6 +286,16 @@ Style Itemize
     LabelString   "Itemize Options"
     Tooltip       "Optional arguments for this list (see enumitem manual)"
   EndArgument
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
   Argument item:1
     LabelString   "Custom Item|s"
     Tooltip       "A customized item string"
@@ -287,6 +307,9 @@ Style Itemize
     LeftDelim      <
     RightDelim     >
   EndArgument
+  DocBookTag            itemizedlist
+  DocBookItemTag        listitem
+  DocBookItemInnerTag   para
 End
 
 Style ItemizeType1
@@ -328,6 +351,16 @@ Style Enumerate
     Tooltip       "Optional arguments for this list (see enumitem manual)"
     Requires      1
   EndArgument
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
   Argument item:1
     LabelString   "Custom Item|s"
     Tooltip       "A customized item string"
@@ -339,6 +372,15 @@ Style Enumerate
     LeftDelim      <
     RightDelim     >
   EndArgument
+  DocBookTag            orderedlist
+  DocBookItemTag        listitem
+  DocBookItemInnerTag   para
+  HTMLStyle
+      ol.enumi   { list-style-type: decimal; }
+      ol.enumii  { list-style-type: lower-latin; }
+      ol.enumiii { list-style-type: lower-roman; }
+      ol.enumiv  { list-style-type: upper-latin; }
+  EndHTMLStyle
 End
 
 Style EnumerateType1
@@ -373,6 +415,16 @@ Style Bibliography
   LabelBottomSep 0
   TocLevel       1
   IsTocCaption   0
+  Argument listpreamble:1
+    LabelString    "Bib preamble"
+    MenuString     "Bibliography Preamble"
+    Tooltip        "LaTeX code to be inserted before the first bibliography item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
 End
 
 ###
@@ -517,6 +569,7 @@ Float
 	UsesFloatPkg          false
 	ListCommand           listoftables
 	RefPrefix             tab
+	PrettyFormat          "Table ##"
 End
 
 
@@ -534,6 +587,7 @@ Float
 	UsesFloatPkg          false
 	ListCommand           listoffigures
 	RefPrefix             fig
+	PrettyFormat          "Figure ##"
 End
 
 
@@ -550,36 +604,49 @@ Float
 	IsPredefined          false
 	UsesFloatPkg          true
 	RefPrefix             alg
+	PrettyFormat          "Algorithm ##"
 End
 
 ###
 # Counters definitions
 ###
 Counter enumi
+	GuiName "Numbered List (Level 1)"
+	PrettyFormat         "(\arabic{enumi})"
 End
 
 Counter enumii
+	GuiName "Numbered List (Level 2)"
   Within        enumi
+	PrettyFormat         "(\arabic{enumii})"
 End
 
 Counter enumiii
+	GuiName "Numbered List (Level 3)"
   Within        enumii
+	PrettyFormat         "(\arabic{enumiii})"
 End
 
 Counter enumiv
+	GuiName "Numbered List (Level 4)"
   Within        enumiii
+	PrettyFormat         "(\arabic{enumiv})"
 End
 
 Counter bibitem
+	GuiName "Bibliography Item"
 End
 
 Counter figure
+	GuiName Figure
 End
 
 Counter table
+	GuiName Table
 End
 
 Counter algorithm
+	GuiName Algorithm
 End
 
 ###

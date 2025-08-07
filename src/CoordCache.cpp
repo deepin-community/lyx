@@ -11,12 +11,8 @@
 
 #include "CoordCache.h"
 
-#include "Text.h"
 
 #include "support/debug.h"
-#include "support/docstring.h"
-
-#include "insets/Inset.h"
 
 #include "support/lassert.h"
 
@@ -47,14 +43,12 @@ void CoordCache::dump() const
 	}
 
 	LYXERR0("InsetCache contains:");
-	CoordCache::Insets::cache_type::const_iterator it =
-		getInsets().data_.begin();
-	for (; it != getInsets().data_.end(); ++it) {
+	for (auto const & ccd : getInsets().data_) {
 		// Warning: it is not guaranteed that inset is a valid pointer
 		// (therefore it has type 'void *') (see bug #7376).
-		void const * inset = it->first;
-		Point const p = it->second.pos;
-		LYXERR0("Inset " << inset << " has point " << p.x_ << "," << p.y_);
+		void const * inset = ccd.first;
+		Point const p = ccd.second.pos;
+		LYXERR(Debug::PAINTING, "Inset " << inset << " has point " << p.x_ << "," << p.y_);
 	}
 }
 

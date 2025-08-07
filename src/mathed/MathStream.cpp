@@ -18,13 +18,15 @@
 
 #include "TexRow.h"
 
+
+#include "support/debug.h"
 #include "support/docstring.h"
-#include "support/RefChanger.h"
 #include "support/textutils.h"
 
 #include <algorithm>
 #include <cstring>
 #include <ostream>
+#include <FontInfo.h>
 
 using namespace std;
 
@@ -87,7 +89,7 @@ NormalStream & operator<<(NormalStream & ns, int i)
 /////////////////////////////////////////////////////////////////
 
 
-WriteStream & operator<<(WriteStream & ws, docstring const & s)
+TeXMathStream & operator<<(TeXMathStream & ws, docstring const & s)
 {
 	// Skip leading '\n' if we had already output a newline char
 	size_t const first =
@@ -105,9 +107,15 @@ WriteStream & operator<<(WriteStream & ws, docstring const & s)
 	} else if (ws.pendingSpace()) {
 		if (isAlphaASCII(s[first]))
 			ws.os() << ' ';
+		else if (s[first] == '[' && ws.useBraces())
+			ws.os() << "{}";
 		else if (s[first] == ' ' && ws.textMode())
 			ws.os() << '\\';
 		ws.pendingSpace(false);
+	} else if (ws.useBraces()) {
+		if (s[first] == '\'')
+			ws.os() << "{}";
+		ws.useBraces(false);
 	}
 	ws.os() << s.substr(first);
 	int lf = 0;
@@ -125,17 +133,14 @@ WriteStream & operator<<(WriteStream & ws, docstring const & s)
 }
 
 
-WriteStream::WriteStream(otexrowstream & os, bool fragile, bool latex,
-						 OutputType output, Encoding const * encoding)
-	: os_(os), fragile_(fragile), firstitem_(false), latex_(latex),
-	  output_(output), pendingspace_(false), pendingbrace_(false),
-	  textmode_(false), locked_(0), ascii_(0), canbreakline_(true),
-	  mathsout_(false), ulemcmd_(NONE), line_(0), encoding_(encoding),
-	  row_entry_(TexRow::row_none)
+TeXMathStream::TeXMathStream(otexrowstream & os, bool fragile, bool latex,
+                             OutputType output, Encoding const * encoding)
+	: os_(os), fragile_(fragile), latex_(latex),
+	  output_(output), encoding_(encoding)
 {}
 
 
-WriteStream::~WriteStream()
+TeXMathStream::~TeXMathStream()
 {
 	if (pendingbrace_)
 		os_ << '}';
@@ -144,49 +149,57 @@ WriteStream::~WriteStream()
 }
 
 
-void WriteStream::addlines(unsigned int n)
+void TeXMathStream::addlines(unsigned int n)
 {
 	line_ += n;
 }
 
 
-void WriteStream::pendingSpace(bool how)
+void TeXMathStream::pendingSpace(bool space)
 {
-	pendingspace_ = how;
+	pendingspace_ = space;
+	if (!space)
+		usebraces_ = false;
 }
 
 
-void WriteStream::pendingBrace(bool brace)
+void TeXMathStream::useBraces(bool braces)
+{
+	usebraces_ = braces;
+}
+
+
+void TeXMathStream::pendingBrace(bool brace)
 {
 	pendingbrace_ = brace;
 }
 
 
-void WriteStream::textMode(bool textmode)
+void TeXMathStream::textMode(bool textmode)
 {
 	textmode_ = textmode;
 }
 
 
-void WriteStream::lockedMode(bool locked)
+void TeXMathStream::lockedMode(bool locked)
 {
 	locked_ = locked;
 }
 
 
-void WriteStream::asciiOnly(bool ascii)
+void TeXMathStream::asciiOnly(bool ascii)
 {
 	ascii_ = ascii;
 }
 
 
-Changer WriteStream::changeRowEntry(TexRow::RowEntry entry)
+Changer TeXMathStream::changeRowEntry(TexRow::RowEntry entry)
 {
-	return make_change(row_entry_, entry);
+	return changeVar(row_entry_, entry);
 }
 
 
-bool WriteStream::startOuterRow()
+bool TeXMathStream::startOuterRow()
 {
 	if (TexRow::isNone(row_entry_))
 		return false;
@@ -194,28 +207,28 @@ bool WriteStream::startOuterRow()
 }
 
 
-WriteStream & operator<<(WriteStream & ws, MathAtom const & at)
+TeXMathStream & operator<<(TeXMathStream & ws, MathAtom const & at)
 {
 	at->write(ws);
 	return ws;
 }
 
 
-WriteStream & operator<<(WriteStream & ws, MathData const & ar)
+TeXMathStream & operator<<(TeXMathStream & ws, MathData const & ar)
 {
 	write(ar, ws);
 	return ws;
 }
 
 
-WriteStream & operator<<(WriteStream & ws, char const * s)
+TeXMathStream & operator<<(TeXMathStream & ws, char const * s)
 {
 	ws << from_utf8(s);
 	return ws;
 }
 
 
-WriteStream & operator<<(WriteStream & ws, char c)
+TeXMathStream & operator<<(TeXMathStream & ws, char c)
 {
 	if (c == '\n' && !ws.canBreakLine())
 		return ws;
@@ -228,9 +241,15 @@ WriteStream & operator<<(WriteStream & ws, char c)
 	} else if (ws.pendingSpace()) {
 		if (isAlphaASCII(c))
 			ws.os() << ' ';
+		else if (c == '[' && ws.useBraces())
+			ws.os() << "{}";
 		else if (c == ' ' && ws.textMode())
 			ws.os() << '\\';
 		ws.pendingSpace(false);
+	} else if (ws.useBraces()) {
+		if (c == '\'')
+			ws.os() << "{}";
+		ws.useBraces(false);
 	}
 	ws.os() << c;
 	if (c == '\n')
@@ -240,7 +259,7 @@ WriteStream & operator<<(WriteStream & ws, char c)
 }
 
 
-WriteStream & operator<<(WriteStream & ws, int i)
+TeXMathStream & operator<<(TeXMathStream & ws, int i)
 {
 	if (ws.pendingBrace()) {
 		ws.os() << '}';
@@ -253,7 +272,7 @@ WriteStream & operator<<(WriteStream & ws, int i)
 }
 
 
-WriteStream & operator<<(WriteStream & ws, unsigned int i)
+TeXMathStream & operator<<(TeXMathStream & ws, unsigned int i)
 {
 	if (ws.pendingBrace()) {
 		ws.os() << '}';
@@ -269,97 +288,163 @@ WriteStream & operator<<(WriteStream & ws, unsigned int i)
 //////////////////////////////////////////////////////////////////////
 
 
-MathStream::MathStream(odocstream & os)
-	: os_(os), tab_(0), line_(0), in_text_(false)
-{}
-
-
-void MathStream::cr()
+MathMLStream::MathMLStream(odocstream & os, std::string const & xmlns)
+	: os_(os), xmlns_(xmlns)
 {
-	os() << '\n';
-	for (int i = 0; i < tab(); ++i)
-		os() << ' ';
+	if (inText())
+		font_math_style_ = TEXT_STYLE;
+	else
+		font_math_style_ = DISPLAY_STYLE;
 }
 
 
-void MathStream::defer(docstring const & s)
+void MathMLStream::cr()
+{
+	os_ << '\n';
+	for (int i = 0; i < tab(); ++i)
+		os_ << ' ';
+}
+
+
+void MathMLStream::defer(docstring const & s)
 {
 	deferred_ << s;
 }
 
 
-void MathStream::defer(string const & s)
+void MathMLStream::defer(string const & s)
 {
 	deferred_ << from_utf8(s);
 }
 
 
-docstring MathStream::deferred() const
+docstring MathMLStream::deferred() const
 {
 	return deferred_.str();
 }
 
+void MathMLStream::beforeText()
+{
+	if (!in_mtext_ && nesting_level_ == text_level_) {
+		*this << MTagInline("mtext");
+		in_mtext_ = true;
+	}
+}
 
-MathStream & operator<<(MathStream & ms, MathAtom const & at)
+
+void MathMLStream::beforeTag()
+{
+	if (in_mtext_ && nesting_level_ == text_level_ + 1) {
+		in_mtext_ = false;
+		*this << ETagInline("mtext");
+	}
+}
+
+
+MathMLStream & operator<<(MathMLStream & ms, MathAtom const & at)
 {
 	at->mathmlize(ms);
 	return ms;
 }
 
 
-MathStream & operator<<(MathStream & ms, MathData const & ar)
+MathMLStream & operator<<(MathMLStream & ms, MathData const & ar)
 {
 	mathmlize(ar, ms);
 	return ms;
 }
 
 
-MathStream & operator<<(MathStream & ms, char const * s)
+MathMLStream & operator<<(MathMLStream & ms, docstring const & s)
 {
-	ms.os() << s;
+	ms.beforeText();
+	ms.os_ << s;
 	return ms;
 }
 
 
-MathStream & operator<<(MathStream & ms, char c)
+MathMLStream & operator<<(MathMLStream & ms, char const * s)
 {
-	ms.os() << c;
+	ms << from_utf8(s);
 	return ms;
 }
 
 
-MathStream & operator<<(MathStream & ms, char_type c)
+MathMLStream & operator<<(MathMLStream & ms, char c)
 {
-	ms.os().put(c);
+	ms << docstring(1,c);
 	return ms;
 }
 
 
-MathStream & operator<<(MathStream & ms, MTag const & t)
+MathMLStream & operator<<(MathMLStream & ms, char_type c)
 {
+	ms << docstring(1,c);
+	return ms;
+}
+
+
+MathMLStream & operator<<(MathMLStream & ms, MTag const & t)
+{
+	ms.beforeTag();
+	SetMode rawmode(ms, false);
+	ms.cr();
 	++ms.tab();
-	ms.cr();
-	ms.os() << '<' << from_ascii(t.tag_);
+	ms.os_ << '<' << from_ascii(ms.namespacedTag(t.tag_));
 	if (!t.attr_.empty())
-		ms.os() << " " << from_ascii(t.attr_);
-	ms << '>';
+		ms.os_ << " " << from_ascii(t.attr_);
+	ms << ">";
+	++ms.nesting_level_;
 	return ms;
 }
 
 
-MathStream & operator<<(MathStream & ms, ETag const & t)
+MathMLStream & operator<<(MathMLStream & ms, MTagInline const & t)
 {
+	ms.beforeTag();
+	SetMode rawmode(ms, false);
 	ms.cr();
+	ms.os_ << '<' << from_ascii(ms.namespacedTag(t.tag_));
+	if (!t.attr_.empty())
+		ms.os_ << " " << from_ascii(t.attr_);
+	ms << ">";
+	++ms.nesting_level_;
+	return ms;
+}
+
+
+MathMLStream & operator<<(MathMLStream & ms, ETag const & t)
+{
+	ms.beforeTag();
+	SetMode rawmode(ms, false);
 	if (ms.tab() > 0)
 		--ms.tab();
-	ms.os() << "</" << from_ascii(t.tag_) << '>';
+	ms.cr();
+	ms.os_ << "</" << from_ascii(ms.namespacedTag(t.tag_)) << ">";
+	--ms.nesting_level_;
 	return ms;
 }
 
 
-MathStream & operator<<(MathStream & ms, docstring const & s)
+MathMLStream & operator<<(MathMLStream & ms, ETagInline const & t)
 {
-	ms.os() << s;
+	ms.beforeTag();
+	SetMode rawmode(ms, false);
+	ms.os_ << "</" << from_ascii(ms.namespacedTag(t.tag_)) << ">";
+	--ms.nesting_level_;
+	return ms;
+}
+
+
+MathMLStream & operator<<(MathMLStream & ms, CTag const & t)
+{
+	ms.beforeTag();
+	SetMode rawmode(ms, false);
+	ms.cr();
+	ms.os_ << "<" << from_ascii(ms.namespacedTag(t.tag_));
+    if (!t.attr_.empty())
+        ms.os_ << " " << from_utf8(t.attr_);
+    ms.os_ << "/>";
 	return ms;
 }
 
@@ -452,17 +537,18 @@ HtmlStream & operator<<(HtmlStream & ms, docstring const & s)
 //////////////////////////////////////////////////////////////////////
 
 
-SetMode::SetMode(MathStream & os, bool text)
-	: os_(os)
+SetMode::SetMode(MathMLStream & ms, bool text)
+	: ms_(ms)
 {
-	was_text_ = os_.inText();
-	os_.setTextMode(text);
+	old_text_level_ = ms_.text_level_;
+	ms_.text_level_ = text ? ms_.nesting_level_ : MathMLStream::nlevel;
 }
 
 
 SetMode::~SetMode()
 {
-	os_.setTextMode(was_text_);
+	ms_.beforeTag();
+	ms_.text_level_ = old_text_level_;
 }
 
 
@@ -708,6 +794,12 @@ docstring convertDelimToXMLEscape(docstring const & name)
 			return from_ascii("&gt;");
 		else
 			return name;
+	} else if (name.size() == 2 && name[0] == '\\') {
+		char_type const c = name[1];
+		if (c == '{')
+			return from_ascii("&#123;");
+		else if (c == '}')
+			return from_ascii("&#125;");
 	}
 	MathWordList const & words = mathedWordList();
 	MathWordList::const_iterator it = words.find(name);

@@ -43,8 +43,8 @@ namespace lyx {
 ///////////////////////////////////////////////////////////////////////////
 
 TocItem::TocItem(DocIterator const & dit, int d, docstring const & s,
-                 bool output_active, FuncRequest action)
-	: dit_(dit), depth_(d), str_(s), output_(output_active),
+                 bool output_active, bool missing, FuncRequest const & action)
+	: dit_(dit), depth_(d), str_(s), output_(output_active), missing_(missing),
 	  action_(action)
 {
 }
@@ -64,6 +64,9 @@ docstring const TocItem::asString() const
 	if (!output_) {
 		prefix += cross;
 		prefix += thin;
+	}
+	if (missing_) {
+		prefix += _("MISSING: ");
 	}
 	return prefix + str_;
 }
@@ -143,8 +146,8 @@ shared_ptr<Toc> TocBackend::toc(string const & type)
 
 TocBuilder & TocBackend::builder(string const & type)
 {
-	auto p = make_unique<TocBuilder>(toc(type));
-	return * builders_.insert(make_pair(type, move(p))).first->second;
+	auto p = lyx::make_unique<TocBuilder>(toc(type));
+	return * builders_.insert(make_pair(type, std::move(p))).first->second;
 }
 
 
@@ -153,8 +156,11 @@ TocBuilder & TocBackend::builder(string const & type)
 // TocItem creation and update should be made in a dedicated function and
 // updateItem should be rewritten to uniformly update the matching items from
 // all TOCs.
-bool TocBackend::updateItem(DocIterator const & dit_in)
+bool TocBackend::updateItem(DocIterator const & dit_in) const
 {
+	if (dit_in.buffer() && dit_in.buffer()->isInternal())
+		return false;
+
 	// we need a text
 	DocIterator dit = dit_in.getInnerText();
 
@@ -180,7 +186,7 @@ bool TocBackend::updateItem(DocIterator const & dit_in)
 	//
 	// FIXME: This is supposed to accomplish the same as the body of
 	// InsetText::iterateForToc(), probably
-	Paragraph & par = toc_item->dit().paragraph();
+	Paragraph const & par = toc_item->dit().paragraph();
 	for (auto const & table : par.insetList())
 		if (InsetArgument const * arg = table.inset->asInsetArgument()) {
 			tocstring = par.labelString();
@@ -204,17 +210,24 @@ bool TocBackend::updateItem(DocIterator const & dit_in)
 }
 
 
-void TocBackend::update(bool output_active, UpdateType utype)
+void TocBackend::reset()
 {
-	for (TocList::iterator it = tocs_.begin(); it != tocs_.end(); ++it)
-		it->second->clear();
+	for (auto const & t: tocs_)
+		t.second->clear();
 	tocs_.clear();
 	builders_.clear();
 	resetOutlinerNames();
-	if (!buffer_->isInternal()) {
-		DocIterator dit;
-		buffer_->inset().addToToc(dit, output_active, utype, *this);
-	}
+}
+
+
+void TocBackend::update(bool output_active, UpdateType utype)
+{
+	reset();
+	if (buffer_->isInternal())
+		return;
+
+	DocIterator dit;
+	buffer_->inset().addToToc(dit, output_active, utype, *this);
 }
 
 
@@ -272,7 +285,7 @@ void TocBackend::resetOutlinerNames()
 {
 	outliner_names_.clear();
 	// names from this document class
-	for (pair<string, docstring> const & name
+	for (auto const & name
 		     : buffer_->params().documentClass().outlinerNames())
 		addName(name.first, translateIfPossible(name.second));
 	// Hardcoded types
@@ -281,9 +294,10 @@ void TocBackend::resetOutlinerNames()
 	addName("senseless", _("Senseless"));
 	addName("citation", _("Citations"));
 	addName("label", _("Labels and References"));
+	addName("brokenrefs", _("Broken References and Citations"));
 	// Customizable, but the corresponding insets have no layout definition
 	addName("child", _("Child Documents"));
-	addName("graphics", _("Graphics"));
+	addName("graphics", _("Graphics[[listof]]"));
 	addName("equation", _("Equations"));
 	addName("external", _("External Material"));
 	addName("math-macro", _("Math Macros"));

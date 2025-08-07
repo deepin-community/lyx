@@ -15,10 +15,7 @@
 #include "Author.h"
 #include "Buffer.h"
 #include "BufferParams.h"
-#include "Session.h"
-#include "LyX.h"
-#include "output_latex.h"
-#include "ParagraphList.h"
+#include "OutputParams.h"
 
 #include "frontends/alert.h"
 
@@ -27,13 +24,12 @@
 #include "support/FileName.h"
 #include "support/FileNameList.h"
 #include "support/filetools.h"
-#include "support/gettext.h"
 #include "support/lstrings.h"
-#include "support/Package.h"
 
 #include "support/lassert.h"
 
 #include <algorithm>
+#include <cstdlib> // exit()
 #include <iterator>
 #include <memory>
 
@@ -51,10 +47,8 @@ BufferList::BufferList()
 
 BufferList::~BufferList()
 {
-	BufferStorage::iterator it = binternal.begin();
-	BufferStorage::iterator end = binternal.end();
-	for (; it != end; ++it)
-		delete (*it);
+	for (Buffer * buf : binternal)
+		delete buf;
 }
 
 
@@ -135,14 +129,14 @@ Buffer * BufferList::createNewBuffer(string const & s)
 {
 	unique_ptr<Buffer> tmpbuf;
 	try {
-		tmpbuf = make_unique<Buffer>(s);
+		tmpbuf = lyx::make_unique<Buffer>(s);
 	} catch (ExceptionMessage const & message) {
 		if (message.type_ == ErrorException) {
 			Alert::error(message.title_, message.details_);
 			exit(1);
 		} else if (message.type_ == WarningException) {
 			Alert::warning(message.title_, message.details_);
-			return 0;
+			return nullptr;
 		}
 	}
 	tmpbuf->params().useClassDefaults();
@@ -160,12 +154,8 @@ void BufferList::closeAll()
 FileNameList BufferList::fileNames() const
 {
 	FileNameList nvec;
-	BufferStorage::const_iterator it = bstore.begin();
-	BufferStorage::const_iterator end = bstore.end();
-	for (; it != end; ++it) {
-		Buffer * buf = *it;
+	for (Buffer const * buf : bstore)
 		nvec.push_back(buf->fileName());
-	}
 	return nvec;
 }
 
@@ -173,7 +163,7 @@ FileNameList BufferList::fileNames() const
 Buffer * BufferList::first()
 {
 	if (bstore.empty())
-		return 0;
+		return nullptr;
 	return bstore.front();
 }
 
@@ -181,7 +171,7 @@ Buffer * BufferList::first()
 Buffer * BufferList::last()
 {
 	if (bstore.empty())
-		return 0;
+		return nullptr;
 	return bstore.back();
 }
 
@@ -189,7 +179,7 @@ Buffer * BufferList::last()
 Buffer * BufferList::getBuffer(unsigned int choice)
 {
 	if (choice >= bstore.size())
-		return 0;
+		return nullptr;
 	return bstore[choice];
 }
 
@@ -197,13 +187,13 @@ Buffer * BufferList::getBuffer(unsigned int choice)
 Buffer * BufferList::next(Buffer const * buf) const
 {
 	// Something is wrong, but we can probably survive it.
-	LASSERT(buf, return 0);
+	LASSERT(buf, return nullptr);
 
 	if (bstore.empty())
-		return 0;
+		return nullptr;
 	BufferStorage::const_iterator it =
 			find(bstore.begin(), bstore.end(), buf);
-	LASSERT(it != bstore.end(), return 0);
+	LASSERT(it != bstore.end(), return nullptr);
 	++it;
 	Buffer * nextbuf = (it == bstore.end()) ? bstore.front() : *it;
 	return nextbuf;
@@ -213,13 +203,13 @@ Buffer * BufferList::next(Buffer const * buf) const
 Buffer * BufferList::previous(Buffer const * buf) const
 {
 	// Something is wrong, but we can probably survive it.
-	LASSERT(buf, return 0);
+	LASSERT(buf, return nullptr);
 
 	if (bstore.empty())
-		return 0;
+		return nullptr;
 	BufferStorage::const_iterator it =
 			find(bstore.begin(), bstore.end(), buf);
-	LASSERT(it != bstore.end(), return 0);
+	LASSERT(it != bstore.end(), return nullptr);
 
 	Buffer * previousbuf = (it == bstore.begin()) ? bstore.back() : *(it - 1);
 	return previousbuf;
@@ -231,41 +221,34 @@ void BufferList::updateIncludedTeXfiles(string const & masterTmpDir,
 {
 	OutputParams runparams = runparams_in;
 	runparams.is_child = true;
-	BufferStorage::iterator it = bstore.begin();
-	BufferStorage::iterator end = bstore.end();
-	for (; it != end; ++it) {
-		if (!(*it)->isDepClean(masterTmpDir)) {
-			string writefile = addName(masterTmpDir, (*it)->latexName());
-			(*it)->makeLaTeXFile(FileName(writefile), masterTmpDir,
+	for (Buffer * buf : bstore) {
+		if (!buf->isDepClean(masterTmpDir)) {
+			string writefile = addName(masterTmpDir, buf->latexName());
+			buf->makeLaTeXFile(FileName(writefile), masterTmpDir,
 					     runparams, Buffer::OnlyBody);
-			(*it)->markDepClean(masterTmpDir);
+			buf->markDepClean(masterTmpDir);
 		}
 	}
-	runparams.is_child = false;
 }
 
 
 void BufferList::emergencyWriteAll()
 {
-	BufferStorage::const_iterator it = bstore.begin();
-	BufferStorage::const_iterator const en = bstore.end();
-	for (; it != en; ++it)
-		 (*it)->emergencyWrite();
+	for (Buffer * buf : bstore)
+		 buf->emergencyWrite();
 }
 
 
 void BufferList::invalidateConverterCache() const
 {
-	BufferStorage::const_iterator it = bstore.begin();
-	BufferStorage::const_iterator const en = bstore.end();
-	for (; it != en; ++it)
-		(*it)->params().invalidateConverterCache();
+	for (Buffer const * buf : bstore)
+		buf->params().invalidateConverterCache();
 }
 
 
 bool BufferList::exists(FileName const & fname) const
 {
-	return getBuffer(fname) != 0;
+	return getBuffer(fname) != nullptr;
 }
 
 
@@ -289,7 +272,7 @@ bool BufferList::isInternal(Buffer const * b) const
 }
 
 
-bool BufferList::isOthersChild(Buffer * parent, Buffer * child)
+bool BufferList::isOthersChild(Buffer * parent, Buffer * child) const
 {
 	LASSERT(parent, return false);
 	LASSERT(child, return false);
@@ -300,7 +283,7 @@ bool BufferList::isOthersChild(Buffer * parent, Buffer * child)
 	if (parent_ && parent_ != parent)
 		return true;
 
-	for(Buffer * buf : bstore)
+	for(Buffer const * buf : bstore)
 		if (buf != parent && buf->isChild(child))
 			return true;
 	return false;
@@ -327,52 +310,44 @@ Buffer * BufferList::getBuffer(support::FileName const & fname, bool internal) c
 			if (equivalent(b->fileName(), fname))
 				return b;
 	}
-	return 0;
+	return nullptr;
 }
 
 
-Buffer * BufferList::getBufferFromTmp(string const & s)
+Buffer * BufferList::getBufferFromTmp(string const & path, bool realpath)
 {
-	BufferStorage::iterator it = bstore.begin();
-	BufferStorage::iterator end = bstore.end();
-	for (; it < end; ++it) {
-		if (prefixIs(s, (*it)->temppath())) {
+	for (Buffer * buf : bstore) {
+		string const temppath = realpath ? FileName(buf->temppath()).realPath() : buf->temppath();
+		if (prefixIs(path, temppath)) {
 			// check whether the filename matches the master
-			string const master_name = (*it)->latexName();
-			if (suffixIs(s, master_name))
-				return *it;
+			string const master_name = buf->latexName();
+			if (suffixIs(path, master_name))
+				return buf;
 			// if not, try with the children
-			ListOfBuffers clist = (*it)->getDescendents();
-			ListOfBuffers::const_iterator cit = clist.begin();
-			ListOfBuffers::const_iterator cend = clist.end();
-			for (; cit != cend; ++cit) {
+			for (Buffer * child : buf->getDescendants()) {
 				string const mangled_child_name = DocFileName(
-					changeExtension((*cit)->absFileName(),
+					changeExtension(child->absFileName(),
 						".tex")).mangledFileName();
-				if (suffixIs(s, mangled_child_name))
-					return *cit;
+				if (suffixIs(path, mangled_child_name))
+					return child;
 			}
 		}
 	}
-	return 0;
+	return nullptr;
 }
 
 
 void BufferList::recordCurrentAuthor(Author const & author)
 {
-	BufferStorage::iterator it = bstore.begin();
-	BufferStorage::iterator end = bstore.end();
-	for (; it != end; ++it)
-		(*it)->params().authors().recordCurrentAuthor(author);
+	for (Buffer * buf : bstore)
+		buf->params().authors().recordCurrentAuthor(author);
 }
 
 
 void BufferList::updatePreviews()
 {
-	BufferStorage::iterator it = bstore.begin();
-	BufferStorage::iterator end = bstore.end();
-	for (; it != end; ++it)
-		(*it)->updatePreviews();
+	for (Buffer * buf : bstore)
+		buf->updatePreviews();
 }
 
 
@@ -389,14 +364,10 @@ int BufferList::bufferNum(FileName const & fname) const
 
 void BufferList::changed(bool update_metrics) const
 {
-	BufferStorage::const_iterator it = bstore.begin();
-	BufferStorage::const_iterator end = bstore.end();
-	for (; it != end; ++it)
-		(*it)->changed(update_metrics);
-	it = binternal.begin();
-	end = binternal.end();
-	for (; it != end; ++it)
-		(*it)->changed(update_metrics);
+	for (Buffer const * buf : bstore)
+		buf->changed(update_metrics);
+	for (Buffer const * buf : binternal)
+		buf->changed(update_metrics);
 }
 
 

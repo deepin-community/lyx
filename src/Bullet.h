@@ -13,6 +13,8 @@
 #ifndef BULLET_H
 #define BULLET_H
 
+#include "FontEnums.h"
+
 #include "support/docstring.h"
 
 
@@ -42,11 +44,17 @@ public:
 	///
 	int getSize() const;
 	///
+	FontSize getFontSize() const;
+	/// The text to be output
 	docstring const & getText() const;
+	/// The label displayed in the workarea
+	docstring const & getLabel() const;
 	///
 	Bullet & operator=(Bullet const &);
 	///
 	friend bool operator==(Bullet const &, Bullet const &);
+	///
+	static docstring const bulletEntry(int, int);
 protected:
 	///
 	void testInvariant() const;
@@ -75,7 +83,9 @@ private:
 	///
 	static docstring const bulletSize(int);
 	///
-	static docstring const bulletEntry(int, int);
+	static FontSize bulletFontSize(int);
+	///
+	static docstring const bulletLabel(int, int);
 
 	///
 	int font;
@@ -101,6 +111,7 @@ private:
 	    and size settings.
 	*/
 	mutable docstring text;
+	mutable docstring label;
 };
 
 

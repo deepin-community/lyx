@@ -15,12 +15,12 @@
 
 #include "InsetMathFont.h"
 #include "InsetMathSymbol.h"
-#include "Length.h"
 #include "MathData.h"
 #include "MathFactory.h"
 #include "MathParser.h"
 #include "MathStream.h"
 
+#include "Encoding.h"
 #include "LaTeXFeatures.h"
 #include "MetricsInfo.h"
 
@@ -28,10 +28,12 @@
 #include "frontends/FontMetrics.h"
 #include "frontends/Painter.h"
 
+#include "support/Changer.h"
 #include "support/debug.h"
 #include "support/docstream.h"
 #include "support/lassert.h"
-#include "support/lyxlib.h"
+#include "support/Length.h"
+#include "support/textutils.h"
 
 #include <map>
 #include <algorithm>
@@ -81,8 +83,9 @@ namespace {
 
 /*
  * Internal struct of a drawing: code n x1 y1 ... xn yn, where code is:
- * 0 = end, 1 = line, 2 = polyline, 3 = square line, 4 = square polyline
- * 5 = rounded thick line (i.e. dot for short line)
+ * 0 = end, 1 = line, 2 = polyline, 3 = square line, 4 = square polyline,
+ * 5 = ellipse with given center and horizontal and vertical radii,
+ * 6 = shifted square polyline drawn at the other end
  */
 
 
@@ -101,9 +104,17 @@ double const parenth[] = {
 	2, 13,
 	0.9930, 0.0071, 0.7324, 0.0578, 0.5141, 0.1126,
 	0.3380, 0.1714, 0.2183, 0.2333, 0.0634, 0.3621,
-	0.0141, 0.5000, 0.0563, 0.6369, 0.2113, 0.7647,
-	0.3310, 0.8276, 0.5070, 0.8864, 0.7254, 0.9412,
-	0.9930, 0.9919,
+	0.0141, 0.5000, 0.0634, 0.6379, 0.2183, 0.7667,
+	0.3380, 0.8286, 0.5141, 0.8874, 0.7324, 0.9422,
+	0.9930, 0.9929,
+	0
+};
+
+
+double const breve[] = {
+	2, 8,
+	0.100, 0.400,  0.125, 0.550,  0.200, 0.700,  0.400, 0.800,
+	0.600, 0.800,  0.800, 0.700,  0.875, 0.550,  0.900, 0.400,
 	0
 };
 
@@ -131,123 +142,150 @@ double const mapsto[] = {
 
 
 double const lhook[] = {
-	2, 3,
-	0.25, 0.015, 0.05, 0.5, 0.25, 0.985,
-	1, 0.015, 0.475, 0.7, 0.475,
-	2, 5,
-	0.7, 0.015, 0.825, 0.15, 0.985, 0.25,
-	0.825, 0.35, 0.7, 0.475,
+	4, 7,
+	1.40, -0.30, 1.10, 0.00, 0.60, 0.35,
+	0.00,  0.60, 0.60, 0.85, 1.10, 1.20,
+	1.40,  1.50,
+	3, 0.05, 0.6, 1.0, 0.6,
+	6, -0.5, 0.0, 6,
+	0.65, -0.40, 0.95, -0.35, 1.15, -0.10,
+	1.15,  0.25, 0.95,  0.50, 0.65,  0.60,
 	0
 };
 
 
 double const rhook[] = {
-	2, 3,
-	0.75, 0.015, 0.95, 0.5, 0.75, 0.985,
-	1, 0.3, 0.475, 0.985, 0.475,
-	2, 5,
-	0.3, 0.015, 0.175, 0.15, 0.05, 0.25,
-	0.175, 0.35, 0.3, 0.475,
+	4, 6,
+	0.50, -0.40, 0.20, -0.35, 0.00, -0.10,
+	0.00,  0.25, 0.20,  0.50, 0.50, 0.60,
+	3, 0.55, 0.60, 1.00, 0.60,
+	6, -0.8, 0.0, 7,
+	0.00, -0.30, 0.30, 0.00, 0.80, 0.35, 1.40, 0.60,
+	0.80,  0.85, 0.30, 1.20, 0.00, 1.50,
 	0
 };
 
 
 double const LRArrow[] = {
-	2, 3,
-	0.25, 0.015, 0.05, 0.5, 0.25, 0.985,
-	2, 3,
-	0.75, 0.015, 0.95, 0.5, 0.75, 0.985,
-	1, 0.2, 0.8, 0.8, 0.8,
-	1, 0.2, 0.2, 0.8, 0.2,
+	4, 7,
+	1.300, -0.300, 1.100, 0.000, 0.600, 0.350,
+	0.000,  0.600, 0.600, 0.850, 1.100, 1.200,
+	1.300,  1.500,
+	6, -0.1, 0.0, 7,
+	-0.300, -0.300, -0.100, 0.000,  0.400, 0.350,
+	 1.000,  0.600,  0.400, 0.850, -0.100, 1.200,
+	-0.300,  1.500,
+	3, 0.85, 1.0, 1.0, 1.0,
+	3, 0.85, 0.2, 1.0, 0.2,
 	0
 };
 
 
 double const LArrow[] = {
-	2, 3,
-	0.25, 0.015, 0.05, 0.5, 0.25, 0.985,
-	1, 0.2, 0.8, 0.985, 0.8,
-	1, 0.2, 0.2, 0.985, 0.2,
+	4, 7,
+	1.300, -0.300, 1.100, 0.000, 0.600, 0.350,
+	0.000,  0.600, 0.600, 0.850, 1.100, 1.200,
+	1.300,  1.500,
+	3, 0.85, 1.0, 1.0, 1.0,
+	3, 0.85, 0.2, 1.0, 0.2,
 	0
 };
 
 
 double const lharpoondown[] = {
-	2, 2,
-	0.015, 0.5, 0.25, 0.985,
-	1, 0.02, 0.475, 0.985, 0.475,
+	4, 4,
+	0.0, 0.6, 0.6, 0.85, 1.1, 1.2, 1.4, 1.5,
+	3, 0.05, 0.6, 1.0, 0.6,
 	0
 };
 
 
 double const lharpoonup[] = {
-	2, 2,
-	0.25, 0.015, 0.015, 0.5,
-	1, 0.02, 0.525, 0.985, 0.525,
+	4, 4,
+	0.0, 0.6, 0.6, 0.35, 1.1, 0.0, 1.4, -0.3,
+	3, 0.05, 0.6, 1.0, 0.6,
 	0
 };
 
 
 double const lrharpoons[] = {
-	2, 2,
-	0.25, 0.015, 0.015, 0.225,
-	1, 0.02, 0.23, 0.985, 0.23,
-	2, 2,
-	0.75, 0.985, 0.985, 0.775,
-	1, 0.02, 0.7, 0.980, 0.7,
+	4, 4,
+	0.0, 0.6, 0.6, 0.35, 1.1, 0.0, 1.4, -0.3,
+	3, 0.05, 0.6, 1.0, 0.6,
+	3, 0.05, 1.2, 1.0, 1.2,
+	6, -1.0, 0.0, 4,
+	1.1, 1.3, 0.4, 1.55, -0.1, 1.9, -0.4, 2.2,
 	0
 };
 
 
 double const rlharpoons[] = {
-	2, 2,
-	0.75, 0.015, 0.985, 0.225,
-	1, 0.02, 0.23, 0.985, 0.23,
-	2, 2,
-	0.25, 0.985, 0.015, 0.775,
-	1, 0.02, 0.7, 0.980, 0.7,
+	6, -1.0, 0.0, 4,
+	-0.4, -0.4, -0.1, -0.1, 0.4, 0.25, 1.0, 0.5,
+	3, 0.05, 0.6, 1.0, 0.6,
+	3, 0.05, 1.2, 1.0, 1.2,
+	4, 4,
+	0.0, 1.2, 0.6, 1.45, 1.1, 1.8, 1.4, 2.1,
+	0
+};
+
+
+double const vec[] = {
+	4, 7,
+	0.2000, 0.5000, 0.3000, 0.4000, 0.4000, 0.2500,
+	0.5000, 0.0000, 0.6000, 0.2500, 0.7000, 0.4000,
+	0.8000, 0.5000,
+	3, 0.5000, 0.1000, 0.5000, 0.9500,
 	0
 };
 
 
 double const arrow[] = {
 	4, 7,
-	0.0150, 0.7500, 0.2000, 0.6000, 0.3500, 0.3500,
+	0.0500, 0.7500, 0.2000, 0.6000, 0.3500, 0.3500,
 	0.5000, 0.0500, 0.6500, 0.3500, 0.8000, 0.6000,
 	0.9500, 0.7500,
-	3, 0.5000, 0.1500, 0.5000, 0.9500,
+	3, 0.5000, 0.1500, 0.5000, 1.0000,
 	0
 };
 
 
 double const Arrow[] = {
 	4, 7,
-	0.0150, 0.7500, 0.2000, 0.6000, 0.3500, 0.3500,
-	0.5000, 0.0500, 0.6500, 0.3500, 0.8000, 0.6000,
-	0.9500, 0.7500,
-	3, 0.3500, 0.5000, 0.3500, 0.9500,
-	3, 0.6500, 0.5000, 0.6500, 0.9500,
+	0.0000, 0.7500, 0.1500, 0.6000, 0.3500, 0.3500,
+	0.5000, 0.0500, 0.6500, 0.3500, 0.8500, 0.6000,
+	1.0000, 0.7500,
+	3, 0.3000, 0.4500, 0.3000, 1.0000,
+	3, 0.7000, 0.4500, 0.7000, 1.0000,
 	0
 };
 
 
 double const udarrow[] = {
-	2, 3,
-	0.015, 0.25,  0.5, 0.05, 0.95, 0.25,
-	2, 3,
-	0.015, 0.75,  0.5, 0.95, 0.95, 0.75,
-	1, 0.5, 0.1,  0.5, 0.9,
+	4, 7,
+	0.0500,  0.6500, 0.2000, 0.5000, 0.3500, 0.2500,
+	0.5000, -0.0500, 0.6500, 0.2500, 0.8000, 0.5000,
+	0.9500, 0.6500,
+	6, 0.0, -1.0, 7,
+	0.0500,  0.2500, 0.2000, 0.4000, 0.3500, 0.6500,
+	0.5000,  0.9500, 0.6500, 0.6500, 0.8000, 0.4000,
+	0.9500, 0.2500,
+	3, 0.5, 0.0,  0.5, 1.0,
 	0
 };
 
 
 double const Udarrow[] = {
-	2, 3,
-	0.015, 0.25,  0.5, 0.05, 0.95, 0.25,
-	2, 3,
-	0.015, 0.75,  0.5, 0.95, 0.95, 0.75,
-	1, 0.35, 0.2, 0.35, 0.8,
-	1, 0.65, 0.2, 0.65, 0.8,
+	4, 7,
+	0.0000, 0.7500, 0.1500, 0.6000, 0.3500, 0.3500,
+	0.5000, 0.0500, 0.6500, 0.3500, 0.8500, 0.6000,
+	1.0000, 0.7500,
+	6, 0.0, -1.0, 7,
+	0.0000, 0.2500, 0.1500, 0.4000, 0.3500, 0.6500,
+	0.5000, 0.9500, 0.6500, 0.6500, 0.8500, 0.4000,
+	1.0000, 0.2500,
+	3, 0.3000, 0.4500, 0.3000, 0.9500,
+	3, 0.7000, 0.4500, 0.7000, 0.9500,
 	0
 };
 
@@ -277,7 +315,7 @@ double const corner[] = {
 
 double const angle[] = {
 	2, 3,
-	1, 0,  0.05, 0.5,  1, 1,
+	0.9, 0.05,  0.05, 0.5,  0.9, 0.95,
 	0
 };
 
@@ -294,58 +332,65 @@ double const hline[] = {
 };
 
 
+double const hline2[] = {
+	1, 0.00, 0.2, 1.0, 0.2,
+	1, 0.00, 0.5, 1.0, 0.5,
+	0
+};
+
+
 double const dot[] = {
-//	1, 0.5, 0.2, 0.5, 0.2,
-//	1, 0.4, 0.4, 0.6, 0.4,
-//	1, 0.5, 0.5, 0.5, 0.5,
-	5, 0.4, 0.4, 0.6, 0.4,
+	5, 0.5, 0.5, 0.1, 0.1,
 	0
 };
 
 
 double const ddot[] = {
-	5, 0.0, 0.4, 0.3, 0.4,
-	5, 0.6, 0.4, 1.0, 0.4,
+	5, 0.2, 0.5, 0.1, 0.1,
+	5, 0.7, 0.5, 0.1, 0.1,
 	0
 };
 
 
 double const dddot[] = {
-	1, 0.1,  0.5, 0.2,  0.5,
-	1, 0.45, 0.5, 0.55, 0.5,
-	1, 0.8,  0.5, 0.9,  0.5,
+	5, 0.1, 0.5, 0.1, 0.1,
+	5, 0.5, 0.5, 0.1, 0.1,
+	5, 0.9, 0.5, 0.1, 0.1,
 	0
 };
 
 
 double const ddddot[] = {
-	1, 0.1,  0.5, 0.2,  0.5,
-	1, 0.45, 0.5, 0.55, 0.5,
-	1, 0.8,  0.5, 0.9,  0.5,
-	1, 1.15, 0.5, 1.25, 0.5,
+	5, -0.1, 0.5, 0.1, 0.1,
+	5,  0.3, 0.5, 0.1, 0.1,
+	5,  0.7, 0.5, 0.1, 0.1,
+	5,  1.1, 0.5, 0.1, 0.1,
 	0
 };
 
 
 double const hline3[] = {
-	1, 0.1,   0,  0.15,  0,
-	1, 0.475, 0,  0.525, 0,
-	1, 0.85,  0,  0.9,   0,
+	5, 0.15, 0.0, 0.0625, 0.0625,
+	5, 0.50, 0.0, 0.0625, 0.0625,
+	5, 0.85, 0.0, 0.0625, 0.0625,
 	0
 };
 
 
 double const dline3[] = {
-	1, 0.1,   0.1,   0.15,  0.15,
-	1, 0.475, 0.475, 0.525, 0.525,
-	1, 0.85,  0.85,  0.9,   0.9,
+	5, 0.25, 0.225, 0.0625, 0.0625,
+	5, 0.50, 0.475, 0.0625, 0.0625,
+	5, 0.75, 0.725, 0.0625, 0.0625,
 	0
 };
 
 
 double const ring[] = {
-	2, 5,
-	0.5, 0.8,  0.8, 0.5,  0.5, 0.2,  0.2, 0.5,  0.5, 0.8,
+	2, 13,
+	0.5000, 0.7750,  0.6375, 0.7375,  0.7375, 0.6375,  0.7750, 0.5000,
+	0.7375, 0.3625,  0.6375, 0.2625,  0.5000, 0.2250,  0.3625, 0.2625,
+	0.2625, 0.3625,  0.2250, 0.5000,  0.2625, 0.6375,  0.3625, 0.7375,
+	0.5000, 0.7750,
 	0
 };
 
@@ -364,8 +409,26 @@ double const  Vert[] = {
 
 
 double const tilde[] = {
-	2, 4,
-	0.00, 0.8,  0.25, 0.2,  0.75, 0.8,  1.00, 0.2,
+	2, 10,
+	0.000, 0.625, 0.050, 0.500, 0.150, 0.350, 0.275, 0.275, 0.400, 0.350,
+	0.575, 0.650, 0.700, 0.725, 0.825, 0.650, 0.925, 0.500, 0.975, 0.375,
+	0
+};
+
+
+double const wave[] = {
+	2, 61,
+	0.00, 0.40,
+	0.01, 0.39, 0.04, 0.21, 0.05, 0.20, 0.06, 0.21, 0.09, 0.39, 0.10, 0.40,
+	0.11, 0.39, 0.14, 0.21, 0.15, 0.20, 0.16, 0.21, 0.19, 0.39, 0.20, 0.40,
+	0.21, 0.39, 0.24, 0.21, 0.25, 0.20, 0.26, 0.21, 0.29, 0.39, 0.30, 0.40,
+	0.31, 0.39, 0.34, 0.21, 0.35, 0.20, 0.36, 0.21, 0.39, 0.39, 0.40, 0.40,
+	0.41, 0.39, 0.44, 0.21, 0.45, 0.20, 0.46, 0.21, 0.49, 0.39, 0.50, 0.40,
+	0.51, 0.39, 0.54, 0.21, 0.55, 0.20, 0.56, 0.21, 0.59, 0.39, 0.60, 0.40,
+	0.61, 0.39, 0.64, 0.21, 0.65, 0.20, 0.66, 0.21, 0.69, 0.39, 0.70, 0.40,
+	0.71, 0.39, 0.74, 0.21, 0.75, 0.20, 0.76, 0.21, 0.79, 0.39, 0.80, 0.40,
+	0.81, 0.39, 0.84, 0.21, 0.85, 0.20, 0.86, 0.21, 0.89, 0.39, 0.90, 0.40,
+	0.91, 0.39, 0.94, 0.21, 0.95, 0.20, 0.96, 0.21, 0.99, 0.39, 1.00, 0.40,
 	0
 };
 
@@ -387,6 +450,9 @@ named_deco_struct deco_table[] = {
 	{"widetilde",           tilde,        0 },
 	{"underbar",            hline,        0 },
 	{"underline",           hline,        0 },
+	{"uline",               hline,        0 },
+	{"uuline",              hline2,       0 },
+	{"uwave",               wave,         0 },
 	{"overline",            hline,        0 },
 	{"underbrace",          brace,        1 },
 	{"overbrace",           brace,        3 },
@@ -463,8 +529,8 @@ named_deco_struct deco_table[] = {
 	{"bar",            hline,      0 },
 	{"dot",            dot,        0 },
 	{"check",          angle,      1 },
-	{"breve",          parenth,    1 },
-	{"vec",            arrow,      3 },
+	{"breve",          breve,      0 },
+	{"vec",            vec,        3 },
 	{"mathring",       ring,       0 },
 
 	// Dots
@@ -499,7 +565,7 @@ public:
 	}
 };
 
-static init_deco_table dummy;
+static init_deco_table dummy_deco_table;
 
 
 deco_struct const * search_deco(docstring const & name)
@@ -520,7 +586,7 @@ int mathed_font_em(FontInfo const & font)
 
 int mathed_font_x_height(FontInfo const & font)
 {
-	return theFontMetrics(font).ascent('x');
+	return theFontMetrics(font).xHeight();
 }
 
 /* The math units. Quoting TeX by Topic, p.205:
@@ -549,7 +615,7 @@ int mathed_font_x_height(FontInfo const & font)
 int mathed_mu(FontInfo const & font, double mu)
 {
 	MetricsBase mb(nullptr, font);
-	return Length(mu, Length::MU).inPixels(mb);
+	return mb.inPixels(Length(mu, Length::MU));
 }
 
 int mathed_thinmuskip(FontInfo const & font) { return mathed_mu(font, 3.0); }
@@ -570,6 +636,15 @@ int mathed_char_kerning(FontInfo const & font, char_type c)
 }
 
 
+double mathed_char_slope(MetricsBase const & mb, char_type c)
+{
+	bool slanted = isAlphaASCII(c) || Encodings::isMathAlpha(c);
+	if (slanted && mb.fontname == "mathnormal")
+		return theFontMetrics(mb.font).italicSlope();
+	return 0.0;
+}
+
+
 void mathed_string_dim(FontInfo const & font,
 		       docstring const & s,
 		       Dimension & dim)
@@ -577,11 +652,9 @@ void mathed_string_dim(FontInfo const & font,
 	frontend::FontMetrics const & fm = theFontMetrics(font);
 	dim.asc = 0;
 	dim.des = 0;
-	for (docstring::const_iterator it = s.begin();
-	     it != s.end();
-	     ++it) {
-		dim.asc = max(dim.asc, fm.ascent(*it));
-		dim.des = max(dim.des, fm.descent(*it));
+	for (char_type const c : s) {
+		dim.asc = max(dim.asc, fm.ascent(c));
+		dim.des = max(dim.des, fm.descent(c));
 	}
 	dim.wid = fm.width(s);
 }
@@ -596,9 +669,11 @@ int mathed_string_width(FontInfo const & font, docstring const & s)
 void mathed_draw_deco(PainterInfo & pi, int x, int y, int w, int h,
 	docstring const & name)
 {
+	int const lw = pi.base.solidLineThickness();
+
 	if (name == ".") {
 		pi.pain.line(x + w/2, y, x + w/2, y + h,
-			  Color_cursor, Painter::line_onoffdash);
+			  Color_cursor, Painter::line_onoffdash, lw);
 		return;
 	}
 
@@ -627,7 +702,7 @@ void mathed_draw_deco(PainterInfo & pi, int x, int y, int w, int h,
 
 	for (int i = 0; d[i]; ) {
 		int code = int(d[i++]);
-		if (code & 1) {  // code == 1 || code == 3 || code == 5
+		if (code == 1 || code == 3) {
 			double xx = d[i++];
 			double yy = d[i++];
 			double x2 = d[i++];
@@ -640,36 +715,55 @@ void mathed_draw_deco(PainterInfo & pi, int x, int y, int w, int h,
 			pi.pain.line(
 				int(x + xx + 0.5), int(y + yy + 0.5),
 				int(x + x2 + 0.5), int(y + y2 + 0.5),
-				pi.base.font.color());
-			if (code == 5) {  // thicker, but rounded
-				pi.pain.line(
-					int(x + xx + 0.5+1), int(y + yy + 0.5-1),
-					int(x + x2 + 0.5-1), int(y + y2 + 0.5-1),
-				pi.base.font.color());
-				pi.pain.line(
-					int(x + xx + 0.5+1), int(y + yy + 0.5+1),
-					int(x + x2 + 0.5-1), int(y + y2 + 0.5+1),
-				pi.base.font.color());
-			}
+				pi.base.font.color(), Painter::line_solid, lw);
+		} else if (code == 5) {
+			double xx = d[i++];
+			double yy = d[i++];
+			double x2 = xx + d[i++];
+			double y2 = yy + d[i++];
+			mt.transform(xx, yy);
+			mt.transform(x2, y2);
+			double const xc = x + xx;
+			double const yc = y + yy;
+			double const rx = x2 - xx;
+			double const ry = y2 - yy;
+			pi.pain.ellipse(xc, yc, rx, ry,
+				pi.base.font.color(), Painter::fill_winding);
 		} else {
-			int xp[32];
-			int yp[32];
-			int const n = int(d[i++]);
-			for (int j = 0; j < n; ++j) {
-				double xx = d[i++];
-				double yy = d[i++];
+			int xp[64];
+			int yp[64];
+			double xshift = (code == 6 ? d[i++] : 0.0);
+			double yshift = (code == 6 ? d[i++] : 0.0);
+			int const n2 = int(d[i++]);
+			for (int j = 0; j < n2; ++j) {
+				double xx = d[i++] + xshift;
+				double yy = d[i++] + yshift;
 //	     lyxerr << ' ' << xx << ' ' << yy << ' ';
-				if (code == 4)
+				if (code == 4 || code == 6) {
 					sqmt.transform(xx, yy);
-				else
+					if (code == 6) {
+						if (r == 0 && xshift == 0.0)
+							yy += h;
+						else
+							xx += w;
+					}
+				} else
 					mt.transform(xx, yy);
 				xp[j] = int(x + xx + 0.5);
 				yp[j] = int(y + yy + 0.5);
 				//  lyxerr << "P[" << j ' ' << xx << ' ' << yy << ' ' << x << ' ' << y << ']';
 			}
-			pi.pain.lines(xp, yp, n, pi.base.font.color());
+			pi.pain.lines(xp, yp, n2, pi.base.font.color(),
+				Painter::fill_none, Painter::line_solid, lw);
 		}
 	}
+}
+
+
+docstring const &  mathedSymbol(MetricsBase & mb, latexkeys const * sym)
+{
+	return (mb.font.style() == DISPLAY_STYLE && !sym->dsp_draw.empty()) ?
+		sym->dsp_draw : sym->draw;
 }
 
 
@@ -691,9 +785,9 @@ int mathedSymbolDim(MetricsBase & mb, Dimension & dim, latexkeys const * sym)
 				 mb.fontname != "mathfrak" &&
 				 mb.fontname != "mathcal" &&
 				 mb.fontname != "mathscr");
-	Changer dummy = change_font ? mb.changeFontSet(font) : Changer();
-	mathed_string_dim(mb.font, sym->draw, dim);
-	return mathed_char_kerning(mb.font, sym->draw.back());
+	Changer dummy = change_font ? mb.changeFontSet(font) : noChange();
+	mathed_string_dim(mb.font, mathedSymbol(mb, sym), dim);
+	return mathed_char_kerning(mb.font, mathedSymbol(mb, sym).back());
 }
 
 
@@ -705,9 +799,12 @@ void mathedSymbolDraw(PainterInfo & pi, int x, int y, latexkeys const * sym)
 	//	<< "' drawn as: '" << sym->draw
 	//	<< "'" << endl;
 
-	bool const italic_upcase_greek = sym->inset == "cmr" &&
-		sym->extra == "mathalpha" &&
-		pi.base.fontname == "mathit";
+	bool const upcase_greek =
+		sym->inset == "cmr" && sym->extra == "mathalpha";
+	bool const bold_upcase_greek =
+		upcase_greek && pi.base.fontname == "mathbf";
+	bool const italic_upcase_greek =
+		upcase_greek && pi.base.fontname == "mathit";
 	std::string const font = italic_upcase_greek ? "cmm" : sym->inset;
 	bool const change_font = font != "cmr" ||
 				(pi.base.fontname != "mathbb" &&
@@ -715,8 +812,10 @@ void mathedSymbolDraw(PainterInfo & pi, int x, int y, latexkeys const * sym)
 				 pi.base.fontname != "mathfrak" &&
 				 pi.base.fontname != "mathcal" &&
 				 pi.base.fontname != "mathscr");
-	Changer dummy = change_font ? pi.base.changeFontSet(font) : Changer();
-	pi.draw(x, y, sym->draw);
+	Changer dummy = change_font ? pi.base.changeFontSet(font) : noChange();
+	pi.draw(x, y, mathedSymbol(pi.base, sym));
+	if (bold_upcase_greek)
+		pi.draw(x + 1, y, mathedSymbol(pi.base, sym));
 }
 
 
@@ -733,7 +832,7 @@ void drawStrRed(PainterInfo & pi, int x, int y, docstring const & str)
 	FontInfo f = pi.base.font;
 	augmentFont(f, "mathnormal");
 	f.setColor(Color_latex);
-	pi.pain.text(x, y, str, f);
+	pi.pain.text(x, y, str, f, Painter::LtR);
 }
 
 
@@ -742,7 +841,7 @@ void drawStrBlack(PainterInfo & pi, int x, int y, docstring const & str)
 	FontInfo f = pi.base.font;
 	augmentFont(f, "mathnormal");
 	f.setColor(Color_foreground);
-	pi.pain.text(x, y, str, f);
+	pi.pain.text(x, y, str, f, Painter::LtR);
 }
 
 
@@ -971,10 +1070,10 @@ bool isAlphaSymbol(MathAtom const & at)
 
 	if (at->asFontInset()) {
 		MathData const & ar = at->asFontInset()->cell(0);
-		for (size_t i = 0; i < ar.size(); ++i) {
-			if (!(ar[i]->asCharInset() ||
-			      (ar[i]->asSymbolInset() &&
-			       ar[i]->asSymbolInset()->isOrdAlpha())))
+		for (const auto & i : ar) {
+			if (!(i->asCharInset() ||
+			      (i->asSymbolInset() &&
+			       i->asSymbolInset()->isOrdAlpha())))
 				return false;
 		}
 		return true;
@@ -987,7 +1086,7 @@ docstring asString(MathData const & ar)
 {
 	odocstringstream os;
 	otexrowstream ots(os);
-	WriteStream ws(ots);
+	TeXMathStream ws(ots);
 	ws << ar;
 	return os.str();
 }
@@ -1003,6 +1102,9 @@ void asArray(docstring const & str, MathData & ar, Parse::flags pf)
 	bool macro = pf & Parse::MACRODEF;
 	if ((str.size() == 1 && quiet) || (!mathed_parse_cell(ar, str, pf) && quiet && !macro))
 		mathed_parse_cell(ar, str, pf | Parse::VERBATIM);
+
+	// set the buffer of the MathData contents
+	ar.setContentsBuffer();
 }
 
 
@@ -1010,7 +1112,7 @@ docstring asString(InsetMath const & inset)
 {
 	odocstringstream os;
 	otexrowstream ots(os);
-	WriteStream ws(ots);
+	TeXMathStream ws(ots);
 	inset.write(ws);
 	return os.str();
 }
@@ -1020,7 +1122,7 @@ docstring asString(MathAtom const & at)
 {
 	odocstringstream os;
 	otexrowstream ots(os);
-	WriteStream ws(ots);
+	TeXMathStream ws(ots);
 	at->write(ws);
 	return os.str();
 }
@@ -1038,7 +1140,7 @@ void validate_math_word(LaTeXFeatures & features, docstring const & word)
 	MathWordList const & words = mathedWordList();
 	MathWordList::const_iterator it = words.find(word);
 	if (it != words.end()) {
-		string const req = it->second.requires;
+		string const req = it->second.required;
 		if (!req.empty())
 			features.require(req);
 	}

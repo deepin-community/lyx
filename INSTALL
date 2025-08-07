@@ -1,12 +1,17 @@
-Compiling and installing LyX
-============================
+Compiling and installing LyX with autotools
+===========================================
+
+This document is about compiling LyX with the autotools suite. If you
+want to compile using using CMake (in particular on windows), please
+refer to the INSTALL.cmake file.
+
 
 Quick compilation guide
 -----------------------
 
 These four steps will compile, test and install LyX:
 
-	0) Linux users beware: You need qt4/5 and qt4/5-devel packages
+	0) Linux users beware: You need qt5 and qt5-devel packages
 	   of the same version to compile LyX.
 
 	   In general, it is also recommended to have pkg-config
@@ -15,10 +20,9 @@ These four steps will compile, test and install LyX:
 
 	1) ./configure configures LyX according to your system. You
 	   may have to set --with-qt-dir=<path-to-your-qt-installation>
-	   (for example, "--with-qt-dir=/usr/share/qt4/") if the
+	   (for example, "--with-qt-dir=/usr/share/qt5/") if the
 	   environment variable QTDIR is not set and pkg-config is not
 	   available.
-	   You will need --enable-qt5 switch for choosing qt5 over qt4.
 
 	   See Note below if ./configure script is not present.
 
@@ -48,23 +52,24 @@ You will also probably need GNU m4 (perhaps installed as gm4).
 Requirements
 ------------
 
-First of all, you will need a recent C++ compiler, where recent means
-that the compilers are close to C++11 standard conforming like gcc (at
-least 4.6) or clang.
+First of all, you will need a C++11 standard conforming compiler, like g++ (at
+least 4.9, to have proper srd::regex) or clang++.
 
-LyX makes great use of the C++ Standard Template Library (STL).
-This means that gcc users will have to install the relevant libstdc++
-library to be able to compile this version of LyX.
+LyX makes great use of the C++ Standard Library. This means that gcc
+users will have to install the relevant libstdc++ library to be able
+to compile this version of LyX.
 
 For full LyX usability we suggest to use Qt 5.6 and higher, or at the
-very least Qt 5.4. For compilation you need to compile against at least
-Qt 4.8 which has been widely tested, and for Windows we advise at least
-Qt 4.8.4. The only special point to make is that you must ensure that
-both LyX and the Qt libraries are compiled with the same C++ compiler.
+very least Qt 5.4. It is also possible to compile against Qt 6. The
+only special point to make is that you must ensure that both LyX and
+the Qt libraries are compiled with the same C++ compiler.
 
 To build LyX with spell checking capabilities included you have to
 install at least one of the development packages of the spell checker
 libraries. See the RELEASE-NOTES for details.
+
+Users of debian-based distributions are well advised to run
+'apt-get build-dep lyx' before compiling to install proper dependencies.
 
 
 * Other things to note
@@ -78,11 +83,10 @@ compile LyX with up-to-date translations (at least gettext version
 
 The two following programs should be available at configuration time:
 
-  o Python 2.7 must be installed. Python is used for many simple tasks
-    that are executed by external scripts, such as the automatic
-    configuration step and the import of older LyX documents with the
-    lyx2lyx script (this script is called automatically when opening a
-    file). Python 3 (3.3 or later) support is work in progress.
+  o Python (2.7 or 3.5 and newer) must be installed. Python is used for many
+    simple tasks that are executed by external scripts, such as the automatic
+    configuration step and the import of older LyX documents with the lyx2lyx
+    script (this script is called automatically when opening a file).
 
 
 Creating the Makefile
@@ -105,21 +109,26 @@ flags:
                       release   prerelease  development profiling gprof
     optimization        -O2         -O2         -O         -O2     -O2
     assertions                       X           X
-    stdlib-debug                                 X
+    stdlib-assertions                            X
+    stdlib-debug
     warnings                         X           X
     debug                            X           X           X       X
+    maintainer-mode                              X
 
-    The defaults are as follows in terms of version number
+    The defaults are as follows in terms of version number:
     release: stable release (2.x.y)
-    prerelease: version number contains alpha, beta, rc or pre.
-    development: version number contains dev.
+    prerelease: version number contains `alpha', `beta', `rc' or `pre'.
+    development: version number contains `dev'.
 
     The `profiling' build type uses the -fno-omit-frame-pointer option with gcc
 
     The `gprof' build type compiles and links with -pg option with gcc.
 
+  o --enable-qt6 that checks configuration with Qt 6.x, and then Qt
+    5.x. By default, only Qt5 is tried.
+
   o --with-extra-lib=DIRECTORY that specifies the path where LyX will
-    find extra libraries (qt4) it needs. Defaults to NONE
+    find extra libraries (like Qt) it needs. Defaults to NONE
     (i.e. search in standard places). You can specify several
     directories, separated by colons.
 
@@ -194,10 +203,13 @@ set CXXFLAGS variable to other values as follows:
 Similarly, if you want to force the use of a specific compiler, you can
 give a value to the CXX variable.
 
-If you encounter problems, please read the section 'Problems' at the end of
-this file.
+The following options allow you to tweak the generated code more
+precisely (see the description of --enable-build-type for the default
+values):
 
-The following options allow you to tweak the generated code more precisely (see the description of --enable-build-type for the default values):
+  o --enable-cxx-mode=VALUE can be used to select a C++ standard, for
+    example --enable-cxx-mode=11. The default is to try C++17, C++14, and
+    C++11, in this order.
 
   o --enable-optimization=VALUE enables you to set optimization to a
     higher level than the default, for example --enable-optimization=-O3.
@@ -205,10 +217,6 @@ The following options allow you to tweak the generated code more precisely (see 
   o --disable-optimization - you can use this to disable compiler
     optimization of LyX. The compile may be much quicker with some
     compilers, but LyX will run more slowly.
-
-  o --disable-std-regex forces the compiler to use boost::regex. The default is
-    to use std::regex for known good C++ libraries, but the test is not robust for clang.
-    --enable-std-regex will force the use of std::regex.
 
   o --enable-debug will add debug information to your binary. This
     requires a lot more disk space, but is a must if you want to try
@@ -221,21 +229,18 @@ The following options allow you to tweak the generated code more precisely (see 
     code which checks that some variables have sane values. Opposite
     is --disable-assertions.
 
-  o --enable-stdlib-debug adds some debug code in the standard
-    library; this slows down the code, but has been helpful in the
-    past to find bugs. Note that this is in general incompatible with
-    the system boost library (which is used when
-    --without-included-boost is specified). You may have to use
-    --disable-stdlib-debug when linking development versions against
-    your system's boost library.
-    The same problem applies to hunspell (as of hunspell 1.5). So either
-    compile --with-included-hunspell or --disable-stdlib-debug when
-    linking development versions against your system's hunspell library.
+  o --enable-stdlib-assertions adds some bound checking code in the
+    libstdc++ standard library; this slows down the code, but has been
+    helpful in the past to find bugs. This has no effect when using
+    llvm's libc++ library.
 
-  o --enable-monolithic-build[=boost,client,insets,mathed,core,tex2lyx,frontend-qt4]
-    that enables monolithic build of the given parts of the source
-    code. This should reduce the compilation time provided you have
-    enough memory (>500MB).
+  o --enable-stdlib-debug encompasses stdlib-assertions and adds
+    additional checks in libstdc++. Note that this changes the ABI and
+    is in general incompatible with the system hunspell library (as of
+    version 1.5). You may have to use --disable-stdlib-debug when
+    linking development versions against your system's hunspell
+    library. This has no effect when using llvm's libc++ library.
+
 
 
 Compiling and installing LyX
@@ -281,57 +286,3 @@ the source code directory.  After you have installed LyX for one
 architecture, use `make distclean' before reconfiguring for another
 architecture.
 
-Problems
---------
-
-This section provides several hints that have been submitted by LyX
-team members or users to help compiling on some particular
-architectures. If you find that some of these hints are wrong, please
-notify us.
-
-  o On SUN Sparc Solaris, you need gnumake. The LyX makefiles do not
-    work with Solaris make.
-
-    The Solaris 8 ar seg-faults trying to build the insets library. You
-    will need to use the ar from the GNU binutils for this subdirectory.
-    There is no problem with the Solaris 9 and 10 ar.
-
-    Qt4 uses the Xrender X11 extension for antialiased fonts. This
-    extension was added to Xsun starting from the Solaris 10 8/07
-    release, but it is not activated by default. To activate it, you
-    must issue (as root) the following command:
-    svccfg -s svc:/application/x11/x11-server setprop options/server_args=+xrender
-    and then restart the X server.
-
-    There is a problem with the fontconfig library shipped with
-    Solaris 10 8/07 causing a seg-fault when it is used by Qt4.
-    Until this is fixed, a workaround is replacing the shared library
-    /usr/lib/libfontconfig.so.1 with a copy from a previous release or
-    installing a new version of fontconfig from http://www.sunfreeware.com/
-
-    On Solaris, the default fontconfig configuration gives preference
-    to bitmap fonts at (not so small) sizes. As bitmapped fonts are not
-    antialiased, you may prefer changing this configuration. This may be
-    done by adding the following stanza
-
-          <match target="pattern">
-              <edit name="prefer_bitmap">
-                  <bool>false</bool>
-              </edit>
-          </match>
-
-    to either ~/.fonts.conf (for a per-user change) or /etc/fonts/local.conf
-    (for a global system change). The stanza should be added between the
-    <fontconfig> and </fontconfig> tags. If neither ~/.fonts.conf nor
-    /etc/fonts/local.conf exists, you can create them with the following
-    content:
-
-      <?xml version="1.0"?>
-      <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-      <fontconfig>
-          <match target="pattern">
-              <edit name="prefer_bitmap">
-                  <bool>false</bool>
-              </edit>
-          </match>
-      </fontconfig>

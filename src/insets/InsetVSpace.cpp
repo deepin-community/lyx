@@ -22,8 +22,7 @@
 #include "FuncStatus.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
-#include "output_xhtml.h"
+#include "xml.h"
 #include "texstream.h"
 #include "Text.h"
 
@@ -50,7 +49,7 @@ int const ADD_TO_VSPACE_WIDTH = 5;
 
 
 InsetVSpace::InsetVSpace(VSpace const & space)
-	: Inset(0), space_(space)
+	: Inset(nullptr), space_(space)
 {}
 
 
@@ -210,9 +209,15 @@ void InsetVSpace::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-void InsetVSpace::latex(otexstream & os, OutputParams const &) const
+void InsetVSpace::latex(otexstream & os, OutputParams const & rp) const
 {
-	os << from_ascii(space_.asLatexCommand(buffer().params())) << '\n';
+	os << from_ascii(space_.asLatexCommand(buffer().params())) << breakln;
+	if (rp.need_noindent) {
+		// If the paragraph starts with a vspace and has more than that
+		// content, the \\noindent needs to come after that
+		// (as \\noindent leaves vmode).
+		os << "\\noindent" << termcmd;
+	}
 }
 
 
@@ -224,18 +229,17 @@ int InsetVSpace::plaintext(odocstringstream & os,
 }
 
 
-int InsetVSpace::docbook(odocstream & os, OutputParams const &) const
+void InsetVSpace::docbook(XMLStream & xs, OutputParams const &) const
 {
-	os << '\n';
-	return 1;
+	xs << xml::CR();
 }
 
 
-docstring InsetVSpace::xhtml(XHTMLStream & os, OutputParams const &) const
+docstring InsetVSpace::xhtml(XMLStream & os, OutputParams const &) const
 {
 	string const len = space_.asHTMLLength();
 	string const attr = "style='height:" + (len.empty() ? "1em" : len) + "'";
-	os << html::StartTag("div", attr, true) << html::EndTag("div");
+	os << xml::StartTag("div", attr, true) << xml::EndTag("div");
 	return docstring();
 }
 

@@ -23,9 +23,9 @@
 
 namespace lyx {
 
-InsetMathUnknown::InsetMathUnknown(docstring const & nm,
+InsetMathUnknown::InsetMathUnknown(Buffer * buf, docstring const & name,
 	docstring const & selection, bool final, bool black)
-	: name_(nm), final_(final), black_(black), kerning_(0),
+	: InsetMath(buf), name_(name), final_(final), black_(black), kerning_(0),
 	  selection_(selection)
 {}
 
@@ -89,7 +89,7 @@ void InsetMathUnknown::mathematica(MathematicaStream & os) const
 }
 
 
-void InsetMathUnknown::mathmlize(MathStream &) const
+void InsetMathUnknown::mathmlize(MathMLStream &) const
 {
 	throw MathExportException();
 }

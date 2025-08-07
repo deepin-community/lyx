@@ -23,46 +23,55 @@ public:
 	///
 	InsetMathAMSArray(Buffer * buf, docstring const &, int m, int n);
 	///
-	InsetMathAMSArray(Buffer * buf, docstring const &);
+	InsetMathAMSArray(Buffer * buf, docstring const &);	///
+
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	int rowsep() const override;
 	///
-	void draw(PainterInfo & pain, int x, int y) const;
+	int colsep() const override;
 	///
-	InsetMathAMSArray * asAMSArrayInset() { return this; }
+	int border() const override;
 	///
-	InsetMathAMSArray const * asAMSArrayInset() const { return this; }
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
+	///
+	void draw(PainterInfo & pi, int x, int y) const override;
+	///
+	InsetMathAMSArray * asAMSArrayInset() override { return this; }
+	///
+	InsetMathAMSArray const * asAMSArrayInset() const override { return this; }
 
 	///
 	bool getStatus(Cursor & cur, FuncRequest const & cmd,
-		FuncStatus & flag) const;
+		FuncStatus & flag) const override;
 	///
-	void write(WriteStream & os) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void infoize(odocstream & os) const;
+	void infoize(odocstream & os) const override;
 	///
-	void normalize(NormalStream &) const;
+	void normalize(NormalStream &) const override;
 	// Don't need mathmlize or htmlize, as this is handled by
 	// InsetMathMatrix after being extracted in MathExtern.
-	// void mathmlize(MathStream &) const;
-	// void htmlize(HTMLStream &) const;
+	// void mathmlize(MathMLStream &) const override;
+	// void htmlize(HtmlStream &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	InsetCode lyxCode() const { return MATH_AMSARRAY_CODE; }
+	InsetCode lyxCode() const override { return MATH_AMSARRAY_CODE; }
 	///
 	char const * name_left() const;
 	///
 	char const * name_right() const;
 	///
-	int leftMargin() const { return 6; } //override
+	int leftMargin() const override { return small() ? 3 : 6; }
 	///
-	int rightMargin() const { return 8; } //override
+	int rightMargin() const override { return small() ? 3: 6; }
 	///
-	bool handlesMulticolumn() const { return true; } //override
+	bool handlesMulticolumn() const override { return true; }
 
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
+	///
+	bool small() const { return name_ == "smallmatrix"; }
 	///
 	docstring name_;
 };

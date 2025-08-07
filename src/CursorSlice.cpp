@@ -17,16 +17,14 @@
 
 #include "Text.h"
 #include "Paragraph.h"
+#include "ParagraphList.h"
 
 #include "support/debug.h"
 
-#include "insets/Inset.h"
-
 #include "mathed/InsetMath.h"
 #include "mathed/InsetMathMacro.h"
+#include "mathed/MathData.h"
 
-#include "support/ExceptionMessage.h"
-#include "support/gettext.h"
 #include "support/lassert.h"
 
 #include <ostream>
@@ -37,7 +35,7 @@ namespace lyx {
 
 
 CursorSlice::CursorSlice()
-	: inset_(0), idx_(0), pit_(0), pos_(0)
+	: inset_(nullptr), idx_(0), pit_(0), pos_(0)
 {}
 
 
@@ -78,14 +76,14 @@ pit_type CursorSlice::lastpit() const
 }
 
 
-CursorSlice::row_type CursorSlice::row() const
+row_type CursorSlice::row() const
 {
 	LASSERT(inset_, return 0);
 	return inset_->row(idx_);
 }
 
 
-CursorSlice::col_type CursorSlice::col() const
+col_type CursorSlice::col() const
 {
 	LASSERT(inset_, return 0);
 	return inset_->col(idx_);

@@ -30,12 +30,42 @@ uses it to display currently used shortcuts.
 This inset has two arguments: the type and argument of the information. The
 screen and latex output is the content of the information. An InsetInfo can
 have type "shortcuts", "shortcut", "lyxrc", "package", "textclass", "menu",
-or "buffer". Arguments and outputs vary by type.
+"buffer" or "vcs". Arguments and outputs vary by type.
 
-shortcuts: argument of this type of InsetInfo is the name of the LFUN such as
-    "math-insert \alpha". The syntax is the same as what is used in the bind
-    and ui files. The output of this inset is all shortcuts for this LFUN
-    separated by comma.
+date: argument of this type of InsetInfo is either a fixed date type of
+    "long" (long localized date, with weekday, as provided by QLocale),
+    "short" (short localized date, with two-digit year, as provided by QLocale),
+    "loclong" (long localized date, without weekday, defined in languages),
+    "locmedium" (medium localized date, defined in languages),
+    "locshort" (short localized date, with four-digit year, defined in languages),
+    "ISO" (ISO-conforming date)
+    or a custom date using the QDate syntax.
+    The output is a localized formatted (current) date.
+
+moddate: Same as date.
+    The output is a localized formatted date of last file modification (saving).
+
+fixdate: Same as date. A fixed date (in ISO format) is prepended to the argument,
+    delimited by '@'.
+    The output is a localized formatted fix date.
+
+time: argument of this type of InsetInfo is either a fixed time type of
+    "long" (long localized time, as provided by QLocale),
+    "short" (short localized time, as provided by QLocale),
+    "ISO" (ISO-conforming time)
+    or a custom date using the QTime syntax.
+    The output is a localized formatted (current) time.
+
+modtime: Same as time.
+    The output is a localized formatted time of last file modification (saving).
+
+fixtime: Same as time. A fixed time (in ISO format) is prepended to the argument,
+    delimited by '@'.
+    The output is a localized formatted fix time.
+
+shortcuts: argument is the name of the LFUN such as "math-insert \alpha".
+    The syntax is the same as what is used in the bind and ui files.
+    The output of this inset is all shortcuts for this LFUN separated by comma.
 
 shortcut: the same as shortcuts, but only output the last shortcut.
 
@@ -54,16 +84,24 @@ menu: argument is the name of the LFUN such as "paste". The syntax is the same
     triggers this LFUN. For example, "File > Paste", where '>' is actually
     \lyxarrow (an InsetSpecialChar).
 
+l7n: argument is an English string that is marked for localization. The output
+    is the localization of that string in the current GUI language (if available).
+    Trailing colons are stripped, accelerators removed.
+    This is used to refer to GUI items in the docs.
+
 icon: argument is the name of the LFUN such as "paste". The syntax is the same
     as what is used in the bind and ui files. The output is the icon use in
     the toolbar for this LFUN. Alternatively, argument can be the icon path
     without extension specified with respect to the images directory.
 
-buffer: argument can be one of "name", "path", "class". This inset output the
-    filename, path, and textclass of this buffer.
+buffer: argument can be one of "name", "name-noext", "path", "class". This inset output the
+    filename (with extension), filename (without extension), path, and textclass of this buffer.
 
-lyxinfo: argument must (presently) be "version". This inset outputs information
-		about the version of LyX currently in use.
+lyxinfo: argument must be "version" or "layoutformat". This outputs information
+    about the version of LyX currently in use or the current LyX layout format, respectively.
+
+vcs: argument can be one of "revision", "tree-revision", "author", "time", "date".
+    This insets outputs revision control information, if available.
 
 There is currently no GUI, no menu entry for this inset. A user can define a
 shortcut for "info-insert" (e.g. C-S-I), and
@@ -77,84 +115,130 @@ the command buffer (view->Toolbar->Command Buffer).
 
 */
 
-class InsetInfo : public InsetCollapsible {
+class InsetInfoParams {
 public:
 	enum info_type {
-		UNKNOWN_INFO,   // Invalid type
-		SHORTCUTS_INFO, // Keyboard shortcuts
-		SHORTCUT_INFO,  // Keyboard shortcut
-		LYXRC_INFO,     // RC entry
-		PACKAGE_INFO,   // Availability of package
-		TEXTCLASS_INFO, // Availability of textclass
-		MENU_INFO,      // Which menu item is used for certain function
-		ICON_INFO,      // which toolbar icon is used for certain function
-		BUFFER_INFO,    // Buffer related information
-		LYX_INFO        // LyX version information
+		DATE_INFO,       // Current date
+		MODDATE_INFO,    // Date of last modification
+		FIXDATE_INFO,    // Fix date
+		TIME_INFO,       // Current time
+		MODTIME_INFO,    // Time of last modification
+		FIXTIME_INFO,    // Fix time
+		BUFFER_INFO,     // Buffer related information
+		VCS_INFO,        // Version control information
+		PACKAGE_INFO,    // Availability of package
+		TEXTCLASS_INFO,  // Availability of textclass
+		SHORTCUTS_INFO,  // Keyboard shortcuts
+		SHORTCUT_INFO,   // Keyboard shortcut
+		LYXRC_INFO,      // RC entry
+		MENU_INFO,       // Which menu item is used for certain function
+		ICON_INFO,       // which toolbar icon is used for certain function
+		LYX_INFO,        // LyX version information
+		L7N_INFO,        // Localized string
+		UNKNOWN_INFO,    // Invalid type
 	};
+	///
+	std::vector<std::pair<std::string,docstring>> getArguments(Buffer const * buf,
+								   std::string const &) const;
+	///
+	bool validateArgument(Buffer const * buf, docstring const & argument,
+			      bool const usedefault = false) const;
+	///
+	info_type type;
+	///
+	std::string infoType() const;
+	///
+	std::string name;
+	///
+	Language const * lang;
+	///
+	bool force_ltr;
+};
 
+///
+extern InsetInfoParams infoparams;
+
+class InsetInfo : public InsetCollapsible {
+public:
 	///
 	InsetInfo(Buffer * buf, std::string const & info = std::string());
 	///
-	InsetCode lyxCode() const { return INFO_CODE; }
+	InsetCode lyxCode() const override { return INFO_CODE; }
 	///
-	docstring layoutName() const;
+	docstring layoutName() const override;
 	///
-	Inset * editXY(Cursor & cur, int x, int y);
+	Inset * editXY(Cursor & cur, int x, int y) override;
 	/** FIXME: we would like to do that, but then InsetText::updateBuffer breaks
 	 * on info insets. Do we need to run this method on InsetInfo contents?
 	 * Having a InsetInfo that hides an InsetText is really annoying, actually.
 	 */
-	///bool isActive() const { return false; }
+	///bool isActive() const override { return false; }
 	///
-	bool editable() const { return false; }
+	bool editable() const override { return false; }
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	///
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 	///
-	std::string infoType() const;
+	bool validateModifyArgument(docstring const & argument) const override {
+		return params_.validateArgument(&buffer(), argument); }
 	///
-	std::string infoName() const { return name_; }
+	bool showInsetDialog(BufferView * bv) const override;
 	///
-	bool validateModifyArgument(docstring const & argument) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 	///
-	bool showInsetDialog(BufferView * bv) const;
-	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
-	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	/// Force inset into LTR environment if surroundings are RTL
-	bool forceLTR(OutputParams const &) const;
+	bool forceLTR(OutputParams const &) const override;
+	///
+	bool forceLocalFontSwitch() const override;
 	///
 	void setInfo(std::string const & info);
-	/// update info_ and text
-	void updateInfo();
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	void updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted = false) override;
 	///
-	std::string contextMenu(BufferView const &, int, int) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	std::string contextMenuName() const;
-	/// should paragraph indendation be omitted in any case?
-	bool neverIndent() const { return true; }
+	void draw(PainterInfo & pi, int x, int y) const override;
+
+	///
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
+	///
+	std::string contextMenu(BufferView const &, int, int) const override;
+	///
+	std::string contextMenuName() const override;
+	/// should paragraph indentation be omitted in any case?
+	bool neverIndent() const override { return true; }
+	///
+	void validate(LaTeXFeatures & features) const override;
+	///
+	InsetInfoParams params() const { return params_; }
+	/// Outputs the inset as DocBook, taking advantage of the metadata available in InsetInfoParams.
+	void docbook(XMLStream &, OutputParams const &) const override;
+	/// Outputs the inset as XHTML, taking advantage of the metadata available in InsetInfoParams.
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 
 private:
 	///
-	virtual Inset * clone() const { return new InsetInfo(*this); }
+	Inset * clone() const override { return new InsetInfo(*this); }
 	///
-	void error(std::string const & err);
+	void error(docstring const & err, Language const *);
 	///
-	void setText(docstring const & str);
+	void info(docstring const & err, Language const *);
+	///
+	void setText(docstring const & str, Language const *);
 	// make sure that the other version of setText is still available.
 	using InsetCollapsible::setText;
+	/// Compute the information
+	void build();
 	///
-	info_type type_;
+	bool initialized_;
 	///
-	std::string name_;
+	InsetInfoParams params_;
 	///
-	bool force_ltr_;
+	friend class InsetInfoParams;
 };
 
 

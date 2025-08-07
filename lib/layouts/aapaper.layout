@@ -15,7 +15,7 @@
 # and reconfigure LyX (after running texhash, of course).
 
 
-Format 66
+Format 104
 Columns                 2
 Sides                   2
 SecNumDepth             3
@@ -102,7 +102,7 @@ End
 Style Abstract
 End
 
-Style Acknowledgement
+Style Acknowledgments
 End
 
 Style Bibliography
@@ -177,6 +177,9 @@ Style Title
 	Font
 	  Series              Bold
 	EndFont
+	DocBookTag      title
+	DocBookTagType  paragraph
+	DocBookInInfo   maybe
 End
 
 
@@ -188,6 +191,11 @@ Style Author
 	  Size                Normal
 	  Series              Bold
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -216,6 +224,10 @@ Style Abstract
 	  Series              Bold
 	  Size                Normal
 	EndFont
+	DocBookTag         para
+	DocBookWrapperTag  abstract
+	DocBookWrapperMergeWithPrevious  true
+	DocBookInInfo      always
 End
 
 

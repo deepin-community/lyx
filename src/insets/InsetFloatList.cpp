@@ -172,7 +172,7 @@ int InsetFloatList::plaintext(odocstringstream & os,
 }
 
 
-docstring InsetFloatList::xhtml(XHTMLStream &, OutputParams const & op) const {
+docstring InsetFloatList::xhtml(XMLStream &, OutputParams const & op) const {
 	FloatList const & floats = buffer().params().documentClass().floats();
 	FloatList::const_iterator cit = floats[to_ascii(getParam("type"))];
 
@@ -195,11 +195,11 @@ docstring InsetFloatList::xhtml(XHTMLStream &, OutputParams const & op) const {
 		if (type == "table") {
 			toctype = "table";
 			toclabel = translateIfPossible(from_ascii("List of Tables"),
-			                               op.local_font->language()->lang());
+			                               getLocalOrDefaultLang(op)->lang());
 		} else if (type == "figure") {
 			toctype = "figure";
 			toclabel = translateIfPossible(from_ascii("List of Figures"),
-			                               op.local_font->language()->lang());
+			                               getLocalOrDefaultLang(op)->lang());
 		} else {
 			LYXERR0("Unknown Builtin Float!");
 			return docstring();
@@ -207,7 +207,7 @@ docstring InsetFloatList::xhtml(XHTMLStream &, OutputParams const & op) const {
 	} else {
 		toctype = to_utf8(getParam("type"));
 		toclabel = translateIfPossible(from_utf8(cit->second.listName()),
-		                               op.local_font->language()->lang());
+		                               getLocalOrDefaultLang(op)->lang());
 	}
 
 	shared_ptr<Toc const> toc = buffer().tocBackend().toc(toctype);
@@ -223,7 +223,7 @@ docstring InsetFloatList::xhtml(XHTMLStream &, OutputParams const & op) const {
 	TextClass::LayoutList::const_iterator lit = dc.begin();
 	TextClass::LayoutList::const_iterator len = dc.end();
 	int minlevel = 1000;
-	Layout const * lay = NULL;
+	Layout const * lay = nullptr;
 	for (; lit != len; ++lit) {
 		int const level = lit->toclevel;
 		if (level > 0 && (level == Layout::NOT_IN_TOC || level >= minlevel))
@@ -239,14 +239,14 @@ docstring InsetFloatList::xhtml(XHTMLStream &, OutputParams const & op) const {
 	// that's how we deal with the fact that we're probably inside a standard
 	// paragraph, and we don't want to be.
 	odocstringstream ods;
-	XHTMLStream xs(ods);
+	XMLStream xs(ods);
 
 	InsetLayout const & il = getLayout();
 	string const & tag = il.htmltag();
-	xs << html::StartTag("div", "class='toc toc-floats'");
-	xs << html::StartTag(tag, tocattr)
+	xs << xml::StartTag("div", "class='toc toc-floats'");
+	xs << xml::StartTag(tag, tocattr)
 		 << toclabel
-		 << html::EndTag(tag);
+		 << xml::EndTag(tag);
 
 	Toc::const_iterator it = toc->begin();
 	Toc::const_iterator const en = toc->end();
@@ -255,14 +255,14 @@ docstring InsetFloatList::xhtml(XHTMLStream &, OutputParams const & op) const {
 			continue;
 		Paragraph const & par = it->dit().innerParagraph();
 		string const attr = "class='lyxtoc-floats lyxtoc-" + toctype + "'";
-		xs << html::StartTag("div", attr);
+		xs << xml::StartTag("div", attr);
 		string const parattr = "href='#" + par.magicLabel() + "' class='lyxtoc-floats'";
-		xs << html::StartTag("a", parattr)
+		xs << xml::StartTag("a", parattr)
 		   << it->str()
-		   << html::EndTag("a");
-		xs << html::EndTag("div");
+		   << xml::EndTag("a");
+		xs << xml::EndTag("div");
 	}
-	xs << html::EndTag("div");
+	xs << xml::EndTag("div");
 	return ods.str();
 }
 

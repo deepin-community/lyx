@@ -14,13 +14,12 @@
 
 #include "InsetText.h"
 
-#include "Dimension.h"
-
 #include "support/unique_ptr.h"
 
 
 namespace lyx {
 
+class Dimension;
 class RenderPreview;
 
 namespace graphics {
@@ -32,7 +31,7 @@ class InsetIPA : public InsetText {
 
 public:
 	///
-	InsetIPA(Buffer *);
+	explicit InsetIPA(Buffer *);
 	///
 	~InsetIPA();
 	///
@@ -42,53 +41,55 @@ public:
 
 	/// \name Methods inherited from Inset class
 	//@{
-	Inset * clone() const { return new InsetIPA(*this); }
+	Inset * clone() const override { return new InsetIPA(*this); }
 
-	bool neverIndent() const { return true; }
+	bool neverIndent() const override { return true; }
 
-	bool forceLocalFontSwitch() const { return true; }
+	bool forceLocalFontSwitch() const override { return true; }
 
-	InsetCode lyxCode() const { return IPA_CODE; }
+	InsetCode lyxCode() const override { return IPA_CODE; }
 
-	docstring layoutName() const { return from_ascii("IPA"); }
+	docstring layoutName() const override { return from_ascii("IPA"); }
 
-	bool descendable(BufferView const & /*bv*/) const { return true; }
+	bool descendable(BufferView const & /*bv*/) const override { return true; }
 
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 
-	Inset * editXY(Cursor & cur, int x, int y);
+	Inset * editXY(Cursor & cur, int x, int y) override;
 
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 
 	void addPreview(DocIterator const & inset_pos,
-		graphics::PreviewLoader & ploader) const;
+		graphics::PreviewLoader & ploader) const override;
 
-	bool notifyCursorLeaves(Cursor const & old, Cursor & cur);
+	bool notifyCursorLeaves(Cursor const & old, Cursor & cur) override;
 
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
-	void edit(Cursor & cur, bool front, EntryDirection entry_from);
+	void edit(Cursor & cur, bool front, EntryDirection entry_from) override;
 
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream & xs, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	docstring xhtml(XMLStream & xs, OutputParams const &) const override;
 	///
-	bool allowSpellCheck() const { return false; }
+	void validate(LaTeXFeatures & features) const override;
 	///
-	bool insetAllowed(InsetCode code) const;
+	bool allowSpellCheck() const override { return false; }
+	///
+	bool insetAllowed(InsetCode code) const override;
 	//@}
 
 protected:
 	/// Retrieves the preview state. Returns true if preview
-	/// is enabled and the preview image is availabled.
+	/// is enabled and the preview image is available.
 	bool previewState(BufferView * bv) const;
 	/// Recreates the preview if preview is enabled.
 	void reloadPreview(DocIterator const & pos) const;

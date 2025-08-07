@@ -31,11 +31,12 @@ string const sec_lastfiles = "[recent files]";
 string const sec_lastfilepos = "[cursor positions]";
 string const sec_lastopened = "[last opened files]";
 string const sec_bookmarks = "[bookmarks]";
-string const sec_session = "[session info]";
-string const sec_toolbars = "[toolbars]";
 string const sec_lastcommands = "[last commands]";
 string const sec_authfiles = "[auth files]";
 string const sec_shellescape = "[shell escape files]";
+// currently unused:
+//string const sec_session = "[session info]";
+//string const sec_toolbars = "[toolbars]";
 
 } // namespace
 
@@ -144,8 +145,8 @@ void LastOpenedSection::read(istream & is)
 void LastOpenedSection::write(ostream & os) const
 {
 	os << '\n' << sec_lastopened << '\n';
-	for (size_t i = 0; i < lastopened.size(); ++i)
-		os << lastopened[i].active << ", " << lastopened[i].file_name << '\n';
+	for (auto const & last : lastopened)
+		os << last.active << ", " << last.file_name << '\n';
 }
 
 
@@ -158,8 +159,8 @@ void LastOpenedSection::add(FileName const & file, bool active)
 	// currently, we even crash in some cases (see #9483).
 	// FIXME: Add session support for multiple views of
 	//        the same buffer (split-view etc.).
-	for (size_t i = 0; i < lastopened.size(); ++i) {
-		if (lastopened[i].file_name == file)
+	for (auto const & last : lastopened) {
+		if (last.file_name == file)
 			return;
 	}
 	lastopened.push_back(lof);
@@ -235,7 +236,7 @@ void LastFilePosSection::save(FilePos const & pos)
 
 LastFilePosSection::FilePos LastFilePosSection::load(FileName const & fname) const
 {
-	for (auto & fp : lastfilepos)
+	for (auto const & fp : lastfilepos)
 		if (fp.file == fname)
 			// Has position information, return it.
 			return fp;
@@ -283,7 +284,7 @@ void BookmarksSection::read(istream & is)
 				continue;
 			FileName const file(fname);
 			// only load valid bookmarks
-			if (file.exists() && !file.isDirectory() && idx <= max_bookmarks)
+			if (file.exists() && !file.isDirectory() && idx < bookmarks.size())
 				bookmarks[idx] = Bookmark(file, pit, pos, 0, 0);
 			else
 				LYXERR(Debug::INIT, "LyX: Warning: Ignore bookmark of file: " << fname);
@@ -297,7 +298,7 @@ void BookmarksSection::read(istream & is)
 void BookmarksSection::write(ostream & os) const
 {
 	os << '\n' << sec_bookmarks << '\n';
-	for (size_t i = 0; i <= max_bookmarks; ++i) {
+	for (size_t i = 0; i < bookmarks.size(); ++i) {
 		if (isValid(i))
 			os << i << ", "
 			   << bookmarks[i].bottom_pit << ", "
@@ -312,20 +313,20 @@ void BookmarksSection::save(FileName const & fname,
 	int top_id, pos_type top_pos, unsigned int idx)
 {
 	// silently ignore bookmarks when idx is out of range
-	if (idx <= max_bookmarks)
+	if (idx < bookmarks.size())
 		bookmarks[idx] = Bookmark(fname, bottom_pit, bottom_pos, top_id, top_pos);
 }
 
 
 bool BookmarksSection::isValid(unsigned int i) const
 {
-	return i <= max_bookmarks && !bookmarks[i].filename.empty();
+	return i < bookmarks.size() && !bookmarks[i].filename.empty();
 }
 
 
 bool BookmarksSection::hasValid() const
 {
-	for (size_t i = 1; i <= size(); ++i) {
+	for (size_t i = 1; i < bookmarks.size(); ++i) {
 		if (isValid(i))
 			return true;
 	}
@@ -336,6 +337,29 @@ bool BookmarksSection::hasValid() const
 BookmarksSection::Bookmark const & BookmarksSection::bookmark(unsigned int i) const
 {
 	return bookmarks[i];
+}
+
+
+BookmarksSection::BookmarkPosList
+BookmarksSection::bookmarksInPar(FileName const & fn, int const par_id) const
+{
+	// FIXME: we do not consider the case of bottom_pit.
+	// This is probably not a problem.
+	BookmarksSection::BookmarkPosList bip;
+	for (size_t i = 1; i < bookmarks.size(); ++i)
+		if (bookmarks[i].filename == fn && bookmarks[i].top_id == par_id)
+			bip.push_back({i, bookmarks[i].top_pos});
+
+	return bip;
+}
+
+
+void BookmarksSection::adjustPosAfterPos(FileName const & fn,
+	int const par_id, pos_type pos, int offset)
+{
+	for (Bookmark & bkm : bookmarks)
+		if (bkm.filename == fn && bkm.top_id == par_id && bkm.top_pos > pos)
+			bkm.top_pos += offset;
 }
 
 
@@ -383,9 +407,14 @@ void LastCommandsSection::setNumberOfLastCommands(unsigned int no)
 }
 
 
-void LastCommandsSection::add(std::string const & string)
+void LastCommandsSection::add(std::string const & command)
 {
-	lastcommands.push_back(string);
+	// remove traces of 'command' in history using the erase-remove idiom
+	//   https://en.wikipedia.org/wiki/Erase%E2%80%93remove_idiom
+	lastcommands.erase(remove(lastcommands.begin(), lastcommands.end(), command),
+	                   lastcommands.end());
+	// add it at the end of the list.
+	lastcommands.push_back(command);
 }
 
 
@@ -494,10 +523,7 @@ void AuthFilesSection::write(ostream & os) const
 
 bool AuthFilesSection::find(string const & name) const
 {
-	if (auth_files_.find(name) != auth_files_.end())
-		return true;
-
-	return false;
+	return auth_files_.find(name) != auth_files_.end();
 }
 
 
@@ -547,10 +573,7 @@ bool ShellEscapeSection::find(string const & name) const
 
 bool ShellEscapeSection::findAuth(string const & name) const
 {
-	if (shellescape_files_.find(name + ",1") != shellescape_files_.end())
-		return true;
-
-	return false;
+	return shellescape_files_.find(name + ",1") != shellescape_files_.end();
 }
 
 

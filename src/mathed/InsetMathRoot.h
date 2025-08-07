@@ -23,35 +23,44 @@ namespace lyx {
 class InsetMathRoot : public InsetMathNest {
 public:
 	///
-	InsetMathRoot(Buffer * buf);
+	explicit InsetMathRoot(Buffer * buf);
 	///
-	bool idxUpDown(Cursor & cur, bool up) const;
+	bool idxUpDown(Cursor & cur, bool up) const override;
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	bool idxForward(Cursor & cur) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	bool idxBackward(Cursor & cur) const override;
+	///
+	bool idxFirst(Cursor &) const override;
+	///
+	bool idxLast(Cursor &) const override;
 
 	///
-	void write(WriteStream & os) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void normalize(NormalStream &) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
+
 	///
-	void mathmlize(MathStream &) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void htmlize(HtmlStream &) const;
+	void normalize(NormalStream &) const override;
 	///
-	void maple(MapleStream &) const;
+	void mathmlize(MathMLStream &) const override;
 	///
-	void mathematica(MathematicaStream &) const;
+	void htmlize(HtmlStream &) const override;
 	///
-	void octave(OctaveStream &) const;
+	void maple(MapleStream &) const override;
 	///
-	InsetCode lyxCode() const { return MATH_ROOT_CODE; }
+	void mathematica(MathematicaStream &) const override;
 	///
-	void validate(LaTeXFeatures &) const;
+	void octave(OctaveStream &) const override;
+	///
+	InsetCode lyxCode() const override { return MATH_ROOT_CODE; }
+	///
+	void validate(LaTeXFeatures &) const override;
 
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 };
 
 void mathed_root_metrics(MetricsInfo & mi, MathData const & nucleus,

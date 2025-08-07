@@ -481,7 +481,8 @@ class Shortcuts:
     def __init__(self):
         self.shortcut_entry = re.compile(r'^\s*"([^"]+)"\s*\"([^"]+)\"')
         self.bindings = {}
-        self.bind = re.compile(r'^\s*\\bind\s+"([^"]+)"')
+        self.unbindings = {}
+        self.bind = re.compile(r'^\s*\\(un)?bind\s+"([^"]+)"')
         if lyx_userdir_ver is None:
             self.dir = lyx_userdir
         else:
@@ -493,6 +494,15 @@ class Shortcuts:
             sh = m.group(1)
             fkt = m.group(2)
             self.bindings[sh] = fkt
+        else:
+            die(1, "cad shortcut spec(" + c + ")")
+
+    def __UnuseShortcut(self, c):
+        m = self.shortcut_entry.match(c)
+        if m:
+            sh = m.group(1)
+            fkt = m.group(2)
+            self.unbindings[sh] = fkt
         else:
             die(1, "cad shortcut spec(" + c + ")")
 
@@ -511,11 +521,15 @@ class Shortcuts:
                     m = self.bind.match(line)
                     if m:
                         bindfound = True
-                        val = m.group(1)
+                        val = m.group(2)
                         if val in self.bindings:
                             if self.bindings[val] != "":
                                 tmp.write("\\bind \"" + val + "\" \"" + self.bindings[val] + "\"\n")
                                 self.bindings[val] = ""
+                        elif val in self.unbindings:
+                            if self.unbindings[val] != "":
+                                tmp.write("\\unbind \"" + val + "\" \"" + self.unbindings[val] + "\"\n")
+                                self.unbindings[val] = ""
                         else:
                             tmp.write(line + '\n')
                     elif not bindfound:
@@ -527,9 +541,14 @@ class Shortcuts:
                 )
             for val in self.bindings:
                 if not self.bindings[val] is None:
-                    if  self.bindings[val] != "":
+                    if self.bindings[val] != "":
                         tmp.write("\\bind \"" + val + "\" \"" + self.bindings[val] + "\"\n")
                         self.bindings[val] = ""
+            for val in self.unbindings:
+                if not self.unbindings[val] is None:
+                    if self.unbindings[val] != "":
+                        tmp.write("\\unbind \"" + val + "\" \"" + self.unbindings[val] + "\"\n")
+                        self.unbindings[val] = ""
             tmp.close()
             shutil.move(tmp.name, self.dir + '/bind/user.bind')
         else:
@@ -538,6 +557,8 @@ class Shortcuts:
     def dispatch(self, c):
         if c[0:12] == 'UseShortcut ':
             self.__UseShortcut(c[12:])
+        elif c[0:14] == 'UnuseShortcut ':
+            self.__UnuseShortcut(c[14:])
         elif c == 'PrepareShortcuts':
             print('Preparing usefull sortcuts for tests')
             self.__PrepareShortcuts()
@@ -554,7 +575,7 @@ lyx_window_name = os.environ.get('LYX_WINDOW_NAME')
 lyx_other_window_name = None
 screenshot_out = os.environ.get('SCREENSHOT_OUT')
 lyx_userdir = os.environ.get('LYX_USERDIR')
-lyx_userdir_ver = os.environ.get('LYX_USERDIR_23x')
+lyx_userdir_ver = os.environ.get('LYX_USERDIR_24x')
 if lyx_userdir is None:
     lyx_userdir = lyx_userdir_ver
 
@@ -590,10 +611,10 @@ if xvkbd_exe is None:
 
 qt_frontend = os.environ.get('QT_FRONTEND')
 if qt_frontend is None:
-    qt_frontend = 'QT4'
+    qt_frontend = 'QT5'
 if qt_frontend == 'QT5':
     # Some tests sometimes failed with value 0.01 on Qt5.8
-    controlkey_delay = 0.02
+    controlkey_delay = 0.4
 else:
     controlkey_delay = 0.4
 

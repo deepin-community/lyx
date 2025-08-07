@@ -1,0 +1,366 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/eu/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language basque
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\use_lineno 0
+\index Índice
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style swiss
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle plain
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Title
+HAU IDAZKIAREN IZENBURUA DA
+\end_layout
+
+\begin_layout Author
+egilea:
+ Norbait
+\end_layout
+
+\begin_layout Date
+1973ko urriak 23
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Oinarrizko Izakera
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+-en oinarrizko izakeran idatzi beharrekoan datza,
+ eta ez itxuran.
+\end_layout
+
+\begin_layout Subsection
+\SpecialChar LyX
+-ek nola lantzen duen
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+-ek \SpecialChar LaTeX
+ erabiltzen du,
+ Leslie Lamport-ek 1985-an diseinatu zuen idazki prestaketa sisteman.
+ \SpecialChar TeX
+ (Donald Knuth-ek 1984-ean sortuta) izeneko osaketa hizkuntzaren gain eraikia izan zen.
+ \SpecialChar LaTeX
+ \SpecialChar LyX
+-en antzeko izakera baten gain diseinatuta dago.
+ Leslie Lamport-ek esan zuen (
+\begin_inset CommandInset citation
+LatexCommand cite
+key "Lamport"
+literal "true"
+
+\end_inset
+
+ erreferentzia ikusi) :
+\end_layout
+
+\begin_layout Quote
+Tipografi diseinuaren betebeharra irakurtzaileak egilearen burutazioak ulerttu araztean datza.
+ Idazki bat irakur erraza izan dadin,
+ bere ikus egitura bere logika egituraren islada izan behar du.
+ Aipamenak eta ordenagailu programek,
+ egitura ezberdineko elementuak izaterakoan,
+ bata bestearengandik begi bistara ezberdindu beharra daukate [...] Eta nola \SpecialChar LaTeX
+-ek zuzenean ezin zaituen ulertu,
+ zerorrek eskuz agindu berezi batzuek idatziz nahi duzun logika egitura esan behar diozu [...] Idazki bat idazten duzun bitartean,
+ bere logikaren egituran arduratu beharra daukazu,
+ ez bere itxuran.
+\end_layout
+
+\begin_layout Subsection
+\SpecialChar LyX
+ zergatik da hobeagoa
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset label
+LatexCommand label
+name "atal:lyxhobeagoa"
+
+\end_inset
+
+\SpecialChar LyX
+ erabiltzaileentzat \SpecialChar LaTeX
+ baino erabilgarriagoa izan daiteke.
+ Askoz ere erabil errazagokoa da,
+ \SpecialChar LaTeX
+ zer den ikasi beharrik ez bait daukazu (azken finean ia programaketa hizkuntza denez).
+ \SpecialChar LyX
+ ia beste 
+\begin_inset Quotes eld
+\end_inset
+
+ikusten duzuna lortzen duzu
+\begin_inset Quotes erd
+\end_inset
+
+-n idazki prozesatzaileen bezalakoa da,
+ \SpecialChar LyX
+ ordea 
+\begin_inset Quotes eld
+\end_inset
+
+ikusten duzuna esan nahi duzu
+\begin_inset Quotes erd
+\end_inset
+
+ da.
+ Era honetan,
+ idazki prozesatzaileen erreztasuna \SpecialChar LaTeX
+-en indarrarekin batzen da.
+ Eta hau onuragarria da.
+ Horretaz gain,
+ fitxategiaren egitura erabiltzen duzun ordenagailu/sistema-tik aske dago.
+ Eta onena zera da,
+ ASKEA eta DOHAINEKOA dela.
+\end_layout
+
+\begin_layout Section
+\SpecialChar LyX
+-en Ezaugarriak
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+-ek idazkiak idazteko erreztasun asko eskeintzen dituen ezugarri ugari ditu.
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+bestela,
+ zertarako nahiko zenuke erabiltzea?
+\end_layout
+
+\end_inset
+
+ Beraietaz mintzatzeak 
+\emph on
+asko unkitzen
+\emph default
+ nau.
+ Hemen,
+ beraietariko batzuen zerrenda bat daukazu.
+\end_layout
+
+\begin_layout Itemize
+Margenak eta Orri Oineko Oharren zenbaketetaz \SpecialChar LyX
+ bera arduratzen da
+\end_layout
+
+\begin_layout Itemize
+\SpecialChar LyX
+-ek matematika ekuazioak idaztean izugarrizko erreztasuna eskeintzen du.
+\end_layout
+
+\begin_layout Standard
+\SpecialChar LyX
+ beste testu prozesatzaileen baino hobeago izatearen zergatia eztabaidatzeko,
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "atal:lyxhobeagoa"
+nolink "false"
+
+\end_inset
+
+ atala ikusi,
+ 
+\begin_inset CommandInset ref
+LatexCommand pageref
+reference "atal:lyxhobeagoa"
+nolink "false"
+
+\end_inset
+
+ orrialdean aurkitzen da.
+\end_layout
+
+\begin_layout Section
+\SpecialChar LyX
+-eko gauz gehiago erabiltzean saiakera hutsak
+\end_layout
+
+\begin_layout Standard
+Lehengo batean programa bat idatzi nuen.
+ Ondoko hau zen:
+\end_layout
+
+\begin_layout LyX-Code
+5 REMARK NERE PROGRAMA IKUSGARRIA
+\end_layout
+
+\begin_layout LyX-Code
+10 PRINT 
+\begin_inset Quotes eld
+\end_inset
+
+IKUSGARRIA NAIZ
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout LyX-Code
+20 GOTO 10 
+\end_layout
+
+\begin_layout Standard
+Zientzilan ikaragarri haundi honen ondoren,
+ artista bat nintzela sentitzen hasi nintzen,
+ eta ondorengo hori idatzi nuen:
+\end_layout
+
+\begin_layout Verse
+\SpecialChar LyX
+ idazki prozezatzaile
+\begin_inset Newline newline
+\end_inset
+
+Zoragarri bat da
+\begin_inset Newline newline
+\end_inset
+
+Hainbeste denbora aurrezten du
+\end_layout
+
+\begin_layout Section
+Matematikak
+\end_layout
+
+\begin_layout Standard
+Nere ekuazio gogokoena bigarren mailako ekuazio baten emaitza da.
+ Baldin eta 
+\begin_inset Formula $ax^{2}+bx+c=0$
+\end_inset
+
+ (1.ek),
+ orduan 
+\begin_inset Formula $x=\frac{-b\pm\sqrt{b^{2}-4ac}}{2a}$
+\end_inset
+
+ (2.
+ ek) .
+\end_layout
+
+\begin_layout Standard
+Beste ekuazio polita kalkulu oinarria da:
+ 
+\begin_inset Formula $f'(x)\equiv\lim_{\Delta x\rightarrow0}\frac{f(x+\Delta x)-f(x)}{\Delta x}$
+\end_inset
+
+ (3.
+ ek).
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "Lamport"
+literal "true"
+
+\end_inset
+
+Lamport,
+ Leslie.
+ \SpecialChar LaTeX
+:
+ A Document Preparation System.
+ Addison-Wesley,
+ Reading,
+ Massachusetts,
+ bigarren argitaraketa,
+ 1994.
+\end_layout
+
+\end_body
+\end_document

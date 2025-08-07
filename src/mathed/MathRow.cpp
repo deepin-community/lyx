@@ -12,15 +12,17 @@
 
 #include "MathRow.h"
 
-#include "InsetMath.h"
-#include "MathClass.h"
 #include "MathData.h"
 #include "MathSupport.h"
 
 #include "BufferView.h"
 #include "ColorSet.h"
 #include "CoordCache.h"
+#include "Cursor.h"
+#include "LyXRC.h"
 #include "MetricsInfo.h"
+
+#include "mathed/InsetMath.h"
 
 #include "frontends/FontMetrics.h"
 #include "frontends/Painter.h"
@@ -39,7 +41,7 @@ namespace lyx {
 
 MathRow::Element::Element(MetricsInfo const & mi, Type t, MathClass mc)
 	: type(t), mclass(mc), before(0), after(0), macro_nesting(mi.base.macro_nesting),
-	  marker(InsetMath::NO_MARKER), inset(0), compl_unique_to(0), ar(0),
+	  marker(marker_type::NO_MARKER), inset(nullptr), compl_unique_to(0), ar(nullptr),
 	  color(Color_red)
 {}
 
@@ -51,11 +53,11 @@ namespace {
 int markerMargin(MathRow::Element const & e)
 {
 	switch(e.marker) {
-	case InsetMath::MARKER:
-	case InsetMath::MARKER2:
-	case InsetMath::BOX_MARKER:
+	case marker_type::MARKER:
+	case marker_type::MARKER2:
+	case marker_type::BOX_MARKER:
 		return 2;
-	case InsetMath::NO_MARKER:
+	case marker_type::NO_MARKER:
 		return 0;
 	}
 	// should not happen
@@ -68,18 +70,18 @@ void afterMetricsMarkers(MetricsInfo const & , MathRow::Element & e,
 {
 	// handle vertical space for markers
 	switch(e.marker) {
-	case InsetMath::NO_MARKER:
+	case marker_type::NO_MARKER:
 		break;
-	case InsetMath::MARKER:
+	case marker_type::MARKER:
 		++dim.des;
 		break;
-	case InsetMath::MARKER2:
+	case marker_type::MARKER2:
 		++dim.asc;
 		++dim.des;
 		break;
-	case InsetMath::BOX_MARKER:
+	case marker_type::BOX_MARKER:
 		FontInfo font;
-		font.setSize(FONT_SIZE_TINY);
+		font.setSize(TINY_SIZE);
 		Dimension namedim;
 		mathed_string_dim(font, e.inset->name(), namedim);
 		int const namewid = 1 + namedim.wid + 1;
@@ -95,7 +97,7 @@ void afterMetricsMarkers(MetricsInfo const & , MathRow::Element & e,
 void drawMarkers(PainterInfo const & pi, MathRow::Element const & e,
                  int const x, int const y)
 {
-	if (e.marker == InsetMath::NO_MARKER)
+	if (e.marker == marker_type::NO_MARKER)
 		return;
 
 	CoordCache const & coords = pi.base.bv->coordCache();
@@ -106,10 +108,10 @@ void drawMarkers(PainterInfo const & pi, MathRow::Element const & e,
 	int const r = x + dim.width() - e.after;
 
 	// Grey lower box
-	if (e.marker == InsetMath::BOX_MARKER) {
+	if (e.marker == marker_type::BOX_MARKER) {
 		// draw header and rectangle around
 		FontInfo font;
-		font.setSize(FONT_SIZE_TINY);
+		font.setSize(TINY_SIZE);
 		font.setColor(Color_mathmacrolabel);
 		Dimension namedim;
 		mathed_string_dim(font, e.inset->name(), namedim);
@@ -123,7 +125,7 @@ void drawMarkers(PainterInfo const & pi, MathRow::Element const & e,
 	                       || e.inset->editing(pi.base.bv);
 	ColorCode const pen_color = highlight ? Color_mathframe : Color_mathcorners;
 	// If the corners have the same color as the background, do not paint them.
-	if (lcolor.getX11Name(Color_mathbg) == lcolor.getX11Name(pen_color))
+	if (lcolor.getX11HexName(Color_mathbg) == lcolor.getX11HexName(pen_color))
 		return;
 
 	// Lower corners in all cases
@@ -134,8 +136,8 @@ void drawMarkers(PainterInfo const & pi, MathRow::Element const & e,
 	pi.pain.line(r - 3, d, r, d, pen_color);
 
 	// Upper corners
-	if (e.marker == InsetMath::BOX_MARKER
-	    || e.marker == InsetMath::MARKER2) {
+	if (e.marker == marker_type::BOX_MARKER
+	    || e.marker == marker_type::MARKER2) {
 		int const a = y - dim.ascent();
 		pi.pain.line(l, a + 3, l, a, pen_color);
 		pi.pain.line(r, a + 3, r, a, pen_color);
@@ -184,8 +186,8 @@ MathRow::MathRow(MetricsInfo & mi, MathData const * ar)
 	// We go to the end to handle spacing at the end of equation
 	for (int i = 1 ; i != static_cast<int>(elements_.size()) ; ++i) {
 		Element & e = elements_[i];
-
 		Element & bef = elements_[before(i)];
+
 		if (dospacing && e.mclass != MC_UNKNOWN) {
 			int spc = class_spacing(bef.mclass, e.mclass, mi.base);
 			bef.after += spc / 2;
@@ -194,13 +196,21 @@ MathRow::MathRow(MetricsInfo & mi, MathData const * ar)
 		}
 
 		// finally reserve space for markers
-		bef.after = max(bef.after, markerMargin(bef));
+		/* FIXME : the test below avoids that the spacing grows grows
+		 * when a BEGIN/END_SEL element is added (typically start or
+		 * end a selection after a fraction). I would think that the
+		 * code should just go under the e.mclass != MC_UNKNOWN branch
+		 * below, but I am not sure why it has not been done before.
+		 * Therefore, until we double check this, be very conservative
+		 */
+		if (e.type != BEGIN_SEL && e.type != END_SEL)
+			bef.after = max(bef.after, markerMargin(bef));
 		if (e.mclass != MC_UNKNOWN)
 			e.before = max(e.before, markerMargin(e));
 		// for linearized insets (macros...) too
 		if (e.type == BEGIN)
 			bef.after = max(bef.after, markerMargin(e));
-		if (e.type == END && e.marker != InsetMath::NO_MARKER) {
+		if (e.type == END && e.marker != marker_type::NO_MARKER) {
 			Element & aft = elements_[after(i)];
 			aft.before = max(aft.before, markerMargin(e));
 		}
@@ -234,10 +244,8 @@ int MathRow::after(int i) const
 }
 
 
-bool MathRow::metrics(MetricsInfo & mi, Dimension & dim)
+void MathRow::metrics(MetricsInfo & mi, Dimension & dim)
 {
-	bool has_caret = false;
-
 	dim.wid = 0;
 	// In order to compute the dimension of macros and their
 	// arguments, it is necessary to keep track of them.
@@ -249,6 +257,8 @@ bool MathRow::metrics(MetricsInfo & mi, Dimension & dim)
 		Dimension d;
 		switch (e.type) {
 		case DUMMY:
+		case BEGIN_SEL:
+		case END_SEL:
 			break;
 		case INSET:
 			e.inset->metrics(mi, d);
@@ -262,10 +272,8 @@ bool MathRow::metrics(MetricsInfo & mi, Dimension & dim)
 				d.wid = e.before + e.after;
 				e.inset->beforeMetrics();
 			}
-			if (e.ar) {
+			if (e.ar)
 				dim_arrays.push_back(make_pair(e.ar, Dimension()));
-				has_caret |= e.ar->hasCaret(mi.base.bv);
-			}
 			break;
 		case END:
 			if (e.inset) {
@@ -314,12 +322,12 @@ bool MathRow::metrics(MetricsInfo & mi, Dimension & dim)
 		dim.wid += mathed_string_width(font, e.compl_text);
 	}
 	LATTEST(dim_insets.empty() && dim_arrays.empty());
-	return has_caret;
 }
 
 
 void MathRow::draw(PainterInfo & pi, int x, int const y) const
 {
+	Changer change_color;
 	CoordCache & coords = pi.base.bv->coordCache();
 	for (Element const & e : elements_) {
 		switch (e.type) {
@@ -327,15 +335,16 @@ void MathRow::draw(PainterInfo & pi, int x, int const y) const
 			// This is hackish: the math inset does not know that space
 			// has been added before and after it; we alter its dimension
 			// while it is drawing, because it relies on this value.
-			Dimension const d = coords.insets().dim(e.inset);
-			Dimension d2 = d;
-			d2.wid -= e.before + e.after;
-			coords.insets().add(e.inset, d2);
+			Geometry & g = coords.insets().geometry(e.inset);
+			g.dim.wid -= e.before + e.after;
+			if (pi.pain.develMode() && !e.inset->isBufferValid())
+				pi.pain.fillRectangle(x + e.before, y - g.dim.ascent(),
+				                      g.dim.width(), g.dim.height(), Color_error);
 			e.inset->draw(pi, x + e.before, y);
-			coords.insets().add(e.inset, x, y);
-			coords.insets().add(e.inset, d);
+			g.pos = {x, y};
+			g.dim.wid += e.before + e.after;
 			drawMarkers(pi, e, x, y);
-			x += d.wid;
+			x += g.dim.wid;
 			break;
 		}
 		case BEGIN:
@@ -354,6 +363,16 @@ void MathRow::draw(PainterInfo & pi, int x, int const y) const
 			if (e.inset)
 				e.inset->afterDraw(pi);
 			x += e.before + e.after;
+			break;
+		case BEGIN_SEL:
+			// Change the color if the selection is indeed active
+			// FIXME: it would be better to make sure that metrics are
+			//   computed again when selection status changes.
+			if (pi.base.bv->cursor().selection())
+				change_color = pi.base.font.changeColor(Color_selectionmath);
+			break;
+		case END_SEL:
+			change_color = noChange();
 			break;
 		case BOX: {
 			if (e.color == Color_none)
@@ -427,6 +446,12 @@ ostream & operator<<(ostream & os, MathRow::Element const & e)
 			os << ")";
 		if (e.inset)
 			os << "]";
+		break;
+	case MathRow::BEGIN_SEL:
+		os << "<sel>";
+		break;
+	case MathRow::END_SEL:
+		os << "</sel>" ;
 		break;
 	case MathRow::BOX:
 		os << "<" << e.before << "-[]-" << e.after << ">";

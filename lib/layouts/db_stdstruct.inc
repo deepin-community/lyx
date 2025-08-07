@@ -5,13 +5,17 @@
 # It is desirable, as far as possible, to have the same look and feel for
 # related layouts in latex and docbook.
 
-Format 66
+Format 104
 Input stdstruct.inc
 
 Style Abstract
 	LatexType             Environment
 	LatexName             abstract
-	InnerTag              para
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 NoStyle Bibliography

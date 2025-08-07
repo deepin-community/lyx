@@ -33,24 +33,24 @@ public:
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	InsetCode lyxCode() const { return TOC_CODE; }
+	InsetCode lyxCode() const override { return TOC_CODE; }
 	///
-	docstring layoutName() const;
+	docstring layoutName() const override;
 	///
-	DisplayType display() const { return AlignCenter; }
+	int rowFlags() const override { return Display; }
 	///
-	virtual void validate(LaTeXFeatures &) const;
+	void validate(LaTeXFeatures &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream & xs, OutputParams const &) const;
+	docstring xhtml(XMLStream & xs, OutputParams const &) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool clickable(BufferView const &, int, int) const { return true; }
+	bool clickable(BufferView const &, int, int) const override { return true; }
 	//@}
 
 	/// \name Static public methods obligated for InsetCommand derived classes
@@ -65,22 +65,22 @@ public:
 
 private:
 	///
-	void makeTOCWithDepth(XHTMLStream & xs, Toc const & toc, const OutputParams & op) const;
+	void makeTOCWithDepth(XMLStream & xs, Toc const & toc, const OutputParams & op) const;
 	///
-	void makeTOCNoDepth(XHTMLStream & xs, Toc const & toc, const OutputParams & op) const;
+	void makeTOCNoDepth(XMLStream & xs, Toc const & toc, const OutputParams & op) const;
 	///
-	void makeTOCEntry(XHTMLStream & xs, Paragraph const & par, OutputParams const & op) const;
+	void makeTOCEntry(XMLStream & xs, Paragraph const & par, OutputParams const & op) const;
 
 	/// \name Private functions inherited from Inset class
 	//@{
 	///
-	Inset * clone() const { return new InsetTOC(*this); }
+	Inset * clone() const override { return new InsetTOC(*this); }
 	//@}
 
 	/// \name Private functions inherited from InsetCommand class
 	//@{
 	///
-	docstring screenLabel() const;
+	docstring screenLabel() const override;
 	//@}
 };
 

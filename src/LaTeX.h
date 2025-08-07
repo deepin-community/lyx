@@ -16,7 +16,7 @@
 
 #include "OutputParams.h"
 
-#include "support/docstring.h"
+#include "support/strfwd.h"
 #include "support/FileName.h"
 #include "support/signals.h"
 
@@ -60,14 +60,26 @@ public:
 	///
 	Errors::const_iterator end() const { return errors.end(); }
 	///
+	Errors::const_iterator begin_ref() const { return undef_ref.begin(); }
+	///
+	Errors::const_iterator end_ref() const { return undef_ref.end(); }
+	///
 	void insertError(int line, docstring const & error_desc,
 			 docstring const & error_text,
 			 std::string const & child_name = empty_string());
 	///
 	void clearErrors() { errors.clear(); }
+	///
+	void insertRef(int line, docstring const & error_desc,
+			 docstring const & error_text,
+			 std::string const & child_name = empty_string());
+	///
+	void clearRefs() { undef_ref.clear(); }
 private:
 	///
 	Errors errors;
+	/// For missing Citation and references
+	Errors undef_ref;
 };
 
 
@@ -141,13 +153,17 @@ public:
 		///
 		NONZERO_ERROR = 32768, // the command exited with nonzero status
 		///
-		ERRORS = TEX_ERROR + LATEX_ERROR + NONZERO_ERROR + BIBTEX_ERROR,
+		INDEX_ERROR = 65536,
+		///
+		UNDEF_UNKNOWN_REF = 131072,
+		///
+		ERRORS = TEX_ERROR + LATEX_ERROR + NONZERO_ERROR + BIBTEX_ERROR + INDEX_ERROR,
 		///
 		WARNINGS = TEX_WARNING + LATEX_WARNING + PACKAGE_WARNING
 	};
 
 	/// This signal emits an informative message
-	signals2::signal<void(docstring)> message;
+	signal<void(docstring)> message;
 
 
 	/**
@@ -162,13 +178,14 @@ public:
 	      support::FileName const & file,
 	      std::string const & path = empty_string(),
 	      std::string const & lpath = empty_string(),
+	      bool allow_cancellation = false,
 	      bool const clean_start = false);
 
 	/// runs LaTeX several times
 	int run(TeXErrors &);
 
 	///
-	int getNumErrors() { return num_errors;}
+	int getNumErrors() const { return num_errors;}
 
 	///
 	int scanLogFile(TeXErrors &);
@@ -187,12 +204,12 @@ private:
 	///
 	void deplog(DepTable & head);
 
-	///
-	bool runMakeIndex(std::string const &, OutputParams const &,
+	/// returns exit code
+	int runMakeIndex(std::string const &, OutputParams const &,
 			  std::string const & = std::string());
 
-	///
-	bool runMakeIndexNomencl(support::FileName const &,
+	/// returns exit code
+	int runMakeIndexNomencl(support::FileName const &, 
 				 std::string const &, std::string const &);
 
 	///
@@ -213,8 +230,11 @@ private:
 	int scanBlgFile(DepTable & head, TeXErrors & terr);
 
 	///
+	int scanIlgFile(TeXErrors & terr);
+
+	///
 	bool runBibTeX(std::vector<AuxInfo> const &,
-		       OutputParams const &);
+		       OutputParams const &, int & exit_code);
 
 	///
 	void removeAuxiliaryFiles() const;
@@ -242,9 +262,10 @@ private:
 
 	/// Do we use biber?
 	bool biber;
-
 	///
 	std::vector <std::string> children;
+	///
+	bool allow_cancel;
 };
 
 

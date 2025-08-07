@@ -1,17 +1,19 @@
 #\DeclareLyXModule[paralist.sty]{Paragraph Lists (paralist)}
+#\DeclareCategory{List Enhancements}
 #DescriptionBegin
 # The package paralist provides some new list environments.
 # Itemized and enumerated lists can be typeset within paragraphs, as
 # paragraphs and in a compact version. Most environments have optional
 # arguments to format the labels. Additionally, the LaTeX environments
 # itemize and enumerate are extended to use a similar optional argument.
+# For details see Paralist in Specific Manuals.
 #DescriptionEnd
 #Excludes: enumitem
 
 # Author: Georg Baum <baum@lyx.org>
 # (structuring taken from enumitem.module by Günter Milde)
 
-Format 66
+Format 104
 
 AddToPreamble
 	\usepackage{paralist}

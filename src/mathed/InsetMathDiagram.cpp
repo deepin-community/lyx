@@ -50,8 +50,8 @@ void InsetMathDiagram::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	Changer dummy2 = mi.base.changeEnsureMath();
 	FontInfo & f = mi.base.font;
-	Changer dummy = (f.style() == LM_ST_DISPLAY) ? f.changeStyle(LM_ST_TEXT)
-		: Changer();
+	Changer dummy = (f.style() == DISPLAY_STYLE) ? f.changeStyle(TEXT_STYLE)
+		: noChange();
 	InsetMathGrid::metrics(mi, dim);
 }
 
@@ -60,13 +60,13 @@ void InsetMathDiagram::draw(PainterInfo & pi, int x, int y) const
 {
 	Changer dummy2 = pi.base.changeEnsureMath();
 	FontInfo & f = pi.base.font;
-	Changer dummy = (f.style() == LM_ST_DISPLAY) ? f.changeStyle(LM_ST_TEXT)
-		: Changer();
+	Changer dummy = (f.style() == DISPLAY_STYLE) ? f.changeStyle(TEXT_STYLE)
+		: noChange();
 	InsetMathGrid::draw(pi, x, y);
 }
 
 
-void InsetMathDiagram::write(WriteStream & os) const
+void InsetMathDiagram::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 	os << "\\Diagram";

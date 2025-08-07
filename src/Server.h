@@ -14,8 +14,8 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "support/signals.h"
-
+#include <memory>
+#include <string>
 #include <vector>
 
 #ifdef _WIN32
@@ -28,6 +28,21 @@
 namespace lyx {
 
 class Server;
+
+
+/// A small utility to track the lifetime of an object.
+class Trackable {
+public:
+	Trackable() : p_(std::make_shared<int>(0)) {}
+	Trackable(Trackable const &) : Trackable() {}
+	Trackable(Trackable &&) : Trackable() {}
+	Trackable & operator=(Trackable const &) { return *this; }
+	Trackable & operator=(Trackable &&) { return *this; }
+	// This weak pointer lets you know if the parent object has been destroyed
+	std::weak_ptr<void> p() const { return p_; }
+private:
+	std::shared_ptr<void> const p_;
+};
 
 
 /** This class manages the pipes used for communicating with clients.
@@ -104,7 +119,7 @@ public:
 #endif
 
 	/// Tell whether we asked another instance of LyX to open the files
-	bool deferredLoading() { return deferred_loading_; }
+	bool deferredLoading() const { return deferred_loading_; }
 
 private:
 	/// the filename of the in pipe
@@ -120,7 +135,7 @@ private:
 	void closeConnection();
 
 	/// Load files in another running instance of LyX
-	bool loadFilesInOtherInstance();
+	bool loadFilesInOtherInstance() const;
 
 #ifndef _WIN32
 	/// start a pipe
@@ -191,7 +206,7 @@ private:
 	bool deferred_loading_;
 
 	/// Track object's liveness
-	support::Trackable tracker_;
+	Trackable tracker_;
 };
 
 
@@ -206,13 +221,13 @@ public:
 	// lyxserver is using a buffer that is being edited with a bufferview.
 	// With a common buffer list this is not a problem, maybe. (Alejandro)
 	///
-	Server(std::string const & pip);
+	Server(std::string const & pipes);
 	///
 	~Server();
 	///
 	void notifyClient(std::string const &);
 	///
-	bool deferredLoadingToOtherInstance() { return pipes_.deferredLoading(); }
+	bool deferredLoadingToOtherInstance() const { return pipes_.deferredLoading(); }
 
 	/// whilst crashing etc.
 	void emergencyCleanup() { pipes_.emergencyCleanup(); }

@@ -4,12 +4,13 @@
 # KOMA scrbook textclass definition file.
 # Bernd Rellermeyer <100.41728@germanynet.de>, 1998/7/11.
 
-Format 66
+Format 104
 Input scrclass.inc
 Input numreport.inc
 
 Sides			2
 PageStyle		Headings
+DocBookRoot		book
 
 NoStyle Abstract
 
@@ -17,13 +18,19 @@ NoStyle Abstract
 Style Chapter
 	LabelString	"\thechapter"
 	TocLevel 0
+	HTMLTag               h2
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookSectionTag     chapter
 End
 
 
 # Equations are numbered by chapter
 Counter equation
+	GuiName Equation
 	Within chapter
 	LabelString "\thechapter.\arabic{equation}"
+	PrettyFormat "equation \thechapter.\arabic{equation}"
 End
 
 
@@ -31,8 +38,9 @@ Style Bibliography
 	TopSep		4
 	LabelString	"Bibliography"
 	LabelFont
-	  Series	Bold
-	  Size		Largest
+	  Series	    Bold
+	  Size		    Largest
 	EndFont
 	TocLevel        0
+	HTMLTag         h2
 End

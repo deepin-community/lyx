@@ -4,7 +4,7 @@
 # textclass definition file for achemso 3.8 and 3.9
 # Author: Uwe Stöhr (uwestoehr@web.de)
 
-Format 66
+Format 104
 
 Columns				1
 Sides				1
@@ -38,6 +38,7 @@ Style Standard
 	Align			Block
 	AlignPossible	Block, Left, Right, Center
 	LabelType		No_Label
+	DocBookTag      para
 End
 
 Input stdcounters.inc
@@ -75,6 +76,9 @@ Style Title
 	  Tooltip		"Short title which will appear in the running header"
 	  InsertCotext	1
 	EndArgument
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 Style Author
@@ -88,6 +92,12 @@ Style Author
 	  Family		Sans
 	  Size			Large
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType block
+	# Don't merge with the previous, as the author name indicates a new author.
+	DocBookInInfo         always
 End
 
 Style Email
@@ -110,18 +120,38 @@ Style Affiliation
 	  Tooltip		"Short name which appears in the footer of the title page"
 	  InsertCotext	1
 	EndArgument
+	DocBookTag                        affiliation
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 Style Alt_Affiliation
 	CopyStyle		Affiliation
 	LatexName		altaffiliation
 	TopSep			0.7
+	DocBookTag                        affiliation
+	DocBookAttr                       role='alternate'
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 Style Also_Affiliation
 	CopyStyle		Affiliation
 	LatexName		alsoaffiliation
 	TopSep			0.5
+	DocBookTag                        affiliation
+	DocBookAttr                       role='also'
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 Style Fax
@@ -131,6 +161,13 @@ Style Fax
 	LabelSep		xx
 	LabelType		Static
 	LabelString		"Fax:"
+	DocBookTag                        address
+	DocBookTagType                    paragraph
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    phone
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 Style Phone
@@ -138,6 +175,13 @@ Style Phone
 	LatexName		phone
 	LabelString		"Phone:"
 	TopSep			0.5
+	DocBookTag                        address
+	DocBookTagType                    paragraph
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    fax
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 Style Abbreviations
@@ -148,7 +192,7 @@ Style Abbreviations
 	Align			Left
 	LabelString		"Abbreviations:"
 	LabelFont
-	  Color			Blue
+	  Color			textlabel1
 	EndFont
 End
 
@@ -236,14 +280,14 @@ End
 # insert Abtract and Bibliography style
 Input stdstruct.inc
 
-Style Acknowledgement
+Style Acknowledgments
 	CopyStyle		Abstract
 	LatexName		acknowledgement
 	Category		BackMatter
 	InTitle			0
 	BottomSep		0.7
 	LabelType		Above
-	LabelString		"Acknowledgement"
+	LabelString		"Acknowledgments"
 	Font
 	  Size			Normal
 	EndFont
@@ -251,19 +295,27 @@ Style Acknowledgement
 	  Series		Bold
 	  Size			Large
 	EndFont
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
 End
 
 Style SupplementalInfo
-	CopyStyle		Acknowledgement
+	CopyStyle		Acknowledgments
 	LatexName		suppinfo
 	LabelString		"Supporting Information Available"
+	DocBookTag            para
+	DocBookWrapperTag     sidebar
+	DocBookWrapperMergeWithPrevious true
 End
 
 Style TOC_entry
-	CopyStyle		Acknowledgement
+	CopyStyle		Acknowledgments
 	LatexName		tocentry
 	ParSep			0.3
 	LabelString		"Graphical TOC Entry"
+	DocBookTag            para
+	DocBookWrapperTag     sidebar
+	DocBookWrapperMergeWithPrevious true
 End
 
 InsetLayout Flex:Bibnote
@@ -297,9 +349,11 @@ InsetLayout Flex:Chemistry
 	  \usepackage[version=3]{mhchem}
 	EndPreamble
 	LabelFont
-	  Color			blue
+	  Color			textlabel1
 	EndFont
 	MultiPar		false
+	DocBookTag      phrase
+	DocBookAttr     role='chemistry'
 End
 
 InsetLayout Flex:Latin

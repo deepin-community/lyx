@@ -28,7 +28,6 @@
 #ifndef TEXROW_H
 #define TEXROW_H
 
-#include "support/debug.h"
 #include "support/docstring.h"
 #include "support/types.h"
 
@@ -42,10 +41,6 @@ class CursorSlice;
 class DocIterator;
 class docstring_list;
 class FuncRequest;
-
-/// types for cells and math insets
-typedef void const * uid_type;
-typedef size_t idx_type;
 
 
 /// Represents the correspondence between paragraphs and the generated
@@ -119,7 +114,6 @@ public:
 	///
 	TexRow();
 
-#if !(defined(__GNUC__) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 6))
 	/// Copy can be expensive and is not usually useful for TexRow.
 	/// Force explicit copy, prefer move instead. This also prevents
 	/// move()s from being converted into copy silently.
@@ -127,10 +121,6 @@ public:
 	TexRow(TexRow && other) = default;
 	TexRow & operator=(TexRow const & other) = default;
 	TexRow & operator=(TexRow && other) = default;
-# else
-	//for gcc 4.6, nothing to do: it's enough to disable implicit copy during
-	// dev with more recent versions of gcc.
-#endif
 
 	/// Clears structure.
 	void reset();
@@ -241,7 +231,6 @@ struct TexString {
 	docstring str;
 	///
 	TexRow texrow;
-#if !(defined(__GNUC__) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 6))
 	/// Copy can be expensive and is not usually useful for TexString.
 	/// Force explicit copy, prefer move instead. This also prevents
 	/// move()s from being converted into copy silently.
@@ -249,10 +238,6 @@ struct TexString {
 	TexString(TexString && other) = default;
 	TexString & operator=(TexString const & other) = default;
 	TexString & operator=(TexString && other) = default;
-# else
-	//for gcc 4.6, nothing to do: it's enough to disable implicit copy during
-	// dev with more recent versions of gcc.
-#endif
 	/// Empty TexString
 	TexString() = default;
 	/// Texstring containing str and TexRow with enough lines which are empty

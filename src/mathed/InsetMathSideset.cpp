@@ -62,22 +62,6 @@ Inset * InsetMathSideset::clone() const
 }
 
 
-bool InsetMathSideset::idxFirst(Cursor & cur) const
-{
-	cur.idx() = 0;
-	cur.pos() = 0;
-	return true;
-}
-
-
-bool InsetMathSideset::idxLast(Cursor & cur) const
-{
-	cur.idx() = 0;
-	cur.pos() = nuc().size();
-	return true;
-}
-
-
 int InsetMathSideset::dybt(BufferView const & bv, int asc, int des, bool top) const
 {
 	bool isCharBox = nuc().empty() ? false : isAlphaSymbol(nuc().back());
@@ -210,7 +194,7 @@ void InsetMathSideset::metrics(MetricsInfo & mi, Dimension & dim) const
 		tr().metrics(mi, dimtr);
 	}
 
-	BufferView & bv = *mi.base.bv;
+	BufferView const & bv = *mi.base.bv;
 	// FIXME: data copying... not very efficient.
 
 	dim.wid = nwid(bv) + nker(mi.base.bv) + 2 * dx;
@@ -228,7 +212,7 @@ void InsetMathSideset::metrics(MetricsInfo & mi, Dimension & dim) const
 void InsetMathSideset::draw(PainterInfo & pi, int x, int y) const
 {
 	Changer dummy2 = pi.base.changeEnsureMath();
-	BufferView & bv = *pi.base.bv;
+	BufferView const & bv = *pi.base.bv;
 	nuc().draw(pi, x + dxn(bv), y);
 	if (!scriptl_)
 		bl().draw(pi, x          , y);
@@ -350,7 +334,7 @@ bool InsetMathSideset::idxUpDown(Cursor & cur, bool up) const
 }
 
 
-void InsetMathSideset::write(WriteStream & os) const
+void InsetMathSideset::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
 
@@ -401,41 +385,41 @@ void InsetMathSideset::normalize(NormalStream & os) const
 }
 
 
-void InsetMathSideset::mathmlize(MathStream & os) const
+void InsetMathSideset::mathmlize(MathMLStream & ms) const
 {
 	// FIXME This is only accurate if both scriptl_ and scriptr_ are true
 	if (!scriptl_)
-		os << MTag("mrow") << bl() << ETag("mrow");
+		ms << MTag("mrow") << bl() << ETag("mrow");
 	if (scriptl_ || scriptr_) {
-		os << MTag("mmultiscripts");
+		ms << MTag("mmultiscripts");
 
 		if (nuc().empty())
-			os << "<mrow />";
+			ms << CTag("mrow");
 		else
-			os << MTag("mrow") << nuc() << ETag("mrow");
+			ms << MTag("mrow") << nuc() << ETag("mrow");
 
 		if (br().empty() || !scriptr_)
-			os << "<none />";
+			ms << CTag("none");
 		else
-			os << MTag("mrow") << br() << ETag("mrow");
+			ms << MTag("mrow") << br() << ETag("mrow");
 		if (tr().empty() || !scriptr_)
-			os << "<none />";
+			ms << CTag("none");
 		else
-			os << MTag("mrow") << tr() << ETag("mrow");
+			ms << MTag("mrow") << tr() << ETag("mrow");
 
 		if (bl().empty() || !scriptl_)
-			os << "<none />";
+			ms << CTag("none");
 		else
-			os << MTag("mrow") << bl() << ETag("mrow");
+			ms << MTag("mrow") << bl() << ETag("mrow");
 		if (tl().empty() || !scriptl_)
-			os << "<none />";
+			ms << CTag("none");
 		else
-			os << MTag("mrow") << tl() << ETag("mrow");
+			ms << MTag("mrow") << tl() << ETag("mrow");
 
-		os << ETag("mmultiscripts");
+		ms << ETag("mmultiscripts");
 	}
 	if (!scriptr_)
-		os << MTag("mrow") << br() << ETag("mrow");
+		ms << MTag("mrow") << br() << ETag("mrow");
 }
 
 

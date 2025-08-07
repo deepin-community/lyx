@@ -28,13 +28,13 @@
 #include <QFileInfo>
 #include <QList>
 #include <QTemporaryFile>
-#include <QTime>
+#include <QElapsedTimer>
 
 #ifdef _WIN32
 #include <QThread>
 #endif
 
-#include <boost/crc.hpp>
+#include "support/checksum.h"
 
 #include <algorithm>
 #include <iterator>
@@ -84,10 +84,11 @@ struct FileName::Private
 {
 	Private() {}
 
-	Private(string const & abs_filename) : fi(toqstr(handleTildeName(abs_filename)))
+	explicit Private(string const & abs_filename)
+		: fi(toqstr(handleTildeName(abs_filename)))
 	{
 		name = fromqstr(fi.absoluteFilePath());
-		fi.setCaching(fi.exists() ? true : false);
+		fi.setCaching(fi.exists());
 	}
 	///
 	inline void refresh()
@@ -105,9 +106,16 @@ struct FileName::Private
 	static
 	string const handleTildeName(string const & name)
 	{
-		return name == "~" ? Package::get_home_dir().absFileName() :
-			prefixIs(name, "~/") ? Package::get_home_dir().absFileName() + name.substr(1) :
-			name;
+		string resname;
+		if ( name == "~" )
+			resname = Package::get_home_dir().absFileName();
+		else if ( prefixIs(name, "~/"))
+			resname = Package::get_home_dir().absFileName() + name.substr(1);
+		else if ( prefixIs(name, "~:s/"))
+			resname = package().system_support().absFileName() + name.substr(3);
+		else
+			resname = name;
+		return resname;
 	}
 
 	/// The absolute file name in UTF-8 encoding.
@@ -294,6 +302,9 @@ bool FileName::changePermission(unsigned long int mode) const
 			<< mode << ".");
 		return false;
 	}
+#else
+	// squash warning
+	(void) mode;
 #endif
 	return true;
 }
@@ -507,7 +518,12 @@ time_t FileName::lastModified() const
 	// been touched between the object creation and now, we refresh the file
 	// information.
 	d->refresh();
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 8, 0))
+	return d->fi.lastModified().toSecsSinceEpoch();
+#else
 	return d->fi.lastModified().toTime_t();
+#endif
+	
 }
 
 
@@ -525,38 +541,32 @@ bool FileName::link(FileName const & name) const
 
 unsigned long checksum_ifstream_fallback(char const * file)
 {
-	unsigned long result = 0;
 	//LYXERR(Debug::FILES, "lyx::sum() using istreambuf_iterator (fast)");
 	ifstream ifs(file, ios_base::in | ios_base::binary);
 	if (!ifs)
-		return result;
-
-	istreambuf_iterator<char> beg(ifs);
-	istreambuf_iterator<char> end;
-	boost::crc_32_type crc;
-	crc = for_each(beg, end, crc);
-	result = crc.checksum();
-	return result;
+		return 0;
+	return support::checksum(ifs);
 }
+
 
 unsigned long FileName::checksum() const
 {
-	unsigned long result = 0;
-
 	if (!exists()) {
 		//LYXERR0("File \"" << absFileName() << "\" does not exist!");
-		return result;
+		return 0;
 	}
 	// a directory may be passed here so we need to test it. (bug 3622)
 	if (isDirectory()) {
 		LYXERR0('"' << absFileName() << "\" is a directory!");
-		return result;
+		return 0;
 	}
 
 	// This is used in the debug output at the end of the method.
-	static QTime t;
+	static QElapsedTimer t;
 	if (lyxerr.debugging(Debug::FILES))
 		t.restart();
+
+	unsigned long result = 0;
 
 #if QT_VERSION >= 0x999999
 	// First version of checksum uses Qt4.4 mmap support.
@@ -567,15 +577,13 @@ unsigned long FileName::checksum() const
 	// QAbstractFileEngine::MapExtension)
 	QFile qf(fi.filePath());
 	if (!qf.open(QIODevice::ReadOnly))
-		return result;
+		return 0;
 	qint64 size = fi.size();
 	uchar * ubeg = qf.map(0, size);
 	uchar * uend = ubeg + size;
-	boost::crc_32_type ucrc;
-	ucrc.process_block(ubeg, uend);
+	result = support::checksum(ubeg, uend);
 	qf.unmap(ubeg);
 	qf.close();
-	result = ucrc.checksum();
 
 #else // QT_VERSION
 
@@ -587,7 +595,7 @@ unsigned long FileName::checksum() const
 
 	int fd = open(file, O_RDONLY);
 	if (!fd)
-		return result;
+		return 0;
 
 	struct stat info;
 	if (fstat(fd, &info)){
@@ -601,15 +609,13 @@ unsigned long FileName::checksum() const
 	// Some platforms have the wrong type for MAP_FAILED (compaq cxx).
 	if (mm == reinterpret_cast<void*>(MAP_FAILED)) {
 		close(fd);
-		return result;
+		return 0;
 	}
 
-	char * beg = static_cast<char*>(mm);
-	char * end = beg + info.st_size;
+	unsigned char * beg = static_cast<unsigned char*>(mm);
+	unsigned char * end = beg + info.st_size;
 
-	boost::crc_32_type crc;
-	crc.process_block(beg, end);
-	result = crc.checksum();
+	result = support::checksum(beg, end);
 
 	munmap(mm, info.st_size);
 	close(fd);
@@ -679,30 +685,31 @@ bool FileName::destroyDirectory() const
 
 
 // Only used in non Win32 platforms
+#ifndef Q_OS_WIN32
 static int mymkdir(char const * pathname, unsigned long int mode)
 {
 	// FIXME: why don't we have mode_t in lyx::mkdir prototype ??
-#if HAVE_MKDIR
-# if MKDIR_TAKES_ONE_ARG
+# if HAVE_MKDIR
+#  if MKDIR_TAKES_ONE_ARG
 	// MinGW32
 	return ::mkdir(pathname);
 	// FIXME: "Permissions of created directories are ignored on this system."
-# else
+#  else
 	// POSIX
 	return ::mkdir(pathname, mode_t(mode));
-# endif
-#elif defined(_WIN32)
+#  endif
+# elif defined(_WIN32)
 	// plain Windows 32
 	return CreateDirectory(pathname, 0) != 0 ? 0 : -1;
 	// FIXME: "Permissions of created directories are ignored on this system."
-#elif HAVE__MKDIR
+# elif HAVE__MKDIR
 	return ::_mkdir(pathname);
 	// FIXME: "Permissions of created directories are ignored on this system."
-#else
+# else
 #   error "Don't know how to create a directory on this system."
-#endif
-
+# endif
 }
+#endif
 
 
 bool FileName::createDirectory(int permission) const
@@ -710,6 +717,7 @@ bool FileName::createDirectory(int permission) const
 	LASSERT(!empty(), return false);
 #ifdef Q_OS_WIN32
 	// FIXME: "Permissions of created directories are ignored on this system."
+	(void) permission;
 	return createPath();
 #else
 	return mymkdir(toFilesystemEncoding().c_str(), permission) == 0;
@@ -740,7 +748,8 @@ docstring const FileName::absoluteFilePath() const
 
 docstring FileName::displayName(int threshold) const
 {
-	return makeDisplayPath(absFileName(), threshold);
+	return from_utf8(onlyFileName()) + " ("
+		+  makeDisplayPath(onlyPath().absFileName(), threshold) + ")";
 }
 
 
@@ -770,11 +779,7 @@ docstring FileName::fileContents(string const & encoding) const
 	if (encoding.empty() || encoding == "UTF-8")
 		s = QString::fromUtf8(contents.data());
 	else if (encoding == "ascii")
-#if (QT_VERSION < 0x050000)
-		s = QString::fromAscii(contents.data());
-#else
 		s = QString::fromLatin1(contents.data());
-#endif
 	else if (encoding == "local8bit")
 		s = QString::fromLocal8Bit(contents.data());
 	else if (encoding == "latin1")
@@ -801,6 +806,19 @@ void FileName::changeExtension(string const & extension)
 		ext = extension;
 
 	set(oldname.substr(0, last_dot) + ext);
+}
+
+
+void FileName::ensureExtension(string const & extension)
+{
+	string ext;
+	// Make sure the extension starts with a dot
+	if (!extension.empty() && extension[0] != '.')
+		ext= '.' + extension;
+	else
+		ext = extension;
+	if (!suffixIs(ascii_lowercase(absFileName()), ext))
+		set(absFileName() + ext);
 }
 
 
@@ -940,70 +958,102 @@ string DocFileName::outputFileName(string const & path) const
 	return save_abs_path_ ? absFileName() : relFileName(path);
 }
 
+// check for an existing value in a map
+bool collision_exists(map<string, string> const & db, string const & value)
+{
+	for (auto it = db.begin(); it != db.end(); ++it)
+		if (it->second == value)
+			return true;
+	return false;
 
-string DocFileName::mangledFileName(string const & dir) const
+/* replace the above, once we support C++17
+        for (const auto& [key, val] : db)
+                if (val == value)
+                        return true;
+        return false; */
+}
+
+string DocFileName::mangledFileName(string const & dir, bool encrypt_path) const
 {
 	// Concurrent access to these variables is possible.
 
 	// We need to make sure that every DocFileName instance for a given
 	// filename returns the same mangled name.
 	typedef map<string, string> MangledMap;
-	static MangledMap mangledNames;
+	static MangledMap mangledPlainNames;
+	static MangledMap mangledEncryptNames;  //separate table for xhtml() route
 	static Mutex mangledMutex;
 	// this locks both access to mangledNames and counter below
 	Mutex::Locker lock(&mangledMutex);
-	MangledMap::const_iterator const it = mangledNames.find(absFileName());
-	if (it != mangledNames.end())
+	MangledMap * mangledNames = encrypt_path ? &mangledEncryptNames  : &mangledPlainNames;
+	MangledMap::const_iterator const it = mangledNames->find(absFileName());
+	if (it != mangledNames->end())
 		return (*it).second;
 
 	string const name = absFileName();
-	// Now the real work
-	string mname = os::internal_path(name);
-	// Remove the extension.
-	mname = support::changeExtension(name, string());
-	// The mangled name must be a valid LaTeX name.
-	// The list of characters to keep is probably over-restrictive,
-	// but it is not really a problem.
-	// Apart from non-ASCII characters, at least the following characters
-	// are forbidden: '/', '.', ' ', and ':'.
-	// On windows it is not possible to create files with '<', '>' or '?'
-	// in the name.
-	static string const keep = "abcdefghijklmnopqrstuvwxyz"
-				   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-				   "+-0123456789;=";
-	string::size_type pos = 0;
-	while ((pos = mname.find_first_not_of(keep, pos)) != string::npos)
-		mname[pos++] = '_';
-	// Add the extension back on
-	mname = support::changeExtension(mname, getExtension(name));
+	string mname;
 
-	// Prepend a counter to the filename. This is necessary to make
-	// the mangled name unique.
-	static int counter = 0;
-	ostringstream s;
-	s << counter++ << mname;
-	mname = s.str();
+	// xHTML route
+	// we use hash instead of counter to get stable filenames in export directory
+	if (encrypt_path) {
+		// sanitization probably not neccessary for xhtml, but won't harm
+		string sanfn = support::changeExtension(onlyFileName(), string());
+		sanfn = sanitizeFileName(sanfn);
+		// Add the extension back on
+		sanfn = support::changeExtension(sanfn, getExtension(onlyFileName()));
 
-	// MiKTeX's YAP (version 2.4.1803) crashes if the file name
-	// is longer than about 160 characters. MiKTeX's pdflatex
-	// is even pickier. A maximum length of 100 has been proven to work.
-	// If dir.size() > max length, all bets are off for YAP. We truncate
-	// the filename nevertheless, keeping a minimum of 10 chars.
+		//various filesystems have filename limit around 2^8
+		if (sanfn.length() > 230)
+			sanfn = "";
 
-	string::size_type max_length = max(100 - ((int)dir.size() + 1), 10);
+		string enc_name = "e_" + toHexHash(name, true) + "_" + sanfn;
 
-	// If the mangled file name is too long, hack it to fit.
-	// We know we're guaranteed to have a unique file name because
-	// of the counter.
-	if (mname.size() > max_length) {
-		int const half = (int(max_length) / 2) - 2;
-		if (half > 0) {
-			mname = mname.substr(0, half) + "___" +
-				mname.substr(mname.size() - half);
+		while (collision_exists(mangledEncryptNames, enc_name))
+			enc_name = "e_" + toHexHash(enc_name, true) + "_" + sanfn;
+
+		mname = enc_name;
+	}
+
+	// LaTeX route
+	if (!encrypt_path) {
+		// Now the real work. Remove the extension.
+		mname = support::changeExtension(name, string());
+		// The mangled name must be a valid LaTeX name.
+		mname = sanitizeFileName(mname);
+		// Add the extension back on
+		mname = support::changeExtension(mname, getExtension(name));
+
+		// Prepend a counter to the filename. This is necessary to make
+		// the mangled name unique, see truncation below.
+	        //
+		static int counter = 0;
+
+		ostringstream s;
+		s << counter++ << mname;
+		mname = s.str();
+
+
+		// MiKTeX's YAP (version 2.4.1803) crashes if the file name
+		// is longer than about 160 characters. MiKTeX's pdflatex
+		// is even pickier. A maximum length of 100 has been proven to work.
+		// If dir.size() > max length, all bets are off for YAP. We truncate
+		// the filename nevertheless, keeping a minimum of 10 chars.
+
+		string::size_type max_length = max(100 - ((int)dir.size() + 1), 10);
+
+		// If the mangled file name is too long, hack it to fit.
+		// We know we're guaranteed to have a unique file name because
+		// of the counter.
+		if (mname.size() > max_length) {
+			int const half = (int(max_length) / 2) - 2;
+			if (half > 0) {
+				mname = mname.substr(0, half) + "___" +
+					mname.substr(mname.size() - half);
+			}
 		}
 	}
 
-	mangledNames[absFileName()] = mname;
+	(*mangledNames)[absFileName()] = mname;
 	return mname;
 }
 

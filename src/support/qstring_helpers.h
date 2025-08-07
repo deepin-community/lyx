@@ -41,7 +41,7 @@ QString toqstr(std::string const & str);
 
 
 /// Is \p c a valid utf16 char?
-inline bool is_utf16(unsigned int c)
+inline bool is_utf16(char_type c)
 {
 	// 0xd800 ... 0xdfff is the range of surrogate pairs.
 	return c < 0xd800 || (c > 0xdfff && c < 0x10000);
@@ -79,6 +79,27 @@ docstring qstring_to_ucs4(QString const & qstr);
  * non-ASCII stuff should be stored in a docstring.
  */
 std::string fromqstr(QString const & str);
+
+/**
+ * constructs a regex to filter on consecutive characters
+ * matches lower- and uppercase on lowercase characters,
+ * and just uppercase for uppercase
+ */
+QString charFilterRegExp(QString const & filter);
+
+/**
+ * as above, but constructs a capturing regex for a sequence of characters
+ */
+QString charFilterRegExpC(QString const & filter);
+
+/// Method to replace dot with localized decimal separator
+QString locLengthString(QString const & str);
+
+/// Same for doscstring
+docstring locLengthDocString(docstring const str);
+
+/// Method to replace localized decimal separator by dot
+QString unlocLengthString(QString const & str);
 
 } // namespace lyx
 

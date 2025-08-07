@@ -4,17 +4,23 @@
 # Copyright (c) 2013 Kornel Benko <kornel@lyx.org>
 #           (c) 2013 Scott Kostyshak <skotysh@lyx.org>
 #
-# Needed, because of perl scripts here
-find_package(Perl REQUIRED)
 
-# create file the lyx-files-list
 set(TOP_SEARCH_PATH "${TOP_SRC_DIR}")
 set(LYXFILES_FILE "${CMAKE_CURRENT_BINARY_DIR}/filesToScan")
 file(WRITE "${LYXFILES_FILE}")
 file(GLOB_RECURSE lyx_files RELATIVE "${TOP_SEARCH_PATH}" "${TOP_SEARCH_PATH}/*.lyx")
 
+set(NO_SEARCH_PATHS "/attic/" "src/tex2lyx/test" "/autotests/" "development/" "/Obsolete/")
 foreach(_f ${lyx_files})
-  file(APPEND "${LYXFILES_FILE}" "${_f}\n")
+  set(found OFF)
+  foreach(_p ${NO_SEARCH_PATHS})
+    if (_f MATCHES "${_p}")
+      set(found ON)
+    endif()
+  endforeach()
+  if (NOT found)
+    file(APPEND "${LYXFILES_FILE}" "${_f}\n")
+  endif()
 endforeach()
 
 # Define the perl-script running the actual test

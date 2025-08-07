@@ -20,6 +20,9 @@
 
 namespace lyx {
 
+class InsetCaption;
+class InsetLabel;
+
 class InsetCaptionable : public InsetCollapsible
 {
 public:
@@ -34,20 +37,24 @@ protected:
 	///
 	InsetCaption const * getCaptionInset() const;
 	///
+	InsetLabel const * getLabelInset() const;
+	///
 	docstring getCaptionText(OutputParams const &) const;
 	///
 	docstring getCaptionHTML(OutputParams const &) const;
+	///
+	docstring getCaptionDocBook(OutputParams const &) const;
 	///
 	virtual void setCaptionType(std::string const & type);
 	/// are our captions subcaptions?
 	virtual bool hasSubCaptions(ParIterator const &) const { return false; }
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	/// Update the counters of this inset and of its contents
-	void updateBuffer(ParIterator const &, UpdateType);
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false) override;
 	///
-	bool insetAllowed(InsetCode) const;
+	bool insetAllowed(InsetCode) const override;
 private:
 	///
 	std::string caption_type_;

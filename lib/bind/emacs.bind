@@ -25,13 +25,13 @@
 #
 # Happy tuning!
 
-Format 4
+Format 5
 
 \bind "C-~S-at"			"mark-on"
 \bind "C-a"			"line-begin"
 \bind "C-b"			"char-backward"
 #bind "C-c"			"------" // used as users prefix
-\bind "C-d"			"char-delete-forward"
+\bind "C-d"			"char-delete-forward confirm"
 \bind "C-e"			"line-end"
 \bind "C-f"			"char-forward"
 \bind "C-g"			"cancel"
@@ -46,6 +46,9 @@ Format 4
 \bind "C-m"                    "mark-toggle"
 \bind "C-n"                    "down"
 \bind "C-o"                    "inset-toggle"
+
+# facemenu-menu in emacs
+\bind "M-o"                    "inset-settings"
 \bind "C-p"                    "up"
 
 # this is "quoted-insert" a total different meaning from "quote-insert"
@@ -81,6 +84,7 @@ Format 4
 \bind "C-x d"                  "buffer-new"
 \bind "C-x g"                  "buffer-view ps"
 \bind "C-x k"                  "buffer-close"
+\bind "C-x o"                  "tab-group-next"
 \bind "C-x p"                  "buffer-view dvi"
 \bind "C-x r"                  "buffer-update dvi"
 # Should have been "buffer-write-some"
@@ -133,8 +137,8 @@ Format 4
 
 #bind "F1"                     "help"                          # Not yet implemented!
 #bind "C-F1"                   "help-context"                  # Not yet implemented!
-#\bind "F2"                     "buffer-write"
-#\bind "F3"                     "file-open"
+\bind "F2"                     "buffer-write force"
+#\bind "F3"                    "file-open"
 #bind "F4"                     "------"
 #bind "F5"                     "------"
 #bind "F6"                     "------"
@@ -222,9 +226,9 @@ Format 4
 # Edit group
 #
 
-\bind "C-Delete"		"word-delete-forward"
-\bind "M-d"			"word-delete-forward"
-\bind "C-BackSpace"		"word-delete-backward"
+\bind "C-Delete"		"word-delete-forward confirm"
+\bind "M-d"			"word-delete-forward confirm"
+\bind "C-BackSpace"		"word-delete-backward confirm"
 \bind "M-Return"		"paragraph-break inverse"
 \bind "C-Return"		"newline-insert newline"
 \bind "C-S-Return"		"newline-insert linebreak"
@@ -236,8 +240,8 @@ Format 4
 \bind "C-M-space"		"space-insert normal"
 \bind "S-C-space"		"space-insert thin"
 \bind "M-~S-slash"		"specialchar-insert slash"
-\bind "C-period"		"specialchar-insert end-of-sentence"
-\bind "M-period"		"specialchar-insert dots"
+\bind "C-~S-period"		"specialchar-insert end-of-sentence"
+\bind "M-~S-period"		"specialchar-insert dots"
 \bind "M-w"			"copy"
 \bind "Escape"			"meta-prefix"
 \bind "M-u"			"word-upcase partial"

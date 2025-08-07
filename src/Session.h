@@ -64,10 +64,10 @@ public:
 	explicit LastFilesSection(unsigned int num = 4);
 
 	///
-	void read(std::istream & is);
+	void read(std::istream & is) override;
 
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
 	/// Return lastfiles container (vector)
 	LastFiles const lastFiles() const { return lastfiles; }
@@ -119,10 +119,10 @@ public:
 
 public:
 	///
-	void read(std::istream & is);
+	void read(std::istream & is) override;
 
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
 	/// Return lastopened container (vector)
 	LastOpened const getfiles() const { return lastopened; }
@@ -161,10 +161,10 @@ public:
 	LastFilePosSection() : num_lastfilepos(100) {}
 
 	///
-	void read(std::istream & is);
+	void read(std::istream & is) override;
 
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
 	/** add cursor position to the fname entry in the filepos list
 	    @param pos file name and position of the cursor when the BufferView is closed.
@@ -196,7 +196,7 @@ public:
 	/// top and bottom level information sometimes needs to be sync'ed. In particular,
 	/// top_id is determined when a bookmark is restored from session; and
 	/// bottom_pit and bottom_pos are determined from top_id when a bookmark
-	/// is save to session. (What a mess! :-)
+	/// is saved to session. (What a mess! :-)
 	///
 	/// TODO: bottom level pit and pos will be replaced by StableDocIterator
 	class Bookmark {
@@ -229,9 +229,8 @@ public:
 	typedef std::vector<Bookmark> BookmarkList;
 
 public:
-	/// constructor, set max_bookmarks
-	/// allow 9 regular bookmarks, bookmark 0 is temporary
-	BookmarksSection() : bookmarks(10), max_bookmarks(9) {}
+	///
+	BookmarksSection() : bookmarks(max_bookmarks + 1) {}
 
 	/// Save the current position as bookmark
 	void save(support::FileName const & fname, pit_type bottom_pit, pos_type bottom_pos,
@@ -247,29 +246,43 @@ public:
 	bool hasValid() const;
 
 	///
-	unsigned int size() const { return max_bookmarks; }
+	unsigned int size() const { return bookmarks.size(); }
 
 	/// clear all bookmarks
 	void clear();
 
 	///
-	void read(std::istream & is);
+	void read(std::istream & is) override;
 
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
 	/** return bookmark list. Non-const container is used since
 		bookmarks will be cleaned after use.
 	*/
 	BookmarkList & load() { return bookmarks; }
 
+	///
+	typedef std::vector<std::pair<unsigned int, pos_type>> BookmarkPosList;
+
+	/// return a list of bookmarks and position for this paragraph
+	BookmarkPosList bookmarksInPar(support::FileName const & fn, int par_id) const;
+
+	/* An insertion/deletion in paragraph \c par_id of buffer \c fn
+	 * lead to an offset \c offset after position \c pos. Update
+	 * bookmarks accordingly.
+	 */
+	void adjustPosAfterPos(support::FileName const & fn,
+	                       int const par_id, pos_type pos, int offset);
+
 private:
+
+	/// allow 9 regular bookmarks, bookmark 0 is temporary
+	unsigned int const max_bookmarks = 9;
 
 	/// a list of bookmarks
 	BookmarkList bookmarks;
 
-	///
-	unsigned int const max_bookmarks;
 };
 
 
@@ -283,13 +296,13 @@ public:
 	///
 	LastCommandsSection(unsigned int num);
 	///
-	void read(std::istream & is);
+	void read(std::istream & is) override;
 
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
 	/// Return lastcommands container (vector)
-	LastCommands const getcommands() const { return lastcommands; }
+	LastCommands const & getcommands() const { return lastcommands; }
 
 	/** add command to lastcommands list
 	    @param command command to add
@@ -327,10 +340,10 @@ public:
 	explicit AuthFilesSection();
 
 	///
-	void read(std::istream & is);
+	void read(std::istream & is) override;
 
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
 	///
 	bool find(std::string const & name) const;
@@ -348,13 +361,13 @@ class ShellEscapeSection : SessionSection
 {
 public:
 	///
-	explicit ShellEscapeSection() {};
+	explicit ShellEscapeSection() {}
 
 	///
-	void read(std::istream & is);
+	void read(std::istream & is) override;
 
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
 	///
 	bool find(std::string const & name) const;

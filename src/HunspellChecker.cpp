@@ -16,17 +16,13 @@
 #include "LyXRC.h"
 #include "WordLangTuple.h"
 
-#include "frontends/alert.h"
-
 #include "support/debug.h"
 #include "support/docstring_list.h"
 #include "support/filetools.h"
 #include "support/Package.h"
 #include "support/FileName.h"
-#include "support/gettext.h"
 #include "support/lassert.h"
 #include "support/lstrings.h"
-#include "support/os.h"
 
 #include <hunspell/hunspell.hxx>
 
@@ -45,9 +41,7 @@ namespace {
 typedef map<std::string, Hunspell *> Spellers;
 typedef map<std::string, PersonalWordList *> LangPersonalWordList;
 
-typedef vector<WordLangTuple> IgnoreList;
-
-docstring remap_result(docstring const s)
+docstring remap_result(docstring const & s)
 {
 	// substitute RIGHT SINGLE QUOTATION MARK
 	// by APOSTROPHE
@@ -82,7 +76,7 @@ struct HunspellChecker::Private
 	/// the spellers
 	Spellers spellers_;
 	///
-	IgnoreList ignored_;
+	WordLangTable ignored_;
 	///
 	LangPersonalWordList personal_;
 	///
@@ -134,14 +128,14 @@ void HunspellChecker::Private::cleanCache()
 
 	for (; it != end; ++it) {
 		delete it->second;
-		it->second = 0;
+		it->second = nullptr;
 	}
 
 	LangPersonalWordList::const_iterator pdit = personal_.begin();
 	LangPersonalWordList::const_iterator pdet = personal_.end();
 
 	for (; pdit != pdet; ++pdit) {
-		if ( 0 == pdit->second)
+		if (pdit->second == nullptr)
 			continue;
 		PersonalWordList * pd = pdit->second;
 		pd->save();
@@ -230,15 +224,15 @@ Hunspell * HunspellChecker::Private::speller(Language const * lang)
 Hunspell * HunspellChecker::Private::lookup(Language const * lang)
 {
 	Spellers::iterator it = spellers_.find(lang->lang());
-	return it != spellers_.end() ? it->second : 0;
+	return it != spellers_.end() ? it->second : nullptr;
 }
 
 
-Hunspell * HunspellChecker::Private::addSpeller(Language const * lang,string & path)
+Hunspell * HunspellChecker::Private::addSpeller(Language const * lang, string & path)
 {
 	if (!haveDictionary(lang, path)) {
-		spellers_[lang->lang()] = 0;
-		return 0;
+		spellers_[lang->lang()] = nullptr;
+		return nullptr;
 	}
 
 	FileName const affix(path + ".aff");
@@ -252,8 +246,8 @@ Hunspell * HunspellChecker::Private::addSpeller(Language const * lang,string & p
 
 Hunspell * HunspellChecker::Private::addSpeller(Language const * lang)
 {
-	Hunspell * h = 0;
-	for (int p = 0; p < maxLookupSelector() && 0 == h; ++p) {
+	Hunspell * h = nullptr;
+	for (int p = 0; p < maxLookupSelector() && nullptr == h; ++p) {
 		string lpath = dictPath(p);
 		h = addSpeller(lang, lpath);
 	}
@@ -280,14 +274,14 @@ int HunspellChecker::Private::numDictionaries() const
 	Spellers::const_iterator et = spellers_.end();
 
 	for (; it != et; ++it)
-		result += it->second != 0;
+		result += it->second != nullptr;
 	return result;
 }
 
 
 bool HunspellChecker::Private::isIgnored(WordLangTuple const & wl) const
 {
-	IgnoreList::const_iterator it = ignored_.begin();
+	WordLangTable::const_iterator it = ignored_.begin();
 	for (; it != ignored_.end(); ++it) {
 		if (it->lang()->code() != wl.lang()->code())
 			continue;
@@ -348,10 +342,19 @@ HunspellChecker::~HunspellChecker()
 }
 
 
-SpellChecker::Result HunspellChecker::check(WordLangTuple const & wl)
+SpellChecker::Result HunspellChecker::check(WordLangTuple const & wl,
+					    vector<WordLangTuple> const & docdict)
 {
 	if (d->isIgnored(wl))
 		return WORD_OK;
+
+	WordLangTable::const_iterator it = docdict.begin();
+	for (; it != docdict.end(); ++it) {
+		if (it->lang()->code() != wl.lang()->code())
+			continue;
+		if (it->word() == wl.word())
+			return DOCUMENT_LEARNED_WORD;
+	}
 
 	Hunspell * h = d->speller(wl.lang());
 	if (!h)
@@ -424,7 +427,7 @@ void HunspellChecker::suggest(WordLangTuple const & wl,
 	string const word_to_check = to_iconv_encoding(wl.word(), encoding);
 #ifdef HAVE_HUNSPELL_CXXABI
 	vector<string> wlst = h->suggest(word_to_check);
-	for (auto const s : wlst)
+	for (auto const & s : wlst)
 		suggestions.push_back(remap_result(from_iconv_encoding(s, encoding)));
 #else
 	char ** suggestion_list;
@@ -449,7 +452,7 @@ void HunspellChecker::stem(WordLangTuple const & wl,
 	string const word_to_check = to_iconv_encoding(wl.word(), encoding);
 #ifdef HAVE_HUNSPELL_CXXABI
 	vector<string> wlst = h->stem(word_to_check);
-	for (auto const s : wlst)
+	for (auto const & s : wlst)
 		suggestions.push_back(from_iconv_encoding(s, encoding));
 #else
 	char ** suggestion_list;

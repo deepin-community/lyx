@@ -10,7 +10,7 @@
 # This file is written by LyX, if you want to make your own
 # modifications you should do them from inside LyX and save
 
-Format 23
+Format 38
 
 \bind_file "mac"
 
@@ -18,7 +18,7 @@ Format 23
 # MISC SECTION ######################################
 #
 
-\path_prefix "/Library/TeX/texbin:/usr/texbin:/sw/bin:/sw/sbin:/opt/local/teTeX/bin:/opt/local/bin:/usr/local/bin:/usr/bin:/usr/X11R6/bin:/usr/sbin:/sbin"
+\path_prefix "/Library/TeX/texbin:/usr/texbin:/sw/bin:/sw/sbin:/opt/local/teTeX/bin:/opt/homebrew/bin:/opt/local/bin:/usr/local/bin:/usr/bin:/usr/X11R6/bin:/usr/sbin:/sbin"
 \serverpipe "~/Library/Application Support/LyX@version_suffix@/.lyxpipe"
 \preview on
 
@@ -26,7 +26,7 @@ Format 23
 # SCREEN & FONTS SECTION ############################
 #
 
-\screen_font_roman "Times"
+\screen_font_roman "Times New Roman"
 \screen_font_sans "Helvetica"
 \screen_font_typewriter "Courier"
 \open_buffers_in_tabs false
@@ -34,6 +34,12 @@ Format 23
 
 \scroll_wheel_zoom "off"
 \mouse_middlebutton_paste false
+
+\fullscreen_toolbars false
+\fullscreen_statusbar false
+\fullscreen_menubar false
+\fullscreen_tabbar false
+\fullscreen_scrollbar false
 
 #
 # COLOR SECTION ###################################

@@ -11,7 +11,7 @@
 # Full author contact details are available in file CREDITS.
 
 # The interface is designed (partially) following the KDE Human Interface
-# Guidelines (http://techbase.kde.org/Projects/Usability/HIG)
+# Guidelines (https://develop.kde.org/hig/)
 
 # Casing Rules:
 # Capitalize all words in the element, with the following exceptions:
@@ -19,9 +19,9 @@
 # * Conjunctions: and, but, for, not, so, yet ...
 # * Prepositions of three or fewer letters: at, for, by, in, to ...
 #   (except when the preposition is part of a verb phrase, such as "Check In")
-# (http://library.gnome.org/devel/hig-book/stable/design-text-labels.html.en)
+# (https://developer.gnome.org/hig/guidelines/writing-style.html)
 
-Format 4
+Format 5
 
 Menuset
 
@@ -43,14 +43,16 @@ Menuset
 
 	Menu "file"
 		Item "New|N" "buffer-new"
-		Item "New from Template...|m" "buffer-new-template"
+		Item "New from Template...|m" "lyxfiles-open templates"
 		Item "Open...|O" "file-open"
 		Submenu "Open Recent|t" "file_lastfiles"
+		Item "Open Example...|p" "lyxfiles-open examples"
 		Separator
 		Item "Close|C" "buffer-close"
 		Item "Close All" "buffer-close-all"
 		Item "Save|S" "buffer-write"
 		Item "Save As...|A" "buffer-write-as"
+		Item "Save As Template..." "buffer-write-as-template"
 		Item "Save All|l" "buffer-write-all"
 		Item "Revert to Saved|R" "buffer-reload"
 		Submenu "Version Control|V" "file_vc"
@@ -115,12 +117,14 @@ Menuset
 		Item "Find & Replace (Quick)...|F" "dialog-show findreplace"
 		Item "Find & Replace (Advanced)..." "dialog-show findreplaceadv"
 		Separator
-		Item "Move Paragraph Up|o" "paragraph-move-up"
+		Item "Move Paragraph Up|h" "paragraph-move-up"
 		Item "Move Paragraph Down|v" "paragraph-move-down"
 		Separator
-		Submenu "Text Style|S" "edit_textstyles"
-		LanguageSelector
 		Item "Paragraph Settings...|P" "layout-paragraph"
+		Submenu "Text Properties|x" "edit_textprops"
+		OptSubmenu "Custom Text Styles|S" "edit_textstyles"
+		Item "Manage Counter Values..." "dialog-show-new-inset counter"
+		LanguageSelector
 		Separator
 # Mathed b0rkage means these don't work properly
 		OptSubmenu "Table|T" "edit_tabular"
@@ -134,6 +138,7 @@ Menuset
 # obvious what the context is for the others)
 		OptItem "Increase List Depth|I" "depth-increment"
 		OptItem "Decrease List Depth|D" "depth-decrement"
+		Separator
 		OptItem "Dissolve Inset" "inset-dissolve"
 		OptItem "TeX Code Settings...|C" "inset-settings ert"
 # 'a' shortcut to match Insert entry, shouldn't clash with Table Settings
@@ -142,9 +147,9 @@ Menuset
 		OptItem "Note Settings...|N" "inset-settings note"
 		OptItem "Phantom Settings...|h" "inset-settings phantom"
 		OptItem "Branch Settings...|B" "inset-settings branch"
-		OptItem "Box Settings...|x" "inset-settings box"
+		OptItem "Box Settings...|S" "inset-settings box"
 		OptItem "Index Entry Settings...|y" "inset-settings index"
-		OptItem "Index Settings...|x" "inset-settings index_print"
+		OptItem "Index Settings...|S" "inset-settings index_print"
 		OptItem "Info Settings...|n" "inset-settings info"
 		OptItem "Listings Settings...|g" "inset-settings listings"
 # Hey, guess what's broken ? Surprise surprise, it's tabular stuff
@@ -178,16 +183,18 @@ Menuset
 		PasteRecent
 	End
 
-	Menu "edit_textstyles"
-		Item "Dissolve Text Style" "inset-dissolve charstyle"
-		CharStyles
-		Elements
+	Menu "edit_textprops"
+		Item "Customize...|C" "dialog-show character"
+		Item "Apply Last Settings|A" "textstyle-apply"
 		Separator
-		Item "Customized...|C" "dialog-show character"
-		Separator
-		Item "Capitalize|a" "word-capitalize"
+		Item "Capitalize|p" "word-capitalize"
 		Item "Uppercase|U" "word-upcase"
 		Item "Lowercase|L" "word-lowcase"
+	End
+
+	Menu "edit_textstyles"
+		OptItem "Dissolve Text Style" "inset-dissolve charstyle"
+		CharStyles
 	End
 
 # not much we can do to help here
@@ -240,7 +247,7 @@ Menuset
 		Separator
 		Submenu "Change Formula Type|F" "edit_math_mutate"
 		Separator
-		Submenu "Text Style|T" "edit_math_fontstyles"
+		Submenu "Text Properties|T" "edit_math_fontstyles"
 		Separator
 		Submenu "Use Computer Algebra System|S" "edit_math_extern"
 		Separator
@@ -330,21 +337,21 @@ Menuset
 #
 
 	Menu "view"
-		Item "Open All Insets|O" "inset-forall * inset-toggle open"
-		Item "Close All Insets|C" "inset-forall * inset-toggle close"
-		Separator
-		Item "Unfold Math Macro|n" "math-macro-unfold"
-		Item "Fold Math Macro|d" "math-macro-fold"
-		Separator
-		Item "Outline Pane|u" "dialog-toggle toc"
+		Item "Outline Pane|O" "dialog-toggle toc"
 		Item "Code Preview Pane|P" "dialog-toggle view-source"
-		Item "Messages Pane|g" "dialog-toggle progress"
-		Submenu "Toolbars|b" "toolbars"
+		Item "Messages Pane|M" "dialog-toggle progress"
+		Submenu "Toolbars|T" "toolbars"
 		Separator
-		Item "Split View Into Left and Right Half|i" "view-split horizontal"
-		Item "Split View Into Upper and Lower Half|e" "view-split vertical"
+		OptItem "Unfold Math Macro|n" "math-macro-unfold"
+		OptItem "Fold Math Macro|d" "math-macro-fold"
+		Separator
+		Item "Split View Into Left and Right Half|L" "view-split horizontal"
+		Item "Split View Into Upper and Lower Half|U" "view-split vertical"
 		OptItem "Close Current View|w" "tab-group-close"
-		Item "Fullscreen|l" "ui-toggle fullscreen"
+		Item "Fullscreen|F" "ui-toggle fullscreen"
+		Separator
+		Item "Open All Insets|I" "inset-forall * inset-toggle open"
+		Item "Close All Insets|C" "inset-forall * inset-toggle close"
 		Separator
 		Documents
 	End
@@ -370,20 +377,22 @@ Menuset
 		Submenu "Math|h" "insert_math"
 		Submenu "Special Character|p" "insert_special"
 		Submenu "Formatting|o" "insert_formatting"
-		Submenu "List / TOC|i" "insert_toc"
+		Submenu "Field|i" "insert_fields"
+		Submenu "List/Contents/References|/" "insert_toc"
 		Submenu "Float|a" "insert_float"
 		Submenu "Note|N" "insert_note"
 		Submenu "Branch|B" "insert_branches"
-		Submenu "Custom Insets" "insert_custom"
+		Submenu "Custom Inset" "insert_custom"
 		Submenu "File|e" "insert_file"
 		Submenu "Box[[Menu]]|x" "insert_box"
-		OptSubmenu "Insert Regular Expression" "context-edit-regexp"
+		OptSubmenu "Regular Expression" "context-edit-regexp"
 		Separator
 		Item "Citation...|C" "dialog-show-new-inset citation"
 		Item "Cross-Reference...|R" "dialog-show-new-inset ref"
 		Item "Label...|L" "label-insert"
 		Captions
 		Indices
+		OptSubmenu "Index Properties" "index_properties"
 		Item "Nomenclature Entry...|y" "nomencl-insert"
 		Separator
 		Item "Table...|T" "tabular-insert"
@@ -393,7 +402,6 @@ Menuset
 		Item "Footnote|F" "footnote-insert"
 		Item "Marginal Note|M" "marginalnote-insert"
 		Item "Program Listing[[Menu]]" "listing-insert"
-		Item "Date" "date-insert"
 		Separator
 		EnvironmentSeparators
 		Separator
@@ -407,14 +415,32 @@ Menuset
 		Item "Symbols...|b" "dialog-show symbols"
 		Item "Ellipsis|i" "specialchar-insert dots"
 		Item "End of Sentence|E" "specialchar-insert end-of-sentence"
-		Item "Plain Quotation Mark|Q" "quote-insert outer auto plain"
+		Item "Plain Double Quotation Mark|Q" "quote-insert outer auto plain"
+		Item "Plain Single Quotation Mark|S" "quote-insert inner auto plain"
 		Item "Inner Quotation Mark|n" "quote-insert inner"
-		Item "Protected Hyphen|y" "specialchar-insert nobreakdash"
+		Item "Non-Breaking Hyphen|y" "specialchar-insert nobreakdash"
 		Item "Breakable Slash|a" "specialchar-insert slash"
 		Item "Visible Space|V" "space-insert visible"
 		Item "Menu Separator|M" "specialchar-insert menu-separator"
 		Item "Phonetic Symbols|P" "ipa-insert"
 		Submenu "Logos|L" "insert_logos"
+	End
+
+	Menu "insert_fields"
+		Item "Date (Current)|D" "info-insert date"
+		Item "Date (Last Modification of Document)|L" "info-insert moddate"
+		Item "Date (Fixed)|F" "info-insert fixdate"
+		Separator
+		Item "Time (Current)|T" "info-insert time"
+		Item "Time (Last Modification of Document)|M" "info-insert modtime"
+		Item "Time (Fixed)|x" "info-insert fixtime"
+		Separator
+		Item "File Name (Excl. Extension)|N" "info-insert buffer name-noext"
+		OptItem "Version Control Revision|V" "info-insert vcs revision"
+		Item "User Name|U" "info-insert lyxrc user_name"
+		Item "User Email|E" "info-insert lyxrc user_email"
+		Separator
+		Item "Other...|O" "info-insert"
 	End
 
 	Menu "insert_logos"
@@ -428,9 +454,9 @@ Menuset
 		Item "Superscript|S" "script-insert superscript"
 		Item "Subscript|u" "script-insert subscript"
 		Separator
-		Item "Protected Space|P" "space-insert protected"
-		Item "Interword Space|w" "space-insert normal"
-		Item "Thin Space|T" "space-insert thin"
+		Item "Normal Space|e" "space-insert normal"
+		Item "Non-breaking Normal Space|p" "space-insert protected"
+		Item "Non-breaking Thin Space|T" "space-insert thin"
 		Item "Horizontal Space...|o" "command-alternatives dialog-show-new-inset space;dialog-show-new-inset mathspace"
 		Item "Horizontal Line...|L" "dialog-show-new-inset line"
 		Item "Vertical Space...|V" "dialog-show-new-inset vspace"
@@ -444,6 +470,7 @@ Menuset
 		Separator
 		Item "New Page|N" "newpage-insert newpage"
 		Item "Page Break|a" "newpage-insert pagebreak"
+		Item "Prevent Page Break|g" "newpage-insert nopagebreak"
 		Item "Clear Page|C" "newpage-insert clearpage"
 		Item "Clear Double Page|D" "newpage-insert cleardoublepage"
 	End
@@ -476,8 +503,8 @@ Menuset
 	Menu "insert_float"
 		FloatInsert
 # This has got to be better than "Wrap", anyway
-		Item "Figure Wrap Float|F" "wrap-insert figure"
-		Item "Table Wrap Float|T" "wrap-insert table"
+		Item "Wrapped Figure|F" "wrap-insert figure"
+		Item "Wrapped Table|T" "wrap-insert table"
 	End
 
 	Menu "insert_toc"
@@ -508,6 +535,13 @@ Menuset
 		Item "Double Frame|u" "box-insert Doublebox"
 	End
 
+	Menu "index_properties"
+		OptItem "Subentry|b" "indexmacro-insert subentry"
+		OptItem "Sortkey|k" "indexmacro-insert sortkey"
+		OptItem "See|e" "indexmacro-insert see"
+		OptItem "See also|a" "indexmacro-insert seealso"
+	End
+
 	Menu "insert_note"
 		Item "LyX Note|N" "note-insert Note"
 		Item "Comment|C" "note-insert Comment"
@@ -535,6 +569,8 @@ Menuset
 #
 
 	Menu "document"
+		OptItem "Cancel Export|P" "export-cancel"
+		Separator
 		Submenu "Change Tracking|C" "document_change"
 		OptItem "Build Program|B" "build-program"
 		Item "LaTeX Log|L" "dialog-show latexlog"
@@ -557,6 +593,8 @@ Menuset
 		Item "Reject Change|R" "change-reject"
 		Item "Accept All Changes|c" "all-changes-accept"
 		Item "Reject All Changes|e" "all-changes-reject"
+		Item "Accept All Changes (incl. relatives)|p" "ifrelatives master-buffer-forall all-changes-accept"
+		Item "Reject All Changes (incl. relatives)|j" "ifrelatives master-buffer-forall all-changes-reject"
 		Item "Show Changes in Output|S" "changes-output"
 	End
 
@@ -625,20 +663,20 @@ Menuset
 	End
 
 	Menu "examples"
-		Item "Beamer Presentations|B" "help-open beamer"
-		Item "Braille|a" "help-open Braille"
-		Item "Colored boxes|r" "help-open colored-boxes"
-		Item "Feynman-diagram|F" "help-open FeynmanDiagrams"
-		Item "Knitr|K" "help-open knitr"
-		Item "LilyPond|P" "help-open lilypond"
-		Item "Linguistics|L" "help-open linguistics"
-		Item "Multilingual Captions|C" "help-open MultilingualCaptions"
-		Item "Paralist|t" "help-open paralist"
-		Item "PDF comments|D" "help-open PDF-comment"
-		Item "PDF forms|o" "help-open PDF-form"
-		Item "Hazard and Precautionary Statements|H" "help-open H-P-statements"
-		Item "Sweave|S" "help-open sweave"
-		Item "XY-pic|X" "help-open xypic"
+		Item "Beamer Presentations|B" "help-open Presentations/Beamer"
+		Item "Braille|a" "help-open Modules/Braille"
+		Item "Colored boxes|r" "help-open Modules/Fancy_Colored_Boxes"
+		Item "Feynman-diagram|F" "help-open Graphics_and_Insets/Feynman_Diagrams"
+		Item "Knitr|K" "help-open Modules/Rnw_%28knitr%29"
+		Item "LilyPond|P" "help-open Modules/LilyPond_Book"
+		Item "Linguistics|L" "help-open Modules/Linguistics"
+		Item "Multilingual Captions|C" "help-open Modules/Multilingual_Captions"
+		Item "Paralist|t" "help-open Modules/Paragraph_Lists_%28paralist%29"
+		Item "PDF comments|D" "help-open Modules/PDF_Comments"
+		Item "PDF forms|o" "help-open Modules/PDF_Form"
+		Item "Hazard and Precautionary Statements|H" "help-open Modules/Hazard_and_Precautionary_Statements"
+		Item "Sweave|S" "help-open Modules/Sweave"
+		Item "XY-pic|X" "help-open Graphics_and_Insets/XY-Pic"
 	End
 
 

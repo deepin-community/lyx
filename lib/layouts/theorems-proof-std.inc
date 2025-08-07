@@ -1,6 +1,6 @@
-# Moved here by rgheck. Original author cloudy.
+# Moved here by rikiheck. Original author cloudy.
 
-Format 66
+Format 104
 
 #This is just a hacked version of the AMS proof environment
 Style Proof
@@ -17,5 +17,8 @@ Style Proof
 		\providecommand{\proofname}{Proof}
 		\fi
 	EndPreamble
+	EndLabelType          No_Label
 # No LangPreamble or BabelPreamble, since babel knows \proofname already.
+	DocBookTag            para
+	DocBookAttr           role='proof'
 End

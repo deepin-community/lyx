@@ -14,8 +14,6 @@
 #include "ColorCode.h"
 #include "FuncCode.h"
 
-#include "KeyModifier.h"
-
 #include "support/strfwd.h"
 
 #include <functional>
@@ -25,28 +23,21 @@
 
 namespace lyx {
 
-class BufferView;
 class Buffer;
 class DispatchResult;
 class docstring_list;
 class FuncRequest;
 class FuncStatus;
 class Inset;
-class Lexer;
-struct RGBColor;
 
 namespace frontend {
-
-class Clipboard;
-class FontLoader;
-class Selection;
 
 /// The main application class
 /**
 There should be only one instance of this class. No Qt object
-initialisation should be done before the instanciation of this class.
+initialisation should be done before the instantiation of this class.
 
- Model/View/Controller separation at frontend level in LyX-qt4:
+ Model/View/Controller separation at frontend level in qt frontend:
 
  BufferList (N Buffers)
    |
@@ -101,7 +92,7 @@ initialisation should be done before the instanciation of this class.
  screen using the Painter. There can be only one Buffer displayed in
  a BufferView and it is set on construction. Ideally, a BufferView
  should not be able to change the contents of its associated Buffer.
- A BufferView is instanciated and destroyed by a \c WorkArea; it is
+ A BufferView is instantiated and destroyed by a \c WorkArea; it is
  automatically destroyed by the parent WorkArea when its Buffer is
  closed.
 
@@ -117,7 +108,7 @@ initialisation should be done before the instanciation of this class.
  where the next Buffer insertion/deletion is going to take place.
 
 
- 3) The View: \c WorkArea (and it's qt4 specialisation GuiWorkArea)
+ 3) The View: \c WorkArea (and its qt specialisation GuiWorkArea)
 
  This contains the real screen area where the drawing is done by the
  Painter. One WorkArea holds one unique \c BufferView. While it could
@@ -139,9 +130,9 @@ initialisation should be done before the instanciation of this class.
  This is a full window containing a menubar, toolbars and a central
  widget. A GuiView is in charge of creating and closing a View for a
  given Buffer.
- In the qt4 specialisation, \c GuiView, the central widget is a tab
- widget. Each tab is reverved to the visualisation of one Buffer and
- contains one WorkArea. In the qt4 frontend, one GuiView thus contains
+ In the qt specialisation, \c GuiView, the central widget is a tab
+ widget. Each tab is reserved to the visualisation of one Buffer and
+ contains one WorkArea. In the qt frontend, one GuiView thus contains
  multiple WorkAreas but this number can limited to one for another
  frontend. The idea is that the kernel should not know how a Buffer
  is displayed on screen; it's the frontend business.
@@ -212,6 +203,11 @@ public:
 	/// Like getRgbColor(), but static and slower
 	static bool getRgbColorUncached(ColorCode col, RGBColor & rgbcol);
 
+	/**
+	 * @return true if LyX uses a dark theme
+	 */
+	virtual bool isInDarkMode() = 0;
+
 	/** Eg, passing Color_black returns "000000",
 	*      passing Color_white returns "ffffff".
 	*/
@@ -233,11 +229,15 @@ public:
 	virtual bool searchMenu(FuncRequest const & func,
 		docstring_list & names) const = 0;
 
+	virtual bool hasBufferView() const = 0;
+
 	/// \return the icon file name for the given action.
 	static docstring iconName(FuncRequest const & f, bool unknown);
 	/// \return the math icon name for the given command.
 	static docstring mathIcon(docstring const & c);
 
+	/// The language associated to current keyboard
+	virtual std::string inputLanguageCode() const = 0;
 	/// Handle a accented char key sequence
 	/// FIXME: this is only needed for LFUN_ACCENT_* in Text::dispatch()
 	virtual void handleKeyFunc(FuncCode action) = 0;
@@ -253,6 +253,8 @@ public:
 
 	// Add a buffer to the current view, do not switch to it.
 	virtual bool unhide(Buffer * buf) = 0;
+	// Apply preferences at the start
+	static void applyPrefs();
 };
 
 /// Return the list of loadable formats.

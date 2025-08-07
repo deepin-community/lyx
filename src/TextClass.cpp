@@ -16,22 +16,19 @@
 
 #include "TextClass.h"
 
-#include "LayoutFile.h"
 #include "CiteEnginesList.h"
-#include "Color.h"
 #include "Counters.h"
 #include "Floating.h"
 #include "FloatList.h"
 #include "Layout.h"
+#include "LayoutFile.h"
 #include "Lexer.h"
-#include "Font.h"
 #include "ModuleList.h"
 
 #include "frontends/alert.h"
 
 #include "support/lassert.h"
 #include "support/debug.h"
-#include "support/ExceptionMessage.h"
 #include "support/FileName.h"
 #include "support/filetools.h"
 #include "support/gettext.h"
@@ -62,7 +59,7 @@ namespace lyx {
 // You should also run the development/tools/updatelayouts.py script,
 // to update the format of all of our layout files.
 //
-int const LAYOUT_FORMAT = 66; //spitz: New layout tag AutoNests
+int const LAYOUT_FORMAT = 104; // rkh: RefFormat for counters
 
 
 // Layout format for the current lyx file format. Controls which format is
@@ -71,20 +68,6 @@ int const LYXFILE_LAYOUT_FORMAT = LAYOUT_FORMAT;
 
 
 namespace {
-
-class LayoutNamesEqual : public unary_function<Layout, bool> {
-public:
-	LayoutNamesEqual(docstring const & name)
-		: name_(name)
-	{}
-	bool operator()(Layout const & c) const
-	{
-		return c.name() == name_;
-	}
-private:
-	docstring name_;
-};
-
 
 bool layout2layout(FileName const & filename, FileName const & tempfile,
                    int const format = LAYOUT_FORMAT)
@@ -106,7 +89,7 @@ bool layout2layout(FileName const & filename, FileName const & tempfile,
 	LYXERR(Debug::TCLASS, "Running `" << command_str << '\'');
 
 	cmd_ret const ret = runCommand(command_str);
-	if (ret.first != 0) {
+	if (!ret.valid) {
 		if (format == LAYOUT_FORMAT)
 			LYXERR0("Conversion of layout with layout2layout.py has failed.");
 		return false;
@@ -150,21 +133,22 @@ docstring const TextClass::plain_layout_ = from_ascii(N_("Plain Layout"));
 TextClass::TextClass()
 	: loaded_(false), tex_class_avail_(false),
 	  opt_enginetype_("authoryear|numerical"), opt_fontsize_("10|11|12"),
-	  opt_pagestyle_("empty|plain|headings|fancy"), pagestyle_("default"),
-	  columns_(1), sides_(OneSide), secnumdepth_(3), tocdepth_(3),
-	  outputType_(LATEX), outputFormat_("latex"), has_output_format_(false),
-	  defaultfont_(sane_font),
+	  opt_pagesize_("default|a4|a5|b5|letter|legal|executive"),
+	  opt_pagestyle_("empty|plain|headings|fancy"), fontsize_format_("$$spt"), pagesize_("default"),
+	  pagesize_format_("$$spaper"), pagestyle_("default"), tablestyle_("default"),
+	  docbookroot_("article"), docbookforceabstract_(false),
+	  columns_(1), sides_(OneSide), secnumdepth_(3), tocdepth_(3), outputType_(LATEX),
+	  outputFormat_("latex"), has_output_format_(false), defaultfont_(sane_font), 
 	  titletype_(TITLE_COMMAND_AFTER), titlename_("maketitle"),
 	  min_toclevel_(0), max_toclevel_(0), maxcitenames_(2),
-	  cite_full_author_list_(true)
-{
+	  cite_full_author_list_(true), bibintoc_(false) {
 }
 
 
-bool TextClass::readStyle(Lexer & lexrc, Layout & lay) const
+bool TextClass::readStyle(Lexer & lexrc, Layout & lay, ReadType rt) const
 {
 	LYXERR(Debug::TCLASS, "Reading style " << to_utf8(lay.name()));
-	if (!lay.read(lexrc, *this)) {
+	if (!lay.read(lexrc, *this, rt == VALIDATION)) {
 		LYXERR0("Error parsing style `" << to_utf8(lay.name()) << '\'');
 		return false;
 	}
@@ -181,16 +165,20 @@ enum TextClassTags {
 	TC_OUTPUTTYPE = 1,
 	TC_OUTPUTFORMAT,
 	TC_INPUT,
+	TC_INPUT_GLOBAL,
 	TC_STYLE,
 	TC_MODIFYSTYLE,
 	TC_PROVIDESTYLE,
 	TC_DEFAULTSTYLE,
 	TC_INSETLAYOUT,
+	TC_MODIFYINSETLAYOUT,
+	TC_PROVIDEINSETLAYOUT,
 	TC_NOINSETLAYOUT,
 	TC_NOSTYLE,
 	TC_COLUMNS,
 	TC_SIDES,
 	TC_PAGESTYLE,
+	TC_PAGESIZE,
 	TC_DEFAULTFONT,
 	TC_SECNUMDEPTH,
 	TC_TOCDEPTH,
@@ -219,22 +207,29 @@ enum TextClassTags {
 	TC_EXCLUDESMODULE,
 	TC_HTMLTOCSECTION,
 	TC_CITEENGINE,
+	TC_ADDTOCITEENGINE,
 	TC_CITEENGINETYPE,
 	TC_CITEFORMAT,
 	TC_CITEFRAMEWORK,
 	TC_MAXCITENAMES,
 	TC_DEFAULTBIBLIO,
 	TC_FULLAUTHORLIST,
-	TC_OUTLINERNAME
+	TC_OUTLINERNAME,
+	TC_TABLESTYLE,
+	TC_BIBINTOC,
+	TC_DOCBOOKROOT,
+	TC_DOCBOOKFORCEABSTRACT
 };
 
 
 namespace {
 
 LexerKeyword textClassTags[] = {
+	{ "addtociteengine",   TC_ADDTOCITEENGINE },
 	{ "addtohtmlpreamble", TC_ADDTOHTMLPREAMBLE },
 	{ "addtohtmlstyles",   TC_ADDTOHTMLSTYLES },
 	{ "addtopreamble",     TC_ADDTOPREAMBLE },
+	{ "bibintoc",          TC_BIBINTOC },
 	{ "citeengine",        TC_CITEENGINE },
 	{ "citeenginetype",    TC_CITEENGINETYPE },
 	{ "citeformat",        TC_CITEFORMAT },
@@ -246,6 +241,8 @@ LexerKeyword textClassTags[] = {
 	{ "defaultfont",       TC_DEFAULTFONT },
 	{ "defaultmodule",     TC_DEFAULTMODULE },
 	{ "defaultstyle",      TC_DEFAULTSTYLE },
+	{ "docbookforceabstract", TC_DOCBOOKFORCEABSTRACT },
+	{ "docbookroot",       TC_DOCBOOKROOT },
 	{ "excludesmodule",    TC_EXCLUDESMODULE },
 	{ "float",             TC_FLOAT },
 	{ "format",            TC_FORMAT },
@@ -255,9 +252,11 @@ LexerKeyword textClassTags[] = {
 	{ "htmltocsection",    TC_HTMLTOCSECTION },
 	{ "ifcounter",         TC_IFCOUNTER },
 	{ "input",             TC_INPUT },
+	{ "inputglobal",       TC_INPUT_GLOBAL },
 	{ "insetlayout",       TC_INSETLAYOUT },
 	{ "leftmargin",        TC_LEFTMARGIN },
 	{ "maxcitenames",      TC_MAXCITENAMES },
+	{ "modifyinsetlayout", TC_MODIFYINSETLAYOUT },
 	{ "modifystyle",       TC_MODIFYSTYLE },
 	{ "nocounter",         TC_NOCOUNTER },
 	{ "nofloat",           TC_NOFLOAT },
@@ -267,8 +266,10 @@ LexerKeyword textClassTags[] = {
 	{ "outputformat",      TC_OUTPUTFORMAT },
 	{ "outputtype",        TC_OUTPUTTYPE },
 	{ "packageoptions",    TC_PKGOPTS },
+	{ "pagesize",          TC_PAGESIZE },
 	{ "pagestyle",         TC_PAGESTYLE },
 	{ "preamble",          TC_PREAMBLE },
+	{ "provideinsetlayout", TC_PROVIDEINSETLAYOUT },
 	{ "provides",          TC_PROVIDES },
 	{ "providesmodule",    TC_PROVIDESMODULE },
 	{ "providestyle",      TC_PROVIDESTYLE },
@@ -277,6 +278,7 @@ LexerKeyword textClassTags[] = {
 	{ "secnumdepth",       TC_SECNUMDEPTH },
 	{ "sides",             TC_SIDES },
 	{ "style",             TC_STYLE },
+	{ "tablestyle",        TC_TABLESTYLE },
 	{ "titlelatexname",    TC_TITLELATEXNAME },
 	{ "titlelatextype",    TC_TITLELATEXTYPE },
 	{ "tocdepth",          TC_TOCDEPTH }
@@ -433,9 +435,10 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 		}
 
 		// used below to track whether we are in an IfStyle or IfCounter tag.
-		bool modifystyle  = false;
-		bool providestyle = false;
+		bool modify  = false;
+		bool provide = false;
 		bool ifcounter    = false;
+		bool only_global  = false;
 
 		switch (static_cast<TextClassTags>(le)) {
 
@@ -457,15 +460,15 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			case LATEX:
 				outputFormat_ = "latex";
 				break;
-			case DOCBOOK:
-				outputFormat_ = "docbook";
-				break;
 			case LITERATE:
 				outputFormat_ = "literate";
 				break;
 			}
 			break;
 
+		case TC_INPUT_GLOBAL:
+			only_global = true;
+		// fall through
 		case TC_INPUT: // Include file
 			if (lexrc.next()) {
 				FileName tmp;
@@ -473,9 +476,13 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 				if (!path().empty() && (prefixIs(inc, "./") ||
 							prefixIs(inc, "../")))
 					tmp = fileSearch(path(), inc, "layout");
-				else
+				else {
+					// InputGlobal only searches in the system and
+					// build directories. This allows to reuse and
+					// modify files in the user directory.
 					tmp = libFileSearch("layouts", inc,
-							    "layout");
+							    "layout", must_exist, only_global);
+				}
 
 				if (tmp.empty()) {
 					lexrc.printError("Could not find input file: " + inc);
@@ -496,13 +503,13 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			break;
 
 		case TC_MODIFYSTYLE:
-			modifystyle = true;
+			modify = true;
 		// fall through
 		case TC_PROVIDESTYLE:
 			// if modifystyle is true, then we got here by falling through
 			// so we are not in an ProvideStyle block
-			if (!modifystyle)
-				providestyle = true;
+			if (!modify)
+				provide = true;
 		// fall through
 		case TC_STYLE: {
 			if (!lexrc.next()) {
@@ -519,7 +526,7 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 				Layout lay;
 				// Since we couldn't read the name, we just scan the rest
 				// of the style and discard it.
-				error = !readStyle(lexrc, lay);
+				error = !readStyle(lexrc, lay, rt);
 				break;
 			}
 
@@ -528,16 +535,16 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			// If the layout already exists, then we want to add it to
 			// the existing layout, as long as we are not in an ProvideStyle
 			// block.
-			if (have_layout && !providestyle) {
+			if (have_layout && !provide) {
 				Layout & lay = operator[](name);
-				error = !readStyle(lexrc, lay);
+				error = !readStyle(lexrc, lay, rt);
 			}
 			// If the layout does not exist, then we want to create a new
 			// one, but not if we are in a ModifyStyle block.
-			else if (!have_layout && !modifystyle) {
+			else if (!have_layout && !modify) {
 				Layout layout;
 				layout.setName(name);
-				error = !readStyle(lexrc, layout);
+				error = !readStyle(lexrc, layout, rt);
 				if (!error)
 					layoutlist_.push_back(layout);
 
@@ -555,7 +562,7 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			else {
 				Layout lay;
 				// signal to coverity that we do not care about the result
-				(void)readStyle(lexrc, lay);
+				(void)readStyle(lexrc, lay, rt);
 			}
 			break;
 		}
@@ -598,6 +605,11 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 					break;
 				}
 			}
+			break;
+
+		case TC_PAGESIZE:
+			lexrc.next();
+			pagesize_ = rtrim(lexrc.getString());
 			break;
 
 		case TC_PAGESTYLE:
@@ -672,16 +684,16 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			lexrc.eatLine();
 			vector<string> const req
 				= getVectorFromString(lexrc.getString());
-			requires_.insert(req.begin(), req.end());
+			required_.insert(req.begin(), req.end());
 			break;
 		}
 
 		case TC_PKGOPTS : {
 			lexrc.next();
 			string const pkg = lexrc.getString();
-			lexrc.next();
+			lexrc.eatLine();
 			string const options = lexrc.getString();
-			package_options_[pkg] = options;
+			package_options_[pkg] = trim(options, "\"");
 			break;
 		}
 
@@ -724,6 +736,15 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 				rightmargin_ = lexrc.getDocString();
 			break;
 
+		case TC_MODIFYINSETLAYOUT:
+			modify = true;
+		// fall through
+		case TC_PROVIDEINSETLAYOUT:
+			// if modifyinsetlayout is true, then we got here by falling through
+			// so we are not in an ProvideInsetLayout block
+			if (!modify)
+				provide = true;
+		// fall through
 		case TC_INSETLAYOUT: {
 			if (!lexrc.next()) {
 				lexrc.printError("No name given for InsetLayout: `$$Token'.");
@@ -732,6 +753,7 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			}
 			docstring const name = subst(lexrc.getDocString(), '_', ' ');
 			bool const validating = (rt == VALIDATION);
+			bool const have_layout = name.empty() ? false : hasInsetLayout(name);
 			if (name.empty()) {
 				string s = "Could not read name for InsetLayout: `$$Token' "
 					+ lexrc.getString() + " is probably not valid UTF-8!";
@@ -744,15 +766,19 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 				// in which case we want to report the error
 				if (validating)
 					error = true;
-			} else if (hasInsetLayout(name)) {
+			} else if (have_layout && !provide) {
 				InsetLayout & il = insetlayoutlist_[name];
 				error = !il.read(lexrc, *this, validating);
-			} else {
+			} else if (!modify && !have_layout) {
 				InsetLayout il;
 				il.setName(name);
 				error = !il.read(lexrc, *this, validating);
 				if (!error)
 					insetlayoutlist_[name] = il;
+			} else {
+				InsetLayout il;
+				// We just scan the rest of the style and discard it.
+				il.read(lexrc, *this);
 			}
 			break;
 		}
@@ -762,7 +788,11 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			break;
 
 		case TC_CITEENGINE:
-			error = !readCiteEngine(lexrc);
+			error = !readCiteEngine(lexrc, rt);
+			break;
+
+		case TC_ADDTOCITEENGINE:
+			error = !readCiteEngine(lexrc, rt, true);
 			break;
 
 		case TC_CITEENGINETYPE:
@@ -771,7 +801,7 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			break;
 
 		case TC_CITEFORMAT:
-			error = !readCiteFormat(lexrc);
+			error = !readCiteFormat(lexrc, rt);
 			break;
 
 		case TC_CITEFRAMEWORK:
@@ -788,21 +818,24 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 			if (lexrc.next()) {
 				vector<string> const dbs =
 					getVectorFromString(rtrim(lexrc.getString()), "|");
-				vector<string>::const_iterator it  = dbs.begin();
-				vector<string>::const_iterator end = dbs.end();
-				for (; it != end; ++it) {
-					if (!contains(*it, ':')) {
+				for (auto const & dbase : dbs) {
+					if (!contains(dbase, ':')) {
 						vector<string> const enginetypes =
 							getVectorFromString(opt_enginetype_, "|");
-						for (string const &s: enginetypes)
-							cite_default_biblio_style_[s] = *it;
+						for (string const & s: enginetypes)
+							cite_default_biblio_style_[s] = dbase;
 					} else {
 						string eng;
-						string const db = split(*it, eng, ':');
+						string const db = split(dbase, eng, ':');
 						cite_default_biblio_style_[eng] = db;
 					}
 				}
 			}
+			break;
+
+		case TC_BIBINTOC:
+			if (lexrc.next())
+				bibintoc_ = lexrc.getBool();
 			break;
 
 		case TC_FULLAUTHORLIST:
@@ -860,6 +893,21 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 		case TC_OUTLINERNAME:
 			error = !readOutlinerName(lexrc);
 			break;
+
+		case TC_TABLESTYLE:
+			lexrc.next();
+			tablestyle_ = rtrim(lexrc.getString());
+			break;
+
+		case TC_DOCBOOKROOT:
+			if (lexrc.next())
+				docbookroot_ = lexrc.getString();
+			break;
+
+		case TC_DOCBOOKFORCEABSTRACT:
+			if (lexrc.next())
+				docbookforceabstract_ = lexrc.getBool();
+			break;
 		} // end of switch
 	}
 
@@ -887,7 +935,7 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 	// If we do not succeed, then it was not there, which means that
 	// the textclass did not provide the definitions of the standard
 	// insets. So we need to try to load them.
-	int erased = provides_.erase("stdinsets");
+	size_type const erased = provides_.erase("stdinsets");
 	if (!erased) {
 		FileName tmp = libFileSearch("layouts", "stdinsets.inc");
 
@@ -904,10 +952,8 @@ TextClass::ReturnValues TextClass::read(Lexer & lexrc, ReadType rt)
 
 	min_toclevel_ = Layout::NOT_IN_TOC;
 	max_toclevel_ = Layout::NOT_IN_TOC;
-	const_iterator lit = begin();
-	const_iterator len = end();
-	for (; lit != len; ++lit) {
-		int const toclevel = lit->toclevel;
+	for (auto const & lay : *this) {
+		int const toclevel = lay.toclevel;
 		if (toclevel != Layout::NOT_IN_TOC) {
 			if (min_toclevel_ == Layout::NOT_IN_TOC)
 				min_toclevel_ = toclevel;
@@ -951,7 +997,6 @@ void TextClass::readTitleType(Lexer & lexrc)
 void TextClass::readOutputType(Lexer & lexrc)
 {
 	LexerKeyword outputTypeTags[] = {
-		{ "docbook",  DOCBOOK },
 		{ "latex",    LATEX },
 		{ "literate", LITERATE }
 	};
@@ -964,7 +1009,6 @@ void TextClass::readOutputType(Lexer & lexrc)
 		lexrc.printError("Unknown output type `$$Token'");
 		return;
 	case LATEX:
-	case DOCBOOK:
 	case LITERATE:
 		outputType_ = static_cast<OutputType>(le);
 		break;
@@ -979,17 +1023,21 @@ void TextClass::readClassOptions(Lexer & lexrc)
 {
 	enum {
 		CO_FONTSIZE = 1,
+		CO_FONTSIZE_FORMAT,
+		CO_PAGESIZE,
+		CO_PAGESIZE_FORMAT,
 		CO_PAGESTYLE,
 		CO_OTHER,
-		CO_HEADER,
 		CO_END
 	};
 
 	LexerKeyword classOptionsTags[] = {
 		{"end",       CO_END },
 		{"fontsize",  CO_FONTSIZE },
-		{"header",    CO_HEADER },
+		{"fontsizeformat", CO_FONTSIZE_FORMAT },
 		{"other",     CO_OTHER },
+		{"pagesize",  CO_PAGESIZE },
+		{"pagesizeformat", CO_PAGESIZE_FORMAT },
 		{"pagestyle", CO_PAGESTYLE }
 	};
 
@@ -1009,6 +1057,18 @@ void TextClass::readClassOptions(Lexer & lexrc)
 			lexrc.next();
 			opt_fontsize_ = rtrim(lexrc.getString());
 			break;
+		case CO_FONTSIZE_FORMAT:
+			lexrc.next();
+			fontsize_format_ = rtrim(lexrc.getString());
+			break;
+		case CO_PAGESIZE:
+			lexrc.next();
+			opt_pagesize_ = rtrim(lexrc.getString());
+			break;
+		case CO_PAGESIZE_FORMAT:
+			lexrc.next();
+			pagesize_format_ = rtrim(lexrc.getString());
+			break;
 		case CO_PAGESTYLE:
 			lexrc.next();
 			opt_pagestyle_ = rtrim(lexrc.getString());
@@ -1020,10 +1080,6 @@ void TextClass::readClassOptions(Lexer & lexrc)
 			else
 				options_ += ',' + lexrc.getString();
 			break;
-		case CO_HEADER:
-			lexrc.next();
-			class_header_ = subst(lexrc.getString(), "&quot;", "\"");
-			break;
 		case CO_END:
 			getout = true;
 			break;
@@ -1033,15 +1089,46 @@ void TextClass::readClassOptions(Lexer & lexrc)
 }
 
 
-bool TextClass::readCiteEngine(Lexer & lexrc)
+vector<CitationStyle> const & TextClass::getCiteStyles(
+	CiteEngineType const & type) const
+{
+	static vector<CitationStyle> empty;
+	map<CiteEngineType, vector<CitationStyle> >::const_iterator it = cite_styles_.find(type);
+	if (it == cite_styles_.end())
+		return empty;
+	return it->second;
+}
+
+
+bool TextClass::readCiteEngine(Lexer & lexrc, ReadType rt, bool const add)
 {
 	int const type = readCiteEngineType(lexrc);
-	if (type & ENGINE_TYPE_AUTHORYEAR)
-		cite_styles_[ENGINE_TYPE_AUTHORYEAR].clear();
-	if (type & ENGINE_TYPE_NUMERICAL)
-		cite_styles_[ENGINE_TYPE_NUMERICAL].clear();
-	if (type & ENGINE_TYPE_DEFAULT)
-		cite_styles_[ENGINE_TYPE_DEFAULT].clear();
+	bool authoryear = (type & ENGINE_TYPE_AUTHORYEAR);
+	bool numerical = (type & ENGINE_TYPE_NUMERICAL);
+	bool defce = (type & ENGINE_TYPE_DEFAULT);
+
+	if (rt == CITE_ENGINE) {
+		// The cite engines are not supposed to overwrite
+		// CiteStyle defined by the class or a module.
+		if (authoryear)
+			authoryear = getCiteStyles(ENGINE_TYPE_AUTHORYEAR).empty();
+		if (numerical)
+			numerical = getCiteStyles(ENGINE_TYPE_NUMERICAL).empty();
+		if (defce)
+			defce = getCiteStyles(ENGINE_TYPE_DEFAULT).empty();
+	}
+
+	if (rt != CITE_ENGINE && !add) {
+		// Reset if we defined CiteStyle
+		// from the class or a module
+		if (authoryear)
+			cite_styles_[ENGINE_TYPE_AUTHORYEAR].clear();
+		if (numerical)
+			cite_styles_[ENGINE_TYPE_NUMERICAL].clear();
+		if (defce)
+			cite_styles_[ENGINE_TYPE_DEFAULT].clear();
+	}
+
 	string def;
 	bool getout = false;
 	while (!getout && lexrc.isOK()) {
@@ -1123,30 +1210,82 @@ bool TextClass::readCiteEngine(Lexer & lexrc)
 		cs.cmd = latex_cmd.empty() ? lyx_cmd : latex_cmd;
 		if (!alias.empty()) {
 			vector<string> const aliases = getVectorFromString(alias);
-			for (string const &s: aliases)
+			for (string const & s: aliases)
 				cite_command_aliases_[s] = lyx_cmd;
 		}
 		vector<string> const stardescs = getVectorFromString(stardesc, "!");
-		int size = stardesc.size();
+		int size = int(stardesc.size());
 		if (size > 0)
 			cs.stardesc = stardescs[0];
 		if (size > 1)
 			cs.startooltip = stardescs[1];
-		if (type & ENGINE_TYPE_AUTHORYEAR)
-			cite_styles_[ENGINE_TYPE_AUTHORYEAR].push_back(cs);
-		if (type & ENGINE_TYPE_NUMERICAL)
-			cite_styles_[ENGINE_TYPE_NUMERICAL].push_back(cs);
-		if (type & ENGINE_TYPE_DEFAULT)
-			cite_styles_[ENGINE_TYPE_DEFAULT].push_back(cs);
+		if (add) {
+			if (authoryear)
+				class_cite_styles_[ENGINE_TYPE_AUTHORYEAR].push_back(cs);
+			if (numerical)
+				class_cite_styles_[ENGINE_TYPE_NUMERICAL].push_back(cs);
+			if (defce)
+				class_cite_styles_[ENGINE_TYPE_DEFAULT].push_back(cs);
+		} else {
+			if (authoryear)
+				cite_styles_[ENGINE_TYPE_AUTHORYEAR].push_back(cs);
+			if (numerical)
+				cite_styles_[ENGINE_TYPE_NUMERICAL].push_back(cs);
+			if (defce)
+				cite_styles_[ENGINE_TYPE_DEFAULT].push_back(cs);
+		}
 	}
+	// If we do AddToCiteEngine, do not apply yet,
+	// except if we have already a style to add something to
+	bool apply_ay = !add;
+	bool apply_num = !add;
+	bool apply_def = !add;
+	if (add) {
+		if (type & ENGINE_TYPE_AUTHORYEAR)
+			apply_ay = !getCiteStyles(ENGINE_TYPE_AUTHORYEAR).empty();
+		if (type & ENGINE_TYPE_NUMERICAL)
+			apply_num = !getCiteStyles(ENGINE_TYPE_NUMERICAL).empty();
+		if (type & ENGINE_TYPE_DEFAULT)
+			apply_def = !getCiteStyles(ENGINE_TYPE_DEFAULT).empty();
+	}
+
+	// Add the styles from AddToCiteEngine to the class' styles
+	// (but only if they are not yet defined)
+	for (auto const & cis : class_cite_styles_) {
+		// Only consider the current CiteEngineType
+		if (!(type & cis.first))
+			continue;
+		for (auto const & ciss : cis.second) {
+			bool defined = false;
+			// Check if the style "name" is already def'ed
+			for (auto const & av : getCiteStyles(cis.first))
+				if (av.name == ciss.name)
+					defined = true;
+			if (!defined) {
+				if (cis.first == ENGINE_TYPE_AUTHORYEAR && apply_ay)
+					cite_styles_[ENGINE_TYPE_AUTHORYEAR].push_back(ciss);
+				else if (cis.first == ENGINE_TYPE_NUMERICAL && apply_num)
+					cite_styles_[ENGINE_TYPE_NUMERICAL].push_back(ciss);
+				else if (cis.first == ENGINE_TYPE_DEFAULT && apply_def)
+					cite_styles_[ENGINE_TYPE_DEFAULT].push_back(ciss);
+			}
+		}
+	}
+	if (type & ENGINE_TYPE_AUTHORYEAR && apply_ay)
+		class_cite_styles_[ENGINE_TYPE_AUTHORYEAR].clear();
+	if (type & ENGINE_TYPE_NUMERICAL && apply_num)
+		class_cite_styles_[ENGINE_TYPE_NUMERICAL].clear();
+	if (type & ENGINE_TYPE_DEFAULT && apply_def)
+		class_cite_styles_[ENGINE_TYPE_DEFAULT].clear();
 	return getout;
 }
 
 
 int TextClass::readCiteEngineType(Lexer & lexrc) const
 {
-	LATTEST(ENGINE_TYPE_DEFAULT ==
-		(ENGINE_TYPE_AUTHORYEAR | ENGINE_TYPE_NUMERICAL));
+	static_assert(ENGINE_TYPE_DEFAULT ==
+				  (ENGINE_TYPE_AUTHORYEAR | ENGINE_TYPE_NUMERICAL),
+				  "Incorrect default engine type");
 	if (!lexrc.next()) {
 		lexrc.printError("No cite engine type given for token: `$$Token'.");
 		return ENGINE_TYPE_DEFAULT;
@@ -1165,11 +1304,14 @@ int TextClass::readCiteEngineType(Lexer & lexrc) const
 }
 
 
-bool TextClass::readCiteFormat(Lexer & lexrc)
+bool TextClass::readCiteFormat(Lexer & lexrc, ReadType rt)
 {
 	int const type = readCiteEngineType(lexrc);
 	string etype;
 	string definition;
+	// Cite engine definitions do not overwrite existing
+	// definitions from the class or a module
+	bool const overwrite = rt != CITE_ENGINE;
 	while (lexrc.isOK()) {
 		lexrc.next();
 		etype = lexrc.getString();
@@ -1183,19 +1325,61 @@ bool TextClass::readCiteFormat(Lexer & lexrc)
 		if (initchar == '#')
 			continue;
 		if (initchar == '!' || initchar == '_' || prefixIs(etype, "B_")) {
-			if (type & ENGINE_TYPE_AUTHORYEAR)
-				cite_macros_[ENGINE_TYPE_AUTHORYEAR][etype] = definition;
-			if (type & ENGINE_TYPE_NUMERICAL)
-				cite_macros_[ENGINE_TYPE_NUMERICAL][etype] = definition;
-			if (type & ENGINE_TYPE_DEFAULT)
-				cite_macros_[ENGINE_TYPE_DEFAULT][etype] = definition;
+			bool defined = false;
+			bool aydefined = false;
+			bool numdefined = false;
+			// Check if the macro is already def'ed
+			for (auto const & cm : cite_macros_) {
+				if (!(type & cm.first))
+					continue;
+				if (cm.second.find(etype) != cm.second.end()) {
+					if (type == cm.first)
+						// defined as default or specific type
+						defined = true;
+					if (cm.first == ENGINE_TYPE_AUTHORYEAR)
+						// defined for author-year
+						aydefined = true;
+					else if (cm.first == ENGINE_TYPE_NUMERICAL)
+						// defined for numerical
+						numdefined = true;
+				}
+			}
+			if (!defined || overwrite) {
+				if (type & ENGINE_TYPE_AUTHORYEAR && (type != ENGINE_TYPE_DEFAULT || !aydefined))
+					cite_macros_[ENGINE_TYPE_AUTHORYEAR][etype] = definition;
+				if (type & ENGINE_TYPE_NUMERICAL && (type != ENGINE_TYPE_DEFAULT || !numdefined))
+					cite_macros_[ENGINE_TYPE_NUMERICAL][etype] = definition;
+				if (type == ENGINE_TYPE_DEFAULT)
+					cite_macros_[ENGINE_TYPE_DEFAULT][etype] = definition;
+			}
 		} else {
-			if (type & ENGINE_TYPE_AUTHORYEAR)
-				cite_formats_[ENGINE_TYPE_AUTHORYEAR][etype] = definition;
-			if (type & ENGINE_TYPE_NUMERICAL)
-				cite_formats_[ENGINE_TYPE_NUMERICAL][etype] = definition;
-			if (type & ENGINE_TYPE_DEFAULT)
-				cite_formats_[ENGINE_TYPE_DEFAULT][etype] = definition;
+			bool defined = false;
+			bool aydefined = false;
+			bool numdefined = false;
+			// Check if the format is already def'ed
+			for (auto const & cm : cite_formats_) {
+				if (!(type & cm.first))
+					continue;
+				if (cm.second.find(etype) != cm.second.end()) {
+					if (type == cm.first)
+						// defined as default or specific type
+						defined = true;
+					if (cm.first == ENGINE_TYPE_AUTHORYEAR)
+						// defined for author-year
+						aydefined = true;
+					else if (cm.first == ENGINE_TYPE_NUMERICAL)
+						// defined for numerical
+						numdefined = true;
+				}
+			}
+			if (!defined || overwrite){
+				if (type & ENGINE_TYPE_AUTHORYEAR && (type != ENGINE_TYPE_DEFAULT || !aydefined))
+					cite_formats_[ENGINE_TYPE_AUTHORYEAR][etype] = definition;
+				if (type & ENGINE_TYPE_NUMERICAL && (type != ENGINE_TYPE_DEFAULT || !numdefined))
+					cite_formats_[ENGINE_TYPE_NUMERICAL][etype] = definition;
+				if (type == ENGINE_TYPE_DEFAULT)
+					cite_formats_[ENGINE_TYPE_DEFAULT][etype] = definition;
+			}
 		}
 	}
 	return true;
@@ -1217,11 +1401,18 @@ bool TextClass::readFloat(Lexer & lexrc)
 		FT_HTMLSTYLE,
 		FT_HTMLATTR,
 		FT_HTMLTAG,
+		FT_DOCBOOKATTR,
+		FT_DOCBOOKFLOATTYPE,
+		FT_DOCBOOKTAG,
+		FT_DOCBOOKTAGTYPE,
+		FT_DOCBOOKCAPTION,
 		FT_LISTCOMMAND,
 		FT_REFPREFIX,
 		FT_ALLOWED_PLACEMENT,
 		FT_ALLOWS_SIDEWAYS,
-	    	FT_ALLOWS_WIDE,
+		FT_ALLOWS_WIDE,
+		FT_REQUIRES,
+		FT_PRETTYFORMAT,
 		FT_END
 	};
 
@@ -1229,6 +1420,11 @@ bool TextClass::readFloat(Lexer & lexrc)
 		{ "allowedplacement", FT_ALLOWED_PLACEMENT },
 		{ "allowssideways", FT_ALLOWS_SIDEWAYS },
 		{ "allowswide", FT_ALLOWS_WIDE },
+		{ "docbookattr", FT_DOCBOOKATTR },
+		{ "docbookcaption", FT_DOCBOOKCAPTION },
+		{ "docbookfloattype", FT_DOCBOOKFLOATTYPE },
+		{ "docbooktag", FT_DOCBOOKTAG },
+		{ "docbooktagtype", FT_DOCBOOKTAGTYPE },
 		{ "end", FT_END },
 		{ "extension", FT_EXT },
 		{ "guiname", FT_NAME },
@@ -1240,7 +1436,9 @@ bool TextClass::readFloat(Lexer & lexrc)
 		{ "listname", FT_LISTNAME },
 		{ "numberwithin", FT_WITHIN },
 		{ "placement", FT_PLACEMENT },
+		{ "prettyformat", FT_PRETTYFORMAT },
 		{ "refprefix", FT_REFPREFIX },
+		{ "requires", FT_REQUIRES },
 		{ "style", FT_STYLE },
 		{ "type", FT_TYPE },
 		{ "usesfloatpkg", FT_USESFLOAT }
@@ -1252,6 +1450,11 @@ bool TextClass::readFloat(Lexer & lexrc)
 	string htmlattr;
 	docstring htmlstyle;
 	string htmltag;
+	string docbookattr;
+	string docbookcaption;
+	string docbooktag;
+	string docbooktagtype;
+	string docbookfloattype;
 	string listname;
 	string listcommand;
 	string name;
@@ -1261,6 +1464,8 @@ bool TextClass::readFloat(Lexer & lexrc)
 	string style;
 	string type;
 	string within;
+	string required;
+	docstring prettyformat;
 	bool usesfloat = true;
 	bool ispredefined = false;
 	bool allowswide = true;
@@ -1336,6 +1541,10 @@ bool TextClass::readFloat(Lexer & lexrc)
 			lexrc.next();
 			usesfloat = lexrc.getBool();
 			break;
+		case FT_REQUIRES:
+			lexrc.next();
+			required = lexrc.getString();
+			break;
 		case FT_PREDEFINED:
 			lexrc.next();
 			ispredefined = lexrc.getBool();
@@ -1360,8 +1569,35 @@ bool TextClass::readFloat(Lexer & lexrc)
 			lexrc.next();
 			htmltag = lexrc.getString();
 			break;
+		case FT_PRETTYFORMAT:
+			lexrc.next();
+			prettyformat = lexrc.getDocString();
+			break;
+		case FT_DOCBOOKATTR:
+			lexrc.next();
+			docbookattr = lexrc.getString();
+			break;
+		case FT_DOCBOOKCAPTION:
+			lexrc.next();
+			docbookcaption = lexrc.getString();
+			break;
+		case FT_DOCBOOKTAG:
+			lexrc.next();
+			docbooktag = lexrc.getString();
+			break;
+		case FT_DOCBOOKTAGTYPE:
+			lexrc.next();
+			docbooktagtype = lexrc.getString();
+			break;
+		case FT_DOCBOOKFLOATTYPE:
+			lexrc.next();
+			docbookfloattype = lexrc.getString();
+			break;
 		case FT_END:
 			getout = true;
+			break;
+		default:
+			LYXERR0("Unhandled value " << le << " in TextClass::readFloat.");
 			break;
 		}
 	}
@@ -1373,11 +1609,9 @@ bool TextClass::readFloat(Lexer & lexrc)
 		if (!usesfloat && listcommand.empty()) {
 			// if this float uses the same auxfile as an existing one,
 			// there is no need for it to provide a list command.
-			FloatList::const_iterator it = floatlist_.begin();
-			FloatList::const_iterator en = floatlist_.end();
 			bool found_ext = false;
-			for (; it != en; ++it) {
-				if (it->second.ext() == ext) {
+			for (auto const & f : floatlist_) {
+				if (f.second.ext() == ext) {
 					found_ext = true;
 					break;
 				}
@@ -1388,17 +1622,23 @@ bool TextClass::readFloat(Lexer & lexrc)
 			          "not be able to produce a float list.");
 		}
 		Floating fl(type, placement, ext, within, style, name,
-			    listname, listcommand, refprefix, allowed_placement,
-			    htmltag, htmlattr, htmlstyle, usesfloat, ispredefined,
-			    allowswide, allowssideways);
+			listname, listcommand, refprefix, allowed_placement,
+			htmltag, htmlattr, htmlstyle, docbooktag, docbookattr,
+			docbooktagtype, docbookfloattype, docbookcaption,
+			required, usesfloat, ispredefined,
+	        allowswide, allowssideways);
 		floatlist_.newFloat(fl);
 		// each float has its own counter
 		counters_.newCounter(from_ascii(type), from_ascii(within),
-				      docstring(), docstring());
+				docstring(), docstring(),
+				prettyformat.empty() ? bformat(_("%1$s ##"), _(name)) : prettyformat,
+				bformat(_("%1$s (Float)"), _(name)));
 		// also define sub-float counters
 		docstring const subtype = "sub-" + from_ascii(type);
 		counters_.newCounter(subtype, from_ascii(type),
-				      "\\alph{" + subtype + "}", docstring());
+				"\\alph{" + subtype + "}", docstring(),
+				prettyformat.empty() ? bformat(_("Sub-%1$s ##"), _(name)) : prettyformat,
+				bformat(_("Sub-%1$s (Float)"), _(name)));
 	}
 	return getout;
 }
@@ -1438,10 +1678,7 @@ string const & TextClass::prerequisites(string const & sep) const
 bool TextClass::hasLayout(docstring const & n) const
 {
 	docstring const name = n.empty() ? defaultLayoutName() : n;
-
-	return find_if(layoutlist_.begin(), layoutlist_.end(),
-		       LayoutNamesEqual(name))
-		!= layoutlist_.end();
+	return getLayout(name) != nullptr;
 }
 
 
@@ -1458,21 +1695,19 @@ Layout const & TextClass::operator[](docstring const & name) const
 {
 	LATTEST(!name.empty());
 
-	const_iterator it =
-		find_if(begin(), end(), LayoutNamesEqual(name));
-
-	if (it == end()) {
+	Layout const * c = getLayout(name);
+	if (!c) {
 		LYXERR0("We failed to find the layout '" << name
 		       << "' in the layout list. You MUST investigate!");
-		for (const_iterator cit = begin(); cit != end(); ++cit)
-			lyxerr  << " " << to_utf8(cit->name()) << endl;
+		for (auto const & lay : *this)
+			lyxerr  << " " << to_utf8(lay.name()) << endl;
 
 		// We require the name to exist
 		static const Layout dummy;
 		LASSERT(false, return dummy);
 	}
 
-	return *it;
+	return *c;
 }
 
 
@@ -1481,22 +1716,21 @@ Layout & TextClass::operator[](docstring const & name)
 	LATTEST(!name.empty());
 	// Safe to continue, given what we do below.
 
-	iterator it = find_if(begin(), end(), LayoutNamesEqual(name));
-
-	if (it == end()) {
+	Layout * c = getLayout(name);
+	if (!c) {
 		LYXERR0("We failed to find the layout '" << to_utf8(name)
 		       << "' in the layout list. You MUST investigate!");
-		for (const_iterator cit = begin(); cit != end(); ++cit)
-			LYXERR0(" " << to_utf8(cit->name()));
+		for (auto const & lay : *this)
+			LYXERR0(" " << to_utf8(lay.name()));
 
 		// we require the name to exist
 		LATTEST(false);
 		// we are here only in release mode
 		layoutlist_.push_back(createBasicLayout(name, true));
-		it = find_if(begin(), end(), LayoutNamesEqual(name));
+		c = getLayout(name);
 	}
 
-	return *it;
+	return *c;
 }
 
 
@@ -1507,9 +1741,9 @@ bool TextClass::deleteLayout(docstring const & name)
 
 	LayoutList::iterator it =
 		remove_if(layoutlist_.begin(), layoutlist_.end(),
-			  LayoutNamesEqual(name));
+			[name](const Layout &c) { return c.name() == name; });
 
-	LayoutList::iterator end = layoutlist_.end();
+	LayoutList::iterator const end = layoutlist_.end();
 	bool const ret = (it != end);
 	layoutlist_.erase(it, end);
 	return ret;
@@ -1542,11 +1776,35 @@ bool TextClass::load(string const & path) const
 		       << to_utf8(makeDisplayPath(layout_file.absFileName()))
 		       << "'\n(Check `" << name_
 		       << "')\nCheck your installation and "
-		          "try Options/Reconfigure..."
+		          "try Tools/Reconfigure..."
 		       << endl;
 	}
 
 	return loaded_;
+}
+
+
+Layout const * TextClass::getLayout(docstring const & name) const
+{
+	LayoutList::const_iterator cit =
+		find_if(begin(), end(),
+			[name](const Layout &c) { return c.name() == name; });
+	if (cit == layoutlist_.end())
+		return nullptr;
+
+	return &(*cit);
+}
+
+
+Layout * TextClass::getLayout(docstring const & name)
+{
+	LayoutList::iterator it =
+		find_if(layoutlist_.begin(), layoutlist_.end(),
+			[name](const Layout &c) { return c.name() == name; });
+	if (it == layoutlist_.end())
+		return nullptr;
+
+	return &(*it);
 }
 
 
@@ -1564,14 +1822,13 @@ string DocumentClass::forcedLayouts() const
 {
 	ostringstream os;
 	bool first = true;
-	const_iterator const e = end();
-	for (const_iterator i = begin(); i != e; ++i) {
-		if (i->forcelocal > 0) {
+	for (auto const & lay : *this) {
+		if (lay.forcelocal > 0) {
 			if (first) {
 				os << "Format " << LAYOUT_FORMAT << '\n';
 				first = false;
 			}
-			i->write(os);
+			lay.write(os);
 		}
 	}
 	return os.str();
@@ -1636,7 +1893,7 @@ bool TextClass::isPlainLayout(Layout const & layout) const
 
 Layout TextClass::createBasicLayout(docstring const & name, bool unknown) const
 {
-	static Layout * defaultLayout = NULL;
+	static Layout * defaultLayout = nullptr;
 
 	if (defaultLayout) {
 		defaultLayout->setUnknown(unknown);
@@ -1657,7 +1914,7 @@ Layout TextClass::createBasicLayout(docstring const & name, bool unknown) const
 	defaultLayout = new Layout;
 	defaultLayout->setUnknown(unknown);
 	defaultLayout->setName(name);
-	if (!readStyle(lex, *defaultLayout)) {
+	if (!readStyle(lex, *defaultLayout, BASECLASS)) {
 		// The only way this happens is because the hardcoded layout above
 		// is wrong.
 		LATTEST(false);
@@ -1666,29 +1923,26 @@ Layout TextClass::createBasicLayout(docstring const & name, bool unknown) const
 }
 
 
-DocumentClassPtr getDocumentClass(
-		LayoutFile const & baseClass, LayoutModuleList const & modlist,
-		LayoutModuleList const & celist,
-		bool const clone)
+DocumentClassPtr getDocumentClass(LayoutFile const & baseClass, LayoutModuleList const & modlist,
+		string const & cengine, bool clone, bool internal)
 {
+	bool const show_warnings = !clone && !internal;
 	DocumentClassPtr doc_class =
 	    DocumentClassPtr(new DocumentClass(baseClass));
-	LayoutModuleList::const_iterator it = modlist.begin();
-	LayoutModuleList::const_iterator en = modlist.end();
-	for (; it != en; ++it) {
-		string const modName = *it;
-		LyXModule * lm = theModuleList[modName];
+	for (auto const & mod : modlist) {
+		LyXModule * lm = theModuleList[mod];
 		if (!lm) {
-			docstring const msg =
-						bformat(_("The module %1$s has been requested by\n"
-						"this document but has not been found in the list of\n"
-						"available modules. If you recently installed it, you\n"
-						"probably need to reconfigure LyX.\n"), from_utf8(modName));
-			if (!clone)
+			if (show_warnings) {
+				docstring const msg =
+					bformat(_("The module %1$s has been requested by\n"
+					"this document but has not been found in the list of\n"
+					"available modules. If you recently installed it, you\n"
+					"probably need to reconfigure LyX.\n"), from_utf8(mod));
 				frontend::Alert::warning(_("Module not available"), msg);
+			}
 			continue;
 		}
-		if (!lm->isAvailable() && !clone) {
+		if (!lm->isAvailable() && show_warnings) {
 			docstring const prereqs = from_utf8(getStringFromVector(lm->prerequisites(), "\n\t"));
 			docstring const msg =
 				bformat(_("The module %1$s requires a package that is not\n"
@@ -1697,48 +1951,46 @@ DocumentClassPtr getDocumentClass(
 					"Missing prerequisites:\n"
 						"\t%2$s\n"
 					"See section 3.1.2.3 (Modules) of the User's Guide for more information."),
-				from_utf8(modName), prereqs);
+				from_utf8(mod), prereqs);
 			frontend::Alert::warning(_("Package not available"), msg, true);
 		}
 		FileName layout_file = libFileSearch("layouts", lm->getFilename());
 		if (!doc_class->read(layout_file, TextClass::MODULE)) {
 			docstring const msg =
-						bformat(_("Error reading module %1$s\n"), from_utf8(modName));
+				bformat(_("Error reading module %1$s\n"), from_utf8(mod));
 			frontend::Alert::warning(_("Read Error"), msg);
 		}
 	}
 
-	LayoutModuleList::const_iterator cit = celist.begin();
-	LayoutModuleList::const_iterator cen = celist.end();
-	for (; cit != cen; ++cit) {
-		string const ceName = *cit;
-		LyXCiteEngine * ce = theCiteEnginesList[ceName];
-		if (!ce) {
+	if (cengine.empty())
+		return doc_class;
+
+	LyXCiteEngine * ce = theCiteEnginesList[cengine];
+	if (!ce) {
+		if (show_warnings) {
 			docstring const msg =
-						bformat(_("The cite engine %1$s has been requested by\n"
-						"this document but has not been found in the list of\n"
-						"available engines. If you recently installed it, you\n"
-						"probably need to reconfigure LyX.\n"), from_utf8(ceName));
-			if (!clone)
-				frontend::Alert::warning(_("Cite Engine not available"), msg);
-			continue;
+				bformat(_("The cite engine %1$s has been requested by\n"
+				"this document but has not been found in the list of\n"
+				"available engines. If you recently installed it, you\n"
+				"probably need to reconfigure LyX.\n"), from_utf8(cengine));
+			frontend::Alert::warning(_("Cite Engine not available"), msg);
 		}
-		if (!ce->isAvailable() && !clone) {
-			docstring const prereqs = from_utf8(getStringFromVector(ce->prerequisites(), "\n\t"));
-			docstring const msg =
-				bformat(_("The cite engine %1$s requires a package that is not\n"
-					"available in your LaTeX installation, or a converter that\n"
-					"you have not installed. LaTeX output may not be possible.\n"
-					"Missing prerequisites:\n"
-						"\t%2$s\n"
-					"See section 3.1.2.3 (Modules) of the User's Guide for more information."),
-				from_utf8(ceName), prereqs);
-			frontend::Alert::warning(_("Package not available"), msg, true);
-		}
+	} else if (!ce->isAvailable() && show_warnings) {
+		docstring const prereqs = from_utf8(getStringFromVector(ce->prerequisites(), "\n\t"));
+		docstring const msg =
+			bformat(_("The cite engine %1$s requires a package that is not\n"
+				"available in your LaTeX installation, or a converter that\n"
+				"you have not installed. LaTeX output may not be possible.\n"
+				"Missing prerequisites:\n"
+					"\t%2$s\n"
+				"See section 3.1.2.3 (Modules) of the User's Guide for more information."),
+			from_utf8(cengine), prereqs);
+		frontend::Alert::warning(_("Package not available"), msg, true);
+	} else {
 		FileName layout_file = libFileSearch("citeengines", ce->getFilename());
 		if (!doc_class->read(layout_file, TextClass::CITE_ENGINE)) {
 			docstring const msg =
-						bformat(_("Error reading cite engine %1$s\n"), from_utf8(ceName));
+				bformat(_("Error reading cite engine %1$s\n"), from_utf8(cengine));
 			frontend::Alert::warning(_("Read Error"), msg);
 		}
 	}
@@ -1760,10 +2012,8 @@ DocumentClass::DocumentClass(LayoutFile const & tc)
 
 bool DocumentClass::hasLaTeXLayout(std::string const & lay) const
 {
-	LayoutList::const_iterator it  = layoutlist_.begin();
-	LayoutList::const_iterator end = layoutlist_.end();
-	for (; it != end; ++it)
-		if (it->latexname() == lay)
+	for (auto const & l : layoutlist_)
+		if (l.latexname() == lay)
 			return true;
 	return false;
 }
@@ -1784,17 +2034,15 @@ bool DocumentClass::hasTocLevels() const
 Layout const & DocumentClass::getTOCLayout() const
 {
 	// we're going to look for the layout with the minimum toclevel
-	TextClass::LayoutList::const_iterator lit = begin();
-	TextClass::LayoutList::const_iterator const len = end();
 	int minlevel = 1000;
-	Layout const * lay = NULL;
-	for (; lit != len; ++lit) {
-		int const level = lit->toclevel;
+	Layout const * lay = nullptr;
+	for (auto const & l : *this) {
+		int const level = l.toclevel;
 		// we don't want Part or unnumbered sections
 		if (level == Layout::NOT_IN_TOC || level < 0
-		    || level >= minlevel || lit->counter.empty())
+			|| level >= minlevel || l.counter.empty())
 			continue;
-		lay = &*lit;
+		lay = &l;
 		minlevel = level;
 	}
 	if (lay)
@@ -1815,7 +2063,9 @@ Layout const & DocumentClass::htmlTOCLayout() const
 string const DocumentClass::getCiteFormat(CiteEngineType const & type,
 	string const & entry, bool const punct, string const & fallback) const
 {
-	string default_format = "{%fullnames:author%[[%fullnames:author%, ]][[{%fullnames:editor%[[%fullnames:editor%, ed., ]]}]]}\"%title%\"{%journal%[[, {!<i>!}%journal%{!</i>!}]][[{%publisher%[[, %publisher%]][[{%institution%[[, %institution%]]}]]}]]}{%year%[[ (%year%)]]}{%pages%[[, %pages%]]}";
+	string default_format = "{%fullnames:author%[[%fullnames:author%, ]][[{%fullnames:editor%[[%fullnames:editor%, ed., ]]}]]}"
+				"\"%title%\"{%journal%[[, {!<i>!}%journal%{!</i>!}]][[{%publisher%[[, %publisher%]]"
+				"[[{%institution%[[, %institution%]]}]]}]]}{%year%[[ (%year%)]]}{%pages%[[, %pages%]]}";
 	if (punct)
 		default_format += ".";
 
@@ -1851,13 +2101,11 @@ vector<string> const DocumentClass::citeCommands(
 	CiteEngineType const & type) const
 {
 	vector<CitationStyle> const styles = citeStyles(type);
-	vector<CitationStyle>::const_iterator it = styles.begin();
-	vector<CitationStyle>::const_iterator end = styles.end();
 	vector<string> cmds;
-	for (; it != end; ++it) {
-		CitationStyle const cite = *it;
-		cmds.push_back(cite.name);
-	}
+	cmds.reserve(styles.size());
+	for (auto const & cs : styles)
+		cmds.push_back(cs.name);
+
 	return cmds;
 }
 

@@ -1,10 +1,10 @@
 dnl Process with autoconf to generate configure script   -*- sh -*-
 
-AC_INIT(LyX,2.3.6,[lyx-devel@lists.lyx.org],[lyx])
+AC_INIT([LyX],[2.4.3],[lyx-devel@lists.lyx.org],[lyx])
 AC_PRESERVE_HELP_ORDER
 # Use ISO format only. The frontend needs to parse this
-AC_SUBST(LYX_DATE, ["2020-11-27"])
-AC_PREREQ(2.65)
+AC_SUBST(LYX_DATE, ["2025-01-09"])
+AC_PREREQ([2.65])
 AC_CONFIG_SRCDIR(src/main.cpp)
 AC_CONFIG_HEADERS([config.h])
 
@@ -13,7 +13,7 @@ AC_CONFIG_AUX_DIR(config)
 # First check the version
 LYX_CHECK_VERSION
 LYX_VERSION_SUFFIX
-LYX_CHECK_QT5
+LYX_CHECK_QT6
 # Check how the files should be packaged
 AC_CANONICAL_TARGET
 LYX_USE_PACKAGING
@@ -31,30 +31,8 @@ AM_SILENT_RULES([yes])
 # file names only up to 99 characters. tar-ustar selects the ustar format defined
 # by POSIX 1003.1-1988. This format is believed to be old enough to be portable.
 save_PACKAGE=$PACKAGE
-AM_INIT_AUTOMAKE([foreign dist-bzip2 no-define 1.8 tar-ustar subdir-objects])
+AM_INIT_AUTOMAKE([foreign dist-xz no-define 1.14 tar-ustar subdir-objects])
 PACKAGE=$save_PACKAGE
-
-# Allow to build some parts of the code as one big chunk
-m4_define([ALLPARTS],[boost,client,insets,mathed,core,tex2lyx,frontend_qt])
-AC_ARG_ENABLE(monolithic-build,
-  AC_HELP_STRING([--enable-monolithic-build@<:@=LIST@:>@],
-		[Use monolithic build for modules in LIST (default: ALLPARTS)]),
-  [test "$enable_monolithic_build" = yes && enable_monolithic_build="ALLPARTS"
-   test "$enable_monolithic_build" = no && enable_monolithic_build=
-   IFS="${IFS=	}"; ac_save_ifs="$IFS"; IFS=" ,"
-   for i in $enable_monolithic_build ; do
-       eval "enable_monolithic_$i=yes"
-   done
-   IFS="$ac_save_ifs"],
-  [enable_monolithic_build=])
-
-AM_CONDITIONAL(MONOLITHIC_BOOST, test "x$enable_monolithic_boost" = "xyes")
-AM_CONDITIONAL(MONOLITHIC_CLIENT, test "x$enable_monolithic_client" = "xyes")
-AM_CONDITIONAL(MONOLITHIC_INSETS, test "x$enable_monolithic_insets" = "xyes")
-AM_CONDITIONAL(MONOLITHIC_MATHED, test "x$enable_monolithic_mathed" = "xyes")
-AM_CONDITIONAL(MONOLITHIC_CORE, test "x$enable_monolithic_core" = "xyes")
-AM_CONDITIONAL(MONOLITHIC_TEX2LYX, test "x$enable_monolithic_tex2lyx" = "xyes")
-AM_CONDITIONAL(MONOLITHIC_FRONTEND_QT, test "x$enable_monolithic_frontend_qt" = "xyes")
 
 ### Set the execute permissions of the various scripts correctly
 for file in config/install-sh ; do
@@ -62,7 +40,7 @@ for file in config/install-sh ; do
 done
 
 # Find a suitable python interpreter
-LYX_PATH_PYTHON23([2.7.0], [3.3.0])
+LYX_PATH_PYTHON23([2.7.0], [3.5.0])
 # do the usual python setup stuff
 AM_PATH_PYTHON
 
@@ -116,6 +94,7 @@ AC_SUBST(LIBPSAPI)
 AC_CHECK_LIB(gdi32, main)
 AC_CHECK_LIB(ole32, main)
 
+LYX_USE_INCLUDED_NOD
 LYX_USE_INCLUDED_BOOST
 
 ### we need to know the byte order for unicode conversions
@@ -132,9 +111,8 @@ AC_CHECK_SIZEOF(wchar_t)
 
 # Taken from gettext, needed for libiconv
 AC_CACHE_CHECK([for wchar_t], [gt_cv_c_wchar_t],
-   [AC_TRY_COMPILE([#include <stddef.h>
-      wchar_t foo = (wchar_t)'\0';], ,
-      [gt_cv_c_wchar_t=yes], [gt_cv_c_wchar_t=no])])
+   [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stddef.h>
+      wchar_t foo = (wchar_t)'\0';]], [[]])],[gt_cv_c_wchar_t=yes],[gt_cv_c_wchar_t=no])])
 if test $gt_cv_c_wchar_t = yes; then
   AC_DEFINE([HAVE_WCHAR_T], [1], [Define if you have the 'wchar_t' type.])
   HAVE_WCHAR_T=1
@@ -145,16 +123,18 @@ AC_SUBST([HAVE_WCHAR_T])
 
 # Needed for Mingw-w64
 AC_TYPE_LONG_LONG_INT
-if test "$ac_cv_type_long_long_int" = yes; then
-  AC_CHECK_SIZEOF(long)
-  AC_CHECK_SIZEOF(long long)
-fi
 
-### We need iconv for unicode support (Qt4 frontend requires it too)
+# egrep is used in lib/Makefile.am
+AC_PROG_EGREP
+
+### We need iconv for unicode support (Qt frontend requires it too)
 LYX_USE_INCLUDED_ICONV
 
 ### check for compression support
 LYX_USE_INCLUDED_ZLIB
+
+### check whether we build and install the supplied dtl programs
+LYX_BUILD_INCLUDED_DTL
 
 ### check for file magic support (currently optional)
 AC_CHECK_HEADERS(magic.h,
@@ -169,8 +149,8 @@ AC_CHECK_HEADERS(magic.h,
 ### setup the qt frontend.
 dnl The code below is not in a macro, because this would cause big
 dnl problems with the AC_REQUIRE contained in QT_DO_IT_ALL.
-QT_DO_IT_ALL([4.5.0])
-AC_SUBST([FRONTENDS_SUBDIRS], [qt4])
+QT_DO_IT_ALL([5.0.0])
+AC_SUBST([FRONTENDS_SUBDIRS], [qt])
 FRONTEND_INFO="${FRONTEND_INFO}\
   Qt Frontend:\n\
       Qt version:\t   ${QTLIB_VERSION}\n"
@@ -213,11 +193,17 @@ AC_CHECK_FUNCS(chmod close _close fork getpid _getpid lockf lstat mkfifo open _o
 AC_FUNC_MKDIR
 AC_FUNC_SELECT_ARGTYPES
 
+if test "$lyx_use_packaging" = "macosx" ; then
+  LYX_CHECK_MACOS_DEPLOYMENT_TARGET
+fi
+
 LYX_CHECK_SPELL_ENGINES
 LYX_USE_INCLUDED_MYTHES
 
+LYX_CHECK_WITH_SAXON
+LYX_CHECK_WITH_XSLT_SHEETS
+
 lyx_client_subdir=true
-dnl AC_LANG_PUSH(C)
 dnl LIBS already contains some X extra libs that may interfere.
 save_LIBS="$LIBS"
 LIBS=
@@ -230,7 +216,6 @@ AC_CHECK_FUNCS(fcntl,
 AC_SUBST(SOCKET_LIBS,$LIBS)
 LIBS="$save_LIBS"
 AM_CONDITIONAL(BUILD_CLIENT_SUBDIR, $lyx_client_subdir)
-dnl AC_LANG_POP(C)
 
 lyx_win_res=false;
 case ${host} in
@@ -240,7 +225,7 @@ esac
 if test "x$lyx_win_res" = "xtrue"; then
     AC_CHECK_TOOL(RC, windres,)
     if test -z "$RC"; then
-      AC_ERROR([Could not find a resource compiler])
+      AC_MSG_ERROR([Could not find a resource compiler])
     fi
 fi
 AM_CONDITIONAL(LYX_WIN_RESOURCE, $lyx_win_res)
@@ -331,11 +316,6 @@ char * strerror(int n);
 #  define USE_WCHAR_T
 #endif
 
-#ifdef HAVE_LONG_LONG_INT
-#if SIZEOF_LONG_LONG > SIZEOF_LONG
-#define LYX_USE_LONG_LONG
-#endif
-#endif
 
 #endif
 ])
@@ -366,8 +346,10 @@ AC_CONFIG_FILES([Makefile \
       lyx.1:lyx.1in \
       3rdparty/Makefile \
       3rdparty/boost/Makefile \
+      3rdparty/dtl/Makefile \
       3rdparty/hunspell/Makefile \
       3rdparty/mythes/Makefile \
+      3rdparty/nod/Makefile \
       3rdparty/libiconv/Makefile \
       $ICONV_ICONV_H_IN \
       3rdparty/zlib/Makefile \
@@ -398,7 +380,7 @@ AC_CONFIG_FILES([Makefile \
       src/convert/Makefile \
       src/support/Makefile \
       src/frontends/Makefile \
-      src/frontends/qt4/Makefile
+      src/frontends/qt/Makefile
 ])
 
 

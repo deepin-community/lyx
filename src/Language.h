@@ -19,12 +19,15 @@
 #include "support/trivstring.h"
 
 #include <map>
+#include <set>
+#include <vector>
 
 
 namespace lyx {
 
 namespace support { class FileName; }
 
+class BufferParams;
 class Encoding;
 class Lexer;
 
@@ -33,7 +36,7 @@ class Language {
 public:
 	///
 	Language() : rightToLeft_(false), encoding_(0), internal_enc_(false),
-				 as_babel_options_(false), has_gui_support_(false) {}
+				 has_gui_support_(false), word_wrap_(true) {}
 	/// LyX language name
 	std::string const lang() const { return lang_; }
 	/// Babel language name
@@ -42,18 +45,26 @@ public:
 	std::string const polyglossia() const { return polyglossia_name_; }
 	/// polyglossia language options
 	std::string const polyglossiaOpts() const { return polyglossia_opts_; }
+	/// polyglossia language options
+	std::string const xindy() const { return xindy_; }
 	/// Is this language only supported by polyglossia?
 	bool isPolyglossiaExclusive() const;
 	/// Is this language only supported by babel?
 	bool isBabelExclusive() const;
 	/// quotation marks style
 	std::string const quoteStyle() const { return quote_style_; }
+	/// active characters
+	std::string const activeChars() const { return active_chars_; }
 	/// requirement (package, function)
-	std::string const requires() const { return requires_; }
+	std::string const required() const { return required_; }
+	/// provides feature
+	std::string const provides() const { return provides_; }
 	/// translatable GUI name
 	std::string const display() const { return display_; }
 	/// is this a RTL language?
 	bool rightToLeft() const { return rightToLeft_; }
+	/// shall text be wrapped at word boundary ?
+	bool wordWrap() const { return word_wrap_; }
 	/**
 	 * Translate a string from the layout files that appears in the output.
 	 * It takes the translations from lib/layouttranslations instead of
@@ -79,10 +90,12 @@ public:
 	docstring babel_presettings() const { return babel_presettings_; }
 	/// This language internally sets a font encoding
 	bool internalFontEncoding() const { return internal_enc_; }
-	/// fontenc encoding(s)
-	std::string const fontenc() const { return fontenc_; }
-	/// This language needs to be passed to babel itself (not the class)
-	bool asBabelOptions() const { return as_babel_options_; }
+	/// The most suitable font encoding(s) for the selected document font
+	std::string fontenc(BufferParams const &) const;
+	/// Return the localized date formats (long, medium, short format)
+	std::string dateFormat(size_t i) const;
+	/// Return the localized decimal separator
+	docstring decimalSeparator() const;
 	/// This language corresponds to a translation of the GUI
 	bool hasGuiSupport() const { return has_gui_support_; }
 	///
@@ -105,9 +118,15 @@ private:
 	///
 	trivstring polyglossia_opts_;
 	///
+	trivstring xindy_;
+	///
 	trivstring quote_style_;
 	///
-	trivstring requires_;
+	trivstring active_chars_;
+	///
+	trivstring required_;
+	///
+	trivstring provides_;
 	///
 	trivstring display_;
 	///
@@ -125,13 +144,15 @@ private:
 	///
 	trivdocstring babel_presettings_;
 	///
-	trivstring fontenc_;
+	std::vector<std::string> fontenc_;
+	///
+	std::vector<std::string> dateformats_;
 	///
 	bool internal_enc_;
 	///
-	bool as_babel_options_;
-	///
 	bool has_gui_support_;
+	///
+	bool word_wrap_;
 	///
 	TranslationMap layoutTranslations_;
 };
@@ -155,19 +176,24 @@ public:
 	///
 	void read(support::FileName const & filename);
 	///
+	Language const * getFromCode(std::string const & code) const;
+	///
+	Language const * getFromCode(std::string const & code,
+			std::set<Language const *> const & tryfirst) const;
+	///
 	void readLayoutTranslations(support::FileName const & filename);
 	///
 	Language const * getLanguage(std::string const & language) const;
 	///
-	size_type size() const { return languagelist.size(); }
+	size_type size() const { return languagelist_.size(); }
 	///
-	const_iterator begin() const { return languagelist.begin(); }
+	const_iterator begin() const { return languagelist_.begin(); }
 	///
-	const_iterator end() const { return languagelist.end(); }
+	const_iterator end() const { return languagelist_.end(); }
 
 private:
 	///
-	LanguageList languagelist;
+	LanguageList languagelist_;
 };
 
 /// Global singleton instance.

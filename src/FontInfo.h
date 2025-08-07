@@ -39,6 +39,7 @@ public:
 		FontSeries series,
 		FontShape  shape,
 		FontSize   size,
+		MathStyle  style,
 		ColorCode  color,
 		ColorCode  background,
 		FontState  emph,
@@ -48,11 +49,12 @@ public:
 		FontState  uuline,
 		FontState  uwave,
 		FontState  noun,
-		FontState  number)
+		FontState  number,
+		FontState  nospellcheck)
 		: family_(family), series_(series), shape_(shape), size_(size),
-		style_(LM_ST_TEXT), color_(color), background_(background), emph_(emph),
+		style_(style), color_(color), background_(background), emph_(emph),
 		underbar_(underbar), strikeout_(strikeout), xout_(xout), uuline_(uuline),
-		uwave_(uwave), noun_(noun), number_(number)
+		uwave_(uwave), noun_(noun), number_(number), nospellcheck_(nospellcheck)
 	{}
 
 	/// Decreases font size by one
@@ -92,6 +94,8 @@ public:
 	void setColor(ColorCode c) { color_ = c; }
 	ColorCode background() const { return background_; }
 	void setBackground(ColorCode b) { background_ = b; }
+	FontState nospellcheck() const { return nospellcheck_; }
+	void setNoSpellcheck(FontState n) { nospellcheck_ = n; }
 	//@}
 
 	///
@@ -125,7 +129,8 @@ public:
 		if (noun_ == FONT_ON)
 			return SMALLCAPS_SHAPE;
 		if (emph_ == FONT_ON)
-			return (shape_ == ITALIC_SHAPE) ? UP_SHAPE : ITALIC_SHAPE;
+			return (shape_ == ITALIC_SHAPE || shape_ == SLANTED_SHAPE)
+				? UP_SHAPE : ITALIC_SHAPE;
 		return shape_;
 	}
 
@@ -156,6 +161,9 @@ public:
 	/// Temporarily replace the FontInfo with \param font, and optionally
 	/// \param realize the \param font against the current FontInfo.
 	Changer change(FontInfo font, bool realize = false);
+
+	/// Build GUI description of font state
+	docstring const stateText(bool const terse = false) const;
 
 private:
 	friend bool operator==(FontInfo const & lhs, FontInfo const & rhs);
@@ -192,6 +200,8 @@ private:
 	FontState noun_;
 	///
 	FontState number_;
+	///
+	FontState nospellcheck_;
 };
 
 
@@ -201,6 +211,7 @@ inline bool operator==(FontInfo const & lhs, FontInfo const & rhs)
 		&& lhs.series_ == rhs.series_
 		&& lhs.shape_ == rhs.shape_
 		&& lhs.size_ == rhs.size_
+		&& lhs.style_ == rhs.style_
 		&& lhs.color_ == rhs.color_
 		&& lhs.background_ == rhs.background_
 		&& lhs.emph_ == rhs.emph_
@@ -210,7 +221,8 @@ inline bool operator==(FontInfo const & lhs, FontInfo const & rhs)
 		&& lhs.uuline_ == rhs.uuline_
 		&& lhs.uwave_ == rhs.uwave_
 		&& lhs.noun_ == rhs.noun_
-		&& lhs.number_ == rhs.number_;
+		&& lhs.number_ == rhs.number_
+		&& lhs.nospellcheck_ == rhs.nospellcheck_;
 }
 
 

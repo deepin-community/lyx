@@ -18,32 +18,29 @@
 #include "BufferParams.h"
 #include "BufferView.h"
 #include "Cursor.h"
-#include "DispatchResult.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
+#include "InsetIterator.h"
 #include "Lexer.h"
+#include "LyX.h"
 #include "MetricsInfo.h"
 #include "texstream.h"
 
 #include "insets/InsetBox.h"
 #include "insets/InsetBranch.h"
-#include "insets/InsetCommand.h"
 #include "insets/InsetERT.h"
 #include "insets/InsetExternal.h"
 #include "insets/InsetFloat.h"
 #include "insets/InsetGraphics.h"
 #include "insets/InsetIndex.h"
-#include "insets/InsetLine.h"
 #include "insets/InsetListings.h"
 #include "insets/InsetNote.h"
 #include "insets/InsetPhantom.h"
 #include "insets/InsetSpace.h"
-#include "insets/InsetTabular.h"
 #include "insets/InsetVSpace.h"
 #include "insets/InsetWrap.h"
 
 #include "support/debug.h"
-#include "support/gettext.h"
 #include "support/lstrings.h"
 
 #include "frontends/Application.h"
@@ -59,14 +56,14 @@ namespace lyx {
 // FIXME Would it now be possible to use the InsetCode in
 // place of the mailer name and recover that information?
 InsetCommand::InsetCommand(Buffer * buf, InsetCommandParams const & p)
-	: Inset(buf), p_(p)
+	: Inset(buf), p_(p), broken_(false)
 {}
 
 
 // The sole purpose of this copy constructor is to make sure
 // that the mouse_hover_ map is not copied and remains empty.
 InsetCommand::InsetCommand(InsetCommand const & rhs)
-	: Inset(rhs), p_(rhs.p_)
+	: Inset(rhs), p_(rhs.p_), broken_(false)
 {}
 
 
@@ -79,6 +76,7 @@ InsetCommand & InsetCommand::operator=(InsetCommand const & rhs)
 	p_ = rhs.p_;
 	mouse_hover_.clear();
 	button_ = RenderButton();
+	broken_ = false;
 
 	return *this;
 }
@@ -100,7 +98,7 @@ InsetCommand::~InsetCommand()
 void InsetCommand::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	button_.update(screenLabel(), editable() || clickable(*mi.base.bv, 0, 0),
-	               inheritFont());
+	               inheritFont(), broken_);
 	button_.metrics(mi, dim);
 }
 
@@ -160,9 +158,9 @@ int InsetCommand::plaintext(odocstringstream & os,
 }
 
 
-int InsetCommand::docbook(odocstream &, OutputParams const &) const
+void InsetCommand::docbook(XMLStream &, OutputParams const &) const
 {
-	return 0;
+	return;
 }
 
 
@@ -186,24 +184,85 @@ void InsetCommand::validate(LaTeXFeatures & features) const
 }
 
 
+bool InsetCommand::isChangedByCurrentAuthor() const
+{
+	InsetIterator it = begin(buffer().inset());
+	InsetIterator const itend = end(buffer().inset());
+	for (; it != itend; ++it) {
+		if (&*it == this)
+			break;
+	}
+	if (it == itend) {
+		LYXERR0("Unable to find inset!");
+		// to be on the safe side.
+		return true;
+	}
+	Paragraph const & ourpara = it.paragraph();
+	pos_type const ourpos = it.pos();
+	Change const & change = ourpara.lookupChange(ourpos);
+	return change.currentAuthor();
+}
+
+
+void InsetCommand::changeCmdName(string const & new_name)
+{
+	string const & old_name = getCmdName();
+	if (old_name == new_name)
+		return;
+
+	if (buffer().masterParams().track_changes) {
+		// With change tracking, we insert a new inset and
+		// delete the old one.
+		// But we need to make sure that the inset isn't one
+		// that the current author inserted. Otherwise, we might
+		// delete ourselves!
+		if (isChangedByCurrentAuthor()) {
+			p_.setCmdName(new_name);
+			return;
+		}
+
+		// OK, so this is not an inset the current author inserted
+		InsetCommandParams p(p_.code());
+		p = p_;
+		p.setCmdName(new_name);
+		string const data = InsetCommand::params2string(p);
+		lyx::dispatch(FuncRequest(LFUN_INSET_INSERT, data));
+		lyx::dispatch(FuncRequest(LFUN_CHAR_DELETE_FORWARD));
+	} else
+		p_.setCmdName(new_name);
+}
+
+
 void InsetCommand::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
 	switch (cmd.action()) {
 	case LFUN_INSET_MODIFY: {
 		if (cmd.getArg(0) == "changetype") {
 			cur.recordUndo();
-			p_.setCmdName(cmd.getArg(1));
+			changeCmdName(cmd.getArg(1));
 			cur.forceBufferUpdate();
 			initView();
 			break;
 		}
 		InsetCommandParams p(p_.code());
 		InsetCommand::string2params(to_utf8(cmd.argument()), p);
+		if (p == p_)
+			// no change
+			break;
 		if (p.getCmdName().empty())
 			cur.noScreenUpdate();
 		else {
 			cur.recordUndo();
-			setParams(p);
+			if (buffer().masterParams().track_changes && !isChangedByCurrentAuthor()) {
+				// With change tracking, we insert a new inset and
+				// delete the old one
+				string const data = InsetCommand::params2string(p);
+				lyx::dispatch(FuncRequest(LFUN_INSET_INSERT, data));
+				lyx::dispatch(FuncRequest(LFUN_CHAR_DELETE_FORWARD));
+				cur.forceBufferUpdate();
+				break;
+			} else
+				setParams(p);
 		}
 		// FIXME We might also want to check here if this one is in the TOC.
 		// But I think most of those are labeled.
@@ -317,7 +376,8 @@ bool decodeInsetParam(string const & name, string & data,
 	case NOMENCL_PRINT_CODE:
 	case REF_CODE:
 	case TOC_CODE:
-	case HYPERLINK_CODE: {
+	case HYPERLINK_CODE:
+	case COUNTER_CODE: {
 		InsetCommandParams p(code);
 		data = InsetCommand::params2string(p);
 		break;

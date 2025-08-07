@@ -19,8 +19,6 @@
 #include "Converter.h"
 #include "Encoding.h"
 #include "Format.h"
-#include "InsetIterator.h"
-#include "LaTeXFeatures.h"
 #include "LyXRC.h"
 #include "output.h"
 #include "OutputParams.h"
@@ -29,14 +27,13 @@
 
 #include "frontends/Application.h" // hexName
 
-#include "insets/Inset.h"
-
 #include "support/convert.h"
 #include "support/debug.h"
 #include "support/FileName.h"
 #include "support/filetools.h"
 #include "support/ForkedCalls.h"
 #include "support/lstrings.h"
+#include "support/os.h"
 
 #include "support/TempFile.h"
 
@@ -50,16 +47,17 @@
 #include <QTimer>
 
 using namespace std;
+using namespace lyx;
 using namespace lyx::support;
 
 
 
 namespace {
 
-typedef pair<string, FileName> SnippetPair;
+typedef pair<docstring, FileName> SnippetPair;
 
 // A list of all snippets to be converted to previews
-typedef list<string> PendingSnippets;
+typedef list<docstring> PendingSnippets;
 
 // Each item in the vector is a pair<snippet, image file name>.
 typedef vector<SnippetPair> BitmapFile;
@@ -124,14 +122,10 @@ void setAscentFractions(vector<double> & ascent_fractions,
 }
 
 
-class FindFirst
+std::function <bool (SnippetPair const &)> FindFirst(docstring const & comp)
 {
-public:
-	FindFirst(string const & comp) : comp_(comp) {}
-	bool operator()(SnippetPair const & sp) const { return sp.first == comp_; }
-private:
-	string const comp_;
-};
+	return [&comp](SnippetPair const & sp) { return sp.first == comp; };
+}
 
 
 /// Store info on a currently executing, forked process.
@@ -147,13 +141,13 @@ public:
 	void stop() const;
 
 	///
-	pid_t pid;
-	///
 	string command;
 	///
 	FileName metrics_file;
 	///
 	BitmapFile snippets;
+	///
+	pid_t pid;
 };
 
 typedef map<pid_t, InProgress>  InProgressProcesses;
@@ -173,13 +167,13 @@ public:
 	/// Stop any InProgress items still executing.
 	~Impl();
 	///
-	PreviewImage const * preview(string const & latex_snippet) const;
+	PreviewImage const * preview(docstring const & latex_snippet) const;
 	///
-	PreviewLoader::Status status(string const & latex_snippet) const;
+	PreviewLoader::Status status(docstring const & latex_snippet) const;
 	///
-	void add(string const & latex_snippet);
+	void add(docstring const & latex_snippet);
 	///
-	void remove(string const & latex_snippet);
+	void remove(docstring const & latex_snippet);
 	/// \p wait whether to wait for the process to complete or, instead,
 	/// to do it in the background.
 	void startLoading(bool wait = false);
@@ -187,7 +181,7 @@ public:
 	void refreshPreviews();
 
 	/// Emit this signal when an image is ready for display.
-	signals2::signal<void(PreviewImage const &)> imageReady;
+	signal<void(PreviewImage const &)> imageReady;
 
 	Buffer const & buffer() const { return buffer_; }
 
@@ -197,7 +191,7 @@ private:
 	/// Called by the ForkedCall process that generated the bitmap files.
 	void finishedGenerating(pid_t, int);
 	///
-	void dumpPreamble(otexstream &, OutputParams::FLAVOR) const;
+	void dumpPreamble(otexstream &, Flavor) const;
 	///
 	void dumpData(odocstream &, BitmapFile const &) const;
 
@@ -206,7 +200,7 @@ private:
 	 */
 	typedef std::shared_ptr<PreviewImage> PreviewImagePtr;
 	///
-	typedef map<string, PreviewImagePtr> Cache;
+	typedef map<docstring, PreviewImagePtr> Cache;
 	///
 	Cache cache_;
 
@@ -217,7 +211,6 @@ private:
 
 	/** in_progress_ stores all forked processes so that we can proceed
 	 *  thereafter.
-	    The map uses the conversion commands as its identifiers.
 	 */
 	InProgressProcesses in_progress_;
 
@@ -239,7 +232,6 @@ private:
 	/// We don't own this
 	static lyx::Converter const * pconverter_;
 
-	Trackable trackable_;
 };
 
 
@@ -251,35 +243,29 @@ lyx::Converter const * PreviewLoader::Impl::pconverter_;
 //
 
 PreviewLoader::PreviewLoader(Buffer const & b)
-	: pimpl_(new Impl(*this, b))
+	: pimpl_(make_shared<Impl>(*this, b))
 {}
 
 
-PreviewLoader::~PreviewLoader()
-{
-	delete pimpl_;
-}
-
-
-PreviewImage const * PreviewLoader::preview(string const & latex_snippet) const
+PreviewImage const * PreviewLoader::preview(docstring const & latex_snippet) const
 {
 	return pimpl_->preview(latex_snippet);
 }
 
 
-PreviewLoader::Status PreviewLoader::status(string const & latex_snippet) const
+PreviewLoader::Status PreviewLoader::status(docstring const & latex_snippet) const
 {
 	return pimpl_->status(latex_snippet);
 }
 
 
-void PreviewLoader::add(string const & latex_snippet) const
+void PreviewLoader::add(docstring const & latex_snippet) const
 {
 	pimpl_->add(latex_snippet);
 }
 
 
-void PreviewLoader::remove(string const & latex_snippet) const
+void PreviewLoader::remove(docstring const & latex_snippet) const
 {
 	pimpl_->remove(latex_snippet);
 }
@@ -297,7 +283,7 @@ void PreviewLoader::refreshPreviews()
 }
 
 
-signals2::connection PreviewLoader::connect(slot const & slot) const
+connection PreviewLoader::connect(slot const & slot) const
 {
 	return pimpl_->imageReady.connect(slot);
 }
@@ -330,13 +316,12 @@ public:
 		: to_format_(to_format), base_(filename_base), counter_(1)
 	{}
 
-	SnippetPair const operator()(string const & snippet)
+	SnippetPair const operator()(docstring const & snippet)
 	{
 		ostringstream os;
 		os << base_ << counter_++ << '.' << to_format_;
-		string const file = os.str();
-
-		return make_pair(snippet, FileName(file));
+		string const file_name = os.str();
+		return make_pair(snippet, FileName(file_name));
 	}
 
 private:
@@ -349,9 +334,8 @@ private:
 InProgress::InProgress(string const & filename_base,
 		       PendingSnippets const & pending,
 		       string const & to_format)
-	: pid(0),
-	  metrics_file(filename_base + ".metrics"),
-	  snippets(pending.size())
+	: metrics_file(filename_base + ".metrics"),
+	  snippets(pending.size()), pid(0)
 {
 	PendingSnippets::const_iterator pit  = pending.begin();
 	PendingSnippets::const_iterator pend = pending.end();
@@ -389,8 +373,8 @@ PreviewLoader::Impl::Impl(PreviewLoader & p, Buffer const & b)
 {
 	font_scaling_factor_ = int(buffer_.fontScalingFactor());
 	if (theApp()) {
-		fg_color_ = strtol(theApp()->hexName(foregroundColor()).c_str(), 0, 16);
-		bg_color_ = strtol(theApp()->hexName(backgroundColor()).c_str(), 0, 16);
+		fg_color_ = convert(theApp()->hexName(foregroundColor()), 16);
+		bg_color_ = convert(theApp()->hexName(backgroundColor()), 16);
 	} else {
 		fg_color_ = 0x0;
 		bg_color_ = 0xffffff;
@@ -447,14 +431,14 @@ PreviewLoader::Impl::~Impl()
 
 
 PreviewImage const *
-PreviewLoader::Impl::preview(string const & latex_snippet) const
+PreviewLoader::Impl::preview(docstring const & latex_snippet) const
 {
 	int fs = int(buffer_.fontScalingFactor());
 	int fg = 0x0;
 	int bg = 0xffffff;
 	if (theApp()) {
-		fg = strtol(theApp()->hexName(foregroundColor()).c_str(), 0, 16);
-		bg = strtol(theApp()->hexName(backgroundColor()).c_str(), 0, 16);
+		fg = convert(theApp()->hexName(foregroundColor()), 16);
+		bg = convert(theApp()->hexName(backgroundColor()), 16);
 	}
 	if (font_scaling_factor_ != fs || fg_color_ != fg || bg_color_ != bg) {
 		// Schedule refresh of all previews on zoom or color changes.
@@ -466,9 +450,10 @@ PreviewLoader::Impl::preview(string const & latex_snippet) const
 	}
 	// Don't try to access the cache until we are done.
 	if (delay_refresh_->isActive() || !finished_generating_)
-		return 0;
+		return nullptr;
+
 	Cache::const_iterator it = cache_.find(latex_snippet);
-	return (it == cache_.end()) ? 0 : it->second.get();
+	return (it == cache_.end()) ? nullptr : it->second.get();
 }
 
 
@@ -491,25 +476,20 @@ void PreviewLoader::Impl::refreshPreviews()
 
 namespace {
 
-class FindSnippet {
-public:
-	FindSnippet(string const & s) : snippet_(s) {}
-	bool operator()(InProgressProcess const & process) const
-	{
+std::function<bool (InProgressProcess const &)> FindSnippet(docstring const & s)
+{
+	return [&s](InProgressProcess const & process) {
 		BitmapFile const & snippets = process.second.snippets;
 		BitmapFile::const_iterator beg  = snippets.begin();
 		BitmapFile::const_iterator end = snippets.end();
-		return find_if(beg, end, FindFirst(snippet_)) != end;
-	}
-
-private:
-	string const snippet_;
-};
+		return find_if(beg, end, FindFirst(s)) != end;
+	};
+}
 
 } // namespace
 
 PreviewLoader::Status
-PreviewLoader::Impl::status(string const & latex_snippet) const
+PreviewLoader::Impl::status(docstring const & latex_snippet) const
 {
 	Cache::const_iterator cit = cache_.find(latex_snippet);
 	if (cit != cache_.end())
@@ -533,12 +513,12 @@ PreviewLoader::Impl::status(string const & latex_snippet) const
 }
 
 
-void PreviewLoader::Impl::add(string const & latex_snippet)
+void PreviewLoader::Impl::add(docstring const & latex_snippet)
 {
 	if (!pconverter_ || status(latex_snippet) != NotFound)
 		return;
 
-	string const snippet = trim(latex_snippet);
+	docstring const snippet = trim(latex_snippet);
 	if (snippet.empty())
 		return;
 
@@ -550,28 +530,23 @@ void PreviewLoader::Impl::add(string const & latex_snippet)
 
 namespace {
 
-class EraseSnippet {
-public:
-	EraseSnippet(string const & s) : snippet_(s) {}
-	void operator()(InProgressProcess & process)
-	{
+std::function<void (InProgressProcess &)> EraseSnippet(docstring const & s)
+{
+	return [&s](InProgressProcess & process) {
 		BitmapFile & snippets = process.second.snippets;
 		BitmapFile::iterator it  = snippets.begin();
 		BitmapFile::iterator end = snippets.end();
 
-		it = find_if(it, end, FindFirst(snippet_));
+		it = find_if(it, end, FindFirst(s));
 		if (it != end)
 			snippets.erase(it, it+1);
-	}
-
-private:
-	string const & snippet_;
-};
+	};
+}
 
 } // namespace
 
 
-void PreviewLoader::Impl::remove(string const & latex_snippet)
+void PreviewLoader::Impl::remove(docstring const & latex_snippet)
 {
 	Cache::iterator cit = cache_.find(latex_snippet);
 	if (cit != cache_.end())
@@ -631,9 +606,6 @@ void PreviewLoader::Impl::startLoading(bool wait)
 	}
 
 	otexstream os(of);
-	OutputParams runparams(&enc);
-	LaTeXFeatures features(buffer_, buffer_.params(), runparams);
-
 	if (!openFileWrite(of, latexfile))
 		return;
 
@@ -644,53 +616,48 @@ void PreviewLoader::Impl::startLoading(bool wait)
 	}
 	of << "\\batchmode\n";
 
-	// Set \jobname of previews to the document name (see bug 9627)
-	of << "\\def\\jobname{"
-	   << from_utf8(changeExtension(buffer_.latexName(true), ""))
-	   << "}\n";
-
-	LYXERR(Debug::LATEX, "Format = " << buffer_.params().getDefaultOutputFormat());
+	LYXERR(Debug::OUTFILE, "Format = " << buffer_.params().getDefaultOutputFormat());
 	string latexparam = "";
 	bool docformat = !buffer_.params().default_output_format.empty()
 			&& buffer_.params().default_output_format != "default";
 	// Use LATEX flavor if the document does not specify a specific
 	// output format (see bug 9371).
-	OutputParams::FLAVOR flavor = docformat
+	Flavor flavor = docformat
 					? buffer_.params().getOutputFlavor()
-					: OutputParams::LATEX;
+					: Flavor::LaTeX;
 	if (buffer_.params().encoding().package() == Encoding::japanese) {
 		latexparam = " --latex=platex";
-		flavor = OutputParams::LATEX;
+		flavor = Flavor::LaTeX;
 	}
 	else if (buffer_.params().useNonTeXFonts) {
-		if (flavor == OutputParams::LUATEX)
+		if (flavor == Flavor::LuaTeX)
 			latexparam = " --latex=lualatex";
 		else {
-			flavor = OutputParams::XETEX;
+			flavor = Flavor::XeTeX;
 			latexparam = " --latex=xelatex";
 		}
 	}
 	else {
 		switch (flavor) {
-			case OutputParams::PDFLATEX:
+			case Flavor::PdfLaTeX:
 				latexparam = " --latex=pdflatex";
 				break;
-			case OutputParams::XETEX:
+			case Flavor::XeTeX:
 				latexparam = " --latex=xelatex";
 				break;
-			case OutputParams::LUATEX:
+			case Flavor::LuaTeX:
 				latexparam = " --latex=lualatex";
 				break;
-			case OutputParams::DVILUATEX:
+			case Flavor::DviLuaTeX:
 				latexparam = " --latex=dvilualatex";
 				break;
 			default:
-				flavor = OutputParams::LATEX;
+				flavor = Flavor::LaTeX;
 		}
 	}
 	dumpPreamble(os, flavor);
 	// handle inputenc etc.
-	// I think, this is already hadled by dumpPreamble(): Kornel
+	// I think this is already handled by dumpPreamble(): Kornel
 	// buffer_.params().writeEncodingPreamble(os, features);
 	of << "\n\\begin{document}\n";
 	dumpData(of, inprogress.snippets);
@@ -704,7 +671,7 @@ void PreviewLoader::Impl::startLoading(bool wait)
 
 	// The conversion command.
 	ostringstream cs;
-	cs << pconverter_->command()
+	cs << subst(pconverter_->command(), "$${python}", os::python())
 	   << " " << quoteName(latexfile.toFilesystemEncoding())
 	   << " --dpi " << font_scaling_factor_;
 
@@ -727,7 +694,8 @@ void PreviewLoader::Impl::startLoading(bool wait)
 	if (wait) {
 		ForkedCall call(buffer_.filePath(), buffer_.layoutPos());
 		int ret = call.startScript(ForkedProcess::Wait, command);
-		static atomic_int fake((2^20) + 1);
+		// PID_MAX_LIMIT is 2^22 so we start one after that
+		static atomic_int fake((1 << 22) + 1);
 		int pid = fake++;
 		inprogress.pid = pid;
 		inprogress.command = command;
@@ -738,9 +706,12 @@ void PreviewLoader::Impl::startLoading(bool wait)
 
 	// Initiate the conversion from LaTeX to bitmap images files.
 	ForkedCall::sigPtr convert_ptr = make_shared<ForkedCall::sig>();
-	convert_ptr->connect(ForkedProcess::slot([this](pid_t pid, int retval){
-				finishedGenerating(pid, retval);
-			}).track_foreign(trackable_.p()));
+	weak_ptr<PreviewLoader::Impl> this_ = parent_.pimpl_;
+	convert_ptr->connect([this_](pid_t pid, int retval){
+			if (auto p = this_.lock()) {
+				p->finishedGenerating(pid, retval);
+			}
+		});
 
 	ForkedCall call(buffer_.filePath());
 	int ret = call.startScript(command, convert_ptr);
@@ -796,9 +767,9 @@ void PreviewLoader::Impl::finishedGenerating(pid_t pid, int retval)
 
 	list<PreviewImagePtr> newimages;
 
-	int metrics_counter = 0;
+	size_t metrics_counter = 0;
 	for (; it != end; ++it, ++metrics_counter) {
-		string const & snip = it->first;
+		docstring const & snip = it->first;
 		FileName const & file = it->second;
 		double af = ascent_fractions[metrics_counter];
 
@@ -816,6 +787,16 @@ void PreviewLoader::Impl::finishedGenerating(pid_t pid, int retval)
 	// Remove the item from the list of still-executing processes.
 	in_progress_.erase(git);
 
+#if 0
+	/* FIXME : there is no need for all these calls, which recompute
+	 * all metrics for each and every preview. The single call at the
+	 * end of this method is sufficient.
+
+	 * It seems that this whole imageReady mechanism is actually not
+	 * needed. If it is the case, the whole updateFrontend/updateInset
+	 * bloat can go too.
+	 */
+
 	// Tell the outside world
 	list<PreviewImagePtr>::const_reverse_iterator
 		nit  = newimages.rbegin();
@@ -824,28 +805,32 @@ void PreviewLoader::Impl::finishedGenerating(pid_t pid, int retval)
 	for (; nit != nend; ++nit) {
 		imageReady(*nit->get());
 	}
+#endif
+
 	finished_generating_ = true;
+	buffer_.scheduleRedrawWorkAreas();
 }
 
 
-void PreviewLoader::Impl::dumpPreamble(otexstream & os, OutputParams::FLAVOR flavor) const
+void PreviewLoader::Impl::dumpPreamble(otexstream & os, Flavor flavor) const
 {
 	// Dump the preamble only.
-	LYXERR(Debug::LATEX, "dumpPreamble, flavor == " << flavor);
+	LYXERR(Debug::OUTFILE, "dumpPreamble, flavor == " << static_cast<int>(flavor));
 	OutputParams runparams(&buffer_.params().encoding());
 	runparams.flavor = flavor;
 	runparams.nice = true;
 	runparams.moving_arg = true;
 	runparams.free_spacing = true;
 	runparams.is_child = buffer_.parent();
+	runparams.for_preview = true;
 	buffer_.writeLaTeXSource(os, buffer_.filePath(), runparams, Buffer::OnlyPreamble);
 
 	// FIXME! This is a HACK! The proper fix is to control the 'true'
-	// passed to WriteStream below:
+	// passed to TeXMathStream below:
 	// int InsetMathNest::latex(Buffer const &, odocstream & os,
 	//                          OutputParams const & runparams) const
 	// {
-	//	WriteStream wi(os, runparams.moving_arg, true);
+	//	TeXMathStream wi(os, runparams.moving_arg, true);
 	//	par_->write(wi);
 	//	return wi.line();
 	// }
@@ -877,11 +862,28 @@ void PreviewLoader::Impl::dumpData(odocstream & os,
 	BitmapFile::const_iterator it  = vec.begin();
 	BitmapFile::const_iterator end = vec.end();
 
+	Encoding const & enc = buffer_.params().encoding();
+
 	for (; it != end; ++it) {
-		// FIXME UNICODE
-		os << "\\begin{preview}\n"
-		   << from_utf8(it->first)
-		   << "\n\\end{preview}\n\n";
+		bool uncodable_content = false;
+		// check whether the content is encodable
+		// FIXME: the preview loader should be able
+		//        to handle multiple encodings
+		//        or we should generally use utf8
+		for (char_type n : it->first) {
+			if (!enc.encodable(n)) {
+				LYXERR0("Uncodable character '"
+					<< docstring(1, n)
+					<< "' in preview snippet!");
+				uncodable_content = true;
+				break;
+			}
+		}
+		os << "\\begin{preview}\n";
+		// do not show incomplete preview
+		if (!uncodable_content)
+			os << it->first;
+		os << "\n\\end{preview}\n\n";
 	}
 }
 

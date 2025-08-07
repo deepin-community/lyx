@@ -2,10 +2,10 @@
 # Probably broken by Jean-Marc Lasgouttes <Jean-Marc.Lasgouttes@inria.fr>
 # modified and modularized by Emmanuel GUREGHIAN <gureghia@boston.bertin.fr>
 # Tinkered with Sep. '07 by Paul Rubin <rubin@msu.edu>
-# Modularized Jan '08 by Richard Heck <rgheck@brown.edu>
+# Modularized Jan '08 by Richard Kimberly Heck <rikiheck@lyx.org>
 
 # Including the maths stuff
-Format 66
+Format 104
 
 # By default AMS articles & books use leqno option (as SIAM journals).
 Provides leqno 1
@@ -48,6 +48,9 @@ Style Title
 	  Size                Larger
 	EndFont
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -68,6 +71,11 @@ Style Author
 	  Size                Large
 	  Shape               Smallcaps
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -92,6 +100,10 @@ Style Date
 	  Shape               Italic
 	  Size                Large
 	EndFont
+	DocBookTag            date
+	DocBookTagType        paragraph
+	DocBookInInfo         always
+    DocBookNoFontInside   true
 End
 
 
@@ -117,6 +129,10 @@ Style Abstract
 	LabelFont
 	  Shape               Smallcaps
 	EndFont
+	DocBookTag            para
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 # Clear Address definition from lyxmacros
@@ -139,6 +155,11 @@ Style Address
 	LabelFont
 	  Shape               Italic
 	EndFont
+	DocBookTag            address
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -146,6 +167,10 @@ Style Current_Address
 	CopyStyle             Address
 	LatexName             curraddr
 	LabelString           "Current address:"
+	DocBookTag            address
+	DocBookTagType        paragraph
+	DocBookInInfo         always
+	DocBookAttr           role='current'
 End
 
 
@@ -154,6 +179,11 @@ Style Email
 	Margin                First_Dynamic
 	LatexName             email
 	LabelString           "E-mail address:"
+	DocBookTag            email
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -162,6 +192,11 @@ Style URL
 	Margin                First_Dynamic
 	LatexName             urladdr
 	LabelString           "URL:"
+	DocBookTag            uri
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -169,6 +204,11 @@ Style Keywords
 	CopyStyle             Address
 	LatexName             keywords
 	LabelString           "Key words and phrases:"
+	DocBookTag            keyword
+	DocBookTagType        paragraph
+	DocBookWrapperTag     keywordset
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -176,6 +216,11 @@ Style Thanks
 	CopyStyle             Address
 	LatexName             thanks
 	LabelString           "Thanks:"
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     othercredit
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -183,6 +228,10 @@ Style Dedicatory
 	CopyStyle             Address
 	LatexName             dedicatory
 	LabelString           "Dedication:"
+	DocBookTag            para
+	DocBookWrapperTag     dedication
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         never
 End
 
 
@@ -190,6 +239,12 @@ Style Translator
 	CopyStyle             Address
 	LatexName             translator
 	LabelString           "Translator:"
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     othercredit
+	DocBookWrapperAttr    role='translator'
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -197,6 +252,13 @@ Style Subjectclass
 	CopyStyle             Address
 	LatexName             subjclass[2000]
 	LabelString           "2000 Mathematics Subject Classification:"
+	DocBookItemTag        subjectterm
+	DocBookItemTagType    inline
+	DocBookTag            subject
+	DocBookTagType        paragraph
+	DocBookWrapperTag     subjectset
+	DocBookWrapperMergeWithPrevious true
+	DocBookInInfo         always
 End
 
 
@@ -227,4 +289,14 @@ Style Bibliography
 	EndFont
 	TocLevel             1
 	IsTocCaption         0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru           1
+	  Font
+	    Family           typewriter
+	    Color            latex
+	  EndFont
+	EndArgument
 End

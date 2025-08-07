@@ -15,13 +15,20 @@
 
 #include <config.h>
 
-#include "BufferList.h"
 #include "LaTeX.h"
+
+#include "Buffer.h"
+#include "BufferList.h"
+#include "BufferParams.h"
 #include "LyXRC.h"
 #include "LyX.h"
 #include "DepTable.h"
+#include "Encoding.h"
+#include "Language.h"
+#include "LaTeXFeatures.h"
 
 #include "support/debug.h"
+#include "support/docstring.h"
 #include "support/convert.h"
 #include "support/FileName.h"
 #include "support/filetools.h"
@@ -30,9 +37,8 @@
 #include "support/Systemcall.h"
 #include "support/os.h"
 
-#include "support/regex.h"
-
 #include <fstream>
+#include <regex>
 #include <stack>
 
 
@@ -73,6 +79,15 @@ void TeXErrors::insertError(int line, docstring const & error_desc,
 }
 
 
+void TeXErrors::insertRef(int line, docstring const & error_desc,
+			    docstring const & error_text,
+			    string const & child_name)
+{
+	Error newerr(line, error_desc, error_text, child_name);
+	undef_ref.push_back(newerr);
+}
+
+
 bool operator==(AuxInfo const & a, AuxInfo const & o)
 {
 	return a.aux_file == o.aux_file
@@ -93,9 +108,10 @@ bool operator!=(AuxInfo const & a, AuxInfo const & o)
  */
 
 LaTeX::LaTeX(string const & latex, OutputParams const & rp,
-	     FileName const & f, string const & p, string const & lp,
-	     bool const clean_start)
-	: cmd(latex), file(f), path(p), lpath(lp), runparams(rp), biber(false)
+	     FileName const & f, string const & p, string const & lp, 
+	     bool allow_cancellation, bool const clean_start)
+	: cmd(latex), file(f), path(p), lpath(lp), runparams(rp), biber(false),
+	  allow_cancel(allow_cancellation)
 {
 	num_errors = 0;
 	// lualatex can still produce a DVI with --output-format=dvi. However,
@@ -120,6 +136,7 @@ LaTeX::LaTeX(string const & latex, OutputParams const & rp,
 
 void LaTeX::removeAuxiliaryFiles() const
 {
+	LYXERR(Debug::OUTFILE, "Removing auxiliary files");
 	// Note that we do not always call this function when there is an error.
 	// For example, if there is an error but an output file is produced we
 	// still would like to output (export/view) the file.
@@ -144,12 +161,18 @@ void LaTeX::removeAuxiliaryFiles() const
 	ind.removeFile();
 
 	// nomencl file
-	FileName const nls(changeExtension(file.absFileName(), ".nls"));
-	nls.removeFile();
+	if (LaTeXFeatures::isAvailableAtLeastFrom("nomencl", 2005, 3, 31)) {
+		FileName const nls(changeExtension(file.absFileName(), ".nls"));
+		nls.removeFile();
+	} else if (LaTeXFeatures::isAvailable("nomencl")) {
+		// nomencl file (old version of the package up to v. 4.0)
+		FileName const gls(changeExtension(file.absFileName(), ".gls"));
+		gls.removeFile();
+	}
 
-	// nomencl file (old version of the package)
-	FileName const gls(changeExtension(file.absFileName(), ".gls"));
-	gls.removeFile();
+	// endnotes file
+	FileName const ent(changeExtension(file.absFileName(), ".ent"));
+	ent.removeFile();
 
 	// Also remove the aux file
 	FileName const aux(changeExtension(file.absFileName(), ".aux"));
@@ -173,6 +196,7 @@ int LaTeX::run(TeXErrors & terr)
 {
 	int scanres = NO_ERRORS;
 	int bscanres = NO_ERRORS;
+	int iscanres = NO_ERRORS;
 	unsigned int count = 0; // number of times run
 	num_errors = 0; // just to make sure.
 	unsigned int const MAX_RUN = 6;
@@ -210,6 +234,25 @@ int LaTeX::run(TeXErrors & terr)
 	}
 
 	if (had_depfile) {
+		if (runparams.includeall) {
+			// On an "includeall" call (whose purpose is to set up/maintain counters and references
+			// for includeonly), we remove the master from the dependency list since
+			// (1) it will be checked anyway on the subsequent includeonly run
+			// (2) the master is always changed (due to the \includeonly line), and this alone would
+			//     trigger a complete, expensive run each time
+			head.remove_file(file);
+			// Also remove all children which are included
+			Buffer const * buf = theBufferList().getBufferFromTmp(file.absFileName());
+			if (buf && buf->params().maintain_unincluded_children == BufferParams::CM_Mostly) {
+				for (auto const & incfile : buf->params().getIncludedChildren()) {
+					string const incm =
+						DocFileName(changeExtension(makeAbsPath(incfile, path)
+									    .absFileName(), ".tex")).mangledFileName();
+					FileName inc = makeAbsPath(incm, file.onlyPath().realPath());
+					head.remove_file(inc);
+				}
+			}
+		}
 		// Update the checksums
 		head.update();
 		// Can't just check if anything has changed because it might
@@ -240,16 +283,20 @@ int LaTeX::run(TeXErrors & terr)
 		bibtex_info_old = scanAuxFiles(aux_file, runparams.only_childbibs);
 
 	++count;
-	LYXERR(Debug::LATEX, "Run #" << count);
+	LYXERR(Debug::OUTFILE, "Run #" << count);
 	message(runMessage(count));
 
 	int exit_code = startscript();
+	if (exit_code == Systemcall::KILLED || exit_code == Systemcall::TIMEOUT)
+		return exit_code;
 
 	scanres = scanLogFile(terr);
 	if (scanres & ERROR_RERUN) {
-		LYXERR(Debug::LATEX, "Rerunning LaTeX");
+		LYXERR(Debug::OUTFILE, "Rerunning LaTeX");
 		terr.clearErrors();
 		exit_code = startscript();
+		if (exit_code == Systemcall::KILLED || exit_code == Systemcall::TIMEOUT)
+			return exit_code;
 		scanres = scanLogFile(terr);
 	}
 
@@ -261,56 +308,49 @@ int LaTeX::run(TeXErrors & terr)
 	deplog(head); // reads the latex log
 	head.update();
 
-	// 1
-	// At this point we must run external programs if needed.
-	// makeindex will be run if a .idx file changed or was generated.
-	// And if there were undefined citations or changes in references
-	// the .aux file is checked for signs of bibtex. Bibtex is then run
-	// if needed.
-
-	// memoir (at least) writes an empty *idx file in the first place.
-	// A second latex run is needed.
-	FileName const idxfile(changeExtension(file.absFileName(), ".idx"));
-	rerun = idxfile.exists() && idxfile.isFileEmpty();
-
-	// run makeindex
-	if (head.haschanged(idxfile)) {
-		// no checks for now
-		LYXERR(Debug::LATEX, "Running MakeIndex.");
-		message(_("Running Index Processor."));
-		// onlyFileName() is needed for cygwin
-		rerun |= runMakeIndex(onlyFileName(idxfile.absFileName()),
-				runparams);
-	}
+	// Record here (after the first LaTeX run) whether nomencl aux files exist
+	// and have changed.
+	// The programs itself are then launched later after the pagination has settled.
 	FileName const nlofile(changeExtension(file.absFileName(), ".nlo"));
 	// If all nomencl entries are removed, nomencl writes an empty nlo file.
 	// DepTable::hasChanged() returns false in this case, since it does not
 	// distinguish empty files from non-existing files. This is why we need
 	// the extra checks here (to trigger a rerun). Cf. discussions in #8905.
 	// FIXME: Sort out the real problem in DepTable.
-	if (head.haschanged(nlofile) || (nlofile.exists() && nlofile.isFileEmpty()))
-		rerun |= runMakeIndexNomencl(file, ".nlo", ".nls");
-	FileName const glofile(changeExtension(file.absFileName(), ".glo"));
-	if (head.haschanged(glofile))
-		rerun |= runMakeIndexNomencl(file, ".glo", ".gls");
+	bool const run_nomencl = head.haschanged(nlofile) || (nlofile.exists() && nlofile.isFileEmpty());
+	bool run_nomencl_glo = false;
+	if (!LaTeXFeatures::isAvailableAtLeastFrom("nomencl", 2005, 3, 31)) {
+		// nomencl package up to v4.0
+		FileName const glofile(changeExtension(file.absFileName(), ".glo"));
+		run_nomencl_glo = head.haschanged(glofile);
+	}
 
-	// check if we're using biber instead of bibtex
+	// 1
+	// At this point we must run the bibliography processor if needed.
+	// First, check if we're using biber instead of bibtex --
 	// biber writes no info to the aux file, so we just check
-	// if a bcf file exists (and if it was updated)
+	// if a bcf file exists (and if it was updated).
 	FileName const bcffile(changeExtension(file.absFileName(), ".bcf"));
 	biber |= head.exist(bcffile);
 
-	// run bibtex
-	// if (scanres & UNDEF_CIT || scanres & RERUN || run_bibtex)
-	if (scanres & UNDEF_CIT || run_bibtex) {
+	// If (scanres & UNDEF_CIT || scanres & RERUN || run_bibtex)
+	// We do not run bibtex/biber on an "includeall" call (whose purpose is
+	// to set up/maintain counters and references for includeonly) since
+	// (1) bibliographic references will be updated on the subsequent includeonly run
+	// (2) this would trigger a complete run each time (as references in non-included
+	//     children are removed on subsequent includeonly runs)
+	if (!runparams.includeall && (scanres & UNDEF_CIT || run_bibtex)) {
 		// Here we must scan the .aux file and look for
 		// "\bibdata" and/or "\bibstyle". If one of those
 		// tags is found -> run bibtex and set rerun = true;
 		// no checks for now
-		LYXERR(Debug::LATEX, "Running BibTeX.");
-		message(_("Running BibTeX."));
+		LYXERR(Debug::OUTFILE, "Running Bibliography Processor.");
+		message(_("Running Bibliography Processor."));
 		updateBibtexDependencies(head, bibtex_info);
-		rerun |= runBibTeX(bibtex_info, runparams);
+		int exit_code;
+		rerun |= runBibTeX(bibtex_info, runparams, exit_code);
+		if (exit_code == Systemcall::KILLED || exit_code == Systemcall::TIMEOUT)
+			return exit_code;
 		FileName const blgfile(changeExtension(file.absFileName(), ".blg"));
 		if (blgfile.exists())
 			bscanres = scanBlgFile(head, terr);
@@ -322,7 +362,7 @@ int LaTeX::run(TeXErrors & terr)
 	}
 
 	// 2
-	// we know on this point that latex has been run once (or we just
+	// We know on this point that latex has been run once (or we just
 	// returned) and the question now is to decide if we need to run
 	// it any more. This is done by asking if any of the files in the
 	// dependency file has changed. (remember that the checksum for
@@ -337,9 +377,11 @@ int LaTeX::run(TeXErrors & terr)
 		rerun = false;
 		++count;
 		LYXERR(Debug::DEPEND, "Dep. file has changed or rerun requested");
-		LYXERR(Debug::LATEX, "Run #" << count);
+		LYXERR(Debug::OUTFILE, "Run #" << count);
 		message(runMessage(count));
-		startscript();
+		int exit_code = startscript();
+		if (exit_code == Systemcall::KILLED || exit_code == Systemcall::TIMEOUT)
+			return exit_code;
 		scanres = scanLogFile(terr);
 
 		// update the depedencies
@@ -350,49 +392,95 @@ int LaTeX::run(TeXErrors & terr)
 	}
 
 	// 3
-	// rerun bibtex?
+	// Rerun bibliography processor?
 	// Complex bibliography packages such as Biblatex require
 	// an additional bibtex cycle sometimes.
-	if (scanres & UNDEF_CIT) {
+	// We do not run bibtex/biber on an "includeall" call (whose purpose is
+	// to set up/maintain counters and references for includeonly) since
+	// (1) bibliographic references will be updated on the subsequent includeonly run
+	// (2) this would trigger a complete run each time (as references in non-included
+	//     children are removed on subsequent includeonly runs)
+	if (!runparams.includeall && scanres & UNDEF_CIT) {
 		// Here we must scan the .aux file and look for
 		// "\bibdata" and/or "\bibstyle". If one of those
 		// tags is found -> run bibtex and set rerun = true;
 		// no checks for now
-		LYXERR(Debug::LATEX, "Running BibTeX.");
-		message(_("Running BibTeX."));
+		LYXERR(Debug::OUTFILE, "Re-Running Bibliography Processor.");
+		message(_("Re-Running Bibliography Processor."));
 		updateBibtexDependencies(head, bibtex_info);
-		rerun |= runBibTeX(bibtex_info, runparams);
+		int exit_code;
+		rerun |= runBibTeX(bibtex_info, runparams, exit_code);
+		if (exit_code == Systemcall::KILLED || exit_code == Systemcall::TIMEOUT)
+			return exit_code;
 		FileName const blgfile(changeExtension(file.absFileName(), ".blg"));
 		if (blgfile.exists())
 			bscanres = scanBlgFile(head, terr);
 	}
 
 	// 4
-	// The inclusion of files generated by external programs such as
-	// makeindex or bibtex might have done changes to pagenumbering,
-	// etc. And because of this we must run the external programs
-	// again to make sure everything is redone correctly.
-	// Also there should be no need to run the external programs any
-	// more after this.
-
-	// run makeindex if the <file>.idx has changed or was generated.
-	if (head.haschanged(idxfile)) {
-		// no checks for now
-		LYXERR(Debug::LATEX, "Running MakeIndex.");
-		message(_("Running Index Processor."));
-		// onlyFileName() is needed for cygwin
-		rerun = runMakeIndex(onlyFileName(changeExtension(
-				file.absFileName(), ".idx")), runparams);
+	// After the bibliography was processed, we need more passes of LaTeX
+	// in order to resolve the citations. We need to do this before the index
+	// is being generated (since we need the correct pagination, see #2696).
+	// With bibliography environment, another LaTeX run might be needed
+	// as well to resolve citations.
+	// Also, memoir (at least) writes an empty *idx file in the first place.
+	// A further latex run is needed in that case as well.
+	FileName const idxfile(changeExtension(file.absFileName(), ".idx"));
+	if (run_bibtex || (scanres & UNDEF_CIT) || (idxfile.exists() && idxfile.isFileEmpty())) {
+		while ((head.sumchange() || rerun || (scanres & RERUN) || (scanres & UNDEF_CIT))
+		       && count < MAX_RUN) {
+			// Yes rerun until message goes away, or until
+			// MAX_RUNS are reached.
+			rerun = false;
+			++count;
+			LYXERR(Debug::OUTFILE, "Run #" << count);
+			message(runMessage(count));
+			startscript();
+			scanres = scanLogFile(terr);
+	
+			// keep this updated
+			head.update();
+		}
 	}
 
-	// I am not pretty sure if need this twice.
-	if (head.haschanged(nlofile))
-		rerun |= runMakeIndexNomencl(file, ".nlo", ".nls");
-	if (head.haschanged(glofile))
-		rerun |= runMakeIndexNomencl(file, ".glo", ".gls");
-
 	// 5
-	// we will only run latex more if the log file asks for it.
+	// Now that we have final pagination, run the index and nomencl processors
+	if (idxfile.exists()) {
+		// no checks for now
+		LYXERR(Debug::OUTFILE, "Running Index Processor.");
+		message(_("Running Index Processor."));
+		// onlyFileName() is needed for cygwin
+		int const ret = 
+				runMakeIndex(onlyFileName(idxfile.absFileName()), runparams);
+		if (ret == Systemcall::KILLED || ret == Systemcall::TIMEOUT)
+			return ret;
+		else if (ret != Systemcall::OK) {
+			iscanres |= INDEX_ERROR;
+			terr.insertError(0,
+					 _("Index Processor Error"),
+					 _("The index processor did not run successfully. "
+					   "Please check the output of View > Messages Pane!"));
+		}
+		FileName const ilgfile(changeExtension(file.absFileName(), ".ilg"));
+		if (ilgfile.exists())
+			iscanres = scanIlgFile(terr);
+		rerun = true;
+	}
+	if (run_nomencl) {
+		int const ret = runMakeIndexNomencl(file, ".nlo", ".nls");
+		if (ret == Systemcall::KILLED || ret == Systemcall::TIMEOUT)
+			return ret;
+		rerun = true;
+	}
+	if (run_nomencl_glo) {
+		int const ret = runMakeIndexNomencl(file, ".glo", ".gls");
+		if (ret)
+			return ret;
+		rerun = true;
+	}
+
+	// 6
+	// We will re-run latex if the log file asks for it,
 	// or if the sumchange() is true.
 	//     -> rerun asked for:
 	//             run latex and
@@ -407,7 +495,7 @@ int LaTeX::run(TeXErrors & terr)
 		// MAX_RUNS are reached.
 		rerun = false;
 		++count;
-		LYXERR(Debug::LATEX, "Run #" << count);
+		LYXERR(Debug::OUTFILE, "Run #" << count);
 		message(runMessage(count));
 		startscript();
 		scanres = scanLogFile(terr);
@@ -426,10 +514,13 @@ int LaTeX::run(TeXErrors & terr)
 		scanres |= NONZERO_ERROR;
 	}
 
-	LYXERR(Debug::LATEX, "Done.");
+	LYXERR(Debug::OUTFILE, "Done.");
 
 	if (bscanres & ERRORS)
 		return bscanres; // return on error
+
+	if (iscanres & ERRORS)
+		return iscanres; // return on error
 
 	return scanres;
 }
@@ -442,56 +533,99 @@ int LaTeX::startscript()
 		     + quoteName(onlyFileName(file.toFilesystemEncoding()))
 		     + " > " + os::nulldev();
 	Systemcall one;
-	return one.startscript(Systemcall::Wait, tmp, path, lpath);
+	Systemcall::Starttype const starttype = 
+		allow_cancel ? Systemcall::WaitLoop : Systemcall::Wait;
+	return one.startscript(starttype, tmp, path, lpath, true);
 }
 
 
-bool LaTeX::runMakeIndex(string const & f, OutputParams const & runparams,
+int LaTeX::runMakeIndex(string const & f, OutputParams const & rp,
 			 string const & params)
 {
-	string tmp = runparams.use_japanese ?
+	string tmp = rp.use_japanese ?
 		lyxrc.jindex_command : lyxrc.index_command;
 
-	if (!runparams.index_command.empty())
-		tmp = runparams.index_command;
+	if (!rp.index_command.empty())
+		tmp = rp.index_command;
 
-	LYXERR(Debug::LATEX,
+	Language const * doc_lang = languages.getLanguage(rp.document_language);
+	
+	if (contains(tmp, "$$x")) {
+		// This adds appropriate [te]xindy options
+		// such as language and codepage (for the
+		// main document language/encoding) as well
+		// as input markup (latex or xelatex)
+		string xdyopts = doc_lang ? doc_lang->xindy() : string();
+		if (!xdyopts.empty())
+			xdyopts = "-L " + xdyopts;
+		if (rp.isFullUnicode() && rp.encoding->package() == Encoding::none) {
+			if (!xdyopts.empty())
+				xdyopts += " ";
+			// xelatex includes lualatex
+			xdyopts += "-I xelatex";
+		}
+		else if (rp.encoding->iconvName() == "UTF-8") {
+			if (!xdyopts.empty())
+				xdyopts += " ";
+			// -I not really needed for texindy, but for xindy
+			xdyopts += "-C utf8 -I latex";
+		}
+		else {
+			if (!xdyopts.empty())
+				xdyopts += " ";
+			// not really needed for texindy, but for xindy
+			xdyopts += "-I latex";
+		}
+		tmp = subst(tmp, "$$x", xdyopts);
+	}
+
+	if (contains(tmp, "$$b")) {
+		// advise xindy to write a log file
+		tmp = subst(tmp, "$$b", removeExtension(f));
+	}
+
+	LYXERR(Debug::OUTFILE,
 		"idx file has been made, running index processor ("
 		<< tmp << ") on file " << f);
 
-	tmp = subst(tmp, "$$lang", runparams.document_language);
-	if (runparams.use_indices) {
+	if (doc_lang) {
+		tmp = subst(tmp, "$$lang", doc_lang->babel());
+		tmp = subst(tmp, "$$lcode", doc_lang->code());
+	}
+	if (rp.use_indices) {
 		tmp = lyxrc.splitindex_command + " -m " + quoteName(tmp);
-		LYXERR(Debug::LATEX,
+		LYXERR(Debug::OUTFILE,
 		"Multiple indices. Using splitindex command: " << tmp);
 	}
 	tmp += ' ';
 	tmp += quoteName(f);
 	tmp += params;
 	Systemcall one;
-	one.startscript(Systemcall::Wait, tmp, path, lpath);
-	return true;
+	Systemcall::Starttype const starttype = 
+		allow_cancel ? Systemcall::WaitLoop : Systemcall::Wait;
+	return one.startscript(starttype, tmp, path, lpath, true);
 }
 
 
-bool LaTeX::runMakeIndexNomencl(FileName const & file,
+int LaTeX::runMakeIndexNomencl(FileName const & fname,
 		string const & nlo, string const & nls)
 {
-	LYXERR(Debug::LATEX, "Running MakeIndex for nomencl.");
-	message(_("Running MakeIndex for nomencl."));
+	LYXERR(Debug::OUTFILE, "Running Nomenclature Processor.");
+	message(_("Running Nomenclature Processor."));
 	string tmp = lyxrc.nomencl_command + ' ';
 	// onlyFileName() is needed for cygwin
-	tmp += quoteName(onlyFileName(changeExtension(file.absFileName(), nlo)));
+	tmp += quoteName(onlyFileName(changeExtension(fname.absFileName(), nlo)));
 	tmp += " -o "
-		+ onlyFileName(changeExtension(file.toFilesystemEncoding(), nls));
+		+ onlyFileName(changeExtension(fname.toFilesystemEncoding(), nls));
 	Systemcall one;
-	one.startscript(Systemcall::Wait, tmp, path, lpath);
-	return true;
+	Systemcall::Starttype const starttype = 
+		allow_cancel ? Systemcall::WaitLoop : Systemcall::Wait;
+	return one.startscript(starttype, tmp, path, lpath, true);
 }
 
 
 vector<AuxInfo> const
-LaTeX::scanAuxFiles(FileName const & file, bool const only_childbibs)
+LaTeX::scanAuxFiles(FileName const & fname, bool const only_childbibs)
 {
 	vector<AuxInfo> result;
 
@@ -500,7 +634,7 @@ LaTeX::scanAuxFiles(FileName const & file, bool const only_childbibs)
 	if (only_childbibs) {
 		for (string const &s: children) {
 			FileName fn =
-				makeAbsPath(s, file.onlyPath().realPath());
+				makeAbsPath(s, fname.onlyPath().realPath());
 			fn.changeExtension("aux");
 			if (fn.exists())
 				result.push_back(scanAuxFile(fn));
@@ -508,10 +642,10 @@ LaTeX::scanAuxFiles(FileName const & file, bool const only_childbibs)
 		return result;
 	}
 
-	result.push_back(scanAuxFile(file));
+	result.push_back(scanAuxFile(fname));
 
 	// This is for bibtopic
-	string const basename = removeExtension(file.absFileName());
+	string const basename = removeExtension(fname.absFileName());
 	for (int i = 1; i < 1000; ++i) {
 		FileName const file2(basename
 			+ '.' + convert<string>(i)
@@ -524,20 +658,20 @@ LaTeX::scanAuxFiles(FileName const & file, bool const only_childbibs)
 }
 
 
-AuxInfo const LaTeX::scanAuxFile(FileName const & file)
+AuxInfo const LaTeX::scanAuxFile(FileName const & fname)
 {
 	AuxInfo result;
-	result.aux_file = file;
-	scanAuxFile(file, result);
+	result.aux_file = fname;
+	scanAuxFile(fname, result);
 	return result;
 }
 
 
-void LaTeX::scanAuxFile(FileName const & file, AuxInfo & aux_info)
+void LaTeX::scanAuxFile(FileName const & fname, AuxInfo & aux_info)
 {
-	LYXERR(Debug::LATEX, "Scanning aux file: " << file);
+	LYXERR(Debug::OUTFILE, "Scanning aux file: " << fname);
 
-	ifstream ifs(file.toFilesystemEncoding().c_str());
+	ifstream ifs(fname.toFilesystemEncoding().c_str());
 	string token;
 	static regex const reg1("\\\\citation\\{([^}]+)\\}");
 	static regex const reg2("\\\\bibdata\\{([^}]+)\\}");
@@ -555,7 +689,7 @@ void LaTeX::scanAuxFile(FileName const & file, AuxInfo & aux_info)
 			while (!data.empty()) {
 				string citation;
 				data = split(data, citation, ',');
-				LYXERR(Debug::LATEX, "Citation: " << citation);
+				LYXERR(Debug::OUTFILE, "Citation: " << citation);
 				aux_info.citations.insert(citation);
 			}
 		} else if (regex_match(token, sub, reg2)) {
@@ -566,7 +700,7 @@ void LaTeX::scanAuxFile(FileName const & file, AuxInfo & aux_info)
 				string database;
 				data = split(data, database, ',');
 				database = changeExtension(database, "bib");
-				LYXERR(Debug::LATEX, "BibTeX database: `" << database << '\'');
+				LYXERR(Debug::OUTFILE, "BibTeX database: `" << database << '\'');
 				aux_info.databases.insert(database);
 			}
 		} else if (regex_match(token, sub, reg3)) {
@@ -574,7 +708,7 @@ void LaTeX::scanAuxFile(FileName const & file, AuxInfo & aux_info)
 			// token is now the style file
 			// pass it to the helper
 			style = changeExtension(style, "bst");
-			LYXERR(Debug::LATEX, "BibTeX style: `" << style << '\'');
+			LYXERR(Debug::OUTFILE, "BibTeX style: `" << style << '\'');
 			aux_info.styles.insert(style);
 		} else if (regex_match(token, sub, reg4)) {
 			string const file2 = sub.str(1);
@@ -620,25 +754,39 @@ void LaTeX::updateBibtexDependencies(DepTable & dep,
 
 
 bool LaTeX::runBibTeX(vector<AuxInfo> const & bibtex_info,
-		      OutputParams const & runparams)
+		      OutputParams const & rp, int & exit_code)
 {
 	bool result = false;
+	exit_code = 0;
 	for (vector<AuxInfo>::const_iterator it = bibtex_info.begin();
 	     it != bibtex_info.end(); ++it) {
 		if (!biber && it->databases.empty())
 			continue;
 		result = true;
 
-		string tmp = runparams.bibtex_command;
+		string tmp = rp.bibtex_command;
 		tmp += " ";
 		// onlyFileName() is needed for cygwin
 		tmp += quoteName(onlyFileName(removeExtension(
 				it->aux_file.absFileName())));
 		Systemcall one;
-		one.startscript(Systemcall::Wait, tmp, path, lpath);
+		Systemcall::Starttype const starttype = 
+			allow_cancel ? Systemcall::WaitLoop : Systemcall::Wait;
+		exit_code = one.startscript(starttype, tmp, path, lpath, true);
+		if (exit_code) {
+			return result;
+		}
 	}
 	// Return whether bibtex was run
 	return result;
+}
+
+
+//helper func for scanLogFile; gets line number X from strings "... on input line X ..."
+//returns 0 if none is found
+int getLineNumber(const string &token){
+	string l = support::token(token, ' ', tokenPos(token,' ',"line") + 1);
+	return l.empty() ? 0 : convert<int>(l);
 }
 
 
@@ -649,8 +797,8 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 	int retval = NO_ERRORS;
 	string tmp =
 		onlyFileName(changeExtension(file.absFileName(), ".log"));
-	LYXERR(Debug::LATEX, "Log file: " << tmp);
-	FileName const fn = FileName(makeAbsPath(tmp));
+	LYXERR(Debug::OUTFILE, "Log file: " << tmp);
+	FileName const fn = makeAbsPath(tmp);
 	// FIXME we should use an ifdocstream here and a docstring for token
 	// below. The encoding of the log file depends on the _output_ (font)
 	// encoding of the TeX file (T1, TU etc.). See #10728.
@@ -658,6 +806,7 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 	bool fle_style = false;
 	static regex const file_line_error(".+\\.\\D+:[0-9]+: (.+)");
 	static regex const child_file("[^0-9]*([0-9]+[A-Za-z]*_.+\\.tex).*");
+	static regex const undef_ref(".*Reference `(\\w+)\\' on page.*");
 	// Flag for 'File ended while scanning' message.
 	// We need to wait for subsequent processing.
 	string wait_for_error;
@@ -666,7 +815,10 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 	stack <pair<string, int> > child;
 	children.clear();
 
+	terr.clearRefs();
+
 	string token;
+	string ml_token;
 	while (getline(ifs, token)) {
 		// MikTeX sometimes inserts \0 in the log file. They can't be
 		// removed directly with the existing string utility
@@ -676,10 +828,13 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 		token = subst(token, "\r", "");
 		smatch sub;
 
-		LYXERR(Debug::LATEX, "Log line: " << token);
+		LYXERR(Debug::OUTFILE, "Log line: " << token);
 
 		if (token.empty())
 			continue;
+
+		if (!ml_token.empty())
+			ml_token += token;
 
 		// Track child documents
 		for (size_t i = 0; i < token.length(); ++i) {
@@ -712,47 +867,115 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 		if (contains(token, "file:line:error style messages enabled"))
 			fle_style = true;
 
-		if (prefixIs(token, "LaTeX Warning:") ||
-		    prefixIs(token, "! pdfTeX warning")) {
+		//Handles both "LaTeX Warning:" & "Package natbib Warning:"
+		//Various handlers for missing citations below won't catch the problem if citation
+		//key is long (>~25chars), because pdflatex splits output at line length 80.
+		//TODO: TL 2020 engines will contain new commandline switch --cnf-line which we  
+		//can use to set max_print_line variable for appropriate length and detect all
+		//errors correctly.
+		if (!runparams.includeall && (contains(token, "There were undefined citations.") ||
+		    prefixIs(token, "Package biblatex Warning: The following entry could not be found")))
+			retval |= UNDEF_CIT;
+
+		if (prefixIs(token, "LaTeX Warning:")
+		    || prefixIs(token, "! pdfTeX warning")
+		    || prefixIs(ml_token, "LaTeX Warning:")
+		    || prefixIs(ml_token, "! pdfTeX warning")) {
 			// Here shall we handle different
 			// types of warnings
 			retval |= LATEX_WARNING;
-			LYXERR(Debug::LATEX, "LaTeX Warning.");
+			LYXERR(Debug::OUTFILE, "LaTeX Warning.");
 			if (contains(token, "Rerun to get cross-references")) {
 				retval |= RERUN;
-				LYXERR(Debug::LATEX, "We should rerun.");
+				LYXERR(Debug::OUTFILE, "We should rerun.");
 			// package clefval needs 2 latex runs before bibtex
 			} else if (contains(token, "Value of")
 				   && contains(token, "on page")
 				   && contains(token, "undefined")) {
 				retval |= ERROR_RERUN;
-				LYXERR(Debug::LATEX, "Force rerun.");
+				LYXERR(Debug::OUTFILE, "Force rerun.");
 			// package etaremune
 			} else if (contains(token, "Etaremune labels have changed")) {
 				retval |= ERROR_RERUN;
-				LYXERR(Debug::LATEX, "Force rerun.");
-			} else if (contains(token, "Citation")
-				   && contains(token, "on page")
+				LYXERR(Debug::OUTFILE, "Force rerun.");
+			// package enotez
+			} else if (contains(token, "Endnotes may have changed. Rerun")) {
+				retval |= RERUN;
+				LYXERR(Debug::OUTFILE, "We should rerun.");
+			//"Citation `cit' on page X undefined on input line X."
+			} else if (!runparams.includeall && contains(token, "Citation")
+				   //&& contains(token, "on input line") //often split to newline
 				   && contains(token, "undefined")) {
 				retval |= UNDEF_CIT;
-			} else if (contains(token, "Citation")
+				terr.insertRef(getLineNumber(token), from_ascii("Citation undefined"),
+					from_utf8(token), child_name);
+			//"Reference `X' on page Y undefined on input line Z."
+			// This warning might be broken accross multiple lines with long labels.
+			// Thus we check that
+			} else if (contains(token, "Reference `") && !contains(token, "on input line")) {
+				// Rest of warning in next line(s)
+				// Save to ml_token
+				ml_token = token;
+			} else if (!ml_token.empty() && contains(ml_token, "Reference `")
+				   && !contains(ml_token, "on input line")) {
+				// not finished yet. Continue with next line.
+				continue;
+			} else if (!ml_token.empty() && contains(ml_token, "Reference `")
+				   && contains(ml_token, "on input line")) {
+				// We have collected the whole warning now.
+				if (!contains(ml_token, "undefined")) {
+					// Not the warning we are looking for
+					ml_token.clear();
+					continue;
+				}
+				if (regex_match(ml_token, sub, undef_ref)) {
+					string const ref = sub.str(1);
+					Buffer const * buf = theBufferList().getBufferFromTmp(file.absFileName());
+					if (!buf || !buf->masterBuffer()->activeLabel(from_utf8(ref))) {
+						terr.insertRef(getLineNumber(ml_token), from_ascii("Reference undefined"),
+							from_utf8(ml_token), child_name);
+						retval |= UNDEF_UNKNOWN_REF;
+					}
+				}
+				ml_token.clear();
+				retval |= UNDEF_REF;
+			} else if (contains(token, "Reference `")
 				   && contains(token, "on input line")
 				   && contains(token, "undefined")) {
-				retval |= UNDEF_CIT;
+				if (regex_match(token, sub, undef_ref)) {
+					string const ref = sub.str(1);
+					Buffer const * buf = theBufferList().getBufferFromTmp(file.absFileName());
+					if (!buf || !buf->masterBuffer()->activeLabel(from_utf8(ref))) {
+						terr.insertRef(getLineNumber(token), from_ascii("Reference undefined"),
+							from_utf8(token), child_name);
+						retval |= UNDEF_UNKNOWN_REF;
+					}
+				}
+				retval |= UNDEF_REF;
+			// In case the above checks fail we catch at least this generic statement
+			// occuring for both CIT & REF.
+			} else if (!runparams.includeall && contains(token, "There were undefined references.")) {
+				if (!(retval & UNDEF_CIT)) //if not handled already
+					retval |= UNDEF_REF;
 			}
+
 		} else if (prefixIs(token, "Package")) {
 			// Package warnings
 			retval |= PACKAGE_WARNING;
 			if (contains(token, "natbib Warning:")) {
 				// Natbib warnings
-				if (contains(token, "Citation")
+				if (!runparams.includeall
+				    && contains(token, "Citation")
 				    && contains(token, "on page")
 				    && contains(token, "undefined")) {
 					retval |= UNDEF_CIT;
+					//Unf only keys up to ~6 chars will make it due to line splits
+					terr.insertRef(getLineNumber(token), from_ascii("Citation undefined"),
+						from_utf8(token), child_name);
 				}
-			} else if (contains(token, "run BibTeX")) {
+			} else if (!runparams.includeall && contains(token, "run BibTeX")) {
 				retval |= UNDEF_CIT;
-			} else if (contains(token, "run Biber")) {
+			} else if (!runparams.includeall && contains(token, "run Biber")) {
 				retval |= UNDEF_CIT;
 				biber = true;
 			} else if (contains(token, "Rerun LaTeX") ||
@@ -760,20 +983,20 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 				   contains(token, "Rerun to get")) {
 				// at least longtable.sty and bibtopic.sty
 				// might use this.
-				LYXERR(Debug::LATEX, "We should rerun.");
+				LYXERR(Debug::OUTFILE, "We should rerun.");
 				retval |= RERUN;
 			}
 		} else if (prefixIs(token, "LETTRE WARNING:")) {
 			if (contains(token, "veuillez recompiler")) {
 				// lettre.cls
-				LYXERR(Debug::LATEX, "We should rerun.");
+				LYXERR(Debug::OUTFILE, "We should rerun.");
 				retval |= RERUN;
 			}
 		} else if (token[0] == '(') {
 			if (contains(token, "Rerun LaTeX") ||
 			    contains(token, "Rerun to get")) {
 				// Used by natbib
-				LYXERR(Debug::LATEX, "We should rerun.");
+				LYXERR(Debug::OUTFILE, "We should rerun.");
 				retval |= RERUN;
 			}
 		} else if (prefixIs(token, "! ")
@@ -796,7 +1019,7 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 				if (prefixIs(token, "! File ended while scanning use of \\Hy@setref@link.")){
 					// bug 7344. We must rerun LaTeX if hyperref has been toggled.
 					retval |= ERROR_RERUN;
-					LYXERR(Debug::LATEX, "Force rerun.");
+					LYXERR(Debug::OUTFILE, "Force rerun.");
 				} else {
 					// bug 6445. At this point its not clear we finish with error.
 					wait_for_error = desc;
@@ -813,7 +1036,7 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 			if (prefixIs(token, "! Paragraph ended before \\Hy@setref@link was complete.")){
 					// bug 7344. We must rerun LaTeX if hyperref has been toggled.
 					retval |= ERROR_RERUN;
-					LYXERR(Debug::LATEX, "Force rerun.");
+					LYXERR(Debug::OUTFILE, "Force rerun.");
 			}
 
 			if (!wait_for_error.empty() && prefixIs(token, "! Emergency stop.")){
@@ -838,7 +1061,6 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 			}
 
 			// get the next line
-			string tmp;
 			int count = 0;
 			// We also collect intermediate lines
 			// This is needed for errors in preamble
@@ -894,8 +1116,8 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 				if (preamble_error)
 					// Add a note that the error is to be found in preamble
 					errstr += "\n" + to_utf8(_("(NOTE: The erroneous command is in the preamble)"));
-				LYXERR(Debug::LATEX, "line: " << line << '\n'
-					<< "Desc: " << desc << '\n' << "Text: " << errstr);
+				LYXERR(Debug::OUTFILE, "line: " << line << '\n'
+				                                << "Desc: " << desc << '\n' << "Text: " << errstr);
 				if (line == last_line)
 					++line_count;
 				else {
@@ -925,7 +1147,7 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 				retval |= TEX_WARNING;
 			} else if (prefixIs(token, "Underfull ")) {
 				retval |= TEX_WARNING;
-			} else if (contains(token, "Rerun to get citations")) {
+			} else if (!runparams.includeall && contains(token, "Rerun to get citations")) {
 				// Natbib seems to use this.
 				retval |= UNDEF_CIT;
 			} else if (contains(token, "No pages of output")
@@ -975,7 +1197,7 @@ int LaTeX::scanLogFile(TeXErrors & terr)
 			}
 		}
 	}
-	LYXERR(Debug::LATEX, "Log line: " << token);
+	LYXERR(Debug::OUTFILE, "Log line: " << token);
 	return retval;
 }
 
@@ -1353,7 +1575,7 @@ void LaTeX::deplog(DepTable & head)
 int LaTeX::scanBlgFile(DepTable & dep, TeXErrors & terr)
 {
 	FileName const blg_file(changeExtension(file.absFileName(), "blg"));
-	LYXERR(Debug::LATEX, "Scanning blg file: " << blg_file);
+	LYXERR(Debug::OUTFILE, "Scanning blg file: " << blg_file);
 
 	ifstream ifs(blg_file.toFilesystemEncoding().c_str());
 	string token;
@@ -1376,7 +1598,7 @@ int LaTeX::scanBlgFile(DepTable & dep, TeXErrors & terr)
 		if (regex_match(token, sub, reg1)) {
 			string data = sub.str(3);
 			if (!data.empty()) {
-				LYXERR(Debug::LATEX, "Found bib file: " << data);
+				LYXERR(Debug::OUTFILE, "Found bib file: " << data);
 				handleFoundFile(data, dep);
 			}
 		}
@@ -1386,37 +1608,72 @@ int LaTeX::scanBlgFile(DepTable & dep, TeXErrors & terr)
 			 || regex_match(token, sub, bibtexError5)) {
 			retval |= BIBTEX_ERROR;
 			string errstr = N_("BibTeX error: ") + token;
-			string message;
+			string msg;
 			if ((prefixIs(token, "while executing---line")
 			     || prefixIs(token, "---line ")
 			     || prefixIs(token, "*Please notify the BibTeX"))
 			    && !prevtoken.empty()) {
 				errstr = N_("BibTeX error: ") + prevtoken;
-				message = prevtoken + '\n';
+				msg = prevtoken + '\n';
 			}
-			message += token;
+			msg += token;
 			terr.insertError(0,
 					 from_local8bit(errstr),
-					 from_local8bit(message));
+					 from_local8bit(msg));
 		} else if (regex_match(prevtoken, sub, bibtexError3)) {
 			retval |= BIBTEX_ERROR;
 			string errstr = N_("BibTeX error: ") + prevtoken;
-			string message = prevtoken + '\n' + token;
+			string msg = prevtoken + '\n' + token;
 			terr.insertError(0,
 					 from_local8bit(errstr),
-					 from_local8bit(message));
+					 from_local8bit(msg));
 		} else if (regex_match(token, sub, biberError)) {
 			retval |= BIBTEX_ERROR;
 			string errstr = N_("Biber error: ") + sub.str(2);
-			string message = token;
 			terr.insertError(0,
 					 from_local8bit(errstr),
-					 from_local8bit(message));
+					 from_local8bit(token));
 		}
 		prevtoken = token;
 	}
 	return retval;
 }
+
+
+int LaTeX::scanIlgFile(TeXErrors & terr)
+{
+	FileName const ilg_file(changeExtension(file.absFileName(), "ilg"));
+	LYXERR(Debug::OUTFILE, "Scanning ilg file: " << ilg_file);
+
+	ifstream ifs(ilg_file.toFilesystemEncoding().c_str());
+	string token;
+	int retval = NO_ERRORS;
+
+	string prevtoken;
+	while (getline(ifs, token)) {
+		token = rtrim(token, "\r");
+		if (prefixIs(token, "!! "))
+			prevtoken = token;
+		else if (!prevtoken.empty()) {
+			retval |= INDEX_ERROR;
+			string errstr = N_("Makeindex error: ") + prevtoken;
+			string msg = prevtoken + '\n';
+			msg += token;
+			terr.insertError(0,
+					 from_local8bit(errstr),
+					 from_local8bit(msg));
+			prevtoken.clear();
+		} else if (prefixIs(token, "ERROR: ")) {
+			retval |= BIBTEX_ERROR;
+			string errstr = N_("Xindy error: ") + token.substr(6);
+			terr.insertError(0,
+					 from_local8bit(errstr),
+					 from_local8bit(token));
+		}
+	}
+	return retval;
+}
+
 
 
 } // namespace lyx

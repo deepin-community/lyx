@@ -17,7 +17,7 @@
 # \vspace*{-0.5in})
 #
 
-Format 66
+Format 104
 
 Requires	chess
 
@@ -47,12 +47,14 @@ Style Mainline
 	TopSep                0.0
 	ParSep                0.0
 	LabelFont
-	  Color               blue
+	  Color               textlabel1
 	  Series              bold
 	EndFont
 	TextFont
-	  Color               blue
+	  Color               textlabel1
 	EndFont
+	DocBookTag            para
+	DocBookAttr           role='mainline'
 End
 
 
@@ -65,6 +67,8 @@ Style Variation
 	LatexName             lyxvariation[1]
 	LabelString           "Variation:"
 	LeftMargin            MMMMMMMMM
+	DocBookTag            para
+	DocBookAttr           role='variation'
 End
 
 
@@ -74,6 +78,8 @@ Style SubVariation
 	LatexName             lyxvariation[2]
 	LabelString           "Subvariation:"
 	LeftMargin            MMMMMMMMMMMM
+	DocBookTag            para
+	DocBookAttr           role='subvariation'
 End
 
 
@@ -83,6 +89,8 @@ Style SubVariation2
 	LatexName             lyxvariation[3]
 	LabelString           "Subvariation(2):"
 	LeftMargin            MMMMMMMMMMMMMMM
+	DocBookTag            para
+	DocBookAttr           role='subsubvariation'
 End
 
 
@@ -92,6 +100,8 @@ Style SubVariation3
 	LatexName             lyxvariation[4]
 	LabelString           "Subvariation(3):"
 	LeftMargin            MMMMMMMMMMMMMMMMMM
+	DocBookTag            para
+	DocBookAttr           role='subsubsubvariation'
 End
 
 
@@ -101,6 +111,8 @@ Style SubVariation4
 	LatexName             lyxvariation[5]
 	LabelString           "Subvariation(4):"
 	LeftMargin            MMMMMMMMMMMMMMMMMMMMM
+	DocBookTag            para
+	DocBookAttr           role='subsubsubsubvariation'
 End
 
 
@@ -110,6 +122,8 @@ Style SubVariation5
 	LatexName             lyxvariation[6]
 	LabelString           "Subvariation(5):"
 	LeftMargin            MMMMMMMMMMMMMMMMMMMMMMMM
+	DocBookTag            para
+	DocBookAttr           role='subsubsubsubsubvariation'
 End
 
 
@@ -121,6 +135,8 @@ Style HideMoves
 	LeftMargin            "HideMoves:M"
 	LabelSep              M
 	LabelString           "HideMoves:"
+	DocBookTag            para
+	DocBookAttr           role='hide-moves'
 End
 
 
@@ -132,8 +148,10 @@ Style ChessBoard
 	LabelString           "[chessboard]"
 	KeepEmpty             1
 	LabelFont
-	  Color               red
+	  Color               textlabel3
 	EndFont
+	DocBookTag            para
+	DocBookAttr           role='chess-board'
 End
 
 
@@ -146,8 +164,10 @@ Style BoardCentered
 	LabelString            "[centered board]"
 	KeepEmpty              1
 	LabelFont
-	  Color                red
+	  Color               textlabel3
 	EndFont
+	DocBookTag            para
+	DocBookAttr           role='board-centered'
 End
 
 
@@ -160,14 +180,16 @@ Style HighLight
 	LeftMargin            MMMMMMMM
 	LabelString           "Highlights:"
 	LabelFont
-	  Color               black
+	  Color               foreground
 	  Series              Bold
 	  Shape               SmallCaps
 	EndFont
 	TextFont
 	  Series              Bold
-	  Color               black
+	  Color               foreground
 	EndFont
+	DocBookTag            para
+	DocBookAttr           role='highlights'
 End
 
 
@@ -179,6 +201,8 @@ Style Arrow
 	LatexName             lyxprintarrow
 	LeftMargin            MMMMMMMM
 	LabelString           "Arrow:"
+	DocBookTag            para
+	DocBookAttr           role='arrow'
 End
 
 
@@ -190,6 +214,8 @@ Style KnightMove
 	LatexName             lyxknightmove
 	LeftMargin            MMMMMMMM
 	LabelString           "KnightMove:"
+	DocBookTag            para
+	DocBookAttr           role='knight-move'
 End
 
 Input article.layout

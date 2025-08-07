@@ -105,10 +105,10 @@ protected:
 				fflush(stderr);
 			}
 	}
-	virtual result do_out(state_type &, intern_type const * from,
+	result do_out(state_type &, intern_type const * from,
 			intern_type const * from_end, intern_type const *& from_next,
 			extern_type * to, extern_type * to_end,
-			extern_type *& to_next) const
+			extern_type *& to_next) const override
 	{
 #define WORKAROUND_ICONV_BUG 1
 #if WORKAROUND_ICONV_BUG
@@ -120,7 +120,7 @@ protected:
 		// As a workaround, we append a nul char in order to force
 		// a switch to ASCII, and then remove it from output after
 		// the conversion.
-		intern_type * from_new = 0;
+		intern_type * from_new = nullptr;
 		intern_type const * from_old = from;
 		size_t extra = 0;
 		if (*(from_end - 1) >= 0x80 && encoding_ == "ISO-2022-JP") {
@@ -168,34 +168,34 @@ protected:
 			fprintf(stderr, "\nStopped at: 0x%04x\n", c);
 			fputs("Unconverted input:", stderr);
 			for (intern_type const * i = from_next + 1; i < from_end; ++i) {
-				unsigned int const c = *i;
-				fprintf(stderr, " 0x%04x", c);
+				unsigned int const cc = *i;
+				fprintf(stderr, " 0x%04x", cc);
 			}
 			fputs("\nConverted output:", stderr);
 			for (extern_type const * i = to; i < to_next; ++i) {
 				// extern_type may be signed, avoid output of
 				// something like 0xffffffc2
-				unsigned int const c =
+				unsigned int const cc =
 					*reinterpret_cast<unsigned char const *>(i);
-				fprintf(stderr, " 0x%02x", c);
+				fprintf(stderr, " 0x%02x", cc);
 			}
 			fputc('\n', stderr);
 			fflush(stderr);
 		}
 		return retval;
 	}
-	virtual result do_unshift(state_type &, extern_type * to,
-			extern_type *, extern_type *& to_next) const
+	result do_unshift(state_type &, extern_type * to,
+			extern_type *, extern_type *& to_next) const override
 	{
 		// utf8 does not use shifting
 		to_next = to;
 		return base::noconv;
 	}
-	virtual result do_in(state_type &,
+	result do_in(state_type &,
 			extern_type const * from, extern_type const * from_end,
 			extern_type const *& from_next,
 			intern_type * to, intern_type * to_end,
-			intern_type *& to_next) const
+			intern_type *& to_next) const override
 	{
 		size_t inbytesleft = (from_end - from) * sizeof(extern_type);
 		size_t outbytesleft = (to_end - to) * sizeof(intern_type);
@@ -222,30 +222,30 @@ protected:
 			fprintf(stderr, "\nStopped at: 0x%02x\n", c);
 			fputs("Unconverted input:", stderr);
 			for (extern_type const * i = from_next + 1; i < from_end; ++i) {
-				unsigned int const c =
+				unsigned int const cc =
 					*reinterpret_cast<unsigned char const *>(i);
-				fprintf(stderr, " 0x%02x", c);
+				fprintf(stderr, " 0x%02x", cc);
 			}
 			fputs("\nConverted output:", stderr);
 			for (intern_type const * i = to; i < to_next; ++i) {
-				unsigned int const c = *i;
-				fprintf(stderr, " 0x%02x", c);
+				unsigned int const cc = *i;
+				fprintf(stderr, " 0x%02x", cc);
 			}
 			fputc('\n', stderr);
 			fflush(stderr);
 		}
 		return retval;
 	}
-	virtual int do_encoding() const throw()
+	int do_encoding() const noexcept override
 	{
 		return 0;
 	}
-	virtual bool do_always_noconv() const throw()
+	bool do_always_noconv() const noexcept override
 	{
 		return false;
 	}
-	virtual int do_length(state_type & /*state*/, extern_type const * from,
-			extern_type const * end, size_t max) const
+	int do_length(state_type & /*state*/, extern_type const * from,
+			extern_type const * end, size_t max) const override
 	{
 		// The docs are a bit unclear about this method.
 		// It seems that we should calculate the actual length of the
@@ -266,7 +266,7 @@ protected:
 		return min(length, max);
 #endif
 	}
-	virtual int do_max_length() const throw()
+	int do_max_length() const noexcept override
 	{
 		return lyx::max_encoded_bytes(encoding_);
 	}
@@ -315,14 +315,14 @@ namespace lyx {
 template<class Ios>
 void setEncoding(Ios & ios, string const & encoding, ios_base::openmode mode)
 {
-	// We must imbue the stream before openening the file
+	// We must imbue the stream before opening the file
 	locale global;
 	locale locale(global, new iconv_codecvt_facet(encoding, mode));
 	ios.imbue(locale);
 }
 
 
-const char * iconv_codecvt_facet_exception::what() const throw()
+const char * iconv_codecvt_facet_exception::what() const noexcept
 {
 	return "iconv problem in iconv_codecvt_facet initialization";
 }
@@ -383,7 +383,7 @@ SetEnc setEncoding(string const & encoding)
 }
 
 
-odocstream & operator<<(odocstream & os, SetEnc e)
+odocstream & operator<<(odocstream & os, SetEnc const & e)
 {
 	if (has_facet<iconv_codecvt_facet>(os.rdbuf()->getloc())) {
 		// This stream must be a file stream, since we never imbue
@@ -413,7 +413,7 @@ odocstream & operator<<(odocstream & os, SetEnc e)
 }
 
 
-idocstream & operator<<(idocstream & is, SetEnc e)
+idocstream & operator<<(idocstream & is, SetEnc const & e)
 {
 	if (has_facet<iconv_codecvt_facet>(is.rdbuf()->getloc())) {
 		// This stream must be a file stream, since we never imbue
@@ -453,7 +453,7 @@ odocstream & operator<<(odocstream & os, char c)
 #if ! defined(USE_WCHAR_T) && defined(__GNUC__)
 // We get undefined references to these virtual methods. This looks like
 // a bug in gcc. The implementation here does not do anything useful, since
-// it is overriden in iconv_codecvt_facet.
+// it is overridden in iconv_codecvt_facet.
 namespace std {
 
 template<> codecvt<lyx::char_type, char, mbstate_t>::result
@@ -483,14 +483,14 @@ codecvt<lyx::char_type, char, mbstate_t>::do_in(
 
 
 template<>
-int codecvt<lyx::char_type, char, mbstate_t>::do_encoding() const throw()
+int codecvt<lyx::char_type, char, mbstate_t>::do_encoding() const noexcept
 {
 	return 0;
 }
 
 
 template<>
-bool codecvt<lyx::char_type, char, mbstate_t>::do_always_noconv() const throw()
+bool codecvt<lyx::char_type, char, mbstate_t>::do_always_noconv() const noexcept
 {
 	return true;
 }
@@ -503,7 +503,7 @@ int codecvt<lyx::char_type, char, mbstate_t>::do_length(
 }
 
 template<>
-int codecvt<lyx::char_type, char, mbstate_t>::do_max_length() const throw()
+int codecvt<lyx::char_type, char, mbstate_t>::do_max_length() const noexcept
 {
 	return 4;
 }

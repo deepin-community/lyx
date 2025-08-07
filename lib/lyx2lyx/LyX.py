@@ -1,6 +1,6 @@
 # This file is part of lyx2lyx
 # -*- coding: utf-8 -*-
-# Copyright (C) 2002-2015 The LyX Team
+# Copyright (C) 2002-2018 The LyX Team
 # Copyright (C) 2002-2004 Dekel Tsur <dekel@lyx.org>
 # Copyright (C) 2002-2006 José Matos <jamatos@lyx.org>
 #
@@ -20,8 +20,8 @@
 
 " The LyX module has all the rules related with different lyx file formats."
 
-from parser_tools import get_value, check_token, find_token, \
-     find_tokens, find_end_of
+from parser_tools import (get_value, check_token, find_token, find_tokens,
+                          find_end_of, find_complete_lines)
 import os.path
 import gzip
 import locale
@@ -34,8 +34,10 @@ import codecs
 try:
     import lyx2lyx_version
     version__ = lyx2lyx_version.version
+    stable_version = True
 except: # we are running from build directory so assume the last version
-    version__ = '2.3'
+    version__ = '2.4'
+    stable_version = False
 
 default_debug__ = 2
 
@@ -69,8 +71,8 @@ def minor_versions(major, last_minor_version):
 # Regular expressions used
 format_re = re.compile(r"(\d)[\.,]?(\d\d)")
 fileformat = re.compile(r"\\lyxformat\s*(\S*)")
-original_version = re.compile(r".*?LyX ([\d.]*)")
-original_tex2lyx_version = re.compile(r".*?tex2lyx ([\d.]*)")
+original_version = re.compile(b".*?LyX ([\\d.]*)")
+original_tex2lyx_version = re.compile(b".*?tex2lyx ([\\d.]*)")
 
 ##
 # file format information:
@@ -92,8 +94,9 @@ format_relation = [("0_06",    [200], minor_versions("0.6" , 4)),
                    ("1_6", list(range(277,346)), minor_versions("1.6" , 10)),
                    ("2_0", list(range(346,414)), minor_versions("2.0" , 8)),
                    ("2_1", list(range(414,475)), minor_versions("2.1" , 5)),
-                   ("2_2", list(range(475,509)), minor_versions("2.2" , 0)),
-                   ("2_3", (), minor_versions("2.3" , 0))
+                   ("2_2", list(range(475,509)), minor_versions("2.2" , 4)),
+                   ("2_3", list(range(509,545)), minor_versions("2.3" , 0)),
+                   ("2_4", (), minor_versions("2.4" , 0))
                   ]
 
 ####################################################################
@@ -119,19 +122,29 @@ def formats_list():
 
 
 def format_info():
-    " Returns a list with supported file formats."
-    out = """Major version:
-	minor versions
-	formats
+    " Returns a list with the supported file formats."
+    template = """
+%s\tstable format:       %s
+  \tstable versions:     %s
+  \tdevelopment formats: %s
 """
+
+    out = "version: formats and versions"
     for version in format_relation:
         major = str(version[2][0])
         versions = str(version[2][1:])
         if len(version[1]) == 1:
             formats = str(version[1][0])
+            stable_format = str(version[1][0])
+        elif not stable_version and major == version__:
+            stable_format = "-- not yet --"
+            versions = "-- not yet --"
+            formats = "%s - %s" % (version[1][0], version[1][-1])
         else:
-            formats = "%s - %s" % (version[1][-1], version[1][0])
-        out += "%s\n\t%s\n\t%s\n\n" % (major, versions, formats)
+            formats = "%s - %s" % (version[1][0], version[1][-2])
+            stable_format = str(version[1][-1])
+
+        out += template % (major, stable_format, versions, formats)
     return out + '\n'
 
 
@@ -281,7 +294,7 @@ class LyX_base:
         """ Emits warning to self.error, if the debug_level is less
         than the self.debug."""
         if debug_level <= self.debug:
-            self.err.write("Warning: " + message + "\n")
+            self.err.write("lyx2lyx warning: " + message + "\n")
 
 
     def error(self, message):
@@ -434,8 +447,8 @@ class LyX_base:
         else:
             header = self.header
 
-        for line in header + [''] + self.body:
-            self.output.write(line+u"\n")
+        for line in header + [u''] + self.body:
+            self.output.write(line+u'\n')
 
 
     def choose_output(self, output):
@@ -506,10 +519,10 @@ class LyX_base:
         file, returns the most likely value, or None otherwise."""
 
         for line in self.header:
-            if line[0] != "#":
+            if line[0:1] != b"#":
                 return None
 
-            line = line.replace("fix",".")
+            line = line.replace(b"fix",b".")
             # need to test original_tex2lyx_version first because tex2lyx
             # writes "#LyX file created by tex2lyx 2.2"
             result = original_tex2lyx_version.match(line)
@@ -517,14 +530,14 @@ class LyX_base:
                 result = original_version.match(line)
                 if result:
                     # Special know cases: reLyX and KLyX
-                    if line.find("reLyX") != -1 or line.find("KLyX") != -1:
+                    if line.find(b"reLyX") != -1 or line.find(b"KLyX") != -1:
                         return "0.12"
             if result:
                 res = result.group(1)
                 if not res:
                     self.warning(line)
                 #self.warning("Version %s" % result.group(1))
-                return res
+                return res.decode('ascii') if not PY2 else res
         self.warning(str(self.header[:2]))
         return None
 
@@ -533,7 +546,7 @@ class LyX_base:
         " Set the header with the version used."
 
         initial_comment = " ".join(["#LyX %s created this file." % version__,
-                                    "For more info see http://www.lyx.org/"])
+                                    "For more info see https://www.lyx.org/"])
 
         # Simple heuristic to determine the comment that always starts
         # a lyx file
@@ -582,6 +595,7 @@ class LyX_base:
 
     #Note that the module will be added at the END of the extant ones
     def add_module(self, module):
+      " Append module to the modules list."
       i = find_token(self.header, "\\begin_modules", 0)
       if i == -1:
         #No modules yet included
@@ -602,7 +616,16 @@ class LyX_base:
       self.header.insert(j, module)
 
 
+    def del_module(self, module):
+        " Delete `module` from module list, return success."
+        modlist = self.get_module_list()
+        if module not in modlist:
+            return False
+        self.set_module_list([line for line in modlist if line != module])
+        return True
+
     def get_module_list(self):
+      " Return list of modules."
       i = find_token(self.header, "\\begin_modules", 0)
       if (i == -1):
         return []
@@ -611,23 +634,23 @@ class LyX_base:
 
 
     def set_module_list(self, mlist):
-      modbegin = find_token(self.header, "\\begin_modules", 0)
-      newmodlist = ['\\begin_modules'] + mlist + ['\\end_modules']
-      if (modbegin == -1):
+      i = find_token(self.header, "\\begin_modules", 0)
+      if (i == -1):
         #No modules yet included
         tclass = find_token(self.header, "\\textclass", 0)
         if tclass == -1:
           self.warning("Malformed LyX document: No \\textclass!!")
           return
-        modbegin = tclass + 1
-        self.header[modbegin:modbegin] = newmodlist
-        return
-      modend = find_token(self.header, "\\end_modules", modbegin)
-      if modend == -1:
-        self.warning("(set_module_list)Malformed LyX document: No \\end_modules.")
-        return
-      newmodlist = ['\\begin_modules'] + mlist + ['\\end_modules']
-      self.header[modbegin:modend + 1] = newmodlist
+        i = j = tclass + 1
+      else:
+        j = find_token(self.header, "\\end_modules", i)
+        if j == -1:
+            self.warning("(set_module_list) Malformed LyX document: No \\end_modules.")
+            return
+        j += 1
+      if mlist:
+          mlist = ['\\begin_modules'] + mlist + ['\\end_modules']
+      self.header[i:j] = mlist
 
 
     def set_parameter(self, param, value):
@@ -678,7 +701,7 @@ class LyX_base:
                     try:
                         conv(self)
                     except:
-                        self.warning("An error ocurred in %s, %s" %
+                        self.warning("An error occurred in %s, %s" %
                                      (version, str(conv)),
                                      default_debug__)
                         if not self.try_hard:
@@ -759,6 +782,53 @@ class LyX_base:
         self.warning("Convertion mode: %s\tsteps%s" %(mode, steps), 10)
         return mode, steps
 
+
+    def append_local_layout(self, new_layout):
+        " Append `new_layout` to the local layouts."
+        # new_layout may be a string or a list of strings (lines)
+        try:
+            new_layout = new_layout.splitlines()
+        except AttributeError:
+            pass
+        i = find_token(self.header, "\\begin_local_layout", 0)
+        if i == -1:
+            k = find_token(self.header, "\\language", 0)
+            if k == -1:
+                # this should not happen
+                self.warning("Malformed LyX document! No \\language header found!")
+                return
+            self.header[k : k] = ["\\begin_local_layout", "\\end_local_layout"]
+            i = k
+
+        j = find_end_of(self.header, i, "\\begin_local_layout", "\\end_local_layout")
+        if j == -1:
+            # this should not happen
+            self.warning("Malformed LyX document: Can't find end of local layout!")
+            return
+
+        self.header[i+1 : i+1] = new_layout
+
+    def del_local_layout(self, layout_def):
+        " Delete `layout_def` from local layouts, return success."
+        i = find_complete_lines(self.header, layout_def)
+        if i == -1:
+            return False
+        j = i+len(layout_def)
+        if (self.header[i-1] == "\\begin_local_layout" and
+            self.header[j] == "\\end_local_layout"):
+            i -=1
+            j +=1
+        self.header[i:j] = []
+        return True
+
+    def del_from_header(self, lines):
+        " Delete `lines` from the document header, return success."
+        i = find_complete_lines(self.header, lines)
+        if i == -1:
+            return False
+        j = i + len(lines)
+        self.header[i:j] = []
+        return True
 
 # Part of an unfinished attempt to make lyx2lyx gave a more
 # structured view of the document.

@@ -12,14 +12,15 @@
 #ifndef MATHSIZEINSET_H
 #define MATHSIZEINSET_H
 
+#include "FontEnums.h"
 #include "InsetMathNest.h"
-#include "MetricsInfo.h"
 
 
 namespace lyx {
 
 
 class latexkeys;
+class MetricsInfo;
 
 /// An inset for \scriptsize etc.
 class InsetMathSize : public InsetMathNest {
@@ -27,29 +28,29 @@ public:
 	///
 	explicit InsetMathSize(Buffer * buf, latexkeys const * l);
 	/// we write extra braces in any case...
-	bool extraBraces() const { return true; }
+	bool extraBraces() const override { return true; }
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo &, int x, int y) const;
+	void draw(PainterInfo &, int x, int y) const override;
 
 	///
-	void write(WriteStream & os) const;
+	void write(TeXMathStream & os) const override;
 	///
-	void normalize(NormalStream &) const;
+	void normalize(NormalStream &) const override;
 	///
-	void infoize(odocstream & os) const;
+	void infoize(odocstream & os) const override;
 	///
-	void mathmlize(MathStream &) const;
+	void mathmlize(MathMLStream &) const override;
 	///
-	void htmlize(HtmlStream &) const;
+	void htmlize(HtmlStream &) const override;
 	///
-	void validate(LaTeXFeatures &) const;
+	void validate(LaTeXFeatures &) const override;
 	///
-	InsetCode lyxCode() const { return MATH_SIZE_CODE; }
+	InsetCode lyxCode() const override { return MATH_SIZE_CODE; }
 
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 	///
 	latexkeys const * key_;
 	///

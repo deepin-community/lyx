@@ -25,42 +25,6 @@ using namespace lyx::support;
 
 namespace lyx {
 
-namespace {
-
-class IndexNamesEqual : public std::unary_function<Index, bool>
-{
-public:
-	IndexNamesEqual(docstring const & name)
-		: name_(name)
-	{}
-
-	bool operator()(Index const & index) const
-	{
-		return index.index() == name_;
-	}
-private:
-	docstring name_;
-};
-
-
-class IndexHasShortcut : public std::unary_function<Index, bool>
-{
-public:
-	IndexHasShortcut(docstring const & shortcut)
-		: shortc_(shortcut)
-	{}
-
-	bool operator()(Index const & index) const
-	{
-		return index.shortcut() == shortc_;
-	}
-private:
-	docstring shortc_;
-};
-
-} // namespace
-
-
 /////////////////////////////////////////////////////////////////////
 //
 // Index
@@ -136,35 +100,55 @@ void Index::setColor(string const & str)
 /////////////////////////////////////////////////////////////////////
 
 
+namespace{
+
+std::function<bool (Index const &)> IndexNameIs(docstring const & name)
+{
+	return [name](Index const & idx){ return idx.index() == name; };
+}
+
+}
+
+
 Index * IndicesList::find(docstring const & name)
 {
 	List::iterator it =
-		find_if(list.begin(), list.end(), IndexNamesEqual(name));
-	return it == list.end() ? 0 : &*it;
+		find_if(list.begin(), list.end(), IndexNameIs(name));
+	return it == list.end() ? nullptr : &*it;
 }
 
 
 Index const * IndicesList::find(docstring const & name) const
 {
 	List::const_iterator it =
-		find_if(list.begin(), list.end(), IndexNamesEqual(name));
-	return it == list.end() ? 0 : &*it;
+		find_if(list.begin(), list.end(), IndexNameIs(name));
+	return it == list.end() ? nullptr : &*it;
 }
+
+
+namespace {
+
+std::function<bool (Index const &)> IndexShortcutIs(docstring const & sc)
+{
+	return [sc](Index const & idx){ return idx.shortcut() == sc; };
+}
+
+} // namespace
 
 
 Index * IndicesList::findShortcut(docstring const & shortcut)
 {
 	List::iterator it =
-		find_if(list.begin(), list.end(), IndexHasShortcut(shortcut));
-	return it == list.end() ? 0 : &*it;
+		find_if(list.begin(), list.end(), IndexShortcutIs(shortcut));
+	return it == list.end() ? nullptr : &*it;
 }
 
 
 Index const * IndicesList::findShortcut(docstring const & shortcut) const
 {
 	List::const_iterator it =
-		find_if(list.begin(), list.end(), IndexHasShortcut(shortcut));
-	return it == list.end() ? 0 : &*it;
+		find_if(list.begin(), list.end(), IndexShortcutIs(shortcut));
+	return it == list.end() ? nullptr : &*it;
 }
 
 
@@ -180,21 +164,19 @@ bool IndicesList::add(docstring const & n, docstring const & s)
 		else
 			name = n.substr(i, j - i);
 		// Is this name already in the list?
-		bool const already =
-			find_if(list.begin(), list.end(),
-				     IndexNamesEqual(name)) != list.end();
+		bool const already = find(name);
 		if (!already) {
 			added = true;
 			Index in;
 			in.setIndex(name);
 			docstring sc = s.empty() ?
 				trim(lowercase(name.substr(0, 3))) : s;
-			if (findShortcut(sc) != 0) {
-				int i = 1;
-				docstring scn = sc + convert<docstring>(i);
-				while (findShortcut(scn) != 0) {
-					++i;
-					scn = sc + convert<docstring>(i);
+			if (findShortcut(sc) != nullptr) {
+				int k = 1;
+				docstring scn = sc + convert<docstring>(k);
+				while (findShortcut(scn) != nullptr) {
+					++k;
+					scn = sc + convert<docstring>(k);
 				}
 				in.setShortcut(scn);
 			} else
@@ -211,7 +193,7 @@ bool IndicesList::add(docstring const & n, docstring const & s)
 
 bool IndicesList::addDefault(docstring const & n)
 {
-	if (findShortcut(from_ascii("idx")) != 0)
+	if (findShortcut(from_ascii("idx")) != nullptr)
 		// we already have a default
 		return false;
 	return add(n, from_ascii("idx"));
@@ -220,7 +202,7 @@ bool IndicesList::addDefault(docstring const & n)
 bool IndicesList::remove(docstring const & s)
 {
 	size_t const size = list.size();
-	list.remove_if(IndexNamesEqual(s));
+	list.remove_if(IndexNameIs(s));
 	return size != list.size();
 }
 
@@ -230,8 +212,7 @@ bool IndicesList::rename(docstring const & oldname,
 {
 	if (newname.empty())
 		return false;
-	if (find_if(list.begin(), list.end(),
-		    IndexNamesEqual(newname)) != list.end())
+	if (find(newname))
 		// new name already taken
 		return false;
 

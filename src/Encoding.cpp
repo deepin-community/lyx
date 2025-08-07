@@ -17,16 +17,16 @@
 #include "Lexer.h"
 
 #include "support/debug.h"
+#include "support/docstring.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
 #include "support/mutex.h"
 #include "support/textutils.h"
 #include "support/unicode.h"
 
-#include <boost/cstdint.hpp>
-
-#include <iterator>
 #include <algorithm>
+#include <cstdint>
+#include <iterator>
 #include <sstream>
 
 using namespace std;
@@ -50,7 +50,7 @@ CharInfoMap unicodesymbols;
 typedef set<char_type> CharSet;
 typedef map<string, CharSet> CharSetMap;
 CharSet forced;
-CharSetMap forcedselected;
+CharSetMap forcedSelected;
 
 typedef set<char_type> MathAlphaSet;
 MathAlphaSet mathalpha;
@@ -68,19 +68,30 @@ EncodingException::EncodingException(char_type c)
 }
 
 
-const char * EncodingException::what() const throw()
+const char * EncodingException::what() const noexcept
 {
 	return "Could not find LaTeX command for a character";
 }
 
 
 CharInfo::CharInfo(
-	docstring const & textcommand, docstring const & mathcommand,
-	std::string const & textpreamble, std::string const & mathpreamble,
-	std::string const & tipashortcut, unsigned int flags)
-	: textcommand_(textcommand), mathcommand_(mathcommand),
-	  textpreamble_(textpreamble), mathpreamble_(mathpreamble),
-	  tipashortcut_(tipashortcut), flags_(flags)
+		docstring const & text_command, docstring const & math_command,
+		std::string const & text_preamble, std::string const & math_preamble,
+		std::string const & tipa_shortcut, unsigned int flags)
+	: text_commands_({text_command}), math_commands_({math_command}),
+	  text_preamble_(text_preamble), math_preamble_(math_preamble),
+	  tipa_shortcut_(tipa_shortcut), flags_(flags)
+{
+}
+
+
+CharInfo::CharInfo(
+		std::vector<docstring> const & text_commands, std::vector<docstring> const & math_commands,
+		std::string const & text_preamble, std::string const & math_preamble,
+		std::string const & tipa_shortcut, unsigned int flags)
+	: text_commands_(text_commands), math_commands_(math_commands),
+	  text_preamble_(text_preamble), math_preamble_(math_preamble),
+	  tipa_shortcut_(tipa_shortcut), flags_(flags)
 {
 }
 
@@ -88,7 +99,7 @@ CharInfo::CharInfo(
 Encoding::Encoding(string const & n, string const & l, string const & g,
 		   string const & i, bool f, bool u, Encoding::Package p)
 	: name_(n), latexName_(l), guiName_(g), iconvName_(i), fixedwidth_(f),
-	  unsafe_(u), forced_(&forcedselected[n]), package_(p)
+	  unsafe_(u), forced_(&forcedSelected[n]), package_(p)
 {
 	if (n == "ascii") {
 		// ASCII can encode 128 code points and nothing else
@@ -189,9 +200,16 @@ bool Encoding::encodable(char_type c) const
 {
 	// assure the used encoding is properly initialized
 	init();
-
 	if (iconvName_ == "UTF-8" && package_ == none)
 		return true;
+	// platex does not load inputenc: force conversion of supported characters
+	if (package_ == Encoding::japanese
+	    && ((0xb7 <= c && c <= 0x05ff) // Latin-1 Supplement ... Hebrew
+			|| (0x1d00 <= c && c <= 0x218f) // Phonetic Extensions ... Number Forms
+			|| (0x2193 <= c && c <= 0x2aff) // Arrows ... Supplemental Mathematical Operators
+			|| (0xfb00 <= c && c <= 0xfb4f) // Alphabetic Presentation Forms
+			|| (0x1d400 <= c && c <= 0x1d7ff))) // Mathematical Alphanumeric Symbols
+		return false;
 	if (c < start_encodable_ && !isForced(c))
 		return true;
 	if (encodable_.find(c) != encodable_.end())
@@ -209,11 +227,11 @@ pair<docstring, bool> Encoding::latexChar(char_type c) const
 	CharInfoMap::const_iterator const it = unicodesymbols.find(c);
 	if (it == unicodesymbols.end())
 		throw EncodingException(c);
-	// at least one of mathcommand and textcommand is nonempty
-	if (it->second.textcommand().empty())
+	// at least one of mathCommand and textCommand is nonempty
+	if (it->second.textCommand().empty())
 		return make_pair(
-			"\\ensuremath{" + it->second.mathcommand() + '}', false);
-	return make_pair(it->second.textcommand(), !it->second.textnotermination());
+				"\\ensuremath{" + it->second.mathCommand() + '}', false);
+	return make_pair(it->second.textCommand(), !it->second.textNoTermination());
 }
 
 
@@ -222,9 +240,8 @@ pair<docstring, docstring> Encoding::latexString(docstring const & input, bool d
 	docstring result;
 	docstring uncodable;
 	bool terminate = false;
-	for (size_t n = 0; n < input.size(); ++n) {
+	for (char_type const c : input) {
 		try {
-			char_type const c = input[n];
 			pair<docstring, bool> latex_char = latexChar(c);
 			docstring const latex = latex_char.first;
 			if (terminate && !prefixIs(latex, '\\')
@@ -241,14 +258,15 @@ pair<docstring, docstring> Encoding::latexString(docstring const & input, bool d
 			result += latex;
 			terminate = latex_char.second;
 		} catch (EncodingException & /* e */) {
-			LYXERR0("Uncodable character in latexString!");
+			LYXERR0("Uncodable character <" << docstring(1, c) 
+					<< "> in latexString!");
 			if (dryrun) {
 				result += "<" + _("LyX Warning: ")
 					   + _("uncodable character") + " '";
-				result += docstring(1, input[n]);
+				result += docstring(1, c);
 				result += "'>";
 			} else
-				uncodable += input[n];
+				uncodable += c;
 		}
 	}
 	return make_pair(result, uncodable);
@@ -267,7 +285,7 @@ vector<char_type> Encoding::symbolsList() const
 	// add all encodable characters
 	copy(encodable_.begin(), encodable_.end(), back_inserter(symbols));
 	// now the ones from the unicodesymbols file that are not already there
-	for (pair<char_type, CharInfo> const & elem : unicodesymbols) {
+	for (auto const & elem : unicodesymbols) {
 		if (find(symbols.begin(), symbols.end(), elem.first) == symbols.end())
 			symbols.push_back(elem.first);
 	}
@@ -295,17 +313,17 @@ bool Encodings::latexMathChar(char_type c, bool mathmode,
 			addMathSym(c);
 		return false;
 	}
-	// at least one of mathcommand and textcommand is nonempty
-	bool use_math = (mathmode && !it->second.mathcommand().empty()) ||
-			(!mathmode && it->second.textcommand().empty());
+	// at least one of mathCommand and textCommand is nonempty
+	bool use_math = (mathmode && !it->second.mathCommand().empty()) ||
+	                (!mathmode && it->second.textCommand().empty());
 	if (use_math) {
-		command = it->second.mathcommand();
-		needsTermination = !it->second.mathnotermination();
+		command = it->second.mathCommand();
+		needsTermination = !it->second.mathNoTermination();
 		addMathCmd(c);
 	} else {
 		if (!encoding || command.empty()) {
-			command = it->second.textcommand();
-			needsTermination = !it->second.textnotermination();
+			command = it->second.textCommand();
+			needsTermination = !it->second.textNoTermination();
 		}
 		if (mathmode)
 			addMathSym(c);
@@ -324,23 +342,31 @@ char_type Encodings::fromLaTeXCommand(docstring const & cmd, int cmdtype,
 	for (combining = false; it != end; ++it) {
 		if (it->second.deprecated())
 			continue;
-		docstring const math = it->second.mathcommand();
-		docstring const text = it->second.textcommand();
-		if ((cmdtype & MATH_CMD) && math == cmd) {
-			combining = it->second.combining();
-			needsTermination = !it->second.mathnotermination();
-			if (req && it->second.mathfeature() &&
-			    !it->second.mathpreamble().empty())
-				req->insert(it->second.mathpreamble());
-			return it->first;
+
+		if (cmdtype & MATH_CMD) {
+			for (const docstring& math : it->second.mathCommands()) {
+				if ((cmdtype & MATH_CMD) && math == cmd) {
+					combining = it->second.combining();
+					needsTermination = !it->second.mathNoTermination();
+					if (req && it->second.mathFeature() &&
+					    !it->second.mathPreamble().empty())
+						req->insert(it->second.mathPreamble());
+					return it->first;
+				}
+			}
 		}
-		if ((cmdtype & TEXT_CMD) && text == cmd) {
-			combining = it->second.combining();
-			needsTermination = !it->second.textnotermination();
-			if (req && it->second.textfeature() &&
-			    !it->second.textpreamble().empty())
-				req->insert(it->second.textpreamble());
-			return it->first;
+
+		if (cmdtype & TEXT_CMD) {
+			for (const docstring& text : it->second.textCommands()) {
+				if (text == cmd) {
+					combining = it->second.combining();
+					needsTermination = !it->second.textNoTermination();
+					if (req && it->second.textFeature() &&
+					    !it->second.textPreamble().empty())
+						req->insert(it->second.textPreamble());
+					return it->first;
+				}
+			}
 		}
 	}
 	needsTermination = false;
@@ -355,6 +381,38 @@ docstring Encodings::fromLaTeXCommand(docstring const & cmd, int cmdtype,
 	rem = empty_docstring();
 	bool const mathmode = cmdtype & MATH_CMD;
 	bool const textmode = cmdtype & TEXT_CMD;
+
+	// Easy case: the command is a complete entry of unicodesymbols.
+	for (const auto & unicodeSymbol : unicodesymbols) {
+		if (mathmode) {
+			for (const auto & command : unicodeSymbol.second.mathCommands()) {
+				if (command == cmd) {
+					docstring value;
+					value += unicodeSymbol.first;
+					needsTermination = !unicodeSymbol.second.mathNoTermination();
+					if (req && unicodeSymbol.second.mathFeature()
+						&& !unicodeSymbol.second.mathPreamble().empty())
+							req->insert(unicodeSymbol.second.mathPreamble());
+					return value;
+				}
+			}
+		}
+		if (textmode) {
+			for (const auto & command : unicodeSymbol.second.textCommands()) {
+				if (command == cmd) {
+					docstring value;
+					value += unicodeSymbol.first;
+					needsTermination = !unicodeSymbol.second.textNoTermination();
+					if (req && unicodeSymbol.second.textFeature()
+						&& !unicodeSymbol.second.textPreamble().empty())
+						req->insert(unicodeSymbol.second.textPreamble());
+					return value;
+				}
+			}
+		}
+	}
+
+	// Otherwise, try to map as many commands as possible, matching prefixes of the command.
 	docstring symbols;
 	size_t const cmdend = cmd.size();
 	size_t prefix = 0;
@@ -401,19 +459,19 @@ docstring Encodings::fromLaTeXCommand(docstring const & cmd, int cmdtype,
 		// the prefix of some command in the unicodesymbols file
 		docstring subcmd = cmd.substr(i, j - i + 1);
 
-		CharInfoMap::const_iterator it = unicodesymbols.begin();
 		// First part of subcmd which might be a combining character
 		docstring combcmd = (m == j) ? docstring() : cmd.substr(i, m - i + 1);
 		// The combining character of combcmd if it exists
-		CharInfoMap::const_iterator combining = uniend;
 		size_t unicmd_size = 0;
 		char_type c = 0;
+		CharInfoMap::const_iterator it = unicodesymbols.begin();
+		CharInfoMap::const_iterator combining = uniend;
 		for (; it != uniend; ++it) {
 			if (it->second.deprecated())
 				continue;
-			docstring const math = mathmode ? it->second.mathcommand()
+			docstring const math = mathmode ? it->second.mathCommand()
 							: docstring();
-			docstring const text = textmode ? it->second.textcommand()
+			docstring const text = textmode ? it->second.textCommand()
 							: docstring();
 			if (!combcmd.empty() && it->second.combining() &&
 			    (math == combcmd || text == combcmd))
@@ -489,16 +547,16 @@ docstring Encodings::fromLaTeXCommand(docstring const & cmd, int cmdtype,
 				i = j + 1;
 				unicmd_size = cur_size;
 				if (math == tmp)
-					needsTermination = !it->second.mathnotermination();
+					needsTermination = !it->second.mathNoTermination();
 				else
-					needsTermination = !it->second.textnotermination();
+					needsTermination = !it->second.textNoTermination();
 				if (req) {
-					if (math == tmp && it->second.mathfeature() &&
-					    !it->second.mathpreamble().empty())
-						req->insert(it->second.mathpreamble());
-					if (text == tmp && it->second.textfeature() &&
-					    !it->second.textpreamble().empty())
-						req->insert(it->second.textpreamble());
+					if (math == tmp && it->second.mathFeature() &&
+					    !it->second.mathPreamble().empty())
+						req->insert(it->second.mathPreamble());
+					if (text == tmp && it->second.textFeature() &&
+					    !it->second.textPreamble().empty())
+						req->insert(it->second.textPreamble());
 				}
 			}
 		}
@@ -577,26 +635,34 @@ string const Encodings::TIPAShortcut(char_type c)
 {
 	CharInfoMap::const_iterator const it = unicodesymbols.find(c);
 	if (it != unicodesymbols.end())
-		return it->second.tipashortcut();
+		return it->second.tipaShortcut();
 	return string();
 }
 
 
-bool Encodings::isKnownScriptChar(char_type const c, string & preamble)
+string const Encodings::isKnownScriptChar(char_type const c)
 {
 	CharInfoMap::const_iterator const it = unicodesymbols.find(c);
 
 	if (it == unicodesymbols.end())
-		return false;
+		return string();
+	// FIXME: parse complex textPreamble (may be list or alternatives,
+	// 		  e.g., "subscript,textgreek" or "textcomp|textgreek")
+	if (it->second.textPreamble() == "textgreek"
+		|| it->second.textPreamble() == "textcyrillic")
+		return it->second.textPreamble();
+	return string();
+}
 
-	if (it->second.textpreamble() != "textgreek" && it->second.textpreamble() != "textcyr")
-		return false;
 
-	if (preamble.empty()) {
-		preamble = it->second.textpreamble();
-		return true;
-	}
-	return it->second.textpreamble() == preamble;
+bool Encodings::fontencSupportsScript(string const & fontenc, string const & script)
+{
+	if (script == "textgreek")
+		return (fontenc == "LGR" || fontenc == "TU");
+	if (script == "textcyrillic")
+		return (fontenc == "T2A" || fontenc == "T2B" || fontenc == "T2C"
+				|| fontenc == "X2" || fontenc == "TU");
+	return false;
 }
 
 
@@ -612,7 +678,7 @@ bool Encodings::isUnicodeTextOnly(char_type c)
 		return false;
 
 	CharInfoMap::const_iterator const it = unicodesymbols.find(c);
-	return it == unicodesymbols.end() || it->second.mathcommand().empty();
+	return it == unicodesymbols.end() || it->second.mathCommand().empty();
 }
 
 
@@ -621,15 +687,15 @@ Encodings::fromLyXName(string const & name, bool allowUnsafe) const
 {
 	EncodingList::const_iterator const it = encodinglist.find(name);
 	if (it == encodinglist.end())
-		return 0;
+		return nullptr;
 	if (!allowUnsafe && it->second.unsafe())
-		return 0;
+		return nullptr;
 	return &it->second;
 }
 
 
 Encoding const *
-Encodings::fromLaTeXName(string const & n, int const & p, bool allowUnsafe) const
+Encodings::fromLaTeXName(string const & n, int p, bool allowUnsafe) const
 {
 	string name = n;
 	// FIXME: if we have to test for too many of these synonyms,
@@ -647,19 +713,19 @@ Encodings::fromLaTeXName(string const & n, int const & p, bool allowUnsafe) cons
 		if ((it->second.latexName() == name) && (it->second.package() & p)
 				&& (!it->second.unsafe() || allowUnsafe))
 			return &it->second;
-	return 0;
+	return nullptr;
 }
 
 
 Encoding const *
-Encodings::fromIconvName(string const & n, int const & p, bool allowUnsafe) const
+Encodings::fromIconvName(string const & n, int p, bool allowUnsafe) const
 {
 	EncodingList::const_iterator const end = encodinglist.end();
 	for (EncodingList::const_iterator it = encodinglist.begin(); it != end; ++it)
 		if ((it->second.iconvName() == n) && (it->second.package() & p)
 				&& (!it->second.unsafe() || allowUnsafe))
 			return &it->second;
-	return 0;
+	return nullptr;
 }
 
 
@@ -671,41 +737,59 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 {
 	// We must read the symbolsfile first, because the Encoding
 	// constructor depends on it.
-	CharSetMap forcednotselected;
-	Lexer symbolslex;
-	symbolslex.setFile(symbolsfile);
+	CharSetMap forcedNotSelected;
+	Lexer symbolsLex;
+	symbolsLex.setFile(symbolsfile);
 	bool getNextToken = true;
-	while (symbolslex.isOK()) {
+	while (symbolsLex.isOK()) {
 		char_type symbol;
 
 		if (getNextToken) {
-			if (!symbolslex.next(true))
+			if (!symbolsLex.next(true))
 				break;
 		} else
 			getNextToken = true;
 
-		istringstream is(symbolslex.getString());
+		istringstream is(symbolsLex.getString());
 		// reading symbol directly does not work if
 		// char_type == wchar_t.
-		boost::uint32_t tmp;
+		uint32_t tmp;
 		if(!(is >> hex >> tmp))
 			break;
 		symbol = tmp;
 
-		if (!symbolslex.next(true))
-			break;
-		docstring textcommand = symbolslex.getDocString();
-		if (!symbolslex.next(true))
-			break;
-		string textpreamble = symbolslex.getString();
-		if (!symbolslex.next(true))
-			break;
-		string sflags = symbolslex.getString();
+		// Special case: more than one entry for one character (to add other LaTeX commands).
+		if (unicodesymbols.find(symbol) != unicodesymbols.end()) {
+			if (!symbolsLex.next(true))
+				break;
+			docstring textCommand = symbolsLex.getDocString();
+			if (!symbolsLex.next(true))
+				break;
+			string mathCommand = symbolsLex.getString();
 
-		string tipashortcut;
+			if (!textCommand.empty())
+				unicodesymbols.at(symbol).addTextCommand(textCommand);
+			if (!mathCommand.empty())
+				unicodesymbols.at(symbol).addMathCommand(textCommand);
+
+			continue;
+		}
+
+		// If the symbol is not the same as the previous entry, consider it is a totally new symbol.
+		if (!symbolsLex.next(true))
+			break;
+		docstring textCommand = symbolsLex.getDocString();
+		if (!symbolsLex.next(true))
+			break;
+		string textPreamble = symbolsLex.getString();
+		if (!symbolsLex.next(true))
+			break;
+		string sflags = symbolsLex.getString();
+
+		string tipaShortcut;
 		int flags = 0;
 
-		if (suffixIs(textcommand, '}'))
+		if (suffixIs(textCommand, '}'))
 			flags |= CharInfoTextNoTermination;
 		while (!sflags.empty()) {
 			string flag;
@@ -716,16 +800,16 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 				flags |= CharInfoForce;
 				forced.insert(symbol);
 			} else if (prefixIs(flag, "force=")) {
-				vector<string> encodings =
+				vector<string> encs =
 					getVectorFromString(flag.substr(6), ";");
-				for (size_t i = 0; i < encodings.size(); ++i)
-					forcedselected[encodings[i]].insert(symbol);
+				for (auto const & enc : encs)
+					forcedSelected[enc].insert(symbol);
 				flags |= CharInfoForceSelected;
 			} else if (prefixIs(flag, "force!=")) {
-				vector<string> encodings =
+				vector<string> encs =
 					getVectorFromString(flag.substr(7), ";");
-				for (size_t i = 0; i < encodings.size(); ++i)
-					forcednotselected[encodings[i]].insert(symbol);
+				for (auto const & enc : encs)
+					forcedNotSelected[enc].insert(symbol);
 				flags |= CharInfoForceSelected;
 			} else if (flag == "mathalpha") {
 				mathalpha.insert(symbol);
@@ -740,7 +824,7 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 				flags &= ~CharInfoTextNoTermination;
 				flags &= ~CharInfoMathNoTermination;
 			} else if (contains(flag, "tipashortcut=")) {
-				tipashortcut = split(flag, '=');
+				tipaShortcut = split(flag, '=');
 			} else if (flag == "deprecated") {
 				flags |= CharInfoDeprecated;
 			} else {
@@ -750,27 +834,27 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 				       << "'." << endl;
 			}
 		}
-		// mathcommand and mathpreamble have been added for 1.6.0.
+		// mathCommand and mathPreamble have been added for 1.6.0.
 		// make them optional so that old files still work.
-		int const lineno = symbolslex.lineNumber();
+		int const lineNo = symbolsLex.lineNumber();
 		bool breakout = false;
-		docstring mathcommand;
-		string mathpreamble;
-		if (symbolslex.next(true)) {
-			if (symbolslex.lineNumber() != lineno) {
-				// line in old format without mathcommand and mathpreamble
+		docstring mathCommand;
+		string mathPreamble;
+		if (symbolsLex.next(true)) {
+			if (symbolsLex.lineNumber() != lineNo) {
+				// line in old format without mathCommand and mathPreamble
 				getNextToken = false;
 			} else {
-				mathcommand = symbolslex.getDocString();
-				if (suffixIs(mathcommand, '}'))
+				mathCommand = symbolsLex.getDocString();
+				if (suffixIs(mathCommand, '}'))
 					flags |= CharInfoMathNoTermination;
-				if (symbolslex.next(true)) {
-					if (symbolslex.lineNumber() != lineno) {
-						// line in new format with mathcommand only
+				if (symbolsLex.next(true)) {
+					if (symbolsLex.lineNumber() != lineNo) {
+						// line in new format with mathCommand only
 						getNextToken = false;
 					} else {
-						// line in new format with mathcommand and mathpreamble
-						mathpreamble = symbolslex.getString();
+						// line in new format with mathCommand and mathPreamble
+						mathPreamble = symbolsLex.getString();
 					}
 				} else
 					breakout = true;
@@ -780,27 +864,27 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 		}
 
 		// backward compatibility
-		if (mathpreamble == "esintoramsmath")
-			mathpreamble = "esint|amsmath";
+		if (mathPreamble == "esintoramsmath")
+			mathPreamble = "esint|amsmath";
 
-		if (!textpreamble.empty())
-			if (textpreamble[0] != '\\')
+		if (!textPreamble.empty())
+			if (textPreamble[0] != '\\')
 				flags |= CharInfoTextFeature;
-		if (!mathpreamble.empty())
-			if (mathpreamble[0] != '\\')
+		if (!mathPreamble.empty())
+			if (mathPreamble[0] != '\\')
 				flags |= CharInfoMathFeature;
 
 		CharInfo info = CharInfo(
-			textcommand, mathcommand,
-			textpreamble, mathpreamble,
-			tipashortcut, flags);
+				textCommand, mathCommand,
+				textPreamble, mathPreamble,
+				tipaShortcut, flags);
 		LYXERR(Debug::INFO, "Read unicode symbol " << symbol << " '"
-			   << to_utf8(info.textcommand()) << "' '" << info.textpreamble()
-			   << " '" << info.textfeature() << ' ' << info.textnotermination()
-			   << ' ' << to_utf8(info.mathcommand()) << "' '" << info.mathpreamble()
-			   << "' " << info.mathfeature() << ' ' << info.mathnotermination()
+		                                           << to_utf8(info.textCommand()) << "' '" << info.textPreamble()
+		                                           << " '" << info.textFeature() << ' ' << info.textNoTermination()
+		                                           << ' ' << to_utf8(info.mathCommand()) << "' '" << info.mathPreamble()
+		                                           << "' " << info.mathFeature() << ' ' << info.mathNoTermination()
 			   << ' ' << info.combining() << ' ' << info.force()
-			   << ' ' << info.forceselected());
+			   << ' ' << info.forceSelected());
 
 		// we assume that at least one command is nonempty when using unicodesymbols
 		if (info.isUnicodeSymbol()) {
@@ -817,12 +901,12 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 		et_end
 	};
 
-	LexerKeyword encodingtags[] = {
+	LexerKeyword encodingTags[] = {
 		{ "encoding", et_encoding },
 		{ "end", et_end }
 	};
 
-	Lexer lex(encodingtags);
+	Lexer lex(encodingTags);
 	lex.setFile(encfile);
 	lex.setContext("Encodings::read");
 	while (lex.isOK()) {
@@ -832,21 +916,21 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 			lex.next();
 			string const name = lex.getString();
 			lex.next();
-			string const latexname = lex.getString();
+			string const latexName = lex.getString();
 			lex.next();
-			string const guiname = lex.getString();
+			string const guiName = lex.getString();
 			lex.next();
-			string const iconvname = lex.getString();
+			string const iconvName = lex.getString();
 			lex.next();
 			string const width = lex.getString();
-			bool fixedwidth = false;
+			bool fixedWidth = false;
 			bool unsafe = false;
 			if (width == "fixed")
-				fixedwidth = true;
+				fixedWidth = true;
 			else if (width == "variable")
-				fixedwidth = false;
+				fixedWidth = false;
 			else if (width == "variableunsafe") {
-				fixedwidth = false;
+				fixedWidth = false;
 				unsafe = true;
 			}
 			else
@@ -867,9 +951,9 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 				lex.printError("Unknown package");
 
 			LYXERR(Debug::INFO, "Reading encoding " << name);
-			encodinglist[name] = Encoding(name, latexname,
-				guiname, iconvname, fixedwidth, unsafe,
-				package);
+			encodinglist[name] = Encoding(name, latexName,
+			                              guiName, iconvName, fixedWidth, unsafe,
+			                              package);
 
 			if (lex.lex() != et_end)
 				lex.printError("Missing end");
@@ -886,9 +970,9 @@ void Encodings::read(FileName const & encfile, FileName const & symbolsfile)
 		}
 	}
 
-	// Move all information from forcednotselected to forcedselected
-	for (CharSetMap::const_iterator it1 = forcednotselected.begin(); it1 != forcednotselected.end(); ++it1) {
-		for (CharSetMap::iterator it2 = forcedselected.begin(); it2 != forcedselected.end(); ++it2) {
+	// Move all information from forcedNotSelected to forcedSelected
+	for (CharSetMap::const_iterator it1 = forcedNotSelected.begin(); it1 != forcedNotSelected.end(); ++it1) {
+		for (CharSetMap::iterator it2 = forcedSelected.begin(); it2 != forcedSelected.end(); ++it2) {
 			if (it2->first != it1->first)
 				it2->second.insert(it1->second.begin(), it1->second.end());
 		}

@@ -34,24 +34,39 @@
 INCLUDE(CheckCXXSourceCompiles)
 INCLUDE(FindPackageHandleStandardArgs)
 
+# get cmake-known std numbers
+# Detection of c++20 works well, but our code is not ready for it yet.
+# We currently get errors with internal boost and also from our code.
+set(_max_std_num 20)
+lyxgetknowncmakestd(${_max_std_num} tmpnums)
+
 if (CMAKE_CXX_COMPILER_ID MATCHES "^([cC]lang|AppleClang)$")
-  set(CXX11_FLAG_CANDIDATES "--std=c++11 -Wno-deprecated-register")
+  foreach(_num ${tmpnums})
+    list(APPEND CXX11_FLAG_CANDIDATES "--std=c++${_num} -Wno-deprecated-register")
+  endforeach()
 else()
   if (CYGWIN)
-    set(CXX11_FLAG_CANDIDATES "--std=gnu++11")
+    foreach(_num ${tmpnums})
+      list(APPEND CXX11_FLAG_CANDIDATES "--std=gnu++${_num}")
+    endforeach()
   else()
     if (MSVC)
       # MSVC does not have a general C++11 flag, one can only switch off
       # MS extensions with /Za in general or by extension with /Zc.
       # Use an empty flag to ensure that CXX11_STD_REGEX is correctly set.
-      set(CXX11_FLAG_CANDIDATES "noflagneeded")
+      if (MSVC_VERSION LESS 1926)
+	set(CXX11_FLAG_CANDIDATES "noflagneeded")
+      else()
+	foreach(_num ${tmpnums})
+	  list(APPEND CXX11_FLAG_CANDIDATES "/std:c++${_num}")
+	endforeach()
+	list(APPEND CXX11_FLAG_CANDIDATES "noflagneeded")
+      endif()
     else()
-      set(CXX11_FLAG_CANDIDATES
-        "--std=c++14"
-        "--std=c++11"
-        "--std=gnu++11"
-        "--std=gnu++0x"
-      )
+      set(CXX11_FLAG_CANDIDATES)
+      foreach(_num ${tmpnums})
+	list(APPEND CXX11_FLAG_CANDIDATES "--std=c++${_num}")
+      endforeach()
     endif()
   endif()
 endif()
@@ -113,7 +128,9 @@ set(SAFE_CMAKE_REQUIRED_QUIET ${CMAKE_REQUIRED_QUIET})
 set(CMAKE_REQUIRED_QUIET ON)
 SET(SAFE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
 FOREACH(FLAG ${CXX11_FLAG_CANDIDATES})
-  IF(NOT "${FLAG}" STREQUAL "noflagneeded")
+  IF("${FLAG}" STREQUAL "noflagneeded")
+    UNSET(CMAKE_REQUIRED_FLAGS)
+  ELSE()
     SET(CMAKE_REQUIRED_FLAGS "${FLAG}")
   ENDIF()
   UNSET(CXX11_FLAG_DETECTED CACHE)

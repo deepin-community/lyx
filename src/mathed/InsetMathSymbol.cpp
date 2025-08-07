@@ -23,26 +23,25 @@
 
 #include "support/debug.h"
 #include "support/docstream.h"
-#include "support/lyxlib.h"
 #include "support/textutils.h"
 #include "support/unique_ptr.h"
 
+using namespace std;
 
 namespace lyx {
 
-InsetMathSymbol::InsetMathSymbol(latexkeys const * l)
-	: sym_(l), h_(0), kerning_(0), scriptable_(false)
+InsetMathSymbol::InsetMathSymbol(Buffer * buf, latexkeys const * l)
+	: InsetMath(buf), sym_(l)
 {}
 
 
-InsetMathSymbol::InsetMathSymbol(char const * name)
-	: sym_(in_word_set(from_ascii(name))), h_(0),
-	  kerning_(0), scriptable_(false)
+InsetMathSymbol::InsetMathSymbol(Buffer * buf, char const * name)
+	: InsetMath(buf), sym_(in_word_set(from_ascii(name)))
 {}
 
 
-InsetMathSymbol::InsetMathSymbol(docstring const & name)
-	: sym_(in_word_set(name)), h_(0), kerning_(0), scriptable_(false)
+InsetMathSymbol::InsetMathSymbol(Buffer * buf, docstring const & name)
+	: InsetMath(buf), sym_(in_word_set(name))
 {}
 
 
@@ -58,23 +57,37 @@ docstring InsetMathSymbol::name() const
 }
 
 
+/// The default limits value
+Limits InsetMathSymbol::defaultLimits(bool display) const
+{
+	if (allowsLimitsChange() && sym_->extra != "func" && display)
+		return LIMITS;
+	else
+		return NO_LIMITS;
+}
+
+
 void InsetMathSymbol::metrics(MetricsInfo & mi, Dimension & dim) const
 {
-	// set dim and negative kerning_ to move a subscript leftward
+	// set dim
+	// FIXME: this should depend on BufferView
+	// set negative kerning_ so that a subscript is moved leftward
 	kerning_ = -mathedSymbolDim(mi.base, dim, sym_);
-	// correct height for broken cmex and wasy font
-	if (sym_->inset == "cmex" || sym_->inset == "wasy") {
-		h_ = 4 * dim.des / 5;
+	if (sym_->draw != sym_->name) {
+		// align character vertically
+		// FIXME: this should depend on BufferView
+		h_ = 0;
+		if (mathClass() == MC_OP) {
+			// center the symbol around the fraction axis
+			// See rule 13 of Appendix G of the TeXbook.
+			h_ = axis_height(mi.base) + (dim.des - dim.asc) / 2;
+		} else if (sym_->inset == "wasy") {
+			// correct height for broken wasy font
+			h_ = 4 * dim.des / 5;
+		}
 		dim.asc += h_;
 		dim.des -= h_;
 	}
-	// set scriptable_
-	scriptable_ = false;
-	if (mi.base.font.style() == LM_ST_DISPLAY)
-		if (sym_->inset == "cmex" || sym_->inset == "esint" ||
-		    sym_->extra == "funclim" ||
-		    (sym_->inset == "stmry" && sym_->extra == "mathop"))
-			scriptable_ = true;
 }
 
 
@@ -102,23 +115,6 @@ MathClass InsetMathSymbol::mathClass() const
 		return MC_OP;
 	MathClass const mc = string_to_class(sym_->extra);
 	return (mc == MC_UNKNOWN) ? MC_ORD : mc;
-}
-
-
-bool InsetMathSymbol::isScriptable() const
-{
-	return scriptable_;
-}
-
-
-bool InsetMathSymbol::takesLimits() const
-{
-	return
-		sym_->inset == "cmex" ||
-		sym_->inset == "lyxboldsymb" ||
-		sym_->inset == "esint" ||
-		sym_->extra == "funclim" ||
-		(sym_->inset == "stmry" && sym_->extra == "mathop");
 }
 
 
@@ -160,18 +156,17 @@ void InsetMathSymbol::mathematica(MathematicaStream & os) const
 }
 
 
-void InsetMathSymbol::mathmlize(MathStream & os) const
+void InsetMathSymbol::mathmlize(MathMLStream & ms) const
 {
 	// FIXME We may need to do more interesting things
 	// with MathMLtype.
-	char const * type = sym_->MathMLtype();
-	os << '<' << type << "> ";
+	ms << MTagInline(sym_->MathMLtype());
 	if (sym_->xmlname == "x")
 		// unknown so far
-		os << name();
+		ms << name();
 	else
-		os << sym_->xmlname;
-	os << " </" << type << '>';
+		ms << sym_->xmlname;
+	ms << ETagInline(sym_->MathMLtype());
 }
 
 
@@ -207,7 +202,7 @@ void InsetMathSymbol::octave(OctaveStream & os) const
 }
 
 
-void InsetMathSymbol::write(WriteStream & os) const
+void InsetMathSymbol::write(TeXMathStream & os) const
 {
 	unique_ptr<MathEnsurer> ensurer;
 	if (currentMode() != TEXT_MODE)
@@ -223,6 +218,7 @@ void InsetMathSymbol::write(WriteStream & os) const
 		return;
 
 	os.pendingSpace(true);
+	writeLimits(os);
 }
 
 
@@ -245,8 +241,8 @@ void InsetMathSymbol::validate(LaTeXFeatures & features) const
 			"sub.limit{font-size: 75%;}\n"
 			"sup.limit{font-size: 75%;}");
 	} else {
-		if (!sym_->requires.empty())
-			features.require(sym_->requires);
+		if (!sym_->required.empty())
+			features.require(sym_->required);
 	}
 }
 

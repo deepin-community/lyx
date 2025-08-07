@@ -17,15 +17,13 @@
 #include "ColorCode.h"
 #include "Text.h"
 
+
 namespace lyx {
 
 class CompletionList;
 class CursorSlice;
 class Dimension;
 class ParagraphList;
-class InsetCaption;
-class InsetTabular;
-class TocBuilder;
 
 /**
  A text inset is like a TeX box to write full text
@@ -45,7 +43,7 @@ public:
 	///
 	InsetText(InsetText const &);
 	///
-	void setBuffer(Buffer &);
+	void setBuffer(Buffer &) override;
 
 	///
 	Dimension const dimensionHelper(BufferView const &) const;
@@ -53,37 +51,37 @@ public:
 	/// empty inset to empty par
 	void clear();
 	///
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	///
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
+	/// Let the inset compute and store its reference font from \c outer.
+	void setOuterFont(BufferView & bv, FontInfo const & outer) const;
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	/// Drawing background is handled in draw
-	virtual void drawBackground(PainterInfo &, int, int) const {}
+	void drawBackground(PainterInfo &, int, int) const override {}
 	///
-	bool editable() const { return true; }
+	bool editable() const override { return true; }
 	///
-	bool canTrackChanges() const { return true; }
+	bool canTrackChanges() const override { return true; }
 	/// Rely on RowPainter to draw the cue of inline insets.
-	bool canPaintChange(BufferView const &) const { return allowMultiPar(); }
+	bool canPaintChange(BufferView const &) const override { return allowMultiPar(); }
 	///
-	InsetText * asInsetText() { return this; }
+	InsetText * asInsetText() override { return this; }
 	///
-	InsetText const * asInsetText() const { return this; }
+	InsetText const * asInsetText() const override { return this; }
 	///
 	Text & text() { return text_; }
 	Text const & text() const { return text_; }
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
-	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
 	enum XHTMLOptions {
 		JustText = 0,
@@ -93,19 +91,23 @@ public:
 		WriteEverything = 7
 	};
 	///
-	docstring insetAsXHTML(XHTMLStream &, OutputParams const &,
+	docstring insetAsXHTML(XMLStream &, OutputParams const &,
 	                       XHTMLOptions) const;
+	/// Outputs the inset as DocBook, with the given options regarding outer tags.
+	void docbook(XMLStream &, OutputParams const &, XHTMLOptions opts) const;
+	/// Outputs the whole inset as DocBook.
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 
 	/// return the argument(s) only
 	void getArgs(otexstream & os, OutputParams const &, bool const post = false) const;
 
 	/// return x,y of given position relative to the inset's baseline
 	void cursorPos(BufferView const & bv, CursorSlice const & sl,
-		bool boundary, int & x, int & y) const;
+		bool boundary, int & x, int & y) const override;
 	///
-	InsetCode lyxCode() const { return TEXT_CODE; }
+	InsetCode lyxCode() const override { return TEXT_CODE; }
 	///
 	void setText(docstring const &, Font const &, bool trackChanges);
 	///
@@ -115,96 +117,102 @@ public:
 	///
 	void setFrameColor(ColorCode);
 	///
-	Text * getText(int i) const {
-		return (i == 0) ? const_cast<Text*>(&text_) : 0;
+	Text * getText(int idx) const override {
+		return (idx == 0) ? const_cast<Text*>(&text_) : nullptr;
 	}
 	///
-	virtual bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const override;
 
 	///
 	void fixParagraphsFont();
+	/// Check and record if this inset is embedded in a title layout
+	/// This is needed to decide when \maketitle is output.
+	void checkIntitleContext(ParIterator const & it);
 
+	/// does the inset contain changes ?
+	bool isChanged() const override { return is_changed_; }
+	/// this is const because value is mutable
+	void isChanged(bool ic) const { is_changed_ = ic; }
 	/// set the change for the entire inset
-	void setChange(Change const & change);
+	void setChange(Change const & change) override;
 	/// accept the changes within the inset
-	void acceptChanges();
+	void acceptChanges() override;
 	/// reject the changes within the inset
-	void rejectChanges();
+	void rejectChanges() override;
 
 	/// append text onto the existing text
 	void appendParagraphs(ParagraphList &);
 
 	///
-	void addPreview(DocIterator const &, graphics::PreviewLoader &) const;
+	void addPreview(DocIterator const &, graphics::PreviewLoader &) const override;
 
 	///
-	void edit(Cursor & cur, bool front, EntryDirection entry_from);
+	void edit(Cursor & cur, bool front, EntryDirection entry_from) override;
 	///
-	Inset * editXY(Cursor & cur, int x, int y);
+	Inset * editXY(Cursor & cur, int x, int y) override;
 
 	/// number of cells in this inset
-	size_t nargs() const { return 1; }
+	size_t nargs() const override { return 1; }
 	///
 	ParagraphList & paragraphs();
 	///
 	ParagraphList const & paragraphs() const;
 	///
-	bool insetAllowed(InsetCode) const;
+	bool insetAllowed(InsetCode) const override;
 	///
-	bool allowSpellCheck() const { return getLayout().spellcheck() && !getLayout().isPassThru(); }
+	bool allowSpellCheck() const override;
 	///
 	virtual bool isMacroScope() const { return false; }
 	///
-	virtual bool allowMultiPar() const { return getLayout().isMultiPar(); }
+	bool allowMultiPar() const override;
 	///
-	bool isInTitle() const { return intitle_context_; }
+	bool isInTitle() const override { return intitle_context_; }
 	///
 	/// should paragraphs be forced to use the empty layout?
-	virtual bool forcePlainLayout(idx_type = 0) const
-		{ return getLayout().forcePlainLayout(); }
+	bool forcePlainLayout(idx_type = 0) const override;
 	/// should the user be allowed to customize alignment, etc.?
-	virtual bool allowParagraphCustomization(idx_type = 0) const
-		{ return getLayout().allowParagraphCustomization(); }
+	bool allowParagraphCustomization(idx_type = 0) const override;
 	/// should paragraphs be forced to use a local font language switch?
-	virtual bool forceLocalFontSwitch() const
-		{ return getLayout().forcelocalfontswitch(); }
+	bool forceLocalFontSwitch() const override;
 
 	/// Update the counters of this inset and of its contents
-	virtual void updateBuffer(ParIterator const &, UpdateType);
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false) override;
 	///
 	void setMacrocontextPositionRecursive(DocIterator const & pos);
 	///
-	void toString(odocstream &) const;
+	bool findUsesToString() const override { return true; }
 	///
-	void forOutliner(docstring &, size_t const, bool const) const;
+	void toString(odocstream &) const override;
+	///
+	void forOutliner(docstring &, size_t const, bool const) const override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	Inset * clone() const { return new InsetText(*this); }
+	Inset * clone() const override { return new InsetText(*this); }
 	///
-	bool notifyCursorLeaves(Cursor const & old, Cursor & cur);
+	bool notifyCursorLeaves(Cursor const & old, Cursor & cur) override;
 
 	///
-	bool completionSupported(Cursor const &) const;
+	bool completionSupported(Cursor const &) const override;
 	///
-	bool inlineCompletionSupported(Cursor const & cur) const;
+	bool inlineCompletionSupported(Cursor const & cur) const override;
 	///
-	bool automaticInlineCompletion() const;
+	bool automaticInlineCompletion() const override;
 	///
-	bool automaticPopupCompletion() const;
+	bool automaticPopupCompletion() const override;
 	///
-	bool showCompletionCursor() const;
+	bool showCompletionCursor() const override;
 	///
-	CompletionList const * createCompletionList(Cursor const & cur) const;
+	CompletionList const * createCompletionList(Cursor const & cur) const override;
 	///
-	docstring completionPrefix(Cursor const & cur) const;
+	docstring completionPrefix(Cursor const & cur) const override;
 	///
-	bool insertCompletion(Cursor & cur, docstring const & s, bool finished);
+	bool insertCompletion(Cursor & cur, docstring const & s, bool /*finished*/) override;
 	///
-	void completionPosAndDim(Cursor const &, int & x, int & y, Dimension & dim) const;
+	void completionPosAndDim(Cursor const &, int & x, int & y, Dimension & dim) const override;
 	/// returns the text to be used as tooltip
-	/// \param prefix: a string that will preced the tooltip,
+	/// \param prefix: a string that will precede the tooltip,
 	/// e.g., "Index: ".
 	/// \param len: length of the resulting string
 	/// NOTE This routine is kind of slow. It's fine to use it within the
@@ -212,23 +220,33 @@ public:
 	/// of that sort. (Note: unnecessary internal copies have been removed
 	/// since the previous note. The efficiency would have to be assessed
 	/// again by profiling.)
-	docstring toolTipText(docstring prefix = empty_docstring(),
+	docstring toolTipText(docstring const & prefix = empty_docstring(),
 	                      size_t len = 400) const;
 
 	///
-	std::string contextMenu(BufferView const &, int, int) const;
+	std::string contextMenu(BufferView const &, int, int) const override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 
 	///
-	bool confirmDeletion() const { return !text().empty(); }
+	bool confirmDeletion() const override { return !text().empty(); }
+
+	///
+	bool needsCProtection(bool const maintext = false,
+			      bool const fragile = false) const override;
+	///
+	bool hasCProtectContent(bool fragile = false) const;
 
 protected:
 	///
 	void iterateForToc(DocIterator const & cdit, bool output_active,
 					   UpdateType utype, TocBackend & backend) const;
+	/// Outputs an inset that must be first rendered (with the given options regarding outer tags).
+	void docbookRenderAsImage(XMLStream & xs, OutputParams const & rp, XHTMLOptions opts) const;
+	/// Outputs the text of the inset with the correct DocBook tags (with the given options regarding outer tags).
+	void docbookText(XMLStream & xs, OutputParams const & rp, XHTMLOptions opts) const;
 private:
 	/// Open the toc item for paragraph pit. Returns the paragraph index where
 	/// it should end.
@@ -241,6 +259,8 @@ private:
 	                               TocBackend & backend) const;
 	///
 	bool drawFrame_;
+	/// true if the inset contains change
+	mutable bool is_changed_;
 	///
 	bool intitle_context_;
 	///

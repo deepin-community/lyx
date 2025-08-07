@@ -1,20 +1,20 @@
-#LyX 2.3 created this file. For more info see http://www.lyx.org/
-\lyxformat 544
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
 \begin_document
 \begin_header
 \save_transient_properties true
 \origin /systemlyxdir/doc/
-\textclass scrartcl
+\textclass scrbook
 \options BCOR8mm,captions=tableheading
 \use_default_options false
 \begin_modules
 logicalmkup
 \end_modules
-\maintain_unincluded_children false
+\maintain_unincluded_children no
 \language english
 \language_package default
-\inputencoding auto
-\fontencoding global
+\inputencoding utf8
+\fontencoding auto
 \font_roman "lmodern" "default"
 \font_sans "lmss" "default"
 \font_typewriter "lmtt" "default"
@@ -22,7 +22,9 @@ logicalmkup
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
-\font_osf false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
 \font_sf_scale 100 100
 \font_tt_scale 100 100
 \use_microtype false
@@ -32,6 +34,8 @@ logicalmkup
 \output_sync 1
 \bibtex_command default
 \index_command default
+\float_placement class
+\float_alignment class
 \paperfontsize 12
 \spacing single
 \use_hyperref true
@@ -49,7 +53,7 @@ logicalmkup
 \pdf_backref false
 \pdf_pdfusetitle false
 \pdf_quoted_options "linkcolor=black, citecolor=black, urlcolor=blue, filecolor=blue, pdfpagelayout=OneColumn, pdfnewwindow=true, pdfstartview=XYZ, plainpages=false"
-\papersize a4paper
+\papersize a4
 \use_geometry false
 \use_package amsmath 1
 \use_package amssymb 1
@@ -71,13 +75,14 @@ logicalmkup
 \justification true
 \use_refstyle 0
 \use_minted 0
+\use_lineno 0
 \notefontcolor #0000ff
 \index Index
 \shortcut idx
 \color #008000
 \end_index
 \secnumdepth 4
-\tocdepth 4
+\tocdepth 2
 \paragraph_separation indent
 \paragraph_indentation default
 \is_math_indent 0
@@ -87,11 +92,16 @@ logicalmkup
 \papercolumns 1
 \papersides 2
 \paperpagestyle headings
+\tablestyle default
 \tracking_changes false
 \output_changes false
+\change_bars false
+\postpone_fragile_content false
 \html_math_output 0
 \html_css_as_file 0
 \html_be_strict true
+\docbook_table_output 0
+\docbook_mathml_prefix 1
 \end_header
 
 \begin_body
@@ -102,7 +112,7 @@ Developing \SpecialChar LyX
 \end_layout
 
 \begin_layout Subtitle
-Version 2.3.x
+Version 2.4.x
 \end_layout
 
 \begin_layout Author
@@ -112,21 +122,19 @@ by the \SpecialChar LyX
 status collapsed
 
 \begin_layout Plain Layout
-\noindent
-If you have comments or error corrections, please send them to the \SpecialChar LyX
- Documentatio
-n mailing list, 
-\begin_inset Flex Code
-status collapsed
-
-\begin_layout Plain Layout
-\noindent
-<lyx-docs@lists.lyx.org>
-\end_layout
+If you have comments on or error corrections to this documentation,
+ please send them to the \SpecialChar LyX
+ Documentation mailing list:
+ 
+\begin_inset CommandInset href
+LatexCommand href
+target "lyx-docs@lists.lyx.org"
+type "mailto:"
+literal "false"
 
 \end_inset
 
-.
+
 \end_layout
 
 \end_inset
@@ -143,16 +151,17 @@ LatexCommand tableofcontents
 
 \end_layout
 
-\begin_layout Section
+\begin_layout Chapter
 Introduction
 \end_layout
 
 \begin_layout Standard
 This manual documents some aspects of \SpecialChar LyX
  development.
- It is currently rather incomplete, but will hopefully be extended in the
- future.
- Meanwhile, additional information can be found in the 
+ It is currently rather incomplete,
+ but will hopefully be extended in the future.
+ Meanwhile,
+ additional information can be found in the 
 \begin_inset Flex Code
 status collapsed
 
@@ -164,19 +173,21 @@ development
 
  subfolder of the \SpecialChar LyX
  source code distribution.
- This document is not translated, since the development language of \SpecialChar LyX
- is
- English.
+ This document is not translated,
+ since the development language of \SpecialChar LyX
+ is English.
  If you just want to use \SpecialChar LyX
-, then you don't need to read this manual.
- However, if you want to learn more about how \SpecialChar LyX
- is developed, or even want
- to participate in \SpecialChar LyX
- development, you may find some interesting information
- here.
+,
+ then you don't need to read this manual.
+ However,
+ if you want to learn more about how \SpecialChar LyX
+ is developed,
+ or even want to participate in \SpecialChar LyX
+ development,
+ you may find some interesting information here.
 \end_layout
 
-\begin_layout Section
+\begin_layout Chapter
 File formats
 \end_layout
 
@@ -184,15 +195,10 @@ File formats
 \SpecialChar LyX
  uses several custom file formats for configuration files and documents.
  This chapter contains some background concerning these file formats.
- Several file formats are also described in detail in the regular user documenta
-tion.
+ Several file formats are also described in detail in the regular user documentation.
 \end_layout
 
-\begin_layout Subsection
-File Format Numbers
-\end_layout
-
-\begin_layout Subsection
+\begin_layout Section
 When is an update of the .lyx file format number needed?
 \begin_inset CommandInset label
 LatexCommand label
@@ -204,15 +210,15 @@ name "sec:When-is-an"
 \end_layout
 
 \begin_layout Standard
-When you are working on a new feature you may ask yourself whether it needs
- an update of the .lyx file format number.
+When you are working on a new feature you may ask yourself whether it needs an update of the .lyx file format number.
  Whether an update is needed or not is not always obvious.
- Rule of thumb: 
+ Rule of thumb:
+ 
 \end_layout
 
 \begin_layout Quote
-Whenever there is the danger that a previous version of LyX cannot open
- a file using the new feature, a file format update is needed.
+Whenever there is the danger that a previous version of LyX cannot open a file using the new feature,
+ a file format update is needed.
 \end_layout
 
 \begin_layout Standard
@@ -229,8 +235,8 @@ document
 \begin_inset space ~
 \end_inset
 
-setting Whenever you introduce a new setting that is stored in the document
- header, a file format update is needed.
+setting Whenever you introduce a new setting that is stored in the document header,
+ a file format update is needed.
 \end_layout
 
 \begin_layout Description
@@ -242,8 +248,8 @@ document
 \begin_inset space ~
 \end_inset
 
-setting If a certain setting becomes obsolete and gets removed, a file format
- update is needed.
+setting If a certain setting becomes obsolete and gets removed,
+ a file format update is needed.
 \end_layout
 
 \begin_layout Description
@@ -271,7 +277,8 @@ existing
 \begin_inset space ~
 \end_inset
 
-setting, e.
+setting,
+ e.
 \begin_inset space \thinspace{}
 \end_inset
 
@@ -293,11 +300,10 @@ math
 \begin_inset space ~
 \end_inset
 
-package The reason for this is that there is no true ERT inset for math
- formulas: Each command is parsed, and if a user happens to define a local
- command with the same name as a command that triggers an automatic load
- of a package, they need to be able to switch off the automatic loading
- of that package.
+package The reason for this is that there is no true ERT inset for math formulas:
+ Each command is parsed,
+ and if a user happens to define a local command with the same name as a command that triggers an automatic load of a package,
+ they need to be able to switch off the automatic loading of that package.
  This switch is stored by the 
 \begin_inset Flex Code
 status collapsed
@@ -356,16 +362,15 @@ New
 \begin_inset space ~
 \end_inset
 
-style If a new style or inset layout is added to any layout file or module
- shipped with \SpecialChar LyX
-, then a new file format is needed in the master (development)
- branch.
- It is possible to backport new styles to the stable version without a file
- format change.
+style If a new style or inset layout is added to any layout file or module shipped with \SpecialChar LyX
+,
+ then a new file format is needed in the master (development) branch.
+ It is possible to backport new styles to the stable version without a file format change.
  See 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "subsec:Backporting-new-styles"
+nolink "false"
 
 \end_inset
 
@@ -377,13 +382,14 @@ Removed
 \begin_inset space ~
 \end_inset
 
-style If a style or inset layout is removed in any layout file or module
- shipped with \SpecialChar LyX
-, a new file format is required.
+style If a style or inset layout is removed in any layout file or module shipped with \SpecialChar LyX
+,
+ a new file format is required.
 \end_layout
 
 \begin_layout Standard
-However, 
+However,
+ 
 \series bold
 new
 \series default
@@ -391,10 +397,12 @@ new
 \series bold
 not
 \series default
- require a file format update (changed 03/16, see 
+ require a file format update (changed 03/16,
+ see 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "subsec:New-layouts"
+nolink "false"
 
 \end_inset
 
@@ -403,10 +411,11 @@ reference "subsec:New-layouts"
 \end_layout
 
 \begin_layout Standard
-If you are still unsure, please ask on the development list.
+If you are still unsure,
+ please ask on the development list.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
 name "subsec:update_lyx_files"
@@ -417,13 +426,13 @@ How to update the file format number of .lyx files
 \end_layout
 
 \begin_layout Standard
-Once you come to the conclusion that a file format update is needed, you
- should use the following procedure to perform the update:
+Once you come to the conclusion that a file format update is needed,
+ you should use the following procedure to perform the update:
 \end_layout
 
 \begin_layout Enumerate
-Implement and test the new feature, including the reading and writing of
- .lyx files.
+Implement and test the new feature,
+ including the reading and writing of .lyx files.
  Note that any file produced at this stage does not use a valid format,
  so do not use this version of \SpecialChar LyX
  for working on any important documents.
@@ -480,7 +489,7 @@ Add an entry to both format lists (for conversion and reversion) in
 status collapsed
 
 \begin_layout Plain Layout
-lib/lyx2lyx/lyx_2_3.py
+lib/lyx2lyx/lyx_2_4.py
 \end_layout
 
 \end_inset
@@ -490,35 +499,38 @@ lib/lyx2lyx/lyx_2_3.py
 \begin_inset space \thinspace{}
 \end_inset
 
-g., a new header setting always needs a conversion that adds the new setting,
+g.,
+ a new header setting always needs a conversion that adds the new setting,
  but a new document language does not need one).
  Add a reversion routine if needed.
  
 \begin_inset Newline newline
 \end_inset
 
-While the conversion routine is required to produce a document that is equivalen
-t to the old version, the requirements of the reversion are not that strict.
- If possible, try to produce a proper reversion, using ERT if needed, but
- for some features this might be too complicated.
- In this case, the minimum requirement of the reversion routine is that
- it produces a valid document which can be read by an older \SpecialChar LyX
+While the conversion routine is required to produce a document that is equivalent to the old version,
+ the requirements of the reversion are not that strict.
+ If possible,
+ try to produce a proper reversion,
+ using ERT if needed,
+ but for some features this might be too complicated.
+ In this case,
+ the minimum requirement of the reversion routine is that it produces a valid document which can be read by an older \SpecialChar LyX
 .
- If absolutely needed, even data loss is allowed for the reversion.
- (In that case, you might want to add a LyX comment that indicates what
- you have had to do, so the user is at least warned).
+ If absolutely needed,
+ even data loss is allowed for the reversion.
+ (In that case,
+ you might want to add a LyX comment that indicates what you have had to do,
+ so the user is at least warned).
 \end_layout
 
 \begin_layout Enumerate
-Since tex2lyx has several implicit file format dependencies caused by sharing
- code with \SpecialChar LyX
-, updating the file format of .lyx files produced by tex2lyx at
- the same time as updating the main .lyx file format is strongly recommended.
- Therefore, a compiler warning will be issued if the \SpecialChar LyX
- and tex2lyx .lyx file
- format numbers differ.
- In many cases the tex2lyx update requires only the first and last item
- of the list below:
+Since tex2lyx has several implicit file format dependencies caused by sharing code with \SpecialChar LyX
+,
+ updating the file format of .lyx files produced by tex2lyx at the same time as updating the main .lyx file format is strongly recommended.
+ Therefore,
+ a compiler warning will be issued if the \SpecialChar LyX
+ and tex2lyx .lyx file format numbers differ.
+ In many cases the tex2lyx update requires only the first and last item of the list below:
 \end_layout
 
 \begin_deeper
@@ -537,11 +549,12 @@ src/version.h
 \end_layout
 
 \begin_layout Enumerate
-If the lyx2lyx conversion from the old to the new format is empty, or if
- tex2lyx does not yet output the changed feature, you do not need any further
- tex2lyx changes.
- Otherwise, search for the changed feature in tex2lyx, and adjust the output
- according to the lyx2lyx changes.
+If the lyx2lyx conversion from the old to the new format is empty,
+ or if tex2lyx does not yet output the changed feature,
+ you do not need any further tex2lyx changes.
+ Otherwise,
+ search for the changed feature in tex2lyx,
+ and adjust the output according to the lyx2lyx changes.
 \end_layout
 
 \begin_layout Enumerate
@@ -549,6 +562,7 @@ Update the tex2lyx test references as described in
 \begin_inset CommandInset ref
 LatexCommand formatted
 reference "sec:Updating-test-references"
+nolink "false"
 
 \end_inset
 
@@ -557,8 +571,8 @@ reference "sec:Updating-test-references"
 
 \end_deeper
 \begin_layout Enumerate
-If you did not implement full tex2lyx support for the new feature, add a
- line to 
+If you did not implement full tex2lyx support for the new feature,
+ add a line to 
 \begin_inset Flex Code
 status collapsed
 
@@ -569,22 +583,22 @@ src/tex2lyx/TODO.txt
 \end_inset
 
  describing the missing bits.
- Note that it is perfectly fine if you do not add full tex2lyx support for
- a new feature: The updating recommendation above is only issued for the
- syntax of the produced .lyx file.
+ Note that it is perfectly fine if you do not add full tex2lyx support for a new feature:
+ The updating recommendation above is only issued for the syntax of the produced .lyx file.
  It is no problem if some features supported by \SpecialChar LyX
- are still output as ERT
- by tex2lyx.
- The problems in the past that resulted in the update recommendation were
- related to mixed version syntax, not ERT.
+ are still output as ERT by tex2lyx.
+ The problems in the past that resulted in the update recommendation were related to mixed version syntax,
+ not ERT.
 \end_layout
 
 \begin_layout Enumerate
-It would be nice if you could create a .lyx test file which contains instances
- of all changed or added features.
+It would be nice if you could create a .lyx test file which contains instances of all changed or added features.
  This could then be used to test lyx2lyx and tex2lyx.
- Unfortunately, it has not yet been decided how to collect such examples,
- so please ask on the development list if you want to create one.
+ Test samples are collected under the corresponding subdirectories of 
+\family typewriter
+/autotests
+\family default
+.
 \end_layout
 
 \begin_layout Enumerate
@@ -594,27 +608,21 @@ name "enu:updatefiles"
 
 \end_inset
 
-Test your lyx2lyx code by updating LyX's .lyx documentation files to the
- new format.
- The developer who makes the change knows best what changes to expect when
- inspecting the resulting diff.
- Because of this, you might be able to catch a bug in the lyx2lyx code that
- updates the format just by taking a quick scan through the large diff that
- is the result.
+Test your lyx2lyx code by updating LyX's .lyx documentation files to the new format.
+ The developer who makes the change knows best what changes to expect when inspecting the resulting diff.
+ Because of this,
+ you might be able to catch a bug in the lyx2lyx code that updates the format just by taking a quick scan through the large diff that is the result.
 \begin_inset Note Note
 status collapsed
 
 \begin_layout Plain Layout
-Another advantage is that if later we suspect a bug in lyx2lyx we can easily
- see which layout update made an unexpected change by looking at the git
- log of a .lyx file that suffers the problem.
+Another advantage is that if later we suspect a bug in lyx2lyx we can easily see which layout update made an unexpected change by looking at the git log of a .lyx file that suffers the problem.
 \end_layout
 
 \end_inset
 
- To do this, first make sure that there are no changes to the git repository
- that you will not want to commit (this is needed because it will be convenient
- to commit with the command 
+ To do this,
+ first make sure that there are no changes to the git repository that you will not want to commit (this is needed because it will be convenient to commit with the command 
 \begin_inset Flex Code
 status collapsed
 
@@ -625,7 +633,8 @@ git commit -a
 \end_inset
 
 ).
- Then run the following command in the root folder of the source: 
+ Then run the following command in the root folder of the source:
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -647,7 +656,8 @@ git diff
 \end_inset
 
 .
- If anything looks surprising, please investigate.
+ If anything looks surprising,
+ please investigate.
  Keep in mind that the case of 
 \begin_inset Flex Code
 status collapsed
@@ -658,7 +668,8 @@ LFUNs.lyx
 
 \end_inset
 
- is special, because it is first generated with 
+ is special,
+ because it is first generated with 
 \begin_inset Flex Code
 status collapsed
 
@@ -680,9 +691,9 @@ status open
 
 \series bold
 Note:
+
 \series default
- Only commit file format changes in the doc files if these files are using
- the new feature of the new file format.
+ Only commit file format changes in the doc files if these files are using the new feature of the new file format.
  The reason is rule
 \begin_inset space ~
 \end_inset
@@ -691,6 +702,7 @@ Note:
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "enu:The-fileformat-of"
+nolink "false"
 
 \end_inset
 
@@ -702,6 +714,7 @@ reference "enu:The-fileformat-of"
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sec:Documentation-policies"
+nolink "false"
 
 \end_inset
 
@@ -714,7 +727,8 @@ reference "sec:Documentation-policies"
 \end_layout
 
 \begin_layout Enumerate
-Finally, commit using 
+Finally,
+ commit using 
 \begin_inset Flex Code
 status collapsed
 
@@ -727,7 +741,7 @@ git commit -a
 .
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 Updating the file format number of layout files
 \end_layout
 
@@ -736,6 +750,7 @@ The procedure for updating the layout files is similar to that in step
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "enu:updatefiles"
+nolink "false"
 
 \end_inset
 
@@ -743,6 +758,7 @@ reference "enu:updatefiles"
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "subsec:update_lyx_files"
+nolink "false"
 
 \end_inset
 
@@ -782,14 +798,13 @@ status collapsed
 \end_inset
 
  files shipped with \SpecialChar LyX
- because users would then not be able to export to older
- formats.
- For example, if a 2.2.0 user exported a template to 2.1.x format and tried
- to open the file in \SpecialChar LyX
- 2.1.x, there would be an error because the file would
- contain a local layout whose format is too new.
- The root reason for this is that we do not support converting layouts to
- older layout formats, as we do for the 
+ because users would then not be able to export to older formats.
+ For example,
+ if a 2.2.0 user exported a template to 2.1.x format and tried to open the file in \SpecialChar LyX
+ 2.1.x,
+ there would be an error because the file would contain a local layout whose format is too new.
+ The root reason for this is that we do not support converting layouts to older layout formats,
+ as we do for the 
 \begin_inset Flex Code
 status collapsed
 
@@ -802,13 +817,109 @@ status collapsed
  file format.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
+Backporting new styles to the stable version
+\begin_inset CommandInset label
+LatexCommand label
+name "subsec:Backporting-new-styles"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Starting with the stable \SpecialChar LyX
+ 2.1 branch,
+ there is a mechanism in place to backport new styles to the stable version without the need to update the file format.
+ The basic idea is that the new style definition is automatically copied to the document preamble so that it can even be used by older minor versions that did not yet include the style.
+ To backport a new style to the stable version,
+ the following steps are needed:
+\end_layout
+
+\begin_layout Enumerate
+Add the line 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+ForceLocal -1
+\end_layout
+
+\end_inset
+
+ to the style definition in the development version.
+\end_layout
+
+\begin_layout Enumerate
+Copy the style definition to the stable version,
+ but use 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+ForceLocal 1
+\end_layout
+
+\end_inset
+
+ instead.
+ If needed adjust the format to the one used by the stable version (see the customization manual for details of the layout file format).
+\end_layout
+
+\begin_layout Enumerate
+For each update of the style in a later stable version,
+ increase the argument of 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+ForceLocal
+\end_layout
+
+\end_inset
+
+ by one.
+ (In the stable version,
+ the development version should not be touched.)
+\end_layout
+
+\begin_layout Standard
+For details about the 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+ForceLocal
+\end_layout
+
+\end_inset
+
+ flag see the customization manual.
+ No 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+lyx2lyx
+\end_layout
+
+\end_inset
+
+ support is needed for backported styles:
+ Since the style of the development version has an infinite version number,
+ it will always be used.
+ Furthermore,
+ since its version number is less than one,
+ the style will not be written anymore to the document header for files saved by the new version.
+\end_layout
+
+\begin_layout Section
 Updating the file format number of bind/ui files
 \end_layout
 
 \begin_layout Standard
-A change to the functionality of existing LFUNs can require a conversion
- of 
+A change to the functionality of existing LFUNs can require a conversion of 
 \begin_inset Flex Code
 status collapsed
 
@@ -828,8 +939,9 @@ status collapsed
 
 \end_inset
 
- files, and therefore an increment of the LFUN format, as well as a conversion
- of Info insets in 
+ files,
+ and therefore an increment of the LFUN format,
+ as well as a conversion of Info insets in 
 \begin_inset Flex Code
 status collapsed
 
@@ -840,16 +952,14 @@ status collapsed
 \end_inset
 
  files for manuals.
- The latter cannot be done automatically and also requires an update of
- the \SpecialChar LyX
+ The latter cannot be done automatically and also requires an update of the \SpecialChar LyX
  file format.
  (Think e.g.
 \begin_inset space \space{}
 \end_inset
 
 of someone who might have made a set of \SpecialChar LyX
- teaching manuals for use in their
- own group.)
+ teaching manuals for use in their own group.)
 \begin_inset Foot
 status open
 
@@ -909,6 +1019,7 @@ See step
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "enu:updatefiles"
+nolink "false"
 
 \end_inset
 
@@ -916,6 +1027,7 @@ reference "enu:updatefiles"
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "subsec:update_lyx_files"
+nolink "false"
 
 \end_inset
 
@@ -929,7 +1041,9 @@ updatedocs.py
 
 \end_inset
 
- command, use this command: 
+ command,
+ use this command:
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -965,18 +1079,22 @@ status collapsed
 \end_inset
 
  files.
- To do so, increment the \SpecialChar LyX
+ To do so,
+ increment the \SpecialChar LyX
  format and proceed as in 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "subsec:update_lyx_files"
+nolink "false"
 
 \end_inset
 
-, steps 
+,
+ steps 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "enu:Describe_format"
+nolink "false"
 
 \end_inset
 
@@ -984,6 +1102,7 @@ reference "enu:Describe_format"
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "enu:updatefiles"
+nolink "false"
 
 \end_inset
 
@@ -992,10 +1111,12 @@ reference "enu:updatefiles"
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "enu:Add-an-entry"
+nolink "false"
 
 \end_inset
 
-), implement a conversion similar to the one in 
+),
+ implement a conversion similar to the one in 
 \begin_inset Flex Code
 status collapsed
 
@@ -1005,7 +1126,9 @@ prefs2prefs_lfuns.py
 
 \end_inset
 
- above, as well as a corresponding reversion; for this one can use 
+ above,
+ as well as a corresponding reversion;
+ for this one can use 
 \begin_inset Flex Code
 status collapsed
 
@@ -1029,108 +1152,11 @@ lib/lyx2lyx/lyx2lyx_tools.py
  
 \end_layout
 
-\begin_layout Subsection
-Backporting new styles to the stable version
-\begin_inset CommandInset label
-LatexCommand label
-name "subsec:Backporting-new-styles"
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-Starting with the stable \SpecialChar LyX
- 2.1 branch, there is a mechanism in place to backport
- new styles to the stable version without the need to update the file format.
- The basic idea is that the new style definition is automatically copied
- to the document preamble so that it can even be used by older minor versions
- that did not yet include the style.
- To backport a new style to the stable version, the following steps are
- needed:
-\end_layout
-
-\begin_layout Enumerate
-Add the line 
-\begin_inset Flex Code
-status collapsed
-
-\begin_layout Plain Layout
-ForceLocal -1
-\end_layout
-
-\end_inset
-
- to the style definition in the development version.
-\end_layout
-
-\begin_layout Enumerate
-Copy the style definition to the stable version, but use 
-\begin_inset Flex Code
-status collapsed
-
-\begin_layout Plain Layout
-ForceLocal 1
-\end_layout
-
-\end_inset
-
- instead.
- If needed adjust the format to the one used by the stable version (see
- the customization manual for details of the layout file format).
-\end_layout
-
-\begin_layout Enumerate
-For each update of the style in a later stable version, increase the argument
- of 
-\begin_inset Flex Code
-status collapsed
-
-\begin_layout Plain Layout
-ForceLocal
-\end_layout
-
-\end_inset
-
- by one.
- (In the stable version, the development version should not be touched.)
-\end_layout
-
-\begin_layout Standard
-For details about the 
-\begin_inset Flex Code
-status collapsed
-
-\begin_layout Plain Layout
-ForceLocal
-\end_layout
-
-\end_inset
-
- flag see the customization manual.
- No 
-\begin_inset Flex Code
-status collapsed
-
-\begin_layout Plain Layout
-lyx2lyx
-\end_layout
-
-\end_inset
-
- support is needed for backported styles: Since the style of the development
- version has an infinite version number, it will always be used.
- Furthermore, since its version number is less than one, the style will
- not be written anymore to the document header for files saved by the new
- version.
-\end_layout
-
-\begin_layout Section
+\begin_layout Chapter
 New layouts and modules
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
 name "subsec:New-layouts"
@@ -1151,13 +1177,12 @@ officially supported
 \end_inset
 
  layout.
- You should therefore think carefully about whether you really want to do
- this and discuss it on lyx-devel, since you will need to be prepared to
- update and fix the layout if necessary.
- If the layout is experimental or for a rarely used document class, then
- it may be better to add it to the relevant portion of the \SpecialChar LyX
- wiki, as a user
- contribution.
+ You should therefore think carefully about whether you really want to do this and discuss it on lyx-devel,
+ since you will need to be prepared to update and fix the layout if necessary.
+ If the layout is experimental or for a rarely used document class,
+ then it may be better to add it to the relevant portion of the \SpecialChar LyX
+ wiki,
+ as a user contribution.
  See 
 \begin_inset CommandInset href
 LatexCommand href
@@ -1170,9 +1195,10 @@ literal "false"
 \end_layout
 
 \begin_layout Standard
-In older versions of this document, it was stated that new layout files
- require a file format change.
- After some discussion, it was decided that this is not needed.
+In older versions of this document,
+ it was stated that new layout files require a file format change.
+ After some discussion,
+ it was decided that this is not needed.
 \begin_inset Foot
 status open
 
@@ -1181,7 +1207,7 @@ See
 \begin_inset CommandInset href
 LatexCommand href
 name "the thread “Proposal for a guide on updating layouts”"
-target "http://permalink.gmane.org/gmane.editors.lyx.devel/161202"
+target "https://www.mail-archive.com/lyx-devel@lists.lyx.org/msg193244.html"
 literal "false"
 
 \end_inset
@@ -1195,7 +1221,8 @@ literal "false"
 \end_layout
 
 \begin_layout Quote
-For reference, here are the arguments on each side
+For reference,
+ here are the arguments on each side
 \end_layout
 
 \begin_deeper
@@ -1221,8 +1248,8 @@ All documents produced by 2.2.
 \end_inset
 
  is different.
- This is important for people using different machines, or exchanging work
- with colleagues.
+ This is important for people using different machines,
+ or exchanging work with colleagues.
 \end_layout
 
 \begin_layout Description
@@ -1238,16 +1265,18 @@ New layout files are not a file format change
 \end_layout
 
 \begin_layout Itemize
-No new LaTeX classes can be supported in a stable version, and stable versions
- have a typical lifetime of 2–3 years.
+No new LaTeX classes can be supported in a stable version,
+ and stable versions have a typical lifetime of 2–3 years.
 \end_layout
 
 \begin_layout Itemize
-We have the same situation already with custom layout files: If a document
- using a custom layout file is moved between machines or people, then the
- layout file needs to be exchanged as well.
- If that is not done, then we have a fallback implemented so that such documents
- can still be edited, but not exported, and the user gets a warning.
+We have the same situation already with custom layout files:
+ If a document using a custom layout file is moved between machines or people,
+ then the layout file needs to be exchanged as well.
+ If that is not done,
+ then we have a fallback implemented so that such documents can still be edited,
+ but not exported,
+ and the user gets a warning.
  
 \end_layout
 
@@ -1259,7 +1288,8 @@ The lyx2lyx script cannot do anything useful in such a case.
 \begin_layout Standard
 If you have decided that you are going to add a new layout file to \SpecialChar LyX
  itself,
- then, you should do the following:
+ then,
+ you should do the following:
 \end_layout
 
 \begin_layout Enumerate
@@ -1297,7 +1327,8 @@ lib/Makefile.am
 
 \end_inset
 
-, so that the new layout actually gets installed.
+,
+ so that the new layout actually gets installed.
 \end_layout
 
 \begin_layout Enumerate
@@ -1316,7 +1347,8 @@ lib/doc/LaTeXConfig.lyx
 
 \begin_deeper
 \begin_layout Quote
-Found: [InsetInfo] 
+Found:
+ [InsetInfo] 
 \end_layout
 
 \begin_layout Standard
@@ -1374,7 +1406,8 @@ lib/examples/
 
 \end_inset
 
-, respectively.
+,
+ respectively.
 \end_layout
 
 \begin_layout Enumerate
@@ -1387,20 +1420,23 @@ Ensure the autotests for the new layout pass (see
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "par:when-to-run-an-export-test"
+nolink "false"
 
 \end_inset
 
 ).
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 New modules
 \end_layout
 
 \begin_layout Standard
 Adding a new module is very similar to adding a new layout.
- Therefore, the previous section applies to new modules as well, with two
- exceptions: 
+ Therefore,
+ the previous section applies to new modules as well,
+ with two exceptions:
+ 
 \end_layout
 
 \begin_layout Enumerate
@@ -1415,12 +1451,13 @@ lib/doc/LaTeXConfig.lyx
 \end_inset
 
  if the module requires a LaTeX package.
- In that case, the command for entering the InsetInfo is: 
+ In that case,
+ the command for entering the InsetInfo is:
+ 
 \begin_inset Flex Code
 status collapsed
 
 \begin_layout Plain Layout
-\paragraph_spacing single
 info-insert package <name>
 \end_layout
 
@@ -1430,11 +1467,12 @@ info-insert package <name>
 \end_layout
 
 \begin_layout Enumerate
-Modules do not need a template, only an example, which is strongly encouraged
- but not necessarily required.
+Modules do not need a template,
+ only an example,
+ which is strongly encouraged but not necessarily required.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 Layouts for document classes with incompatible versions
 \end_layout
 
@@ -1443,7 +1481,8 @@ Layouts for document classes with incompatible versions
 status open
 
 \begin_layout Description
-Note: This section is currently only a proposal under discussion.
+Note:
+ This section is currently only a proposal under discussion.
  Please correct/amend as suited.
  Remove this note once a consensus is found.
 \end_layout
@@ -1470,19 +1509,18 @@ http://permalink.gmane.org/gmane.editors.lyx.devel/161126
 \end_layout
 
 \begin_layout Standard
-Every now and then, there are changes to LaTeX document classes that break
- backwards compatibility.
+Every now and then,
+ there are changes to LaTeX document classes that break backwards compatibility.
 \begin_inset Foot
 status collapsed
 
 \begin_layout Plain Layout
 Uwe has suggested we implement automatic detection of changes in class files.
- This could be done by running a script every month that checks if a document
- class was changed at CTAN and at the homepages of the scientific journals.
- If it reports a change, we can check if our template and layout file are
- still usable with the changed document class.
- (This is different from the autotests insofar, as this would also catch
- changes that do not result in compilation errors.)
+ This could be done by running a script every month that checks if a document class was changed at CTAN and at the homepages of the scientific journals.
+ If it reports a change,
+ we can check if our template and layout file are still usable with the changed document class.
+ (This is different from the autotests insofar,
+ as this would also catch changes that do not result in compilation errors.)
 \end_layout
 
 \end_inset
@@ -1497,10 +1535,13 @@ status collapsed
 
 \end_inset
 
- file, removed \SpecialChar LaTeX
- commands, or both.
+ file,
+ removed \SpecialChar LaTeX
+ commands,
+ or both.
  How should this best be handled in \SpecialChar LyX
-? 
+?
+ 
 \end_layout
 
 \begin_layout Standard
@@ -1510,8 +1551,7 @@ The idea is to support the new version with a new \SpecialChar LyX
 
 \begin_layout Itemize
 Existing documents can still be opened in \SpecialChar LyX
- and will continue to work on
- systems where the old version is still installed.
+ and will continue to work on systems where the old version is still installed.
  
 \end_layout
 
@@ -1526,11 +1566,10 @@ status collapsed
 
 \end_inset
 
- files, \SpecialChar LyX
- can check for the availability of the particular version and reflect
- this in the GUI.
- Different document class versions with the same file name are currently
- (2.2.x) not detected by the configuration script.
+ files,
+ \SpecialChar LyX
+ can check for the availability of the particular version and reflect this in the GUI.
+ Different document class versions with the same file name are currently (2.2.x) not detected by the configuration script.
  This is planned for 2.3.
 \begin_inset Foot
 status collapsed
@@ -1540,16 +1579,16 @@ https://www.mail-archive.com/lyx-devel@lists.lyx.org/msg192467.html
 \end_layout
 
 \begin_layout Plain Layout
-However, what we really need is version detection for the configuration,
- so that the user can be warned if the required class file has the wrong
- version.
- (If the class file keeps the name over the version change, only one of
- the two layout files generates compilable documents.)
+However,
+ what we really need is version detection for the configuration,
+ so that the user can be warned if the required class file has the wrong version.
+ (If the class file keeps the name over the version change,
+ only one of the two layout files generates compilable documents.)
 \end_layout
 
 \begin_layout Plain Layout
-This point was also made here: http://permalink.gmane.org/gmane.editors.lyx.devel/143
-798 
+This point was also made here:
+ http://permalink.gmane.org/gmane.editors.lyx.devel/143798 
 \end_layout
 
 \end_inset
@@ -1563,6 +1602,7 @@ The new layout can be added both to the master and the stable branches,
 \begin_inset CommandInset ref
 LatexCommand formatted
 reference "subsec:New-layouts"
+nolink "false"
 
 \end_inset
 
@@ -1571,12 +1611,12 @@ reference "subsec:New-layouts"
 \end_layout
 
 \begin_layout Standard
-The user can move an existing document to the new version simply by selecting
- a new document class.
+The user can move an existing document to the new version simply by selecting a new document class.
  This step is well supported by \SpecialChar LyX
-, with established methods for handling
- unsupported styles and other changes.
- This way, no lyx2lyx code is required.
+,
+ with established methods for handling unsupported styles and other changes.
+ This way,
+ no lyx2lyx code is required.
 \end_layout
 
 \begin_layout Standard
@@ -1584,8 +1624,8 @@ The steps to support a new version of an existing document class are thus:
 \end_layout
 
 \begin_layout Itemize
-Create a new layout file including the upstream version in the name (avoid
- special characters like spaces and dots), e.g.
+Create a new layout file including the upstream version in the name (avoid special characters like spaces and dots),
+ e.g.
  
 \begin_inset Flex Code
 status collapsed
@@ -1662,7 +1702,8 @@ DeclareLaTeXClass{ACM SIGGRAPH (<= v.
 \begin_inset space ~
 \end_inset
 
-0.91, obsolete)}
+0.91,
+ obsolete)}
 \end_layout
 
 \end_inset
@@ -1671,7 +1712,8 @@ DeclareLaTeXClass{ACM SIGGRAPH (<= v.
 \end_layout
 
 \begin_layout Itemize
-To avoid duplicate definitions, the new layout can 
+To avoid duplicate definitions,
+ the new layout can 
 \begin_inset Flex Code
 status collapsed
 
@@ -1684,8 +1726,7 @@ Input
  the old layout file and add\SpecialChar breakableslash
 remove\SpecialChar breakableslash
 obsolete\SpecialChar breakableslash
-modify settings and styles (similar
- to the inclusion of 
+modify settings and styles (similar to the inclusion of 
 \begin_inset Flex Code
 status collapsed
 
@@ -1709,22 +1750,21 @@ master version
 \end_inset
 
  and have the old layout import it.
- However, this should not be done because any changes to the new layout
- would need undo steps in the importing old layout.
+ However,
+ this should not be done because any changes to the new layout would need undo steps in the importing old layout.
 \end_layout
 
 \end_deeper
 \begin_layout Itemize
-If the new LaTeX document class obsoletes the old one, update the example
- and template files to use the new layout.
- Add a note about the changes (preferably with a pointer to the documentation
- of the changes).
+If the new LaTeX document class obsoletes the old one,
+ update the example and template files to use the new layout.
+ Add a note about the changes (preferably with a pointer to the documentation of the changes).
 \end_layout
 
 \begin_deeper
 \begin_layout Standard
-This way, new documents based on the template or example will use the up-to-date
- document class version.
+This way,
+ new documents based on the template or example will use the up-to-date document class version.
 \end_layout
 
 \end_deeper
@@ -1735,21 +1775,20 @@ This way, new documents based on the template or example will use the up-to-date
 
 \end_layout
 
-\begin_layout Section
+\begin_layout Chapter
 Tests
 \end_layout
 
 \begin_layout Standard
-Automated tests are an important tool to detect bugs and regressions in
- software development.
- Some projects like gcc even require each bug fix to be accompanied by a
- test case for the automatic test suite, that would detect this bug.
- Testing interactive features automatically is of course very hard, but
- core functionality like document import and export can be tested quite
- easily, and some tests of this kind exist.
+Automated tests are an important tool to detect bugs and regressions in software development.
+ Some projects like gcc even require each bug fix to be accompanied by a test case for the automatic test suite,
+ that would detect this bug.
+ Testing interactive features automatically is of course very hard,
+ but core functionality like document import and export can be tested quite easily,
+ and some tests of this kind exist.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 unit tests
 \end_layout
 
@@ -1758,10 +1797,11 @@ There are attempts to set up a suite of unit tests for LyX.
 \end_layout
 
 \begin_layout Standard
-TODO: describe what is done and what is still to do.
+TODO:
+ describe what is done and what is still to do.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 tex2lyx tests
 \end_layout
 
@@ -1789,7 +1829,8 @@ src/tex2lyx/test/runtests.py
 \end_inset
 
 .
- Each test consists of two files: 
+ Each test consists of two files:
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -1812,8 +1853,8 @@ status collapsed
 \end_inset
 
  contains the expected output of tex2lyx.
- When a test is run, the actual produced output is compared with the stored
- reference output.
+ When a test is run,
+ the actual produced output is compared with the stored reference output.
  The test passes if both are identical.
  The test machinery is also able to generate a file 
 \begin_inset Flex Code
@@ -1830,7 +1871,7 @@ status collapsed
  This may be useful for roundtrip comparisons.
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 Running the tests
 \end_layout
 
@@ -1846,7 +1887,8 @@ src/tex2lyx
 
 \end_inset
 
- subfolder of the build directory, the commands 
+ subfolder of the build directory,
+ the commands 
 \begin_inset Flex Code
 status collapsed
 
@@ -1856,7 +1898,9 @@ ctest
 
 \end_inset
 
- (cmake, all platforms), 
+ (cmake,
+ all platforms),
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -1866,7 +1910,8 @@ make test
 
 \end_inset
 
- (cmake, when using a make based build system and not MSVC) or 
+ (cmake,
+ when using a make based build system and not MSVC) or 
 \begin_inset Flex Code
 status collapsed
 
@@ -1877,7 +1922,9 @@ make alltests
 \end_inset
 
  (autotools) will run the tex2lyx tests.
- Alternatively, in the root of the build directory, the command 
+ Alternatively,
+ in the root of the build directory,
+ the command 
 \begin_inset Flex Code
 status collapsed
 
@@ -1896,8 +1943,7 @@ tex2lyx
 \end_inset
 
 .
- Another way to run the tex2lyx tests in the root build directory is to
- instead use the command 
+ Another way to run the tex2lyx tests in the root build directory is to instead use the command 
 \begin_inset Flex Code
 status collapsed
 
@@ -1907,7 +1953,8 @@ ctest -L '(cmplyx|roundtrip)'
 
 \end_inset
 
-, which runs all tests categorized with the label 
+,
+ which runs all tests categorized with the label 
 \begin_inset Quotes eld
 \end_inset
 
@@ -1924,11 +1971,11 @@ cmplyx
 \end_inset
 
 .
- If a test fails, the differences between the expected and actual results
- are output in unified diff format.
+ If a test fails,
+ the differences between the expected and actual results are output in unified diff format.
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 Updating test references
 \begin_inset CommandInset label
 LatexCommand label
@@ -1940,7 +1987,8 @@ name "sec:Updating-test-references"
 \end_layout
 
 \begin_layout Standard
-In some cases a changed tex2lyx output is not a test failure, but wanted,
+In some cases a changed tex2lyx output is not a test failure,
+ but wanted,
  e.
 \begin_inset space \thinspace{}
 \end_inset
@@ -1949,9 +1997,11 @@ g.
 \begin_inset space \space{}
 \end_inset
 
-if a tex2lyx bug was fixed, or a new feature was added.
+if a tex2lyx bug was fixed,
+ or a new feature was added.
  In these cases the stored references need to be updated.
- To do so if using autotools, call 
+ To do so if using autotools,
+ call 
 \begin_inset Flex Code
 status collapsed
 
@@ -1972,7 +2022,8 @@ src/tex2lyx
 \end_inset
 
  subdirectory of the build directory.
- If instead using CMake, call 
+ If instead using CMake,
+ call 
 \begin_inset Flex Code
 status collapsed
 
@@ -1997,8 +2048,8 @@ src/tex2lyx/test
 status collapsed
 
 \begin_layout Plain Layout
-Note that this is a case where a make target in the build directory can
- affect the source directory, which might not be advisable.
+Note that this is a case where a make target in the build directory can affect the source directory,
+ which might not be advisable.
 \end_layout
 
 \end_inset
@@ -2039,7 +2090,8 @@ In the appearing MSVC program assure that you build the
 \emph on
 Release
 \emph default
- version, then right-click on the project 
+ version,
+ then right-click on the project 
 \family sans
 updatetex2lyxtests
 \family default
@@ -2060,11 +2112,10 @@ only
 \end_layout
 
 \begin_layout Standard
-For convenience, these commands also produce re-exported roundtrip .lyx.tex
- files.
- Please examine the changed output carefully before committing the changed
- files to the repository: Since the test machinery does not do a roundtrip
- test .tex 
+For convenience,
+ these commands also produce re-exported roundtrip .lyx.tex files.
+ Please examine the changed output carefully before committing the changed files to the repository:
+ Since the test machinery does not do a roundtrip test .tex 
 \begin_inset Formula $\Rightarrow$
 \end_inset
 
@@ -2072,12 +2123,14 @@ For convenience, these commands also produce re-exported roundtrip .lyx.tex
 \begin_inset Formula $\Rightarrow$
 \end_inset
 
- .tex, and does not compare the produced dvi or pdf output, it assumes that
- the stored .lyx reference produces correct output if processed by \SpecialChar LyX
+ .tex,
+ and does not compare the produced dvi or pdf output,
+ it assumes that the stored .lyx reference produces correct output if processed by \SpecialChar LyX
 .
- There is only one chance to detect wrong output: before committing a new
- reference.
- Once it is committed, it is quite difficult to verify whether it is correct.
+ There is only one chance to detect wrong output:
+ before committing a new reference.
+ Once it is committed,
+ it is quite difficult to verify whether it is correct.
 \end_layout
 
 \begin_layout Standard
@@ -2086,20 +2139,19 @@ Please
 do not
 \emph default
  update the test references by opening them with \SpecialChar LyX
- or directly running lyx2lyx
- on them.
- This would not work, since lyx2lyx and \SpecialChar LyX
- produce slightly different files
- regarding insignificant whitespace and line breaks.
+ or directly running lyx2lyx on them.
+ This would not work,
+ since lyx2lyx and \SpecialChar LyX
+ produce slightly different files regarding insignificant whitespace and line breaks.
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 Adding a new test
 \end_layout
 
 \begin_layout Standard
-In many cases tests for new features may be added to one of the existing
- test files, but sometimes this is not possible or not wanted.
+In many cases tests for new features may be added to one of the existing test files,
+ but sometimes this is not possible or not wanted.
  Then a new test file needs to be added:
 \end_layout
 
@@ -2129,8 +2181,8 @@ src/tex2lyx/test/<test name>.lyx.lyx
 \end_layout
 
 \begin_layout Enumerate
-Once you confirmed that the tex2lyx output is correct, add the new files
- to the corresponding lists in 
+Once you confirmed that the tex2lyx output is correct,
+ add the new files to the corresponding lists in 
 \begin_inset Flex Code
 status collapsed
 
@@ -2140,7 +2192,8 @@ src/tex2lyx/test/runtests.py
 
 \end_inset
 
-, 
+,
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -2164,11 +2217,11 @@ src/tex2lyx/test/CMakeLists.txt
 \end_layout
 
 \begin_layout Enumerate
-Commit the changes to the repository, or send a patch to the development
- list and ask for committing if you do not have commit rights.
+Commit the changes to the repository,
+ or send a patch to the development list and ask for committing if you do not have commit rights.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 ctest automatic tests
 \end_layout
 
@@ -2221,8 +2274,7 @@ ctest
 \emph on
  build directory
 \emph default
- (all platforms) or (when using a make based build system and not MSVC)
- 
+ (all platforms) or (when using a make based build system and not MSVC) 
 \begin_inset Flex Code
 status collapsed
 
@@ -2265,15 +2317,15 @@ build directory.
  
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 Export tests 
 \end_layout
 
 \begin_layout Standard
 The export tests are integration tests.
  They take longer to run and are more likely to break than the tex2lyx tests.
- Nevertheless, they have caught many regressions and without a better alternativ
-e it is important to keep them up-to-date and understand how they work.
+ Nevertheless,
+ they have caught many regressions and without a better alternative it is important to keep them up-to-date and understand how they work.
 \end_layout
 
 \begin_layout Standard
@@ -2285,8 +2337,11 @@ reuse
 \begin_inset Quotes erd
 \end_inset
 
- documentation, template, and example documents.
- In addition, there are a number of dedicated sample documents in the 
+ documentation,
+ template,
+ and example documents.
+ In addition,
+ there are a number of dedicated sample documents in the 
 \begin_inset Flex Code
 status collapsed
 
@@ -2298,23 +2353,24 @@ autotests/export/
 
  subfolder of the \SpecialChar LyX
  source code distribution.
- All samples are (after copying and eventual processing by scripts) exported
- to various output formats via the 
+ All samples are (after copying and eventual processing by scripts) exported to various output formats via the 
 \begin_inset Flex Code
 status collapsed
 
 \begin_layout Plain Layout
-—export-to
+—
+export-to
 \end_layout
 
 \end_inset
 
  command line option.
  The tests checks for errors reported by LyX.
- (However, error-free export is no guarantee for an error-free output document.)
+ (However,
+ error-free export is no guarantee for an error-free output document.)
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 \begin_inset CommandInset label
 LatexCommand label
 name "par:when-to-run-an-export-test"
@@ -2331,13 +2387,13 @@ Because the export tests are integration tests and take a long time to run,
 \end_layout
 
 \begin_layout Itemize
-When making a non-trivial change to a .layout file, run the export and layout
- tests corresponding with that .layout file.
+When making a non-trivial change to a .layout file,
+ run the export and layout tests corresponding with that .layout file.
 \end_layout
 
 \begin_layout Itemize
-When making non-trivial changes to a .lyx file, run the export tests correspondin
-g to that .lyx file.
+When making non-trivial changes to a .lyx file,
+ run the export tests corresponding to that .lyx file.
  
 \begin_inset Foot
 status collapsed
@@ -2348,34 +2404,31 @@ This rule is due to revision.
 \end_layout
 
 \begin_layout Plain Layout
-There is an objection from the documentation maintainer that working on
- the documentation must not be complicated by having to consider non-standard
- exports.
+There is an objection from the documentation maintainer that working on the documentation must not be complicated by having to consider non-standard exports.
 \end_layout
 
 \begin_layout Itemize
-successful compiling/testing an edited documentation file with pdflatex
- suffices to ensure it can be commited, not tests with other exports are
- required.
+successful compiling/testing an edited documentation file with pdflatex suffices to ensure it can be commited,
+ not tests with other exports are required.
 \end_layout
 
 \begin_layout Plain Layout
-If sudden failures with other exports due to “half-tested” documentation
- updates are a problem for the test maintainer, the test suite should use
- copies that are 
+If sudden failures with other exports due to “half-tested” documentation updates are a problem for the test maintainer,
+ the test suite should use copies that are 
 \end_layout
 
 \begin_layout Itemize
-copied to a cache dir (autotests/samples/doc/, say) but not changed,
+copied to a cache dir (autotests/samples/doc/,
+ say) but not changed,
 \end_layout
 
 \begin_layout Itemize
-updated regularely (but on a time chosen by the test suite maintainer) from
- the originals in lib/doc/
+updated regularely (but on a time chosen by the test suite maintainer) from the originals in lib/doc/
 \end_layout
 
 \begin_layout Plain Layout
-This way, 
+This way,
+ 
 \end_layout
 
 \begin_layout Itemize
@@ -2387,13 +2440,11 @@ the documentation is still tested in full (with some delay),
 \end_layout
 
 \begin_layout Itemize
-failures with non-default export can be examined and handled accordingly
- in one run with the cache update,
+failures with non-default export can be examined and handled accordingly in one run with the cache update,
 \end_layout
 
 \begin_layout Itemize
-“interesting failures” (like the nested-language+polyglossia problem in
- es/Customization can be separated and moved into dedicated test samples.
+“interesting failures” (like the nested-language+polyglossia problem in es/Customization can be separated and moved into dedicated test samples.
 \end_layout
 
 \end_inset
@@ -2404,8 +2455,7 @@ failures with non-default export can be examined and handled accordingly
 \begin_layout Itemize
 When making non-trivial changes to LyX's \SpecialChar LaTeX
  export code (e.g.
- touching the encoding code or package handling code that you expect will
- change the exported \SpecialChar LaTeX
+ touching the encoding code or package handling code that you expect will change the exported \SpecialChar LaTeX
  in some way):
 \end_layout
 
@@ -2413,7 +2463,8 @@ When making non-trivial changes to LyX's \SpecialChar LaTeX
 \begin_layout Standard
 \paragraph_spacing single
 Consider running all of the export tests before and after your change.
- If there are differences, please reconcile these (i.e.
+ If there are differences,
+ please reconcile these (i.e.
  fix the bug or fix the tests) 
 \emph on
 before
@@ -2427,31 +2478,32 @@ If you do not want to run the tests,
 \end_layout
 
 \begin_layout Itemize
-post the patch on the list and others will run the tests and eventually
- ask for fixes, or
+post the patch on the list and others will run the tests and eventually ask for fixes,
+ or
 \end_layout
 
 \begin_layout Itemize
-commit, but be prepared to fix eventually arising problems or to revert
- the commit if there is no easy fix.
+commit,
+ but be prepared to fix eventually arising problems or to revert the commit if there is no easy fix.
 \end_layout
 
 \end_deeper
 \begin_layout Itemize
 Understand how to interpret test failures.
- If your commit is found to have broken a test, you should be able to interpret
- the test results when made aware of them.
+ If your commit is found to have broken a test,
+ you should be able to interpret the test results when made aware of them.
  See Section 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "subsec:Interpreting-export-tests"
+nolink "false"
 
 \end_inset
 
 .
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 \begin_inset CommandInset label
 LatexCommand label
 name "par:export-test-output-formats"
@@ -2462,11 +2514,11 @@ Output formats
 \end_layout
 
 \begin_layout Standard
-The following output formats are currently tested for each sample document
- (see 
+The following output formats are currently tested for each sample document (see 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "par:Export-test-filtering"
+nolink "false"
 
 \end_inset
 
@@ -2589,7 +2641,8 @@ not
 \begin_inset space ~
 \end_inset
 
-tested: (or only if set as default output format in the document source)
+tested:
+ (or only if set as default output format in the document source)
 \end_layout
 
 \begin_deeper
@@ -2640,7 +2693,9 @@ odf
 
 \begin_layout Labeling
 \labelwidthstring pdf5msystemFM
-text (nor text2, ..., text4)
+text (nor text2,
+ ...,
+ text4)
 \end_layout
 
 \begin_layout Labeling
@@ -2664,7 +2719,7 @@ wordhtml
 \end_layout
 
 \end_deeper
-\begin_layout Paragraph
+\begin_layout Subsubsection
 \begin_inset CommandInset label
 LatexCommand label
 name "par:Configuring-ctests"
@@ -2675,7 +2730,8 @@ Configuring the tests
 \end_layout
 
 \begin_layout Standard
-To enable the export autotests, add the 
+To enable the export autotests,
+ add the 
 \begin_inset Flex Code
 status collapsed
 
@@ -2709,13 +2765,14 @@ This flag will increase the time for the cmake command by several seconds,
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "subsec:Interpreting-export-tests"
+nolink "false"
 
 \end_inset
 
 ).
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 \begin_inset CommandInset label
 LatexCommand label
 name "par:ctest-options"
@@ -2726,7 +2783,8 @@ Running the tests
 \end_layout
 
 \begin_layout Standard
-To run all tests, in the build directory simply run the command 
+To run all tests,
+ in the build directory simply run the command 
 \begin_inset Flex Code
 status collapsed
 
@@ -2737,8 +2795,10 @@ ctest
 \end_inset
 
 .
- A full, up-to-date TeXLive installation is recommended to run the tests.
- Otherwise, some tests will fail.
+ A full,
+ up-to-date TeXLive installation is recommended to run the tests.
+ Otherwise,
+ some tests will fail.
  Tests with additional requirements are labeled 
 \begin_inset Quotes eld
 \end_inset
@@ -2752,7 +2812,8 @@ unreliable:nonstandard
 \end_layout
 
 \begin_layout Standard
-To run only some of the tests, use command line options (see examples below):
+To run only some of the tests,
+ use command line options (see examples below):
 \end_layout
 
 \begin_layout Labeling
@@ -2845,8 +2906,11 @@ status collapsed
 
 \begin_deeper
 \begin_layout Standard
-Useful in conjunction with the -R, -L, -E and -LE options, e.g., if you want
- to know how many tests there are or whether your 
+Useful in conjunction with the -R,
+ -L,
+ -E and -LE options,
+ e.g.,
+ if you want to know how many tests there are or whether your 
 \begin_inset Flex Code
 status collapsed
 
@@ -2874,7 +2938,10 @@ print-labels
 \end_inset
 
  print the list of all labels associated with the test set.
- Can also be combined with -R, -L, -E, ...
+ Can also be combined with -R,
+ -L,
+ -E,
+ ...
  
 \end_layout
 
@@ -2899,14 +2966,15 @@ status collapsed
 \begin_deeper
 \begin_layout Standard
 We are still working on getting the tests to run in parallel.
- However, when running the tests in parallel, sometimes tests fail that
- pass when run sequentially.
- A reasonable approach is to first run the tests in parallel and then run
- the failed tests sequentially.
+ However,
+ when running the tests in parallel,
+ sometimes tests fail that pass when run sequentially.
+ A reasonable approach is to first run the tests in parallel and then run the failed tests sequentially.
 \end_layout
 
 \begin_layout Standard
-For example, to run 8 jobs at a time:
+For example,
+ to run 8 jobs at a time:
 \end_layout
 
 \begin_layout Standard
@@ -2950,7 +3018,8 @@ R <pattern>
 
 \end_inset
 
-), the same subset must be specified when using the 
+),
+ the same subset must be specified when using the 
 \begin_inset Flex Code
 status collapsed
 
@@ -2962,8 +3031,7 @@ rerun-failed
 
 \end_inset
 
- option because it is the test numbers that are used to index which tests
- failed on the previous run.
+ option because it is the test numbers that are used to index which tests failed on the previous run.
 \end_layout
 
 \begin_layout Standard
@@ -2974,7 +3042,6 @@ Note that some tests cannot be run in parallel.
 status collapsed
 
 \begin_layout Plain Layout
-\noindent
 RUN_SERIAL ON
 \end_layout
 
@@ -2997,17 +3064,16 @@ timeout <seconds>
 
 \end_inset
 
- Set a global timeout on all tests that do not already have a timeout set
- on them.
+ Set a global timeout on all tests that do not already have a timeout set on them.
 \end_layout
 
 \begin_deeper
 \begin_layout Standard
 There have been bugs in LyX and in \SpecialChar LaTeX
- which cause compilation to hang, and
- without a timeout a test might never stop (in one case there was even a
- memory leak).
- If a test times out, the 
+ which cause compilation to hang,
+ and without a timeout a test might never stop (in one case there was even a memory leak).
+ If a test times out,
+ the 
 \begin_inset Flex Code
 status collapsed
 
@@ -3017,8 +3083,8 @@ ctest
 
 \end_inset
 
- command exits with error, but you can distinguish between a timed out test
- and a failed test in the output reported at the end of the 
+ command exits with error,
+ but you can distinguish between a timed out test and a failed test in the output reported at the end of the 
 \begin_inset Flex Code
 status collapsed
 
@@ -3046,12 +3112,13 @@ man ctest
 ) the full list of command line options.
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 Examples
 \end_layout
 
 \begin_layout Itemize
-run only the export tests: 
+run only the export tests:
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -3065,7 +3132,8 @@ ctest -L export
 \end_layout
 
 \begin_layout Itemize
-run inverted tests: 
+run inverted tests:
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -3079,7 +3147,8 @@ ctest -L "inverted|suspended"
 \end_layout
 
 \begin_layout Itemize
-list all export tests which match any of the labelling patterns: 
+list all export tests which match any of the labelling patterns:
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -3108,7 +3177,7 @@ ctest -L export -E "_(texF|dvi3|pdf3?)"
 
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 \begin_inset CommandInset label
 LatexCommand label
 name "subsec:Interpreting-export-tests"
@@ -3119,7 +3188,8 @@ Interpreting the export test results
 \end_layout
 
 \begin_layout Standard
-A test can fail for several reasons, not all of them bad.
+A test can fail for several reasons,
+ not all of them bad.
 \end_layout
 
 \begin_layout Enumerate
@@ -3165,15 +3235,14 @@ name "enu:exposed"
 
 \end_inset
 
-A change in a document exposed a previously unknown bug or an incompatibility
- with an export format (e.g.
+A change in a document exposed a previously unknown bug or an incompatibility with an export format (e.g.
  Lua\SpecialChar LaTeX
 ).
 \end_layout
 
 \begin_layout Standard
-Because the .lyx files are exported in several formats, it is not surprising
- that many of the exports fail.
+Because the .lyx files are exported in several formats,
+ it is not surprising that many of the exports fail.
  This expectation of failure is addressed by 
 \begin_inset Quotes eld
 \end_inset
@@ -3182,7 +3251,9 @@ inverting
 \begin_inset Quotes erd
 \end_inset
 
- the tests, that is, by marking the test as 
+ the tests,
+ that is,
+ by marking the test as 
 \begin_inset Quotes eld
 \end_inset
 
@@ -3203,8 +3274,7 @@ failing
 .
 
 \emph default
- It follows that these expected failures will not show up as failed tests
- in the test results and thus will not pollute the 
+ It follows that these expected failures will not show up as failed tests in the test results and thus will not pollute the 
 \begin_inset Quotes eld
 \end_inset
 
@@ -3213,8 +3283,10 @@ good
 \end_inset
 
  tests.
- If the export actually succeeds, then the test will fail.
- The purpose of this failure is to get your attention—something has changed,
+ If the export actually succeeds,
+ then the test will fail.
+ The purpose of this failure is to get your attention—
+something has changed,
  possibly for the better.
 \end_layout
 
@@ -3230,8 +3302,7 @@ status collapsed
 
 \end_inset
 
-) above the block in which the test is listed as inverted or ignored in
- the files 
+) above the block in which the test is listed as inverted or ignored in the files 
 \begin_inset Flex Code
 status collapsed
 
@@ -3241,7 +3312,8 @@ development/autotests/invertedTests
 
 \end_inset
 
-, 
+,
+ 
 \begin_inset Flex Code
 status collapsed
 
@@ -3266,17 +3338,16 @@ development/autotests/ignoredTests
 \end_layout
 
 \begin_layout Standard
-A good question is why do we enable the tests for non-default formats? The
- answer is that if a non-default route is broken it is often because a bug
- was introduced in LyX and not because a document-specific change was made
- that is not supported by the route.
- In other words, there is a high signal/noise ratio in the export tests
- for some non-default formats.
+A good question is why do we enable the tests for non-default formats?
+ The answer is that if a non-default route is broken it is often because a bug was introduced in LyX and not because a document-specific change was made that is not supported by the route.
+ In other words,
+ there is a high signal/noise ratio in the export tests for some non-default formats.
  
 \end_layout
 
 \begin_layout Standard
-When a test or several tests fail, consider checking the files in the 
+When a test or several tests fail,
+ consider checking the files in the 
 \begin_inset Flex Code
 status collapsed
 
@@ -3287,7 +3358,8 @@ Testing/Temporary/
 \end_inset
 
  subdirectory of your build directory.
- In this subdirectory are three files: the file 
+ In this subdirectory are three files:
+ the file 
 \begin_inset Flex Code
 status collapsed
 
@@ -3307,7 +3379,8 @@ ctest
 
 \end_inset
 
- command; the 
+ command;
+ the 
 \begin_inset Flex Code
 status collapsed
 
@@ -3317,8 +3390,8 @@ LastTest.log
 
 \end_inset
 
- file contains the output from the tests (and often has details explaining
- why a test failed); and the 
+ file contains the output from the tests (and often has details explaining why a test failed);
+ and the 
 \begin_inset Flex Code
 status collapsed
 
@@ -3331,19 +3404,19 @@ CTestCostData.txt
  file lists the times that it took to run the tests.
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 What action should you take if a test fails?
 \end_layout
 
 \begin_layout Standard
 \paragraph_spacing single
-It is always good to check manually why something fails and if it passes
- if the PDF output is good.
+It is always good to check manually why something fails and if it passes if the PDF output is good.
 \end_layout
 
 \begin_layout Itemize
-Generally, if a change breaks compilation for the target format (for the
- manuals pdf2) without solving some important other issue, 
+Generally,
+ if a change breaks compilation for the target format (for the manuals pdf2) without solving some important other issue,
+ 
 \emph on
 fix or revert the commit
 \emph default
@@ -3351,9 +3424,9 @@ fix or revert the commit
 \end_layout
 
 \begin_layout Itemize
-If it is not possible to (immediately) fix the failure but there are reasons
- not to revert the commit (e.g.
- it fixes another more important issue), 
+If it is not possible to (immediately) fix the failure but there are reasons not to revert the commit (e.g.
+ it fixes another more important issue),
+ 
 \emph on
 invert
 \emph default
@@ -3361,6 +3434,7 @@ invert
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "par:Inverted-tests"
+nolink "false"
 
 \end_inset
 
@@ -3372,7 +3446,11 @@ If an
 \emph on
 inverted
 \emph default
- test case fails because the export now works, 
+ test case fails because the export now works,
+ first confirm that the output of the corresponding export looks good (e.g.,
+ not garbled text).
+ Then,
+ 
 \emph on
 uninvert
 \emph default
@@ -3384,10 +3462,11 @@ invertedTests
 \begin_inset Quotes erd
 \end_inset
 
- file) (see 
+ file (see 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "par:Inverted-tests"
+nolink "false"
 
 \end_inset
 
@@ -3395,7 +3474,8 @@ reference "par:Inverted-tests"
 \end_layout
 
 \begin_layout Itemize
-If the export did not fail previously but led to wrong output (PDF, say),
+If the export did not fail previously but led to wrong output (PDF,
+ say),
 \begin_inset Foot
 status collapsed
 
@@ -3412,6 +3492,7 @@ unreliable:wrong_output
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "par:Unreliable-tests"
+nolink "false"
 
 \end_inset
 
@@ -3429,6 +3510,7 @@ Invert
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "par:Inverted-tests"
+nolink "false"
 
 \end_inset
 
@@ -3444,20 +3526,20 @@ unreliable:nonstandard
 \begin_inset Quotes erd
 \end_inset
 
- or testing on a system with only a subset of TeXLive installed), ignore
- the failure, ask for someone else to run the test, or install the missing
- resources and try again.
+ or testing on a system with only a subset of TeXLive installed),
+ ignore the failure,
+ ask for someone else to run the test,
+ or install the missing resources and try again.
 \end_layout
 
 \begin_layout Itemize
 Check the log file Testing/Temporary/LastTest.log.
- In case of latex-errors rerun the failing test with environment variable
- 'LYX_DEBUG_LATEX' set to '1'.
- This will include latex messages in LastTest.log, so it should be easier
- to interpret the fail-reason.
+ In case of latex-errors rerun the failing test with environment variable 'LYX_DEBUG_LATEX' set to '1'.
+ This will include latex messages in LastTest.log,
+ so it should be easier to interpret the fail-reason.
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 \begin_inset CommandInset label
 LatexCommand label
 name "par:Inverted-tests"
@@ -3493,7 +3575,8 @@ WILL_FAIL
 
 \end_inset
 
-, i.e.
+,
+ i.e.
  they are reported as failing if the export works without error 
 \begin_inset Flex URL
 status collapsed
@@ -3509,7 +3592,8 @@ https://cmake.org/cmake/help/v3.0/command/set_tests_properties.html
 \end_layout
 
 \begin_layout Standard
-Add failing cases to this file, if they cannot be solved 
+Add failing cases to this file,
+ if they cannot be solved 
 \begin_inset Quotes eld
 \end_inset
 
@@ -3517,9 +3601,9 @@ immediately
 \begin_inset Quotes erd
 \end_inset
 
- but it is expected that the export will work in a foreseeable future, e.g.
- low priority issues like failures to export to a non-target format (for
- the manuals everything except pdf2).
+ but it is expected that the export will work in a foreseeable future,
+ e.g.
+ low priority issues like failures to export to a non-target format (for the manuals everything except pdf2).
 \end_layout
 
 \begin_layout Standard
@@ -3542,7 +3626,8 @@ todo test failures that require attention:
 
 \begin_deeper
 \begin_layout Itemize
-minor issues to explore and properly sort later, 
+minor issues to explore and properly sort later,
+ 
 \end_layout
 
 \begin_layout Itemize
@@ -3569,8 +3654,9 @@ ert Export failures due to "raw" LaTeX use in ERT or preamble code.
 
 \end_deeper
 \begin_layout Description
-texissues Export fails due to LaTeX limitations like non-ASCII characters
- in verbatim or listings, incompatible packages, ...
+texissues Export fails due to LaTeX limitations like non-ASCII characters in verbatim or listings,
+ incompatible packages,
+ ...
 \end_layout
 
 \begin_deeper
@@ -3579,17 +3665,18 @@ texissues Export fails due to LaTeX limitations like non-ASCII characters
 \end_layout
 
 \begin_layout Itemize
-If the source can be made more robust without becoming "hackish", fix the
- source,
+If the source can be made more robust without becoming "hackish",
+ fix the source,
 \end_layout
 
 \begin_layout Itemize
-if LyX could be enhanced to care for a permanent TeX limitation, file a
- ticket at trac and add a pattern under lyxbugs,
+if LyX could be enhanced to care for a permanent TeX limitation,
+ file a ticket at trac and add a pattern under lyxbugs,
 \end_layout
 
 \begin_layout Itemize
-otherwise, add a pattern here.
+otherwise,
+ add a pattern here.
 \end_layout
 
 \end_deeper
@@ -3606,8 +3693,8 @@ Wontfix
 .
 \end_layout
 
-\begin_layout Subparagraph
-suspended tests
+\begin_layout Paragraph
+Suspended tests
 \end_layout
 
 \begin_layout Standard
@@ -3655,7 +3742,8 @@ ctest -L inverted
 \end_inset
 
 .
- However, they also get the test property 
+ However,
+ they also get the test property 
 \begin_inset Flex Code
 status collapsed
 
@@ -3665,7 +3753,8 @@ WILL_FAIL
 
 \end_inset
 
-, i.e.
+,
+ i.e.
  they are reported as failing if the export works without error.
  From time to time they still have to be checked using 
 \begin_inset Flex Code
@@ -3681,8 +3770,8 @@ ctest -L suspended
 \end_layout
 
 \begin_layout Standard
-These tests are suspended, because the export fails for known reasons which
- cannot ATM be resolved.
+These tests are suspended,
+ because the export fails for known reasons which cannot ATM be resolved.
  But it is expected the reason might disappear in the future.
  Be it new TL or better handling in \SpecialChar LyX
 .
@@ -3700,18 +3789,19 @@ status collapsed
 \end_inset
 
  parameter nothing changes.
- Suspended or not, tests will be executed depending only on the selecting
- regular expression given to the ctest command (see 
+ Suspended or not,
+ tests will be executed depending only on the selecting regular expression given to the ctest command (see 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "par:ctest-options"
+nolink "false"
 
 \end_inset
 
 ).
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 \begin_inset CommandInset label
 LatexCommand label
 name "par:Unreliable-tests"
@@ -3765,8 +3855,8 @@ ctest -L inverted
 \end_layout
 
 \begin_layout Standard
-They pass or fail for various reasons not related to LyX (nonstandard, erratic)
- or pass but should rather fail (wrong output).
+They pass or fail for various reasons not related to LyX (nonstandard,
+ erratic) or pass but should rather fail (wrong output).
  
 \begin_inset Note Note
 status collapsed
@@ -3797,14 +3887,16 @@ unreliableTests
 \end_layout
 
 \begin_layout Description
-nonstandard Documents with additional requirements, e.g.
+nonstandard Documents with additional requirements,
+ e.g.
  a class or package file not in TeXLive.
  
 \begin_inset Note Note
 status open
 
 \begin_layout Plain Layout
-TODO: rename to 
+TODO:
+ rename to 
 \begin_inset Quotes eld
 \end_inset
 
@@ -3836,8 +3928,8 @@ erratic Tests depending on local configuration or the phase of the moon.
 \begin_layout Description
 varying_versions Tests depending on e.g.
  OS or version of a non-TeX-Live dependency.
- Note that a full, up-to-date TeX Live installation is required so this
- sublabel is about versions of other dependencies.
+ Note that a full,
+ up-to-date TeX Live installation is required so this sublabel is about versions of other dependencies.
 \end_layout
 
 \begin_layout Description
@@ -3845,8 +3937,7 @@ wrong
 \begin_inset space ~
 \end_inset
 
-output Export does not fail but the resulting document has (undetected)
- errors.
+output Export does not fail but the resulting document has (undetected) errors.
 \end_layout
 
 \begin_deeper
@@ -3870,7 +3961,7 @@ invalid
 \end_layout
 
 \end_deeper
-\begin_layout Paragraph
+\begin_layout Subsubsection
 \begin_inset CommandInset label
 LatexCommand label
 name "par:Export-test-filtering"
@@ -3881,8 +3972,7 @@ Export test filtering
 \end_layout
 
 \begin_layout Standard
-The assignment of a label to a test is controlled by a set of files with
- regular expressions that are matched against the test names.
+The assignment of a label to a test is controlled by a set of files with regular expressions that are matched against the test names.
 \end_layout
 
 \begin_layout Description
@@ -3895,6 +3985,7 @@ Tests selected here are withdrawn in the configuration step (cf.
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "par:Configuring-ctests"
+nolink "false"
 
 \end_inset
 
@@ -3914,8 +4005,8 @@ Output Stop if tests not selected here
 
 \end_deeper
 \begin_layout Description
-unreliableTests: Tests selected pass or fail dependent on the system where
- the test is run.
+unreliableTests:
+ Tests selected pass or fail dependent on the system where the test is run.
  Selected tests gain the label 'unreliable'.
 \end_layout
 
@@ -3927,7 +4018,8 @@ Input Each test which passed 'ignoredTests'
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
-Output Gain label 'unreliable', proceed with checking for 'inverted'.
+Output Gain label 'unreliable',
+ proceed with checking for 'inverted'.
 \end_layout
 
 \end_deeper
@@ -3947,9 +4039,10 @@ Input Each test which passed 'ignoredTests'
 
 \begin_layout Labeling
 \labelwidthstring 00.00.0000
-Output Stop if not selected, gain test-property 'WILL_FAIL' (i.e.
- tests are reported as failing if the export works without error.) If no
- subselection applies, gain labels 'export' and 'inverted'.
+Output Stop if not selected,
+ gain test-property 'WILL_FAIL' (i.e.
+ tests are reported as failing if the export works without error.) If no subselection applies,
+ gain labels 'export' and 'inverted'.
 \end_layout
 
 \begin_layout Standard
@@ -3957,9 +4050,10 @@ The following filter perfoms a subselection of 'invertedTests':
 \end_layout
 
 \begin_layout Description
-suspendedTests Tests selected here gain the label 'suspended' but _not_
- 'export' or 'inverted', although in ctest they remain inverted.
- ('ctest' knows only 'inverted' or not, labels are used only for test selection)
+suspendedTests Tests selected here gain the label 'suspended' but _not_ 'export' or 'inverted',
+ although in ctest they remain inverted.
+ ('ctest' knows only 'inverted' or not,
+ labels are used only for test selection)
 \end_layout
 
 \begin_deeper
@@ -4473,7 +4567,8 @@ suspendedTests
 \begin_inset Quotes erd
 \end_inset
 
- filter, this would be far less complicated:
+ filter,
+ this would be far less complicated:
 \end_layout
 
 \begin_layout Plain Layout
@@ -4889,25 +4984,27 @@ No
 
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 check_load tests
 \end_layout
 
 \begin_layout Standard
 These tests check whether a .lyx file loads without any terminal messages.
- They correspond to the manual operations of simply opening a .lyx file on
- the terminal, exiting LyX once the file is loaded, and then checking whether
- there is any output from the terminal.
+ They correspond to the manual operations of simply opening a .lyx file on the terminal,
+ exiting LyX once the file is loaded,
+ and then checking whether there is any output from the terminal.
  These tests are useful for catching malformed .lyx files and parsing bugs.
- They can also be used to find a .lyx file in which an instance of something
- happens.
- To do this, compile LyX with a local patch that outputs something to the
- terminal when an instance is found, and then run the check_load tests to
- see if any fail, which would mean that the situation occurs in the LyX
- documentation files corresponding to the failed tests.
- These tests are expectedly fragile: any LyX diagnostic message, which is
- not necessarily an error, would cause the tests to fail.
- Similarly, any message output by a library (e.g.
+ They can also be used to find a .lyx file in which an instance of something happens.
+ To do this,
+ compile LyX with a local patch that outputs something to the terminal when an instance is found,
+ and then run the check_load tests to see if any fail,
+ which would mean that the situation occurs in the LyX documentation files corresponding to the failed tests.
+ These tests are expectedly fragile:
+ any LyX diagnostic message,
+ which is not necessarily an error,
+ would cause the tests to fail.
+ Similarly,
+ any message output by a library (e.g.
  Qt) would also cause failure.
  There are some messages that the check_load tests are instructed to ignore,
  which are stored in the file 
@@ -4924,16 +5021,16 @@ development/autotests/filterCheckWarnings
 \end_layout
 
 \begin_layout Standard
-Under cmake, the tests are labeled as 'load'.
+Under cmake,
+ the tests are labeled as 'load'.
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 Keytests
 \end_layout
 
 \begin_layout Standard
-Automated tests based on the "MonKey Testing" keytest program are enabled
- if the necessary dependencies are found and if the CMake flag 
+Automated tests based on the "MonKey Testing" keytest program are enabled if the necessary dependencies are found and if the CMake flag 
 \begin_inset Flex Code
 status collapsed
 
@@ -4958,7 +5055,7 @@ development/autotests
  source code distribution.
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 lyx21 tests
 \end_layout
 
@@ -4967,7 +5064,7 @@ These tests combine lyx2lyx tests with check_load tests.
  They fail if either fails.
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 URL tests
 \end_layout
 
@@ -4982,9 +5079,9 @@ status collapsed
 
 \end_inset
 
- CMake flag and are useful for finding broken links in our documentation
- files.
- If a URL test fails, to see which link in particular was reported as broken,
+ CMake flag and are useful for finding broken links in our documentation files.
+ If a URL test fails,
+ to see which link in particular was reported as broken,
  see the output in 
 \begin_inset Flex Code
 status collapsed
@@ -4997,21 +5094,20 @@ LastTest.log
 
 .
  These tests are extremely fragile (e.g.
- a test can depend on your Internet connection) and a failed URL test should
- not be taken too seriously.
+ a test can depend on your Internet connection) and a failed URL test should not be taken too seriously.
  URL tests are labeled as 
 \family typewriter
 'url'.
 \end_layout
 
-\begin_layout Paragraph
+\begin_layout Subsubsection
 Running URL tests
 \end_layout
 
 \begin_layout Standard
 cmake is required to run the \SpecialChar LyX
- tests, running them is not implemented for
- autotools.
+ tests,
+ running them is not implemented for autotools.
 \end_layout
 
 \begin_layout Standard
@@ -5045,17 +5141,17 @@ runs the tests 'check_accessible_urls'
 \end_layout
 
 \begin_layout Standard
-Associated test results can be examined in ctest-log directory in files
- of the form 'LastFailed.*URLS.log'
+Associated test results can be examined in ctest-log directory in files of the form 'LastFailed.*URLS.log'
 \end_layout
 
-\begin_layout Section
+\begin_layout Chapter
 Development policies
 \end_layout
 
 \begin_layout Standard
 This chapter lists some guidelines that should be followed.
- This list is not complete, and many guidelines are in separate chapters,
+ This list is not complete,
+ and many guidelines are in separate chapters,
  such as 
 \begin_inset Quotes eld
 \end_inset
@@ -5068,19 +5164,19 @@ When is an update of the .lyx file format number needed?
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "sec:When-is-an"
+nolink "false"
 
 \end_inset
 
 .
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 When to set a fixed milestone?
 \end_layout
 
 \begin_layout Standard
-Only set a fixed milestone (like 2.1.4 or 2.2.0) if at least one of the following
- holds:
+Only set a fixed milestone (like 2.1.4 or 2.2.0) if at least one of the following holds:
 \end_layout
 
 \begin_layout Enumerate
@@ -5092,12 +5188,15 @@ The bug is so severe that it would block the release if it is not fixed.
 \end_layout
 
 \begin_layout Standard
-If a bug is important, but nobody is working on it, and it is no showstopper,
+If a bug is important,
+ but nobody is working on it,
+ and it is no showstopper,
  use a milestone like 2.1.x or 2.2.x.
- For all other bugs, do not set a milestone at all.
+ For all other bugs,
+ do not set a milestone at all.
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 Can we add rc entries in stable branch?
 \end_layout
 
@@ -5106,7 +5205,7 @@ No.
  We are supposed to increase the prefs2prefs version number with such things.
 \end_layout
 
-\begin_layout Section
+\begin_layout Chapter
 \begin_inset CommandInset label
 LatexCommand label
 name "sec:Documentation-policies"
@@ -5116,7 +5215,7 @@ name "sec:Documentation-policies"
 Documentation policies
 \end_layout
 
-\begin_layout Subsection
+\begin_layout Section
 Rules
 \end_layout
 
@@ -5135,8 +5234,8 @@ name "enu:If-you-are"
 
 \end_inset
 
-If you are not the maintainer of a doc file or a chapter/section, you MUST
- use change tracking so that the maintainer could review your changes
+If you are not the maintainer of a doc file or a chapter/section,
+ you MUST use change tracking so that the maintainer could review your changes
 \end_layout
 
 \begin_layout Enumerate
@@ -5147,12 +5246,10 @@ Respect the formatting of the document.
 \end_layout
 
 \begin_layout Enumerate
-All changes you make to a file in one language MUST also go the file in
- the other actively maintained languages.
- Normally the maintainer does this for you, if you are the maintainer, you
- must do this by copying or changing the changed or added text to the other
- files so that the translators sees the blue underlined text and know what
- they have to translate and what was changed.
+All changes you make to a file in one language MUST also go the file in the other actively maintained languages.
+ Normally the maintainer does this for you,
+ if you are the maintainer,
+ you must do this by copying or changing the changed or added text to the other files so that the translators sees the blue underlined text and know what they have to translate and what was changed.
 \end_layout
 
 \begin_layout Enumerate
@@ -5168,9 +5265,9 @@ PDF (pdflatex)
 \end_layout
 
 \begin_layout Enumerate
-All fixes (typos, compilation fixes, updates info etc.) go at first into
- the current GIT branch because the user should benefit from all fixes with
- every minor release.
+All fixes (typos,
+ compilation fixes,
+ updates info etc.) go at first into the current Git branch because the user should benefit from all fixes with every minor release.
  Feel free to commit directly to branch as long as you follow rule
 \begin_inset space ~
 \end_inset
@@ -5179,6 +5276,7 @@ All fixes (typos, compilation fixes, updates info etc.) go at first into
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "enu:If-you-are"
+nolink "false"
 
 \end_inset
 
@@ -5193,10 +5291,8 @@ name "enu:The-fileformat-of"
 
 \end_inset
 
-The fileformat of a file must not be changed unless you document a new feature
- in LyX that requires a new fileformat.
- The reason for this rule is to keep it easy for the doc maintainers to
- port/backport changes to from master/branch.
+The fileformat of a file must not be changed unless you document a new feature in LyX that requires a new fileformat.
+ The reason for this rule is to keep it easy for the doc maintainers to port/backport changes to from master/branch.
 \end_layout
 
 \begin_layout Standard
@@ -5204,12 +5300,11 @@ The main documentation consists of these files:
 \end_layout
 
 \begin_layout Description
-splash.lyx it is the first file you see after an installation.
+Welcome.lyx It is the first file you see after an installation.
  We assume that a new user sees this.
  It is therefore designed to be as simple as possible.
- Therefore please don't add any new formatting, only fix typos etc.
- Splash.lyx is up to date for \SpecialChar LyX
- 2.1.x, currently maintained by Uwe Stöhr.
+ Therefore please don't add any new formatting,
+ only fix typos etc.
 \end_layout
 
 \begin_layout Description
@@ -5217,80 +5312,2554 @@ Intro.lyx This is the manual new users will read to learn \SpecialChar LyX
 .
  It therefore uses a limited set of formatting.
  For example a standard document class.
- Since new users will first learn about the formatting possibilities of
- \SpecialChar LyX
+ Since new users will first learn about the formatting possibilities of \SpecialChar LyX
  please keep this file that simple.
- Intro.lyx is up to date for \SpecialChar LyX
- 2.1.x, currently maintained by Uwe Stöhr.
 \end_layout
 
 \begin_layout Description
-Tutorial.lyx our tutorial.
+Tutorial.lyx Our tutorial.
  It must be always up to date.
- Normally there is nothing to add since we don't want to overwhelm new users
- with too much details.
- The will learn these details while using \SpecialChar LyX
+ Normally there is nothing to add since we don't want to overwhelm new users with too much details.
+ They will learn these details while using \SpecialChar LyX
  and we have special manuals.
- Tutorial.lyx is up to date for \SpecialChar LyX
- 2.1.x, currently maintained by Uwe Stöhr.
 \end_layout
 
 \begin_layout Description
-UserGuide.lyx our main user guide.
+UserGuide.lyx Our main user guide.
  It covers a mixture of basic and detailed information.
- Some information is also in the Math and EmbeddedObjects manual so that
- the UserGuide refers to these files.
- UserGuide.lyx is up to date for \SpecialChar LyX
- 2.1.x, currently maintained by Uwe Stöhr.
+ Some information is also in the Math and EmbeddedObjects manual so that the UserGuide refers to these files.
 \end_layout
 
 \begin_layout Description
-EmbeddedObjects.lyx a special manual to explain things like tables floats
- boxes etc.
+EmbeddedObjects.lyx A special manual to explain things like tables floats boxes etc.
  in all detail.
- EmbeddedObjects.lyx is up to date for \SpecialChar LyX
- 2.1.x, currently maintained by Uwe
- Stöhr.
 \end_layout
 
 \begin_layout Description
-Math.lyx a special manual to explain everything regarding math in all detail.
- Math.lyx is up to date for \SpecialChar LyX
- 2.1.x, currently maintained by Uwe Stöhr.
+Math.lyx A special manual to explain everything regarding math in all detail.
 \end_layout
 
 \begin_layout Description
-Additional.lyx this manual covers information that would be too much detail
- for the UserGuide or would make the UserGuide uncompilable or only compilable
- when installing a lot of special \SpecialChar LaTeX
--packages.
- What should be in the UserGuide or better in Additional is a matter of
- taste.
- it is up to you to decide that.
- Additional.lyx is not completely up to date for \SpecialChar LyX
- 2.1.x.
- Only chapter
+Additional.lyx This manual covers information that would be too much detail for the UserGuide or would make the UserGuide uncompilable or only compilable when installing a lot of special \SpecialChar LaTeX
+ packages.
+ What should be in the UserGuide or better in Additional is a matter of taste.
+ It is up to you to decide that.
+ Additional.lyx is not completely up to date (only chapter
 \begin_inset space ~
 \end_inset
 
-8 is up to date and currently maintained by Uwe Stöhr.
+8 is up to date).
  It certainly needs a rewrite and update.
  For example many info in chapter
 \begin_inset space ~
 \end_inset
 
-2 and 3 are already covered by the UserGuide and/or the EmbeddedObjects
- manual.
+2 and 3 are already covered by the UserGuide and/or the EmbeddedObjects manual.
 \end_layout
 
 \begin_layout Description
-Customization.lyx this manual covers information how to customize \SpecialChar LyX
- for certain
- output formats, operating systems, languages etc.
+Customization.lyx This manual covers information how to customize \SpecialChar LyX
+ for certain output formats,
+ operating systems,
+ languages etc.
  It is currently completely out of date and needs a major rewrite and update.
- If you do this please assure that your information are given for all OSes
- and \SpecialChar LaTeX
+ If you do this please assure that your information are given for all OSes and \SpecialChar LaTeX
  distributions (meaning be as objective as possible).
+\end_layout
+
+\begin_layout Chapter
+Coding rules
+\end_layout
+
+\begin_layout Standard
+The aim of this chapter is to serve as a guide for the developers,
+ to aid us to get clean and uniform code.
+ It is incomplete.
+ We really like to have new developers joining the \SpecialChar LyX
+ Project.
+ However,
+ we have had problems in the past with developers leaving the project and their contributed code in a far from perfect state.
+ Most of this happened before we really became aware of these issues,
+ but still,
+ we don't want it to happen again.
+ So we have put together some guidelines and rules for the developers.
+\end_layout
+
+\begin_layout Section
+General
+\end_layout
+
+\begin_layout Standard
+These guidelines should save us a lot of work while cleaning up the code and help us to have quality code.
+ \SpecialChar LyX
+ has been haunted by problems coming from unfinished projects by people who have left the team.
+ Those problems will hopefully disappear if the code is easy to hand over to somebody else.
+ In general,
+ if you want to contribute to the main source,
+ we expect at least that you:
+\end_layout
+
+\begin_layout Itemize
+The most important rule first:
+ KISS (Keep It Simple Stupid),
+ always use a simple implementation in favor of a more complicated one.
+ This eases maintenance a lot.
+\end_layout
+
+\begin_layout Itemize
+Write good C++ code:
+ readable,
+ well commented,
+ and taking advantage of the OO model.
+ Follow the formatting guidelines.
+ See sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Formatting"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+As of LyX 2.4.0,
+ you can use features of C++11.
+ Accordingly you have to use C++11 standard conforming compiler,
+ e.
+\begin_inset space \thinspace{}
+\end_inset
+
+g.
+ not too dated version of GCC or Clang.
+\end_layout
+
+\begin_layout Itemize
+Adapt the code to the structures already existing in \SpecialChar LyX
+,
+ or in the case that you have better ideas,
+ discuss them on the developer's list before writing the code.
+\end_layout
+
+\begin_layout Itemize
+Take advantage of the C++ standard library.
+ Especially don't use custom containers when a standard container is usable;
+ learn to use the algorithms and functors in the standard library.
+\end_layout
+
+\begin_layout Itemize
+Be aware of exceptions and write exception safe code.
+ See sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Exceptions"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+Document all variables,
+ methods,
+ functions,
+ classes etc.
+ We are using the source documentation program doxygen,
+ a program that handles javadoc syntax,
+ to document sources.
+ You can download doxygen from:
+ 
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+https://www.stack.nl/~dimitri/doxygen/
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+We have certain code constructs that we try to follow.
+ See sec.
+\begin_inset space ~
+\end_inset
+
+
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Code-constructs"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Submitting code
+\end_layout
+
+\begin_layout Standard
+It is implicitly understood that all patches contributed to The \SpecialChar LyX
+ Project is under the Gnu General Public License,
+ version 2 or later.
+ If you have a problem with that,
+ don't contribute code.
+ Also please don't just pop up out of the blue with a huge patch (or small) that changes something substantial in \SpecialChar LyX
+.
+ Always discuss your ideas with the developers on the developer's mailing list.
+ When you create the patch,
+ please use 
+\begin_inset Quotes eld
+\end_inset
+
+
+\family typewriter
+diff -up
+\family default
+
+\begin_inset Quotes erd
+\end_inset
+
+ since we find that a lot easier to read than the other diff formats.
+ Also please do not send patches that implements or fixes several different things;
+ several patches is a much better option.
+ We also require you to provide a commit message entry with every patch,
+ this describes in detail what the patch is doing.
+ 
+\end_layout
+
+\begin_layout Section
+Code constructs
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Code-constructs"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We have several guidelines on code constructs,
+ some of these exist to make the code faster,
+ others to make the code clearer.
+ Yet others exist to allow us to take advantage of the strong type checking in C++.
+\end_layout
+
+\begin_layout Itemize
+Declaration of variables should wait as long as possible.
+ The rule is:
+ 
+\begin_inset Quotes eld
+\end_inset
+
+Don't declare it until you need it.
+\begin_inset Quotes erd
+\end_inset
+
+ In C++ there are a lot of user defined types,
+ and these can very often be expensive to initialize.
+ This rule connects to the next rule too.
+ 
+\end_layout
+
+\begin_layout Itemize
+Declare the variable as 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+const
+\end_layout
+
+\end_inset
+
+ if you don't need to change it.
+ This applies to POD types like 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+int
+\end_layout
+
+\end_inset
+
+ as well as classes.
+ 
+\end_layout
+
+\begin_layout Itemize
+Make the scope of a variable as small as possible.
+\end_layout
+
+\begin_layout Itemize
+Make good use of namespaces.
+ Prefer anonymous namespaces to declaring 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+static
+\end_layout
+
+\end_inset
+
+ for file scope.
+\end_layout
+
+\begin_layout Itemize
+Prefer preincrement to postincrement whenever possible.
+\end_layout
+
+\begin_layout Itemize
+Preincrement has potential of being faster than postincrement.
+ Just think about the obvious implementations of pre/post-increment.
+ This rule applies to decrement too.
+\end_layout
+
+\begin_layout Itemize
+Use:
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+++T;
+\end_layout
+
+\begin_layout Plain Layout
+
+--U;
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Do not use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+T++;
+ // not used in LyX
+\end_layout
+
+\begin_layout Plain Layout
+
+U--;
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Try to minimize evaluation of the same code over and over.
+ This is aimed especially at loops.
+ 
+\begin_inset Newline newline
+\end_inset
+
+Use:
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+Container::iterator end = large.end();
+\end_layout
+
+\begin_layout Plain Layout
+
+for (Container::iterator it = large.begin();
+ it != end;
+ ++it) {
+\end_layout
+
+\begin_layout Plain Layout
+
+	...;
+\end_layout
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Or better (C++11):
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+for (auto const & it :
+ large) {
+\end_layout
+
+\begin_layout Plain Layout
+
+	...;
+\end_layout
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Do not use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+for (Container::iterator it = large.begin();
+ it != large.end();
+ ++it) {
+\end_layout
+
+\begin_layout Plain Layout
+
+	...;
+\end_layout
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+For functions and methods that return a non-POD type
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Plain Ol' Data type
+\end_layout
+
+\end_inset
+
+ 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+T
+\end_layout
+
+\end_inset
+
+,
+ return 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+T const
+\end_layout
+
+\end_inset
+
+ instead.
+ This gives better type checking,
+ and will give a compiler warning when temporaries are used wrongly.
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+Use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+T const add(...);
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Do not use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+T add(...);
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Avoid using the default cases in switch statements unless you have too.
+ Use the correct type for the switch expression and let the compiler ensure that all cases are exhausted.
+\end_layout
+
+\begin_layout Itemize
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+enum Foo {
+\end_layout
+
+\begin_layout Plain Layout
+
+	FOO_BAR1,
+\end_layout
+
+\begin_layout Plain Layout
+
+	FOO_BAR2
+\end_layout
+
+\begin_layout Plain Layout
+
+};
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+Foo f = ...;
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\begin_layout Plain Layout
+
+switch (f) {
+\end_layout
+
+\begin_layout Plain Layout
+
+case FOO_BAR1:
+\end_layout
+
+\begin_layout Plain Layout
+
+	...;
+\end_layout
+
+\begin_layout Plain Layout
+
+	break;
+\end_layout
+
+\begin_layout Plain Layout
+
+case FOO_BAR2:
+\end_layout
+
+\begin_layout Plain Layout
+
+	...;
+\end_layout
+
+\begin_layout Plain Layout
+
+	break;
+\end_layout
+
+\begin_layout Plain Layout
+
+default:
+ // not needed and would shadow a wrong use of Foo
+\end_layout
+
+\begin_layout Plain Layout
+
+	...;
+\end_layout
+
+\begin_layout Plain Layout
+
+	break;
+ 
+\end_layout
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Use default initialization such as
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+int i = 0;
+\end_layout
+
+\begin_layout Plain Layout
+
+Class * ptr = nullptr;
+\end_layout
+
+\end_inset
+
+rather than brace initialization:
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+int i {};
+\end_layout
+
+\begin_layout Plain Layout
+
+Class * ptr {};
+\end_layout
+
+\end_inset
+
+for PODs.
+ Use brace initialization only for more complex data structures.
+ 
+\end_layout
+
+\begin_layout Section
+Exceptions
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Exceptions"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Be aware of the presence of exceptions.
+ One important thing to realize is that you often do not have to use throw,
+ try or catch to be exception safe.
+ Let's look at the different types of exceptions safety (these are taken from Herb Sutter's book 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "sutter"
+literal "false"
+
+\end_inset
+
+):
+\end_layout
+
+\begin_layout Enumerate
+Basic guarantee:
+ Even in the presence of exceptions thrown by T or other exceptions,
+ Stack objects don't leak resources.
+ Note that this also implies that the container will be destructible and usable even if an exception is thrown while performing some container operation.
+ However,
+ if an exception is thrown,
+ the container will be in a consistent,
+ but not necessarily predictable,
+ state.
+ Containers that support the basic guarantee can work safely in some settings.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Strong guarantee:
+ If an operation terminates because of an exception,
+ program state will remain unchanged.
+ This always implies commit-or-rollback semantics,
+ including that no references or iterators into the container be invalidated if an operation fails.
+ For example,
+ if a Stack client calls Top and then attempts a Push that fails because of an exception,
+ then the state of the Stack object must be unchanged and the reference returned from the prior call to Top must still be valid.
+ For more information on these guarantees,
+ see Dave Abrahams's documentation of the SGI exception-safe standard library adaption at:
+ 
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+http://www.stlport.org/doc/exception_safety.html
+\end_layout
+
+\end_inset
+
+ Probably the most interesting point here is that when you implement the basic guarantee,
+ the strong guarantee often comes for free.
+ For example,
+ in our Stack implementation,
+ almost everything we did was needed to satisfy just the basic guarantee – and what's presented above very nearly satisfies the strong guarantee,
+ with little or no extra work.
+ Not half bad,
+ considering all the trouble we went to.
+ In addition to these two guarantees,
+ there is one more guarantee that certain functions must provide in order to make overall exception safety possible:
+\end_layout
+
+\begin_layout Enumerate
+No throw guarantee:
+ The function will not emit an exception under any circumstances.
+ Overall exception safety isn't possible unless certain functions are guaranteed not to throw.
+ In particular,
+ we've seen that this is true for destructors;
+ later in this miniseries,
+ we'll see that it's also needed in certain helper functions,
+ such as 
+\family typewriter
+Swap()
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+For all cases where we might be able to write exception safe functions without using try,
+ throw or catch we should do so.
+ In particular we should look over all destructors to ensure that they are as exception safe as possible.
+\end_layout
+
+\begin_layout Section
+Formatting
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Formatting"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Only one declaration on each line.
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+Use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+int a;
+\end_layout
+
+\begin_layout Plain Layout
+
+int b;
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Do not use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+int a,
+ b;
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This is especially important when initialization is done at the same time:
+\end_layout
+
+\begin_layout Standard
+Use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+string a = "Lars";
+\end_layout
+
+\begin_layout Plain Layout
+
+string b = "Gullik";
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Do not use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+string a = "Lars",
+ b = "Gullik";
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+[Note that 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+string a = "Lars"
+\end_layout
+
+\end_inset
+
+ is formally calling a copy constructor on a temporary constructed from a string literal and therefore has the potential of being more expensive then direct construction by 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+string a("Lars")
+\end_layout
+
+\end_inset
+
+.
+ However the compiler is allowed to elide the copy (even if it had side effects),
+ and modern compilers typically do so.
+ Given these equal costs,
+ \SpecialChar LyX
+ code favours the '=' idiom as it is in line with the traditional C-style initialization,
+ 
+\emph on
+and
+\emph default
+ cannot be mistaken as function declaration,
+ 
+\emph on
+and
+\emph default
+ reduces the level of nested parentheses in more initializations.]
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Pointers and references:
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+Use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+char * p = "flop";
+\end_layout
+
+\begin_layout Plain Layout
+
+char & c = *p;
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Do not use:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+char *p = "flop";
+ // not used in LyX
+\end_layout
+
+\begin_layout Plain Layout
+
+char &c = *p;
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Some time ago we had a huge discussion on this subject and after convincing argumentation from Asger this is what we decided.
+ Also note that we will have:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+char const * p;
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and not
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+const char * p;
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Operator names and parentheses
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+operator==(type)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and not
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+operator == (type) // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The == is part of the function name,
+ separating it makes the declaration look like an expression.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Function names and parentheses
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+void mangle()
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and not
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+void mangle () // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Enumerators
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+enum Foo {
+\end_layout
+
+\begin_layout Plain Layout
+
+	FOO_ONE = 1,
+\end_layout
+
+\begin_layout Plain Layout
+
+	FOO_TWO = 2,
+\end_layout
+
+\begin_layout Plain Layout
+
+	FOO_THREE = 3
+\end_layout
+
+\begin_layout Plain Layout
+
+};
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+or (C++11)
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+enum class Foo {
+\end_layout
+
+\begin_layout Plain Layout
+
+	One = 1,
+\end_layout
+
+\begin_layout Plain Layout
+
+	Two = 2,
+\end_layout
+
+\begin_layout Plain Layout
+
+	Three = 3
+\end_layout
+
+\begin_layout Plain Layout
+
+};
+\end_layout
+
+\end_inset
+
+and not
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+enum { one = 1,
+ two = 2,
+ three 3 };
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and not
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+enum {
+\end_layout
+
+\begin_layout Plain Layout
+
+One = 1,
+\end_layout
+
+\begin_layout Plain Layout
+
+Two = 2,
+\end_layout
+
+\begin_layout Plain Layout
+
+Three = 3
+\end_layout
+
+\begin_layout Plain Layout
+
+};
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Null pointers
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+Use nullptr (C++11):
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+void * p = nullptr;
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and not
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+void * p = NULL;
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and not
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+void * p = '
+\backslash
+0';
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and not
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+void * p = 42 - 7 * 6;
+ // not used in LyX
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note:
+ As an exception,
+ imported third party code as well as code interfacing the 
+\begin_inset Quotes eld
+\end_inset
+
+native
+\begin_inset Quotes erd
+\end_inset
+
+ APIs (
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+src/support/os_*
+\end_layout
+
+\end_inset
+
+) can use NULL.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Naming rules for classes
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Use descriptive but simple and short names.
+ Do not abbreviate.
+\end_layout
+
+\begin_layout Itemize
+Class names are usually capitalized,
+ and function names lowercased.
+\end_layout
+
+\begin_layout Itemize
+Enums are named like Classes,
+ values are usually in lower-case.
+\end_layout
+
+\begin_layout Itemize
+Public API functions are camel-case (
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+void setAFlagToAValue(bool)
+\end_layout
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Itemize
+Member variables are underscored (
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+enable_this_feature_flag_
+\end_layout
+
+\end_inset
+
+) with a final 
+\begin_inset Quotes eld
+\end_inset
+
+_
+\begin_inset Quotes erd
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+Private/protected functions are also camel-case.
+\end_layout
+
+\begin_layout Itemize
+New types are capitalized,
+ so this goes for typedefs,
+ classes,
+ structs and enums.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Formatting
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Adapt the formatting of your code to the one used in the other parts of \SpecialChar LyX
+.
+ In case there is different formatting for the same construct,
+ use the one used more often.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Use existing structures
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+\begin_inset CommandInset label
+LatexCommand label
+name "Use-string-wherever"
+
+\end_inset
+
+Use 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+string
+\end_layout
+
+\end_inset
+
+ wherever possible.
+ Unicode strings should prefer using 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+docstring
+\end_layout
+
+\end_inset
+
+ instead of UTF-8 encoded 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+std::string
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+Check out the filename and path tools in 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+filetools.h
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+Check out the string tools in 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+lstring.h
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+Use the \SpecialChar LyX
+Err class to report errors and messages using the lyxerr instantiation.
+ [add description of other existing structures]
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Declarations
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Use this order for the access sections of your class:
+ public,
+ protected,
+ private.
+ The public section is interesting for every user of the class.
+ The private section is only of interest for the implementors of the class (you).
+ [Obviously not true since this is for developers,
+ and we do not want one developer only to be able to read and understand the implementation of class internals.
+ Lgb]
+\end_layout
+
+\begin_layout Itemize
+Avoid declaring global objects in the declaration file of the class.
+ If the same variable is used for all objects,
+ use a static member.
+\end_layout
+
+\begin_layout Itemize
+Avoid global or static variables.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+File headers
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+If you create a new file,
+ the top of the file should look something like this :
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+/**
+\end_layout
+
+\begin_layout Plain Layout
+
+* 
+\backslash
+file NewFile.cpp
+\end_layout
+
+\begin_layout Plain Layout
+
+* This file is part of LyX,
+ the document processor.
+\end_layout
+
+\begin_layout Plain Layout
+
+* Licence details can be found in the file COPYING.
+\end_layout
+
+\begin_layout Plain Layout
+
+*
+\end_layout
+
+\begin_layout Plain Layout
+
+* 
+\backslash
+author Kaiser Sose
+\end_layout
+
+\begin_layout Plain Layout
+
+*
+\end_layout
+
+\begin_layout Plain Layout
+
+* Full author contact details are available
+\end_layout
+
+\begin_layout Plain Layout
+
+* in file CREDITS.
+\end_layout
+
+\begin_layout Plain Layout
+
+*/
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Documentation
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+The documentation is generated from the header files.
+\end_layout
+
+\begin_layout Itemize
+You document for the other developers,
+ not for yourself.
+\end_layout
+
+\begin_layout Itemize
+You should document what the function does,
+ not the implementation.
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+in the .cpp files you document the implementation.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Single line description (
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+///
+\end_layout
+
+\end_inset
+
+),
+ multiple lines description (
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+/** ...
+ */
+\end_layout
+
+\end_inset
+
+),
+ see the doxygen webpage referenced above.
+\end_layout
+
+\end_deeper
+\begin_layout Section
+Naming rules for \SpecialChar LyX
+ User Functions (LFUNs)
+\end_layout
+
+\begin_layout Standard
+Here is the set of rules to apply when a new command name is introduced:
+\end_layout
+
+\begin_layout Enumerate
+Use the object.event order.
+ That is,
+ use `word-forward' instead of `forward-word'.
+\end_layout
+
+\begin_layout Enumerate
+Don't introduce an alias for an already named object.
+ Same for events.
+\end_layout
+
+\begin_layout Enumerate
+Forward movement or focus is called `forward' (not `right').
+\end_layout
+
+\begin_layout Enumerate
+Backward movement or focus is called `backward' (not `left').
+\end_layout
+
+\begin_layout Enumerate
+Upward movement of focus is called `up'.
+\end_layout
+
+\begin_layout Enumerate
+Downward movement is called `down'.
+\end_layout
+
+\begin_layout Enumerate
+The begin of an object is called `begin' (not `start').
+\end_layout
+
+\begin_layout Enumerate
+The end of an object is called `end'.
+\end_layout
+
+\begin_layout Section
+How to create class interfaces
+\end_layout
+
+\begin_layout Standard
+(a.k.a How Non-Member Functions Improve Encapsulation)
+\end_layout
+
+\begin_layout Standard
+I recently read an article by Scott Meyers,
+ where he makes a strong case on how non-member functions makes classes more encapsulated,
+ not less.
+ Just skipping to the core of this provides us with the following algorithm for deciding what kind of function to add to a class interface:
+\end_layout
+
+\begin_layout Itemize
+We need to add a function f to the class C's API.
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+if (f needs to be virtual)
+\end_layout
+
+\begin_layout Plain Layout
+
+	make f a member function of C;
+\end_layout
+
+\begin_layout Plain Layout
+
+else if (f is operator>> or operator<<) {
+\end_layout
+
+\begin_layout Plain Layout
+
+	make f a non-member function;
+\end_layout
+
+\begin_layout Plain Layout
+
+	if (f needs access to non-public members of C)
+\end_layout
+
+\begin_layout Plain Layout
+
+		make f a friend of C;
+\end_layout
+
+\begin_layout Plain Layout
+
+} else if (f needs type conversions on its left-most argument) {
+\end_layout
+
+\begin_layout Plain Layout
+
+	make f a non-member function;
+\end_layout
+
+\begin_layout Plain Layout
+
+	if (f needs access to non-public members of C)
+\end_layout
+
+\begin_layout Plain Layout
+
+		make f a friend of C;
+\end_layout
+
+\begin_layout Plain Layout
+
+} else if (f can be implemented via C's public interface)
+\end_layout
+
+\begin_layout Plain Layout
+
+	make f a non-member function;
+\end_layout
+
+\begin_layout Plain Layout
+
+else
+\end_layout
+
+\begin_layout Plain Layout
+
+	make f a member function of C;
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Chapter
+Coding recommendations
+\end_layout
+
+\begin_layout Standard
+These are some rules for effective C++ programming.
+ These are taken from Scott Meyers 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "journal"
+literal "true"
+
+\end_inset
+
+,
+ and are presented in their short form.
+ These are not all the rules Meyers presents,
+ only the most important of them.
+ \SpecialChar LyX
+ does not yet follow these rules,
+ but they should be the goal.
+\end_layout
+
+\begin_layout Itemize
+use 
+\family typewriter
+const
+\family default
+ and 
+\family typewriter
+inline
+\family default
+ instead of 
+\family typewriter
+#define
+\end_layout
+
+\begin_layout Itemize
+use the same form in corresponding calls to new and delete,
+ i.e.
+ write 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+delete[] obj;
+\end_layout
+
+\end_inset
+
+ if 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+new obj[n];
+\end_layout
+
+\end_inset
+
+ was used to create the object and write 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+delete obj;
+\end_layout
+
+\end_inset
+
+ if you wrote 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+new obj;
+\end_layout
+
+\end_inset
+
+ Notice strings should be 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+std::string
+\end_layout
+
+\end_inset
+
+'s instead of 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+char *
+\end_layout
+
+\end_inset
+
+'s.
+ (this contradicts to 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "Use-string-wherever"
+nolink "false"
+
+\end_inset
+
+ )
+\end_layout
+
+\begin_layout Itemize
+define a default constructor,
+ copy constructor and an assignment operator for all classes with dynamically allocated memory that are not made noncopyable
+\end_layout
+
+\begin_layout Itemize
+do not define default constructor,
+ copy constructor and an assignment operator if the compiler generated one would do the same
+\end_layout
+
+\begin_layout Itemize
+make destructors virtual in base classes and only there 
+\end_layout
+
+\begin_layout Itemize
+assign to all data members in operator=()
+\end_layout
+
+\begin_layout Itemize
+strive for class interfaces that are complete and minimal
+\end_layout
+
+\begin_layout Itemize
+differentiate among member functions,
+ global functions and friend functions
+\end_layout
+
+\begin_layout Itemize
+avoid data members in the public interface
+\end_layout
+
+\begin_layout Itemize
+use const whenever possible
+\end_layout
+
+\begin_layout Itemize
+pass and return objects by reference instead of by value
+\end_layout
+
+\begin_layout Itemize
+choose carefully between function overloading and parameter defaulting
+\end_layout
+
+\begin_layout Itemize
+never return a reference to a local object or a dereferenced pointer initialized by new within the function
+\end_layout
+
+\begin_layout Itemize
+use enums for integral constants
+\end_layout
+
+\begin_layout Itemize
+minimize compilation dependencies between files
+\end_layout
+
+\begin_layout Itemize
+pay attention to compiler warnings
+\end_layout
+
+\begin_layout Itemize
+differentiate between inheritance of interface and inheritance of implementation
+\end_layout
+
+\begin_layout Itemize
+differentiate between inheritance and templates
+\end_layout
+
+\begin_layout Itemize
+ensure that global objects are initialized before they are used
+\end_layout
+
+\begin_layout Itemize
+avoid conditions to 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+if
+\end_layout
+
+\end_inset
+
+ and 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+while
+\end_layout
+
+\end_inset
+
+ that span more than a line
+\end_layout
+
+\begin_layout Chapter
+\start_of_appendix
+Notes
+\end_layout
+
+\begin_layout Itemize
+And one of mine:
+ (Lgb)
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+when switching on enums,
+ refrain from using "default:" if possible
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+And one of mine:
+ (Andre')
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+try to implement your class in a way that the automatically generated copy constructor and copy assignment work out-of-the box
+\end_layout
+
+\begin_layout Itemize
+I don't have problems with using boost in the implementation _if and only if_ it provides actual benefits over less intrusive alternatives.
+ I do have a problem with needlessly sprinkling 'boost::' over interfaces,
+ especially if it does not add any value.
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+Given that there seems to be an unconditional "typedef unsigned int quint32;" in qglobal.h I don't think there's any platform supported by current \SpecialChar LyX
+ that could not use 'unsigned int' (and an static assert in some implementation file for the unlikely case some ILP64 zombie raises its ugly head again.
+ And if that happens,
+ using <cstdint> would still be a better choice...)
+\end_layout
+
+\begin_layout Standard
+The idea is to create something that's not compilable as soon as the condition is violated.
+ There are lots of possibilities to achieve this,
+ some examples follow:
+\end_layout
+
+\begin_layout Standard
+In C++11 there's a "built-in":
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+static_assert(sizeof(int) == 4,
+ "Funny platform")
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+until then on namespace scope:
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+#include <boost/static_assert.hpp>
+\end_layout
+
+\begin_layout Plain Layout
+
+BOOST_STATIC_ASSERT(sizeof(int) == 4)
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+or without boost:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+template<bool Condition>
+\end_layout
+
+\begin_layout Plain Layout
+
+struct static_assert_helper;
+\end_layout
+
+\begin_layout Plain Layout
+
+template <>
+\end_layout
+
+\begin_layout Plain Layout
+
+struct static_assert_helper<true> {};
+ 
+\end_layout
+
+\begin_layout Plain Layout
+
+enum {
+\end_layout
+
+\begin_layout Plain Layout
+
+	dummy = sizeof(static_assert_helper<sizeof(int) == 4>)
+\end_layout
+
+\begin_layout Plain Layout
+
+};
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+or somewhat brutish without templates,
+ in any function:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+lstparams "basicstyle={\ttfamily},showstringspaces=false,tabsize=4"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+const int d = sizeof(int) - 4;
+\end_layout
+
+\begin_layout Plain Layout
+
+switch (0) { 
+\end_layout
+
+\begin_layout Plain Layout
+
+case 0:
+ 
+\end_layout
+
+\begin_layout Plain Layout
+
+case !(d*d):
+ 
+\end_layout
+
+\begin_layout Plain Layout
+
+	break;
+ 
+\end_layout
+
+\begin_layout Plain Layout
+
+}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Any of them in a .cpp file will break compilation as soon as 
+\begin_inset Flex Code
+status collapsed
+
+\begin_layout Plain Layout
+sizeof(int)
+\end_layout
+
+\end_inset
+
+ is not equal 4.
+ Personally I prefer something like the third version (or the first,
+ if using C++11 is allowed).
+\end_layout
+
+\end_deeper
+\end_deeper
+\begin_layout Itemize
+And one of mine:
+ (vfr)
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+On dynamics_casts 
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+https://www.lyx.org/trac/changeset/573500dd04f154f27318ac5ec469a337f97fe9f0/lyxgit
+\end_layout
+
+\end_inset
+
+:
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Standard
+A dynamic_cast is necessary when:
+\end_layout
+
+\begin_layout Itemize
+the object to be casted is from an external library because we can't add Qxxx::asXxxx() to Qt e.g.:
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+QAbstractListModel to GuiIdListModel,
+\end_layout
+
+\begin_layout Itemize
+QValidator to PathValidator,
+\end_layout
+
+\begin_layout Itemize
+QWidget to TabWorkArea,
+\end_layout
+
+\begin_layout Itemize
+QWidget to GuiWorkArea;
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+the object is to be casted from an interface to the implementing class,
+ because the Interface does not know by whom it is implemented:
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+ProgressInterface to GuiProgress,
+\end_layout
+
+\begin_layout Itemize
+Application to GuiApplication.
+\end_layout
+
+\end_deeper
+\begin_layout Standard
+A dynamic_cast can be replaced by:
+\end_layout
+
+\begin_layout Itemize
+already existing as***Inset() functions,
+ e.g.:
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+asHullInset(),
+\end_layout
+
+\begin_layout Itemize
+asInsetMath()->asMacro(),
+\end_layout
+
+\begin_layout Itemize
+asInsetText();
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+A static_cast when we are sure this can't go wrong,
+ e.g.:
+\begin_inset Separator latexpar
+\end_inset
+
+
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+we are sure that CellData::inset->clone() is an InsetTableCell,
+\end_layout
+
+\begin_layout Itemize
+in cases where we explicitly check it->lyxCode().
+\end_layout
+
+\end_deeper
+\end_deeper
+\end_deeper
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "meyers"
+literal "true"
+
+\end_inset
+
+Meyers,
+ Scott.
+ Effective C++:
+ 50 Specific Ways to Improve Your Programs and Design.
+ Addison-Wesley,
+ 1992.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "sutter"
+literal "true"
+
+\end_inset
+
+Sutter,
+ Herb.
+ Exceptional C++:
+ 47 engineering puzzles,
+ programming problems,
+ and solutions.
+ ISBN 0-201-61562-2.
+\end_layout
+
+\begin_layout Bibliography
+\begin_inset CommandInset bibitem
+LatexCommand bibitem
+key "journal"
+literal "true"
+
+\end_inset
+
+Meyers,
+ Scott.
+ C/C++ User's Journal (Vol.18,
+ No.2).
 \end_layout
 
 \end_body

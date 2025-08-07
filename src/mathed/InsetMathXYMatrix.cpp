@@ -63,9 +63,11 @@ void InsetMathXYMatrix::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-void InsetMathXYMatrix::write(WriteStream & os) const
+void InsetMathXYMatrix::write(TeXMathStream & os) const
 {
 	MathEnsurer ensurer(os);
+	if (os.fragile())
+		os << "\\protect";
 	os << "\\xymatrix";
 	bool open = os.startOuterRow();
 	if (equal_spacing_) {
@@ -154,7 +156,7 @@ void InsetMathXYMatrix::validate(LaTeXFeatures & features) const
 }
 
 
-void InsetMathXYMatrix::mathmlize(MathStream &) const
+void InsetMathXYMatrix::mathmlize(MathMLStream &) const
 {
 	throw MathExportException();
 }

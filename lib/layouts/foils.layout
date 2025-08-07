@@ -7,7 +7,7 @@
 # To do: Define class specific options.
 
 
-Format 66
+Format 104
 Columns                 1
 Sides                   1
 
@@ -38,6 +38,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -58,6 +59,7 @@ Style Foilhead
 	  Series              Bold
 	  Size                Large
 	EndFont
+    HTMLTag               h2
 End
 
 
@@ -100,6 +102,16 @@ Style TickList
 	LabelType             Itemize
 	LabelString           "_/"
 	Requires	      pifont
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
 End
 
 Style CrossList
@@ -120,6 +132,16 @@ Style CrossList
 	LabelType             Itemize
 	LabelString           "><"
 	Requires	      pifont
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
 End
 
 
@@ -132,6 +154,9 @@ Style Title
 	  Series              Bold
 	  Size                Largest
 	EndFont
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -175,7 +200,7 @@ Style My_Logo
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 

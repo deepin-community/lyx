@@ -32,80 +32,86 @@ typedef basic_streambuf<char, char_traits<char> > streambuf;
 #endif
 
 
+// Make sure at compile time that sizeof(unsigned long long) >= 8
+typedef char p__LINE__[ (sizeof(unsigned long long) > 7) ? 1 : -1];
+
 namespace lyx {
 
 ///  This is all the different debug levels that we have.
 namespace Debug {
 	///
-	enum Type {
+	typedef unsigned long long base_type;
+	enum Type : base_type {
 		///
 		NONE = 0,
 		///
-		INFO       = (1 << 0),   // 1
+		INFO       = (1u << 0),   // 1
 		///
-		INIT       = (1 << 1),   // 2
+		INIT       = (1u << 1),   // 2
 		///
-		KEY        = (1 << 2),   // 4
+		KEY        = (1u << 2),   // 4
 		///
-		GUI        = (1 << 3),   // 8
+		GUI        = (1u << 3),   // 8
 		///
-		PARSER     = (1 << 4),   // 16
+		PARSER     = (1u << 4),   // 16
 		///
-		LYXRC      = (1 << 5),   // 32
+		LYXRC      = (1u << 5),   // 32
 		///
-		KBMAP      = (1 << 6),   // 64
+		KBMAP      = (1u << 6),   // 64
 		///
-		LATEX      = (1 << 7),   // 128
+		OUTFILE      = (1u << 7),   // 128
 		///
-		MATHED     = (1 << 8),   // 256 // Alejandro, please use this.
+		MATHED     = (1u << 8),   // 256 // Alejandro, please use this.
 		///
-		FONT       = (1 << 9),   // 512
+		FONT       = (1u << 9),   // 512
 		///
-		TCLASS     = (1 << 10),  // 1024
+		TCLASS     = (1u << 10),  // 1024
 		///
-		LYXVC      = (1 << 11),  // 2048
+		LYXVC      = (1u << 11),  // 2048
 		///
-		LYXSERVER  = (1 << 12),  // 4096
+		LYXSERVER  = (1u << 12),  // 4096
 		///
-		UNDO       = (1 << 13),  // 8192
+		UNDO       = (1u << 13),  // 8192
 		///
-		ACTION     = (1 << 14),   // 16384
+		ACTION     = (1u << 14),   // 16384
 		///
-		LYXLEX     = (1 << 15),
+		LYXLEX     = (1u << 15),
 		///
-		DEPEND     = (1 << 16),
+		DEPEND     = (1u << 16),
 		///
-		INSETS     = (1 << 17),
+		INSETS     = (1u << 17),
 		///
-		FILES      = (1 << 18),
+		FILES      = (1u << 18),
 		///
-		WORKAREA   = (1 << 19),
+		WORKAREA   = (1u << 19),
 		///
-		CLIPBOARD  = (1 << 20),
+		CLIPBOARD  = (1u << 20),
 		///
-		GRAPHICS   = (1 << 21),
+		GRAPHICS   = (1u << 21),
 		/// change tracking
-		CHANGES    = (1 << 22),
+		CHANGES    = (1u << 22),
 		///
-		EXTERNAL   = (1 << 23),
+		EXTERNAL   = (1u << 23),
 		///
-		PAINTING   = (1 << 24),
+		PAINTING   = (1u << 24),
 		///
-		SCROLLING  = (1 << 25),
+		SCROLLING  = (1u << 25),
 		///
-		MACROS     = (1 << 26),
+		MACROS     = (1u << 26),
 		///	rtl-related
-		RTL        = (1 << 27),
+		RTL        = (1u << 27),
 		///	locale related
-		LOCALE     = (1 << 28),
+		LOCALE     = (1u << 28),
 		///	selection
-		SELECTION  = (1 << 29),
+		SELECTION  = (1u << 29),
 		/// Find and Replace
-		FIND       = (1 << 30),
+		FIND       = (1u << 30),
 		///
-		DEBUG      = (1 << 31),
+		FINDVERBOSE= (1u << 31),
 		///
-		ANY = 0xffffffff
+		DEBUG      = (1ULL << 32),
+		///
+		ANY = 0x1ffffffff
 	};
 
 	/// Return number of levels
@@ -114,14 +120,23 @@ namespace Debug {
 	/// A function to convert debug level string names numerical values
 	Type value(std::string const & val);
 
+	/// Check the validity of debug level names
+	/// \return the first bad level name
+	std::string badValue(std::string const & val);
+
 	/// A function to convert index of level to their numerical value
 	Type value(int val);
 
 	/// Return description of level
 	std::string const description(Type val);
 
-	/// Return name of level
+	/// Return name of level from value. In case of aliases,
+	/// this returns the first entry found
 	std::string const name(Type val);
+
+	/// Return name of level from index, in case of aliases
+	/// this is unambiguous
+	std::string const realName(int i);
 
 	/// Display the tags and descriptions of the current debug level
 	void showLevel(std::ostream & os, Type level);
@@ -168,14 +183,14 @@ public:
 	void setSecondStream(std::ostream * os)
 		{ second_enabled_ = (second_stream_ = os); }
 	/// Is the second stream is enabled?
-	bool secondEnabled() { return second_enabled_; }
+	bool secondEnabled() const { return second_enabled_; }
 
 	/// Sets the debug level
 	void setLevel(Debug::Type t) { dt_ = t; }
 	/// Returns the current debug level
 	Debug::Type level() const { return dt_; }
 	/// Returns true if t is part of the current debug level
-	bool debugging(Debug::Type t = Debug::ANY) const;
+	bool debugging(Debug::base_type t = Debug::ANY) const;
 
 	///
 	static char const * stripName(char const *);
@@ -202,7 +217,7 @@ LyXErr & operator<<(LyXErr &, int);
 LyXErr & operator<<(LyXErr &, unsigned int);
 LyXErr & operator<<(LyXErr &, long);
 LyXErr & operator<<(LyXErr &, unsigned long);
-#ifdef LYX_USE_LONG_LONG
+#ifdef HAVE_LONG_LONG_INT
 LyXErr & operator<<(LyXErr &, long long);
 LyXErr & operator<<(LyXErr &, unsigned long long);
 #endif
@@ -217,9 +232,8 @@ extern LyXErr lyxerr;
 
 } // namespace lyx
 
-#if USE_BOOST_CURRENT_FUNCTION
-#	include <boost/current_function.hpp>
-#	define CURRENT_POSITION BOOST_CURRENT_FUNCTION ": "
+#if USE__func__
+#	define CURRENT_POSITION __func__ ": "
 #else
 # define CURRENT_POSITION lyx::LyXErr::stripName(__FILE__) << " (" << __LINE__ << "): "
 #endif
@@ -247,5 +261,14 @@ extern LyXErr lyxerr;
 		lyx::lyxerr << CURRENT_POSITION << msg; lyx::lyxerr.endl(); \
 	} while (0)
 
+
+/** Helper debug macro for quick and dirty logging. For example
+ *   int var = 2;
+ *   LYXERR0(_v_(var) << _v_(var + 1));
+ * yields
+ *   var=2 var + 1=3
+ * Not a great typesetting, but it is handy in debugging sessions.
+ */
+#define _v_(var) #var"=" << var << " "
 
 #endif

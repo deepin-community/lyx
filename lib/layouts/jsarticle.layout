@@ -1,11 +1,11 @@
 #% Do not delete the line below; configure depends on this
-#  \DeclareLaTeXClass{Japanese Article (JS Class)}
+#  \DeclareLaTeXClass{Japanese Article (JS Bundle)}
 #  \DeclareCategory{Articles}
 # Japanese new standard article textclass definition file.
 # Author : Koji Yokota (yokota6@gmail.com)
 
 # This style provides japanese features 
-Format 66
+Format 104
 Provides japanese 1
 
 # Input general definitions

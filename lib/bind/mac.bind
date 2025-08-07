@@ -26,7 +26,7 @@
 
 ###
 
-Format 4
+Format 5
 
 # based on the table at http://support.apple.com/kb/HT1343
 # Note: these bindings assume the swapped Meta and Control modifiers standard of Qt
@@ -53,13 +53,13 @@ Format 4
 #  +: "Control-B"                    # Move one character backward
 \bind "M-b"                          "char-backward"
 #  +: "Control-D"                    # Delete the character in front of the cursor
-\bind "M-d"                          "char-delete-forward"
+\bind "M-d"                          "char-delete-forward confirm"
 #  +: "Control-E"                    # Move to end of line/paragraph
 \bind "M-e"                          "line-end"
 #  +: "Control-F"                    # Move one character forward
 \bind "M-f"                          "char-forward"
 #  +: "Control-H"                    # Delete the character behind the cursor
-\bind "M-h"                          "char-delete-backward"
+\bind "M-h"                          "char-delete-backward confirm"
 #  -: "Control-K"                    # Delete from the character in front of the cursor to the end of the line/paragraph
 # used by menu.bind - keymap
 #  +: "Control-L"                    # Center the cursor/selection in the visible area
@@ -83,7 +83,7 @@ Format 4
 \bind "M-S-BackTab"                  "buffer-previous"
 \bind "A-S-BackTab"                  "buffer-previous"
 #  +: "fn-Delete"                    # Forward Delete (on portable Macs' built-in keyboard)
-\bind "Delete"                       "char-delete-forward"
+\bind "Delete"                       "char-delete-forward confirm"
 #  ?: "Control-F1"                   # Toggle full keyboard access on or off
 #  +: "Control-F2"                   # Move focus to the menu bar
 #  +: "Control-F3"                   # Move focus to the Dock
@@ -139,8 +139,9 @@ Format 4
 \bind "C-d"                          "buffer-view dvi"	# 'd' for dvi
 \bind "C-M-d"                        "command-alternatives master-buffer-view dvi; buffer.view dvi"
 \bind "C-S-D"                        "buffer-update dvi"	# 'd' for dvi
-#  -: "Command-E"                    # Use the selection for a find
-\bind "C-e"                          "font-emph"
+#  +: "Command-E"                    # Use the selection for a find
+\bind "C-e"                          "search-string-set"
+\bind "C-M-e"                        "font-emph"
 #  +: "Command-F"                    # Open a Find window
 \bind "C-f"                          "dialog-show findreplace"
 \bind "C-S-f"                        "dialog-show findreplaceadv"
@@ -164,7 +165,7 @@ Format 4
 \bind "C-M-n"                        "command-sequence math-display; math-number-toggle;"
 #  +: "Command-N"                    # Create a new document in the frontmost application
 \bind "C-n"                          "buffer-new"
-\bind "C-S-N"                        "buffer-new-template"
+\bind "C-S-N"                        "dialog-show lyxfiles templates"
 #  +: "Command-O"                    # Display a dialog for choosing a document to open in the frontmost application
 \bind "C-o"                          "file-open"
 #  -: "Shift-Command-P"              # Display a dialog for specifying printing parameters (Page Setup)
@@ -185,14 +186,16 @@ Format 4
 #  +: "Command-V"                    # Paste the Clipboard contents at the insertion point
 \bind "C-v"                          "paste"
 \bind "C-S-v"                        "clipboard-paste"
+# "join lines"
+\bind "C-S-A-v"                      "clipboard-paste paragraph"
 #  -: "Option-Command-V"             # Apply the style of one object to the selected object (Paste Style)
 #  -: "Option-Shift-Command-V"       # Apply the style of the surrounding text to the inserted object (Paste and Match Style)
 #  -: "Control-Command-V"            # Apply formatting settings to the selected object (Paste Ruler Command)
 \bind "C-M-v"                        "primary-selection-paste"
-#  ?: "Command-W"                    # Close the frontmost window
-\bind "C-w"                          "buffer-close" # should be "window-close"
-#  +: "Shift-Command-W"              # Close a file and its associated windows
-\bind "C-S-w"                        "buffer-close"
+#  +: "Command-W"                    # Close the frontmost window - modern applications map this to close tab or window if it's the last one
+\bind "C-w"                          "view-close"
+#  +: "Shift-Command-W"              # Close a file and its associated windows - modern applications map this close window
+\bind "C-S-w"                        "window-close"
 #  +: "Option-Command-W"             # Close all windows in the application without quitting it
 \bind "C-A-w"                        "buffer-close-all"
 #  +: "Command-X"                    # Remove the selection and store in the Clipboard
@@ -212,10 +215,10 @@ Format 4
 \bind "C-Left"                       "line-begin"
 #  +: "Command-Down Arrow"           # Move the text insertion point to the end of the document
 \bind "C-Down"                       "buffer-end"
-\bind "M-A-Down"                     "inset-end" 
+\bind "M-A-Down"                     "inset-end"
 #  +: "Command-Up Arrow"             # Move the text insertion point to the beginning of the document
 \bind "C-Up"                         "buffer-begin"
-\bind "M-A-Up"                       "inset-begin" 
+\bind "M-A-Up"                       "inset-begin"
 #  +: "Shift-Command-Right Arrow"    # Select text between the insertion point and the end of the current line (*)
 \bind "S-C-Right"                    "line-end-select"
 #  +: "Shift-Command-Left Arrow"     # Select text between the insertion point and the beginning of the current line (*)
@@ -241,11 +244,11 @@ Format 4
 #  +: "Shift-Option-Down Arrow"      # Extend text selection to the end of the current paragraph, then to the end of the following paragraph if pressed again (*)
 \bind "A-Down"                       "paragraph-down"
 \bind "S-A-Down"                     "paragraph-down-select"
-\bind "S-M-A-Down"                   "inset-end-select" 
+\bind "S-M-A-Down"                   "inset-end-select"
 #  +: "Shift-Option-Up Arrow"        # Extend text selection to the beginning of the current paragraph, then to the beginning of the following paragraph if pressed again (*)
 \bind "A-Up"                         "paragraph-up"
 \bind "S-A-Up"                       "paragraph-up-select"
-\bind "S-M-A-Up"                     "inset-begin-select" 
+\bind "S-M-A-Up"                     "inset-begin-select"
 #  -: "Control-Space"                # Toggle between the current and previous input sources
 #  -: "Option-Control-Space"         # Toggle through all enabled input sources
 #  +: "Option-Command-esc"           # Force Quit
@@ -271,7 +274,7 @@ Format 4
 
 #bind "F1"                           "help"         # Not yet implemented!
 #bind "C-F1"                         "help-context" # Not yet implemented!
-\bind "F2"                           "buffer-write"
+\bind "F2"                           "buffer-write force"
 \bind "C-F4"                         "buffer-close"
 \bind "C-A-Up"                       "scroll line up"
 \bind "C-A-Down"                     "scroll line down"
@@ -347,8 +350,8 @@ Format 4
 # Additional Edit group
 #
 
-\bind "A-Delete"                     "word-delete-forward"
-\bind "A-BackSpace"                  "word-delete-backward"
+\bind "A-Delete"                     "word-delete-forward confirm"
+\bind "A-BackSpace"                  "word-delete-backward confirm"
 \bind "M-Return"                     "paragraph-break inverse"
 \bind "C-Return"                     "newline-insert newline"
 \bind "C-S-Return"                   "newline-insert linebreak"
@@ -357,8 +360,8 @@ Format 4
 \bind "C-A-space"                    "space-insert normal"
 \bind "S-A-space"                    "space-insert thin"
 \bind "C-~S-slash"                   "specialchar-insert slash"
-\bind "C-period"                     "specialchar-insert end-of-sentence"
-\bind "M-period"                     "specialchar-insert dots"
+\bind "C-~S-period"                  "specialchar-insert end-of-sentence"
+\bind "M-~S-period"                  "specialchar-insert dots"
 \bind "Escape"                       "cancel"
 \bind "C-M-Up"                       "command-alternatives outline-up; paragraph-move-up; tabular-feature move-row-up"
 \bind "C-M-Down"                     "command-alternatives outline-down; paragraph-move-down; tabular-feature move-row-down"
@@ -367,6 +370,7 @@ Format 4
 #\bind "F9"                          "meta-prefix"
 
 \bind "C-M-F"                        "ui-toggle fullscreen"
+\bind "C-A-F"                        "forward-search"
 
 # Include menu and math bindings
 

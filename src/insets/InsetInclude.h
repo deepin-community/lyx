@@ -5,7 +5,7 @@
  * Licence details can be found in the file COPYING.
  *
  * \author Lars Gullik Bjønnes
- * \author Richard Heck (conversion to InsetCommand)
+ * \author Richard Kimberly Heck (conversion to InsetCommand)
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -15,14 +15,11 @@
 
 #include "InsetCommand.h"
 
-#include "RenderButton.h"
-
 #include "support/unique_ptr.h"
 
 
 namespace lyx {
 
-class BiblioInfo;
 class Buffer;
 class Dimension;
 class InsetCommandParams;
@@ -48,8 +45,9 @@ public:
 
 	///
 	void setChildBuffer(Buffer * buffer);
-	/// \return the child buffer if the file is a LyX doc and could be loaded
-	Buffer * getChildBuffer() const;
+
+	/// \return loaded Buffer or zero if the file loading did not proceed.
+	Buffer * loadIfNeeded() const;
 
 	/** Update the cache with all bibfiles in use of the child buffer
 	 *  (including bibfiles of grandchild documents).
@@ -59,62 +57,56 @@ public:
 	 */
 	void updateBibfilesCache();
 
-	/** Return the cache with all bibfiles in use of the child buffer
-	 *  (including bibfiles of grandchild documents).
-	 *  Return an empty vector if the child doc is not loaded.
-	 *  \param buffer the Buffer containing this inset.
-	 */
-	support::FileNameList const &
-		getBibfilesCache() const;
-
 	///
 	void updateCommand();
 	///
-	void write(std::ostream &) const;
+	void write(std::ostream &) const override;
 
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	void setBuffer(Buffer & buffer);
+	void setBuffer(Buffer & buffer) override;
 	///
-	bool isLabeled() const { return true; }
+	bool isLabeled() const override { return true; }
+	///
+	bool inheritFont() const override;
 	/// Override these InsetButton methods if Previewing
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 	///
-	DisplayType display() const;
+	int rowFlags() const override;
 	///
-	InsetCode lyxCode() const { return INCLUDE_CODE; }
+	InsetCode lyxCode() const override { return INCLUDE_CODE; }
 	///
-	docstring layoutName() const;
+	docstring layoutName() const override;
 	/** Fills \c key
 	 *  \param keys the list of bibkeys in the child buffer.
 	 *  \param it not used here
 	 */
-	void collectBibKeys(InsetIterator const &, support::FileNameList &) const;
+	void collectBibKeys(InsetIterator const &, support::FileNameList &) const override;
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures &) const;
+	void validate(LaTeXFeatures &) const override;
 	///
-	void addPreview(DocIterator const &, graphics::PreviewLoader &) const;
+	void addPreview(DocIterator const &, graphics::PreviewLoader &) const override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	void updateBuffer(ParIterator const &, UpdateType);
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false) override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	//@}
 
 	/// \name Static public methods obligated for InsetCommand derived classes
@@ -125,6 +117,9 @@ public:
 	static std::string defaultCommand() { return "include"; }
 	///
 	static bool isCompatibleCommand(std::string const & s);
+	///
+	bool needsCProtection(bool const maintext = false,
+			      bool const fragile = false) const override;
 	//@}
 
 protected:
@@ -136,20 +131,23 @@ private:
 	 *  and the preview should be regenerated.
 	 */
 	void fileChanged() const;
-	/// \return loaded Buffer or zero if the file loading did not proceed.
-	Buffer * loadIfNeeded() const;
 	/// launch external application
 	void editIncluded(std::string const & file);
 	///
 	bool isChildIncluded() const;
+	/// check whether the included file exist
+	bool includedFileExist() const;
+	/// \return True if there is a recursive include
+	/// Also issues appropriate warning, etc
+	bool checkForRecursiveInclude(Buffer const * cbuf, bool silent = false) const;
 
 	/// \name Private functions inherited from Inset class
 	//@{
-	Inset * clone() const { return new InsetInclude(*this); }
+	Inset * clone() const override { return new InsetInclude(*this); }
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const override;
 	//@}
 
 	/// \name Private functions inherited from InsetCommand class
@@ -158,10 +156,10 @@ private:
 	// FIXME:InsetCommmand::setParams is not virtual
 	void setParams(InsetCommandParams const & params);
 	/// get the text displayed on the button
-	docstring screenLabel() const;
+	docstring screenLabel() const override;
 	//@}
 
-	/// holds the entity name that defines the file location (SGML)
+	/// holds the entity name that defines the file location (XML)
 	docstring const include_label;
 
 	/// The pointer never changes although *preview_'s contents may.
@@ -170,11 +168,11 @@ private:
 	///
 	mutable bool failedtoload_;
 	/// cache
-	mutable bool set_label_;
-	mutable RenderButton button_;
 	mutable docstring listings_label_;
 	InsetLabel * label_;
 	mutable Buffer * child_buffer_;
+	mutable bool file_exist_;
+	mutable bool recursion_error_;
 };
 
 

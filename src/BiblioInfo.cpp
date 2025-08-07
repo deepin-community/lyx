@@ -5,7 +5,7 @@
  *
  * \author Angus Leeming
  * \author Herbert Voß
- * \author Richard Heck
+ * \author Richard Kimberly Heck
  * \author Julien Rioux
  * \author Jürgen Spitzmüller
  *
@@ -15,28 +15,27 @@
 #include <config.h>
 
 #include "BiblioInfo.h"
+
 #include "Buffer.h"
 #include "BufferParams.h"
-#include "buffer_funcs.h"
 #include "Citation.h"
 #include "Encoding.h"
-#include "InsetIterator.h"
 #include "Language.h"
-#include "output_xhtml.h"
-#include "Paragraph.h"
 #include "TextClass.h"
 #include "TocBackend.h"
+#include "xml.h"
 
 #include "support/convert.h"
 #include "support/debug.h"
 #include "support/docstream.h"
+#include "support/FileName.h"
 #include "support/gettext.h"
 #include "support/lassert.h"
 #include "support/lstrings.h"
-#include "support/regex.h"
 #include "support/textutils.h"
 
 #include <map>
+#include <regex>
 #include <set>
 
 using namespace std;
@@ -223,7 +222,7 @@ name_parts nameParts(docstring const & iname)
 }
 
 
-docstring constructName(docstring const & name, string const scheme)
+docstring constructName(docstring const & name, string const & scheme)
 {
 	// re-constructs a name from name parts according
 	// to a given scheme
@@ -265,8 +264,18 @@ docstring constructName(docstring const & name, string const scheme)
 }
 
 
-vector<docstring> const getAuthors(docstring const & author)
+vector<docstring> const getAuthors(docstring const & author_in,
+				   size_t const max_key_size)
 {
+	docstring author = author_in;
+	// for the GUI (not xhtml output) we cut obscenely long
+	// author lists as we won't display all authors anyway,
+	// and these long lists impact heavily on performance
+	// We take more than max_key_size, as we might have
+	// some extra characters in here
+	if (max_key_size < UINT_MAX && author.size() > 2 * max_key_size)
+		author.resize(2 * max_key_size);
+
 	// We check for goupings (via {...}) and only consider " and "
 	// outside groups as author separator. This is to account
 	// for cases such as {{Barnes and Noble, Inc.}}, which
@@ -278,8 +287,9 @@ vector<docstring> const getAuthors(docstring const & author)
 	// in author names, but can happen (consider cases such as "C \& A Corp.").
 	docstring iname = subst(author, from_ascii("&"), from_ascii("$$amp!"));
 	// Then, we temporarily make all " and " strings to ampersands in order
-	// to handle them later on a per-char level.
-	iname = subst(iname, from_ascii(" and "), from_ascii(" & "));
+	// to handle them later on a per-char level. Note that arbitrary casing
+	// ("And", "AND", "aNd", ...) is allowed in bibtex (#10465).
+	iname = subst(iname, from_ascii(" and "), from_ascii(" & "), false);
 	// Now we traverse through the string and replace the "&" by the proper
 	// output in- and outside groups
 	docstring name;
@@ -313,9 +323,9 @@ vector<docstring> const getAuthors(docstring const & author)
 }
 
 
-bool multipleAuthors(docstring const author)
+bool multipleAuthors(docstring const & author)
 {
-	return getAuthors(author).size() > 1;
+	return getAuthors(author, 128).size() > 1;
 }
 
 
@@ -328,6 +338,7 @@ docstring convertLaTeXCommands(docstring const & str)
 
 	bool scanning_cmd = false;
 	bool scanning_math = false;
+	bool is_section = false;
 	bool escaped = false; // used to catch \$, etc.
 	while (!val.empty()) {
 		char_type const ch = val[0];
@@ -350,13 +361,24 @@ docstring convertLaTeXCommands(docstring const & str)
 		// discard characters until we hit something that
 		// isn't alpha.
 		if (scanning_cmd) {
+			if (!is_section && ch == 'S') {
+				is_section = true;
+				val = val.substr(1);
+				continue;
+			}
 			if (isAlphaASCII(ch)) {
+				is_section = false;
 				val = val.substr(1);
 				escaped = false;
+				continue;
+			} else if (is_section) {
+				ret.push_back(0x00a7);
+				is_section = false;
 				continue;
 			}
 			// so we're done with this command.
 			// now we fall through and check this character.
+			is_section = false;
 			scanning_cmd = false;
 		}
 
@@ -373,6 +395,12 @@ docstring convertLaTeXCommands(docstring const & str)
 			continue;
 		}
 
+		if (ch == '~') {
+			ret += char_type(0x00a0);
+			val = val.substr(1);
+			continue;
+		}
+
 		if (ch == '$') {
 			ret += ch;
 			val = val.substr(1);
@@ -384,8 +412,8 @@ docstring convertLaTeXCommands(docstring const & str)
 		// {\v a} to \v{a} (see #9340).
 		// FIXME: This is a sort of mini-tex2lyx.
 		//        Use the real tex2lyx instead!
-		static lyx::regex const tma_reg("^\\{\\\\[bcCdfGhHkrtuUv]\\s\\w\\}");
-		if (lyx::regex_search(to_utf8(val), tma_reg)) {
+		static regex const tma_reg("^\\{\\\\[bcCdfGhHkrtuUv]\\s\\w\\}");
+		if (regex_search(to_utf8(val), tma_reg)) {
 			val = val.substr(1);
 			val.replace(2, 1, from_ascii("{"));
 			continue;
@@ -412,8 +440,8 @@ docstring convertLaTeXCommands(docstring const & str)
 		// look for that and change it, if necessary.
 		// FIXME: This is a sort of mini-tex2lyx.
 		//        Use the real tex2lyx instead!
-		static lyx::regex const reg("^\\\\\\W\\w");
-		if (lyx::regex_search(to_utf8(val), reg)) {
+		static regex const reg("^\\\\\\W\\w");
+		if (regex_search(to_utf8(val), reg)) {
 			val.insert(3, from_ascii("}"));
 			val.insert(2, from_ascii("{"));
 		}
@@ -488,25 +516,27 @@ docstring processRichtext(docstring const & str, bool richtext)
 //////////////////////////////////////////////////////////////////////
 
 BibTeXInfo::BibTeXInfo(docstring const & key, docstring const & type)
-	: is_bibtex_(true), bib_key_(key), entry_type_(type), info_(),
-	  modifier_(0)
+	: is_bibtex_(true), bib_key_(key), num_bib_key_(0), entry_type_(type),
+	  info_(), format_(), modifier_(0)
 {}
 
 
 
 docstring const BibTeXInfo::getAuthorOrEditorList(Buffer const * buf,
-					  bool full, bool forceshort) const
+						  size_t const max_key_size,
+						  bool full, bool forceshort) const
 {
 	docstring author = operator[]("author");
 	if (author.empty())
 		author = operator[]("editor");
 
-	return getAuthorList(buf, author, full, forceshort);
+	return getAuthorList(buf, author, max_key_size, full, forceshort);
 }
 
 
 docstring const BibTeXInfo::getAuthorList(Buffer const * buf,
-		docstring const & author, bool const full, bool const forceshort,
+		docstring const & author, size_t const max_key_size,
+		bool const full, bool const forceshort,
 		bool const allnames, bool const beginning) const
 {
 	// Maxnames treshold depend on engine
@@ -524,6 +554,12 @@ docstring const BibTeXInfo::getAuthorList(Buffer const * buf,
 			// in this case, we didn't find a "(",
 			// so we don't have author (year)
 			return docstring();
+		if (full) {
+			// Natbib syntax is "Jones et al.(1990)Jones, Baker, and Williams"
+			docstring const fullauthors = trim(rsplit(remainder, ')'));
+			if (!fullauthors.empty())
+				return fullauthors;
+		}
 		return authors;
 	}
 
@@ -532,7 +568,7 @@ docstring const BibTeXInfo::getAuthorList(Buffer const * buf,
 
 	// OK, we've got some names. Let's format them.
 	// Try to split the author list
-	vector<docstring> const authors = getAuthors(author);
+	vector<docstring> const authors = getAuthors(author, max_key_size);
 
 	docstring retval;
 
@@ -642,6 +678,97 @@ docstring const BibTeXInfo::getYear() const
 	docstring year;
 	tmp = split(tmp, year, ')');
 	return year;
+}
+
+
+void BibTeXInfo::getLocators(docstring & doi, docstring & url, docstring & file) const
+{
+	if (is_bibtex_) {
+		// get "doi" entry from citation record
+		doi = operator[]("doi");
+		if (!doi.empty() && !prefixIs(doi,from_ascii("http")))
+			doi = "https://doi.org/" + doi;
+		// get "url" entry from citation record
+		url = operator[]("url");
+		// get "file" entry from citation record
+		file = operator[]("file");
+
+		// Jabref case, "file" field has a format (depending on exporter):
+		// Description:Location:Filetype;Description:Location:Filetype...
+		// or simply:
+		// Location;Location;...
+		// We will strip out the locations and return an \n-separated list
+		if (!file.empty()) {
+			docstring filelist;
+			vector<docstring> files = getVectorFromString(file, from_ascii(";"));
+			for (auto const & f : files) {
+				// first try if we have Description:Location:Filetype
+				docstring ret, filedest, tmp;
+				ret = split(f, tmp, ':');
+				tmp = split(ret, filedest, ':');
+				if (filedest.empty())
+					// we haven't, so use the whole string
+					filedest = f;
+				// TODO howto deal with relative directories?
+				FileName fn(to_utf8(filedest));
+				if (fn.exists()) {
+					if (!filelist.empty())
+						filelist += '\n';
+					filelist += "file:///" + filedest;
+				}
+			}
+			if (!filelist.empty())
+				file = filelist;
+		}
+
+		// kbibtex case, "localfile" field with format:
+		// file1.pdf;file2.pdf
+		// We will strip out the locations and return an \n-separated list
+		docstring kfile;
+		if (file.empty())
+			kfile = operator[]("localfile");
+		if (!kfile.empty()) {
+			docstring filelist;
+			vector<docstring> files = getVectorFromString(kfile, from_ascii(";"));
+			for (auto const & f : files) {
+				// TODO howto deal with relative directories?
+				FileName fn(to_utf8(f));
+				if (fn.exists()) {
+					if (!filelist.empty())
+						filelist += '\n';
+					filelist = "file:///" + f;
+				}
+			}
+			if (!filelist.empty())
+				file = filelist;
+		}
+
+		if (!url.empty())
+			return;
+
+		// try biblatex specific fields, see its manual
+		// 3.13.7 "Electronic Publishing Informationl"
+		docstring eprinttype = operator[]("eprinttype");
+		docstring eprint = operator[]("eprint");
+		if (eprint.empty())
+			return;
+
+		if (eprinttype == "arxiv")
+			url = "https://arxiv.org/abs/" + eprint;
+		if (eprinttype == "jstor")
+			url = "https://www.jstor.org/stable/" + eprint;
+		if (eprinttype == "pubmed")
+			url = "http://www.ncbi.nlm.nih.gov/pubmed/" + eprint;
+		if (eprinttype == "hdl")
+			url = "https://hdl.handle.net/" + eprint;
+		if (eprinttype == "googlebooks")
+			url = "http://books.google.com/books?id=" + eprint;
+
+		return;
+	}
+
+	// Here can be handled the bibliography environment. All one could do
+	// here is let LyX scan the entry for URL or HRef insets.
 }
 
 
@@ -770,7 +897,7 @@ I can tell, but it still feels like a hack. Fixing this would require quite a
 bit of work, however.
 */
 docstring BibTeXInfo::expandFormat(docstring const & format,
-		BibTeXInfoList const xrefs, int & counter, Buffer const & buf,
+		BibTeXInfoList const & xrefs, int & counter, Buffer const & buf,
 		CiteItem const & ci, bool next, bool second) const
 {
 	// incorrect use of macros could put us in an infinite loop
@@ -920,13 +1047,28 @@ docstring BibTeXInfo::expandFormat(docstring const & format,
 }
 
 
-docstring const & BibTeXInfo::getInfo(BibTeXInfoList const xrefs,
-	Buffer const & buf, CiteItem const & ci) const
+docstring const & BibTeXInfo::getInfo(BibTeXInfoList const & xrefs,
+	Buffer const & buf, CiteItem const & ci, docstring const & format_in) const
 {
 	bool const richtext = ci.richtext;
 
-	if (!richtext && !info_.empty())
+	CiteEngineType const engine_type = buf.params().citeEngineType();
+	DocumentClass const & dc = buf.params().documentClass();
+	docstring const & format = format_in.empty()? 
+				from_utf8(dc.getCiteFormat(engine_type, to_utf8(entry_type_)))
+			      : format_in;
+
+	if (format != format_) {
+		// clear caches since format changed
+		info_.clear();
+		info_richtext_.clear();
+		format_ = format;
+	}
+
+	if (!richtext && !info_.empty()) {
+		info_ = convertLaTeXCommands(processRichtext(info_, false));
 		return info_;
+	}
 	if (richtext && !info_richtext_.empty())
 		return info_richtext_;
 
@@ -936,10 +1078,6 @@ docstring const & BibTeXInfo::getInfo(BibTeXInfoList const xrefs,
 		return info_;
 	}
 
-	CiteEngineType const engine_type = buf.params().citeEngineType();
-	DocumentClass const & dc = buf.params().documentClass();
-	docstring const & format =
-		from_utf8(dc.getCiteFormat(engine_type, to_utf8(entry_type_)));
 	int counter = 0;
 	info_ = expandFormat(format, xrefs, counter, buf,
 		ci, false, false);
@@ -959,7 +1097,7 @@ docstring const & BibTeXInfo::getInfo(BibTeXInfoList const xrefs,
 }
 
 
-docstring const BibTeXInfo::getLabel(BibTeXInfoList const xrefs,
+docstring const BibTeXInfo::getLabel(BibTeXInfoList const & xrefs,
 	Buffer const & buf, docstring const & format,
 	CiteItem const & ci, bool next, bool second) const
 {
@@ -994,7 +1132,7 @@ docstring const & BibTeXInfo::operator[](string const & field) const
 
 
 docstring BibTeXInfo::getValueForKey(string const & oldkey, Buffer const & buf,
-	CiteItem const & ci, BibTeXInfoList const xrefs, size_t maxsize) const
+	CiteItem const & ci, BibTeXInfoList const & xrefs, size_t maxsize) const
 {
 	// anything less is pointless
 	LASSERT(maxsize >= 16, maxsize = 16);
@@ -1006,17 +1144,10 @@ docstring BibTeXInfo::getValueForKey(string const & oldkey, Buffer const & buf,
 	}
 
 	docstring ret = operator[](key);
-	if (ret.empty() && !xrefs.empty()) {
-		vector<BibTeXInfo const *>::const_iterator it = xrefs.begin();
-		vector<BibTeXInfo const *>::const_iterator en = xrefs.end();
-		for (; it != en; ++it) {
-			if (*it && !(**it)[key].empty()) {
-				ret = (**it)[key];
-				break;
-			}
-		}
-	}
 	if (ret.empty()) {
+		docstring subtype;
+		if (contains(key, ':'))
+			subtype = from_ascii(token(key, ':', 1));
 		// some special keys
 		// FIXME: dialog, textbefore and textafter have nothing to do with this
 		if (key == "dialog" && ci.context == CiteItem::Dialog)
@@ -1042,7 +1173,7 @@ docstring BibTeXInfo::getValueForKey(string const & oldkey, Buffer const & buf,
 			ret = cite_number_;
 		else if (prefixIs(key, "ifmultiple:")) {
 			// Return whether we have multiple authors
-			docstring const kind = operator[](from_ascii(key.substr(11)));
+			docstring const kind = operator[](subtype);
 			if (multipleAuthors(kind))
 				ret = from_ascii("x"); // any non-empty string will do
 		}
@@ -1050,65 +1181,65 @@ docstring BibTeXInfo::getValueForKey(string const & oldkey, Buffer const & buf,
 			// Special key to provide abbreviated name list,
 			// with respect to maxcitenames. Suitable for Bibliography
 			// beginnings.
-			docstring const kind = operator[](from_ascii(key.substr(11)));
-			ret = getAuthorList(&buf, kind, false, false, true);
+			docstring const kind = operator[](subtype);
+			ret = getAuthorList(&buf, kind, ci.max_key_size, false, false, true);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (prefixIs(key, "fullnames:")) {
 			// Return a full name list. Suitable for Bibliography
 			// beginnings.
-			docstring const kind = operator[](from_ascii(key.substr(10)));
-			ret = getAuthorList(&buf, kind, true, false, true);
+			docstring const kind = operator[](subtype);
+			ret = getAuthorList(&buf, kind, ci.max_key_size, true, false, true);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (prefixIs(key, "forceabbrvnames:")) {
 			// Special key to provide abbreviated name lists,
 			// irrespective of maxcitenames. Suitable for Bibliography
 			// beginnings.
-			docstring const kind = operator[](from_ascii(key.substr(15)));
-			ret = getAuthorList(&buf, kind, false, true, true);
+			docstring const kind = operator[](subtype);
+			ret = getAuthorList(&buf, kind, ci.max_key_size, false, true, true);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (prefixIs(key, "abbrvbynames:")) {
 			// Special key to provide abbreviated name list,
 			// with respect to maxcitenames. Suitable for further names inside a
 			// bibliography item // (such as "ed. by ...")
-			docstring const kind = operator[](from_ascii(key.substr(11)));
-			ret = getAuthorList(&buf, kind, false, false, true, false);
+			docstring const kind = operator[](subtype);
+			ret = getAuthorList(&buf, kind, ci.max_key_size, false, false, true, false);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (prefixIs(key, "fullbynames:")) {
 			// Return a full name list. Suitable for further names inside a
 			// bibliography item // (such as "ed. by ...")
-			docstring const kind = operator[](from_ascii(key.substr(10)));
-			ret = getAuthorList(&buf, kind, true, false, true, false);
+			docstring const kind = operator[](subtype);
+			ret = getAuthorList(&buf, kind, ci.max_key_size, true, false, true, false);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (prefixIs(key, "forceabbrvbynames:")) {
 			// Special key to provide abbreviated name lists,
 			// irrespective of maxcitenames. Suitable for further names inside a
 			// bibliography item // (such as "ed. by ...")
-			docstring const kind = operator[](from_ascii(key.substr(15)));
-			ret = getAuthorList(&buf, kind, false, true, true, false);
+			docstring const kind = operator[](subtype);
+			ret = getAuthorList(&buf, kind, ci.max_key_size, false, true, true, false);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (key == "abbrvciteauthor") {
 			// Special key to provide abbreviated author or
 			// editor names (suitable for citation labels),
 			// with respect to maxcitenames.
-			ret = getAuthorOrEditorList(&buf, false, false);
+			ret = getAuthorOrEditorList(&buf, ci.max_key_size, false, false);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (key == "fullciteauthor") {
 			// Return a full author or editor list (for citation labels)
-			ret = getAuthorOrEditorList(&buf, true, false);
+			ret = getAuthorOrEditorList(&buf, ci.max_key_size, true, false);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (key == "forceabbrvciteauthor") {
 			// Special key to provide abbreviated author or
 			// editor names (suitable for citation labels),
 			// irrespective of maxcitenames.
-			ret = getAuthorOrEditorList(&buf, false, true);
+			ret = getAuthorOrEditorList(&buf, ci.max_key_size, false, true);
 			if (ci.forceUpperCase && isLowerCase(ret[0]))
 				ret[0] = uppercase(ret[0]);
 		} else if (key == "bibentry") {
@@ -1123,16 +1254,66 @@ docstring BibTeXInfo::getValueForKey(string const & oldkey, Buffer const & buf,
 			ret = ci.textBefore;
 		else if (key == "textafter")
 			ret = ci.textAfter;
-		else if (key == "curpretext")
-			ret = ci.getPretexts()[bib_key_];
-		else if (key == "curposttext")
-			ret = ci.getPosttexts()[bib_key_];
-		else if (key == "year")
+		else if (key == "curpretext") {
+			vector<pair<docstring, docstring>> pres = ci.getPretexts();
+			vector<pair<docstring, docstring>>::iterator it = pres.begin();
+			int numkey = 1;
+			for (; it != pres.end() ; ++it) {
+				if ((*it).first == bib_key_ && numkey == num_bib_key_) {
+					ret = (*it).second;
+					pres.erase(it);
+					break;
+				}
+				if ((*it).first == bib_key_)
+					++numkey;
+			}
+		} else if (key == "curposttext") {
+			vector<pair<docstring, docstring>> posts = ci.getPosttexts();
+			vector<pair<docstring, docstring>>::iterator it = posts.begin();
+			int numkey = 1;
+			for (; it != posts.end() ; ++it) {
+				if ((*it).first == bib_key_ && numkey == num_bib_key_) {
+					ret = (*it).second;
+					posts.erase(it);
+					break;
+				}
+				if ((*it).first == bib_key_)
+					++numkey;
+			}
+		} else if (key == "year")
 			ret = getYear();
 	}
 
+	// If we have no result, check in the cross-ref'ed entries
+	if (ret.empty() && !xrefs.empty()) {
+		bool const biblatex =
+			buf.params().documentClass().citeFramework() == "biblatex";
+		// xr is a (reference to a) BibTeXInfo const *
+		for (auto const & xr : xrefs) {
+			if (!xr)
+				continue;
+			// use empty BibTeXInfoList to avoid loops
+			BibTeXInfoList xr_dummy;
+			ret = xr->getValueForKey(oldkey, buf, ci, xr_dummy, maxsize);
+			if (!ret.empty())
+				// success!
+				break;
+			// in biblatex, cross-ref'ed titles are mapped
+			// to booktitle. Same for subtitle etc.
+			if (biblatex && prefixIs(key, "book"))
+				ret = (*xr)[key.substr(4)];
+			// likewise, author is maped onto bookauthor
+			else if (biblatex && contains(key, ":bookauthor"))
+				ret = xr->getValueForKey(subst(key, "bookauthor", "author"),
+							 buf, ci, xr_dummy, maxsize);
+			if (!ret.empty())
+				// success!
+				break;
+		}
+	}
+
 	if (cleanit)
-		ret = html::cleanAttr(ret);
+		ret = xml::cleanAttr(ret);
 
 	// make sure it is not too big
 	support::truncateWithEllipsis(ret, maxsize);
@@ -1149,13 +1330,9 @@ docstring BibTeXInfo::getValueForKey(string const & oldkey, Buffer const & buf,
 namespace {
 
 // A functor for use with sort, leading to case insensitive sorting
-class compareNoCase: public binary_function<docstring, docstring, bool>
-{
-public:
-	bool operator()(docstring const & s1, docstring const & s2) const {
-		return compare_no_case(s1, s2) < 0;
-	}
-};
+bool compareNoCase(const docstring & a, const docstring & b) {
+	return compare_no_case(a, b) < 0;
+}
 
 } // namespace
 
@@ -1182,10 +1359,7 @@ vector<docstring> const BiblioInfo::getXRefs(BibTeXInfo const & data, bool const
 	// XData field can consist of a comma-separated list of keys
 	vector<docstring> const xdatakeys = getVectorFromString(data["xdata"]);
 	if (!xdatakeys.empty()) {
-		vector<docstring>::const_iterator xit = xdatakeys.begin();
-		vector<docstring>::const_iterator xen = xdatakeys.end();
-		for (; xit != xen; ++xit) {
-			docstring const xdatakey = *xit;
+		for (auto const & xdatakey : xdatakeys) {
 			result.push_back(xdatakey);
 			BiblioInfo::const_iterator it = find(xdatakey);
 			if (it != end()) {
@@ -1203,10 +1377,9 @@ vector<docstring> const BiblioInfo::getXRefs(BibTeXInfo const & data, bool const
 vector<docstring> const BiblioInfo::getKeys() const
 {
 	vector<docstring> bibkeys;
-	BiblioInfo::const_iterator it  = begin();
-	for (; it != end(); ++it)
-		bibkeys.push_back(it->first);
-	sort(bibkeys.begin(), bibkeys.end(), compareNoCase());
+	for (auto const & bi : *this)
+		bibkeys.push_back(bi.first);
+	sort(bibkeys.begin(), bibkeys.end(), &compareNoCase);
 	return bibkeys;
 }
 
@@ -1214,10 +1387,8 @@ vector<docstring> const BiblioInfo::getKeys() const
 vector<docstring> const BiblioInfo::getFields() const
 {
 	vector<docstring> bibfields;
-	set<docstring>::const_iterator it = field_names_.begin();
-	set<docstring>::const_iterator end = field_names_.end();
-	for (; it != end; ++it)
-		bibfields.push_back(*it);
+	for (auto const & fn : field_names_)
+		bibfields.push_back(fn);
 	sort(bibfields.begin(), bibfields.end());
 	return bibfields;
 }
@@ -1226,22 +1397,21 @@ vector<docstring> const BiblioInfo::getFields() const
 vector<docstring> const BiblioInfo::getEntries() const
 {
 	vector<docstring> bibentries;
-	set<docstring>::const_iterator it = entry_types_.begin();
-	set<docstring>::const_iterator end = entry_types_.end();
-	for (; it != end; ++it)
-		bibentries.push_back(*it);
+	for (auto const & et : entry_types_)
+		bibentries.push_back(et);
 	sort(bibentries.begin(), bibentries.end());
 	return bibentries;
 }
 
 
-docstring const BiblioInfo::getAuthorOrEditorList(docstring const & key, Buffer const & buf) const
+docstring const BiblioInfo::getAuthorOrEditorList(docstring const & key, Buffer const & buf,
+						  size_t const max_key_size) const
 {
 	BiblioInfo::const_iterator it = find(key);
 	if (it == end())
 		return docstring();
 	BibTeXInfo const & data = it->second;
-	return data.getAuthorOrEditorList(&buf, false);
+	return data.getAuthorOrEditorList(&buf, max_key_size, false);
 }
 
 
@@ -1252,6 +1422,15 @@ docstring const BiblioInfo::getCiteNumber(docstring const & key) const
 		return docstring();
 	BibTeXInfo const & data = it->second;
 	return data.citeNumber();
+}
+
+void BiblioInfo::getLocators(docstring const & key, docstring & doi, docstring & url, docstring & file) const
+{
+	BiblioInfo::const_iterator it = find(key);
+	 if (it == end())
+		return;
+	BibTeXInfo const & data = it->second;
+	data.getLocators(doi,url,file);
 }
 
 
@@ -1268,10 +1447,8 @@ docstring const BiblioInfo::getYear(docstring const & key, bool use_modifier) co
 		if (xrefs.empty())
 			// no luck
 			return docstring();
-		vector<docstring>::const_iterator it = xrefs.begin();
-		vector<docstring>::const_iterator en = xrefs.end();
-		for (; it != en; ++it) {
-			BiblioInfo::const_iterator const xrefit = find(*it);
+		for (docstring const & xref : xrefs) {
+			BiblioInfo::const_iterator const xrefit = find(xref);
 			if (xrefit == end())
 				continue;
 			BibTeXInfo const & xref_data = xrefit->second;
@@ -1297,24 +1474,19 @@ docstring const BiblioInfo::getYear(docstring const & key, Buffer const & buf, b
 
 
 docstring const BiblioInfo::getInfo(docstring const & key,
-	Buffer const & buf, CiteItem const & ci) const
+	Buffer const & buf, CiteItem const & ci, docstring const & format) const
 {
 	BiblioInfo::const_iterator it = find(key);
 	if (it == end())
-		return docstring(_("Bibliography entry not found!"));
+		return _("Bibliography entry not found!");
 	BibTeXInfo const & data = it->second;
 	BibTeXInfoList xrefptrs;
-	vector<docstring> const xrefs = getXRefs(data);
-	if (!xrefs.empty()) {
-		vector<docstring>::const_iterator it = xrefs.begin();
-		vector<docstring>::const_iterator en = xrefs.end();
-		for (; it != en; ++it) {
-			BiblioInfo::const_iterator const xrefit = find(*it);
-			if (xrefit != end())
-				xrefptrs.push_back(&(xrefit->second));
-		}
+	for (docstring const & xref : getXRefs(data)) {
+		BiblioInfo::const_iterator const xrefit = find(xref);
+		if (xrefit != end())
+			xrefptrs.push_back(&(xrefit->second));
 	}
-	return data.getInfo(xrefptrs, buf, ci);
+	return data.getInfo(xrefptrs, buf, ci, format);
 }
 
 
@@ -1326,9 +1498,15 @@ docstring const BiblioInfo::getLabel(vector<docstring> keys,
 	LASSERT(max_size >= 16, max_size = 16);
 
 	// we can't display more than 10 of these, anyway
+	// but since we truncate in the middle,
+	// we need to split into two halfs.
 	bool const too_many_keys = keys.size() > 10;
-	if (too_many_keys)
-		keys.resize(10);
+	vector<docstring> lkeys;
+	if (too_many_keys) {
+		lkeys.insert(lkeys.end(), keys.end() - 5, keys.end());
+		keys.resize(5);
+		keys.insert(keys.end(), lkeys.begin(), lkeys.end());
+	}
 
 	CiteEngineType const engine_type = buf.params().citeEngineType();
 	DocumentClass const & dc = buf.params().documentClass();
@@ -1336,7 +1514,14 @@ docstring const BiblioInfo::getLabel(vector<docstring> keys,
 	docstring ret = format;
 	vector<docstring>::const_iterator key = keys.begin();
 	vector<docstring>::const_iterator ken = keys.end();
+	vector<docstring> handled_keys;
 	for (int i = 0; key != ken; ++key, ++i) {
+		handled_keys.push_back(*key);
+		int n = 0;
+		for (auto const & k : handled_keys) {
+			if (k == *key)
+				++n;
+		}
 		BiblioInfo::const_iterator it = find(*key);
 		BibTeXInfo empty_data;
 		empty_data.key(*key);
@@ -1344,23 +1529,18 @@ docstring const BiblioInfo::getLabel(vector<docstring> keys,
 		vector<BibTeXInfo const *> xrefptrs;
 		if (it != end()) {
 			data = it->second;
-			vector<docstring> const xrefs = getXRefs(data);
-			if (!xrefs.empty()) {
-				vector<docstring>::const_iterator it = xrefs.begin();
-				vector<docstring>::const_iterator en = xrefs.end();
-				for (; it != en; ++it) {
-					BiblioInfo::const_iterator const xrefit = find(*it);
-					if (xrefit != end())
-						xrefptrs.push_back(&(xrefit->second));
-				}
+			for (docstring const & xref : getXRefs(data)) {
+				BiblioInfo::const_iterator const xrefit = find(xref);
+				if (xrefit != end())
+					xrefptrs.push_back(&(xrefit->second));
 			}
 		}
+		data.numKey(n);
 		ret = data.getLabel(xrefptrs, buf, ret, ci, key + 1 != ken, i == 1);
 	}
 
-	if (too_many_keys)
-		ret.push_back(0x2026);//HORIZONTAL ELLIPSIS
-	support::truncateWithEllipsis(ret, max_size);
+	support::truncateWithEllipsis(ret, max_size, true);
+
 	return ret;
 }
 
@@ -1429,13 +1609,11 @@ void BiblioInfo::collectCitedEntries(Buffer const & buf)
 	// FIXME We may want to collect these differently, in the first case,
 	// so that we might have them in order of appearance.
 	set<docstring> citekeys;
-	shared_ptr<Toc const> toc = buf.tocBackend().toc("citation");
-	Toc::const_iterator it = toc->begin();
-	Toc::const_iterator const en = toc->end();
-	for (; it != en; ++it) {
-		if (it->str().empty())
+	Toc const & toc = *buf.tocBackend().toc("citation");
+	for (auto const & t : toc) {
+		if (t.str().empty())
 			continue;
-		vector<docstring> const keys = getVectorFromString(it->str());
+		vector<docstring> const keys = getVectorFromString(t.str());
 		citekeys.insert(keys.begin(), keys.end());
 	}
 	if (citekeys.empty())
@@ -1445,10 +1623,8 @@ void BiblioInfo::collectCitedEntries(Buffer const & buf)
 	// We will now convert it to a list of the BibTeXInfo objects used in
 	// this document...
 	vector<BibTeXInfo const *> bi;
-	set<docstring>::const_iterator cit = citekeys.begin();
-	set<docstring>::const_iterator const cen = citekeys.end();
-	for (; cit != cen; ++cit) {
-		BiblioInfo::const_iterator const bt = find(*cit);
+	for (auto const & ck : citekeys) {
+		BiblioInfo::const_iterator const bt = find(ck);
 		if (bt == end() || !bt->second.isBibTeX())
 			continue;
 		bi.push_back(&(bt->second));
@@ -1457,10 +1633,9 @@ void BiblioInfo::collectCitedEntries(Buffer const & buf)
 	sort(bi.begin(), bi.end(), lSorter);
 
 	// Now we can write the sorted keys
-	vector<BibTeXInfo const *>::const_iterator bit = bi.begin();
-	vector<BibTeXInfo const *>::const_iterator ben = bi.end();
-	for (; bit != ben; ++bit)
-		cited_entries_.push_back((*bit)->key());
+	// b is a BibTeXInfo const *
+	for (auto const & b : bi)
+		cited_entries_.push_back(b->key());
 }
 
 
@@ -1477,10 +1652,9 @@ void BiblioInfo::makeCitationLabels(Buffer const & buf)
 	// modifiers, like "1984a"
 	map<docstring, BibTeXInfo>::iterator last = bimap_.end();
 
-	vector<docstring>::const_iterator it = cited_entries_.begin();
-	vector<docstring>::const_iterator const en = cited_entries_.end();
-	for (; it != en; ++it) {
-		map<docstring, BibTeXInfo>::iterator const biit = bimap_.find(*it);
+	// add letters to years
+	for (auto const & ce : cited_entries_) {
+		map<docstring, BibTeXInfo>::iterator const biit = bimap_.find(ce);
 		// this shouldn't happen, but...
 		if (biit == bimap_.end())
 			// ...fail gracefully, anyway.
@@ -1515,9 +1689,8 @@ void BiblioInfo::makeCitationLabels(Buffer const & buf)
 		}
 	}
 	// Set the labels
-	it = cited_entries_.begin();
-	for (; it != en; ++it) {
-		map<docstring, BibTeXInfo>::iterator const biit = bimap_.find(*it);
+	for (auto const & ce : cited_entries_) {
+		map<docstring, BibTeXInfo>::iterator const biit = bimap_.find(ce);
 		// this shouldn't happen, but...
 		if (biit == bimap_.end())
 			// ...fail gracefully, anyway.
@@ -1526,10 +1699,10 @@ void BiblioInfo::makeCitationLabels(Buffer const & buf)
 		if (numbers) {
 			entry.label(entry.citeNumber());
 		} else {
-			docstring const auth = entry.getAuthorOrEditorList(&buf, false);
+			docstring const auth = entry.getAuthorOrEditorList(&buf, 128, false);
 			// we do it this way so as to access the xref, if necessary
 			// note that this also gives us the modifier
-			docstring const year = getYear(*it, buf, true);
+			docstring const year = getYear(ce, buf, true);
 			if (!auth.empty() && !year.empty())
 				entry.label(auth + ' ' + year);
 			else
@@ -1580,6 +1753,89 @@ string citationStyleToString(const CitationStyle & cs, bool const latex)
 	if (cs.hasStarredVersion)
 		cmd += '*';
 	return cmd;
+}
+
+
+void authorsToDocBookAuthorGroup(docstring const & authorsString, XMLStream & xs, Buffer const & buf,
+                                 const std::string type)
+{
+	// This function closely mimics getAuthorList, but produces DocBook instead of text.
+	// It has been greatly simplified, as the complete list of authors is always produced. No separators are required,
+	// as the output has a database-like shape.
+	// constructName has also been merged within, as it becomes really simple and leads to no copy-paste.
+
+	if (! type.empty() && (type != "author" && type != "book")) {
+		LYXERR0("ERROR! Unexpected author contribution `" << type <<"'.");
+		return;
+	}
+
+	if (authorsString.empty()) {
+		return;
+	}
+
+	// Split the input list of authors into individual authors.
+	vector<docstring> const authors = getAuthors(authorsString, UINT_MAX);
+
+	// Retrieve the "et al." variation.
+	string const etal = buf.params().documentClass().getCiteMacro(buf.params().citeEngineType(), "_etal");
+
+	// Output the list of authors.
+	xs << xml::StartTag("authorgroup");
+	xs << xml::CR();
+
+	auto it = authors.cbegin();
+	auto en = authors.cend();
+	for (size_t i = 0; it != en; ++it, ++i) {
+		const std::string tag = (type.empty() || type == "author") ? "author" : "othercredit";
+		const std::string attr = (type == "book") ? R"(class="other" otherclass="bookauthor")" : "";
+
+		xs << xml::StartTag(tag, attr);
+		xs << xml::CR();
+		xs << xml::StartTag("personname");
+		xs << xml::CR();
+		const docstring name = *it;
+
+		// All authors go in a <personname>. If more structure is known, use it; otherwise (just "et al."),
+		// print it as such.
+		if (name == "others") {
+			xs << buf.B_(etal);
+		} else {
+			name_parts parts = nameParts(name);
+			if (! parts.prefix.empty()) {
+				xs << xml::StartTag("honorific");
+				xs << parts.prefix;
+				xs << xml::EndTag("honorific");
+				xs << xml::CR();
+			}
+			if (! parts.prename.empty()) {
+				xs << xml::StartTag("firstname");
+				xs << parts.prename;
+				xs << xml::EndTag("firstname");
+				xs << xml::CR();
+			}
+			if (! parts.surname.empty()) {
+				xs << xml::StartTag("surname");
+				xs << parts.surname;
+				xs << xml::EndTag("surname");
+				xs << xml::CR();
+			}
+			if (! parts.suffix.empty()) {
+				xs << xml::StartTag("othername", "role=\"suffix\"");
+				xs << parts.suffix;
+				xs << xml::EndTag("othername");
+				xs << xml::CR();
+			}
+		}
+
+		xs << xml::EndTag("personname");
+		xs << xml::CR();
+		xs << xml::EndTag(tag);
+		xs << xml::CR();
+
+		// Could add an affiliation after <personname>, but not stored in BibTeX.
+	}
+	xs << xml::EndTag("authorgroup");
+	xs << xml::CR();
 }
 
 } // namespace lyx

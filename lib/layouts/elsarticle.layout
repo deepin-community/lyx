@@ -4,20 +4,22 @@
 # elsarticle textclass definition file.
 # Author: Uwe Stöhr (uwestoehr@web.de)
 
-Format 66
+Format 104
 
 Columns				1
 Sides				1
 SecNumDepth			3
 TocDepth			3
-DefaultStyle		Standard
-Provides natbib		1
-Provides refstyle	1
+DefaultStyle			Standard
+Provides natbib			1
+Provides refstyle		1
 
 ClassOptions
 	FontSize		10|11|12
 end
 
+TitleLatexType Environment
+TitleLatexName frontmatter
 
 # This is just to show how to declare the default font.
 # The defaults are exactly those shown here.
@@ -40,6 +42,7 @@ Style Standard
 	Align			Block
 	AlignPossible	Block, Left, Right, Center
 	LabelType		No_Label
+	DocBookTag      para
 End
 
 Input stdcounters.inc
@@ -53,38 +56,12 @@ NoStyle				Chapter
 NoCounter			chapter
 NoStyle				Chapter*
 
-
-Style BeginFrontmatter
-	Margin			Dynamic
-	LatexType		Command
-	LatexName		begin{frontmatter}
-	Category		FrontMatter
-	KeepEmpty		1
-	ParSkip			0.4
-	Align			Block
-	LabelSep		xx
-	LabelType		Static
-	LabelString		"Begin frontmatter"
-	LabelFont
-	  Series		Bold
-	  Color			Green
-	EndFont
-End
-
-
-Style EndFrontmatter
-	CopyStyle		BeginFrontmatter
-	LatexName		end{frontmatter}
-	LabelString		"End frontmatter"
-End
-
-
 Style Title
 	Margin			Static
 	LatexType		Command
 	LatexName		title
 	Category		FrontMatter
-	InTitle			0
+	InTitle			1
 	ResetArgs		1
 	ParSkip			0.4
 	ItemSep			0
@@ -97,8 +74,10 @@ Style Title
 	  Size			Largest
 	EndFont
 	HTMLTitle		true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
-
 
 InsetLayout "Flex:Titlenotemark"
 	LyxType			custom
@@ -117,9 +96,11 @@ InsetLayout "Flex:Titlenotemark"
 	  Misc			No_Bar
 	EndFont
 	LabelFont
-	  Color			green
+	  Color			textlabel2
 	  Size			Small
 	EndFont
+	DocBookTag      footnoteref
+	# TODO: the content will be output within the tag, while it should be the linkend attribute, i.e. the output should be <footnoteref linked="[content]"/>. If the content has several footnotes, it should be split on the comma: "t1,t2" should generate <footnoteref linked="t1"/><footnoteref linked="t2"/>.
 End
 
 
@@ -128,10 +109,12 @@ Style "Title footnote"
 	LatexType		Command
 	LatexName		tnotetext
 	Category		FrontMatter
-	InTitle			0
+	InTitle			1
 	Argument 1
-	  LabelString	"Footnote Label"
-	  Tooltip		"Label you refer to in the title"
+	  LabelString   "Footnote Label"
+	  Tooltip       "Label you refer to in the title"
+	  DocBookTag    anchor
+	  DocBookTagType  inline
 	EndArgument
 	ParSkip			0.4
 	BottomSep		0.5
@@ -140,9 +123,16 @@ Style "Title footnote"
 	LabelType		Static
 	LabelString		"Title footnote:"
 	LabelFont
-	  Color			Green
+	  Color			textlabel2
 	  Series		Bold
 	EndFont
+	DocBookTag      footnote
+	DocBookItemTag  para
+	DocBookWrapperTag      title
+	DocBookWrapperTagType  paragraph
+	DocBookWrapperMergeWithPrevious  true
+	DocBookInInfo   maybe
+	# TODO: the argument will be output within the tag, while it should be the xml:id attribute, i.e. the output should be <footnote xml:id="[Argument 1]"/>. And it should also be within the title, and not as a second title.
 End
 
 
@@ -150,10 +140,12 @@ Style Author
 	Margin			Static
 	LatexType		Command
 	Category		FrontMatter
-	InTitle			0
+	InTitle			1
 	Argument 1
 	  LabelString	"Author Label"
 	  Tooltip		"Label you will reference in the address"
+	  DocBookTag    phrase
+	  DocBookAttr   role='address-label'
 	EndArgument
 	LatexName		author
 	LabelSep		xxx
@@ -166,6 +158,11 @@ Style Author
 	Font
 	  Size			Large
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType block
+	DocBookInInfo         always
 End
 
 
@@ -195,6 +192,7 @@ End
 Style "Author footnote"
 	CopyStyle		"Title footnote"
 	LatexName		fntext
+	InTitle			1
 	LabelString		"Author footnote:"
 	Argument 1
 	  LabelString	"Author Footnote Label"
@@ -208,7 +206,7 @@ InsetLayout "Flex:CorAuthormark"
 	LatexName		corref
 	LabelString		"CorAuthor mark"
 	LabelFont
-	  Color			blue
+	  Color			textlabel1
 	EndFont
 End
 
@@ -216,6 +214,7 @@ End
 Style "Corresponding author"
 	CopyStyle		"Author footnote"
 	LatexName		cortext
+	InTitle			1
 	LabelString		"Corresponding author text:"
 End
 
@@ -225,10 +224,12 @@ Style Address
 	LatexType		Command
 	Category		FrontMatter
 	LatexName		address
-	InTitle			0
+	InTitle			1
 	Argument 1
 	  LabelString	"Address Label"
 	  Tooltip		"Label of the author you refer to"
+	  DocBookTag    phrase
+	  DocBookAttr   role='label'
 	EndArgument
 	ParSkip			0.4
 	Align			Center
@@ -237,12 +238,19 @@ Style Address
 	Font
 	  Shape			Italic
 	EndFont
+	DocBookTag            address
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType block
+	DocBookWrapperMergeWithPrevious  true
+	DocBookInInfo         always
 End
 
 
 Style Email
 	CopyStyle		Address
 	LatexName		ead
+	InTitle			1
 	AlignPossible	Block
 	Argument 1
 	  LabelString	"Internet"
@@ -251,6 +259,12 @@ Style Email
 	Font
 	  Shape			Up
 	EndFont
+	DocBookTag            email
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType block
+	DocBookWrapperMergeWithPrevious  true
+	DocBookInInfo         always
 End
 
 
@@ -259,7 +273,7 @@ Style Abstract
 	LatexType		Environment
 	LatexName		abstract
 	Category		FrontMatter
-	InTitle			0
+	InTitle			1
 	NextNoIndent	1
 	LeftMargin		MMM
 	RightMargin		MMM
@@ -280,6 +294,11 @@ Style Abstract
 	  Series		Bold
 	  Size			Large
 	EndFont
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 
@@ -288,7 +307,7 @@ Style Keywords
 	LatexType		Environment
 	LatexName		keyword
 	Category		FrontMatter
-	InTitle			0
+	InTitle			1
 	NextNoIndent	1
 	BottomSep		0.5
 	ParSkip			0.4
@@ -297,9 +316,13 @@ Style Keywords
 	LabelType		Static
 	LabelString		"Keywords:"
 	LabelFont
-	  Color			Green
+	  Color			textlabel2
 	  Series		Bold
-	EndFont		
+	EndFont
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 
@@ -327,5 +350,16 @@ Style Bibliography
 	EndFont
 	TocLevel                1
 	IsTocCaption            0
+	Argument listpreamble:1
+	  LabelString		"Bib preamble"
+	  MenuString		"Bibliography Preamble"
+	  Tooltip		"LaTeX code to be inserted before the first bibliography item"
+	  PassThru		1
+	  Font
+	    Family		typewriter
+	    Color		latex
+	  EndFont
+	EndArgument
+	DocBookTag      bibliography
 End
 

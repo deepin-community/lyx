@@ -10,8 +10,9 @@
 
 #include <config.h>
 
-#include "support/lassert.h"
 #include "support/Timeout.h"
+
+#include "support/lassert.h"
 #include "support/debug.h"
 
 #include <QObject>
@@ -46,12 +47,12 @@ public:
 
 protected:
 	///
-	void timerEvent(QTimerEvent *) { owner_.emit(); }
+	void timerEvent(QTimerEvent *) override { owner_.emit(); }
 
 private:
 	///
 	Timeout & owner_;
-	/// timout id
+	/// timeout id
 	int timeout_id;
 };
 

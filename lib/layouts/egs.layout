@@ -9,11 +9,11 @@
 # Converted article -> egs Martin Vermeer
 
 
-Format 66
+Format 104
 Columns                 2
 Sides                   1
 PageStyle               Plain
-Provides natbib          1
+Provides natbib         1
 
 
 Style Standard
@@ -26,6 +26,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -49,6 +50,7 @@ Style Section
 	  Series              Bold
 	EndFont
 	TocLevel 1
+    HTMLTag               h2
 End
 
 
@@ -69,6 +71,7 @@ Style Subsection
 	  Shape               Up
 	EndFont
 	TocLevel 2
+    HTMLTag               h3
 End
 
 
@@ -149,6 +152,16 @@ Style List
 	AlignPossible         Block, Left
 	LabelType             Manual
 	LabelString           "00.00.0000"
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
 End
 
 
@@ -173,6 +186,25 @@ Style Enumerate
 		LabelString   "Custom Item|s"
 		Tooltip       "A customized item string"
 	EndArgument
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            orderedlist
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
+	HTMLStyle
+		ol.enumi   { list-style-type: decimal; }
+		ol.enumii  { list-style-type: lower-latin; }
+		ol.enumiii { list-style-type: lower-roman; }
+		ol.enumiv  { list-style-type: upper-latin; }
+	EndHTMLStyle
 End
 
 
@@ -196,6 +228,19 @@ Style Itemize
 		LabelString   "Custom Item|s"
 		Tooltip       "A customized item string"
 	EndArgument
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            itemizedlist
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
 End
 
 
@@ -218,6 +263,22 @@ Style Description
 	LabelFont
 	  Series              Bold
 	EndFont
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            variablelist
+	DocBookItemWrapperTag varlistentry
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
+	DocBookItemLabelTag   term
+	DocBookItemLabelTagType   paragraph
 End
 
 
@@ -283,6 +344,9 @@ Style Title
 	  Size                Largest
 	EndFont
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -325,8 +389,13 @@ Style Author
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -347,7 +416,7 @@ Style Affil
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -369,7 +438,7 @@ Style Journal
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -392,7 +461,7 @@ Style msnumber
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -415,7 +484,7 @@ Style FirstAuthor
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -437,7 +506,7 @@ Style Received
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -459,7 +528,7 @@ Style Accepted
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -481,7 +550,7 @@ Style Offsets
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -523,7 +592,7 @@ Style Abstract
 End
 
 
-Style Acknowledgements
+Style Acknowledgments
 	Category              BackMatter
 	Margin                First_Dynamic
 	LatexType             Environment
@@ -538,7 +607,7 @@ Style Acknowledgements
 	Align                 Block
 	AlignPossible         Block, Left
 	LabelType             Static
-	LabelString           "Acknowledgements."
+	LabelString           "Acknowledgments."
 	Font
 	  Size                Small
 	EndFont
@@ -548,8 +617,7 @@ Style Acknowledgements
 	EndFont
 End
 
-
-Style Acknowledgement
+Style Acknowledgment
 	Margin                First_Dynamic
 	LatexType             Environment
 	LatexName             acknowledgement
@@ -563,7 +631,7 @@ Style Acknowledgement
 	Align                 Block
 	AlignPossible         Block, Left
 	LabelType             Static
-	LabelString           "Acknowledgement."
+	LabelString           "Acknowledgment."
 	Font
 	  Size                Small
 	EndFont
@@ -572,7 +640,6 @@ Style Acknowledgement
 	  Size                Small
 	EndFont
 End
-
 
 Style Bibliography
 	Category              BackMatter
@@ -597,6 +664,16 @@ Style Bibliography
 	EndFont
 	TocLevel              1
 	IsTocCaption          0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family	typewriter
+	    Color	latex
+	  EndFont
+	EndArgument
 End
 
 
@@ -619,6 +696,7 @@ Style Section*
 	  Series              Bold
 #    Size               Larger
 	EndFont
+	HTMLInToc        0
 End
 
 
@@ -635,6 +713,7 @@ Style Subsection*
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	HTMLInToc        0
 End
 
 
@@ -651,7 +730,7 @@ Style LaTeX
 	LabelType             No_Label
 	FreeSpacing           1
 	Font
-	  Color               red
+	  Color               textlabel3
 	EndFont
 End
 
@@ -672,6 +751,9 @@ Style LyX-Code
 	Font
 	  Family              Typewriter
 	EndFont
+	DocBookTag            programlisting
+    DocBookTagType        paragraph
+	DocBookAttr			  language='lyx'
 End
 
 

@@ -61,15 +61,14 @@ TODO
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "InsetIterator.h"
-#include "Language.h"
+#include "LaTeX.h"
 #include "LaTeXFeatures.h"
-#include "Length.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
 #include "Mover.h"
-#include "OutputParams.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
-#include "sgml.h"
+#include "xml.h"
 #include "texstream.h"
 #include "TocBackend.h"
 
@@ -86,6 +85,7 @@ TODO
 #include "support/ExceptionMessage.h"
 #include "support/filetools.h"
 #include "support/gettext.h"
+#include "support/Length.h"
 #include "support/lyxlib.h"
 #include "support/lstrings.h"
 #include "support/os.h"
@@ -97,7 +97,6 @@ TODO
 
 #include <algorithm>
 #include <sstream>
-#include <tuple>
 
 using namespace std;
 using namespace lyx::support;
@@ -109,13 +108,13 @@ namespace Alert = frontend::Alert;
 namespace {
 
 /// Find the most suitable image format for images in \p format
-/// Note that \p format may be unknown (i. e. an empty string)
+/// Note that \p format may be unknown (i.e. an empty string)
 string findTargetFormat(string const & format, OutputParams const & runparams)
 {
-	// Are we using latex or XeTeX/LuaTeX/pdflatex?
-	if (runparams.flavor == OutputParams::PDFLATEX
-	    || runparams.flavor == OutputParams::XETEX
-	    || runparams.flavor == OutputParams::LUATEX) {
+	// Are we latexing to DVI or PDF?
+	if (runparams.flavor == Flavor::PdfLaTeX
+	    || runparams.flavor == Flavor::XeTeX
+	    || runparams.flavor == Flavor::LuaTeX) {
 		LYXERR(Debug::GRAPHICS, "findTargetFormat: PDF mode");
 		Format const * const f = theFormats().getFormat(format);
 		// Convert vector graphics to pdf
@@ -127,8 +126,9 @@ string findTargetFormat(string const & format, OutputParams const & runparams)
 		// Convert everything else to png
 		return "png";
 	}
-	// for HTML, we leave the known formats and otherwise convert to png
-	if (runparams.flavor == OutputParams::HTML) {
+
+	// for HTML and DocBook, we leave the known formats and otherwise convert to png
+	if (runparams.flavor == Flavor::Html || runparams.flavor == Flavor::DocBook5) {
 		Format const * const f = theFormats().getFormat(format);
 		// Convert vector graphics to svg
 		if (f && f->vectorFormat() && theConverters().isReachable(format, "svg"))
@@ -179,7 +179,7 @@ void readInsetGraphics(Lexer & lex, Buffer const & buf, bool allowOrigin,
 
 
 InsetGraphics::InsetGraphics(Buffer * buf)
-	: Inset(buf), graphic_label(sgml::uniqueID(from_ascii("graph"))),
+	: Inset(buf), graphic_label(xml::uniqueID(from_ascii("graph"))),
 	  graphic_(new RenderGraphic(this))
 {
 }
@@ -187,7 +187,7 @@ InsetGraphics::InsetGraphics(Buffer * buf)
 
 InsetGraphics::InsetGraphics(InsetGraphics const & ig)
 	: Inset(ig),
-	  graphic_label(sgml::uniqueID(from_ascii("graph"))),
+	  graphic_label(xml::uniqueID(from_ascii("graph"))),
 	  graphic_(new RenderGraphic(*ig.graphic_, this))
 {
 	setParams(ig.params());
@@ -294,7 +294,7 @@ void InsetGraphics::metrics(MetricsInfo & mi, Dimension & dim) const
 
 void InsetGraphics::draw(PainterInfo & pi, int x, int y) const
 {
-	graphic_->draw(pi, x, y);
+	graphic_->draw(pi, x, y, params_.darkModeSensitive);
 }
 
 
@@ -321,13 +321,17 @@ void InsetGraphics::outBoundingBox(graphics::BoundingBox & bbox) const
 
 	FileName const file(params().filename.absFileName());
 
+	if (!file.exists())
+		return;
+
 	// No correction is necessary for a vector image
 	bool const zipped = theFormats().isZippedFile(file);
 	FileName const unzipped_file = zipped ? unzipFile(file) : file;
 	string const format = theFormats().getFormatFromFile(unzipped_file);
 	if (zipped)
 		unzipped_file.removeFile();
-	if (theFormats().getFormat(format)->vectorFormat())
+	if (theFormats().getFormat(format)
+	    && theFormats().getFormat(format)->vectorFormat())
 		return;
 
 	// Get the actual image dimensions in pixels
@@ -408,7 +412,7 @@ string InsetGraphics::createLatexOptions(bool const ps) const
 		if (!params().width.zero())
 			size << "width=" << params().width.asLatexString() << ',';
 		if (!params().height.zero())
-			size << "height=" << params().height.asLatexString() << ',';
+			size << "totalheight=" << params().height.asLatexString() << ',';
 		if (params().keepAspectRatio)
 			size << "keepaspectratio,";
 	}
@@ -450,56 +454,56 @@ docstring InsetGraphics::toDocbookLength(Length const & len) const
 {
 	odocstringstream result;
 	switch (len.unit()) {
-		case Length::SP: // Scaled point (65536sp = 1pt) TeX's smallest unit.
-			result << len.value() * 65536.0 * 72 / 72.27 << "pt";
-			break;
-		case Length::PT: // Point = 1/72.27in = 0.351mm
-			result << len.value() * 72 / 72.27 << "pt";
-			break;
-		case Length::BP: // Big point (72bp = 1in), also PostScript point
-			result << len.value() << "pt";
-			break;
-		case Length::DD: // Didot point = 1/72 of a French inch, = 0.376mm
-			result << len.value() * 0.376 << "mm";
-			break;
-		case Length::MM: // Millimeter = 2.845pt
-			result << len.value() << "mm";
-			break;
-		case Length::PC: // Pica = 12pt = 4.218mm
-			result << len.value() << "pc";
-			break;
-		case Length::CC: // Cicero = 12dd = 4.531mm
-			result << len.value() * 4.531 << "mm";
-			break;
-		case Length::CM: // Centimeter = 10mm = 2.371pc
-			result << len.value() << "cm";
-			break;
-		case Length::IN: // Inch = 25.4mm = 72.27pt = 6.022pc
-			result << len.value() << "in";
-			break;
-		case Length::EX: // Height of a small "x" for the current font.
-			// Obviously we have to compromise here. Any better ratio than 1.5 ?
-			result << len.value() / 1.5 << "em";
-			break;
-		case Length::EM: // Width of capital "M" in current font.
-			result << len.value() << "em";
-			break;
-		case Length::MU: // Math unit (18mu = 1em) for positioning in math mode
-			result << len.value() * 18 << "em";
-			break;
-		case Length::PTW: // Percent of TextWidth
-		case Length::PCW: // Percent of ColumnWidth
-		case Length::PPW: // Percent of PageWidth
-		case Length::PLW: // Percent of LineWidth
-		case Length::PTH: // Percent of TextHeight
-		case Length::PPH: // Percent of PaperHeight
-		case Length::BLS: // Percent of BaselineSkip
-			// Sigh, this will go wrong.
-			result << len.value() << "%";
-			break;
-		default:
-			result << len.asDocstring();
-			break;
+	case Length::SP: // Scaled point (65536sp = 1pt) TeX's smallest unit.
+		result << len.value() * 65536.0 * 72 / 72.27 << "pt";
+		break;
+	case Length::PT: // Point = 1/72.27in = 0.351mm
+		result << len.value() * 72 / 72.27 << "pt";
+		break;
+	case Length::BP: // Big point (72bp = 1in), also PostScript point
+		result << len.value() << "pt";
+		break;
+	case Length::DD: // Didot point = 1/72 of a French inch, = 0.376mm
+		result << len.value() * 0.376 << "mm";
+		break;
+	case Length::MM: // Millimeter = 2.845pt
+		result << len.value() << "mm";
+		break;
+	case Length::PC: // Pica = 12pt = 4.218mm
+		result << len.value() << "pc";
+		break;
+	case Length::CC: // Cicero = 12dd = 4.531mm
+		result << len.value() * 4.531 << "mm";
+		break;
+	case Length::CM: // Centimeter = 10mm = 2.371pc
+		result << len.value() << "cm";
+		break;
+	case Length::IN: // Inch = 25.4mm = 72.27pt = 6.022pc
+		result << len.value() << "in";
+		break;
+	case Length::EX: // Height of a small "x" for the current font.
+		// Obviously we have to compromise here. Any better ratio than 1.5 ?
+		result << len.value() / 1.5 << "em";
+		break;
+	case Length::EM: // Width of capital "M" in current font.
+		result << len.value() << "em";
+		break;
+	case Length::MU: // Math unit (18mu = 1em) for positioning in math mode
+		result << len.value() * 18 << "em";
+		break;
+	case Length::PTW: // Percent of TextWidth
+	case Length::PCW: // Percent of ColumnWidth
+	case Length::PPW: // Percent of PageWidth
+	case Length::PLW: // Percent of LineWidth
+	case Length::PTH: // Percent of TextHeight
+	case Length::PPH: // Percent of PaperHeight
+	case Length::BLS: // Percent of BaselineSkip
+		// Sigh, this will go wrong.
+		result << len.value() << "%";
+		break;
+	default:
+		result << len.asDocstring();
+		break;
 	}
 	return result.str();
 }
@@ -510,33 +514,24 @@ docstring InsetGraphics::createDocBookAttributes() const
 	// Calculate the options part of the command, we must do it to a string
 	// stream since we copied the code from createLatexParams() ;-)
 
-	// FIXME: av: need to translate spec -> Docbook XSL spec
-	// (http://www.sagehill.net/docbookxsl/ImageSizing.html)
-	// Right now it only works with my version of db2latex :-)
-
 	odocstringstream options;
-	double const scl = convert<double>(params().scale);
+	auto const scl = convert<double>(params().scale);
 	if (!params().scale.empty() && !float_equal(scl, 0.0, 0.05)) {
 		if (!float_equal(scl, 100.0, 0.05))
 			options << " scale=\""
-				<< support::iround(scl)
-				<< "\" ";
+				    << support::iround(scl)
+				    << "\" ";
 	} else {
-		if (!params().width.zero()) {
+		if (!params().width.zero())
 			options << " width=\"" << toDocbookLength(params().width)  << "\" ";
-		}
-		if (!params().height.zero()) {
+		if (!params().height.zero())
 			options << " depth=\"" << toDocbookLength(params().height)  << "\" ";
-		}
-		if (params().keepAspectRatio) {
+		if (params().keepAspectRatio)
 			// This will be irrelevant unless both width and height are set
 			options << "scalefit=\"1\" ";
-		}
 	}
 
-
-	if (!params().special.empty())
-		options << from_ascii(params().special) << " ";
+	// TODO: parse params().special?
 
 	// trailing blanks are ok ...
 	return options.str();
@@ -580,14 +575,14 @@ copyFileIfNeeded(FileName const & file_in, FileName const & file_out)
 
 
 pair<GraphicsCopyStatus, FileName> const
-copyToDirIfNeeded(DocFileName const & file, string const & dir)
+copyToDirIfNeeded(DocFileName const & file, string const & dir, bool encrypt_path)
 {
 	string const file_in = file.absFileName();
 	string const only_path = onlyPath(file_in);
 	if (rtrim(only_path, "/") == rtrim(dir, "/"))
 		return make_pair(IDENTICAL_PATHS, FileName(file_in));
 
-	string mangled = file.mangledFileName();
+	string mangled = file.mangledFileName(empty_string(), encrypt_path);
 	if (theFormats().isZippedFile(file)) {
 		// We need to change _eps.gz to .eps.gz. The mangled name is
 		// still unique because of the counter in mangledFileName().
@@ -635,7 +630,10 @@ string const stripExtensionIfPossible(string const & file, string const & to, bo
 {
 	// No conversion is needed. LaTeX can handle the graphic file as is.
 	// This is true even if the orig_file is compressed.
-	string const to_format = theFormats().getFormat(to)->extension();
+	Format const * f = theFormats().getFormat(to);
+	if (!f)
+		return latex_path(file, EXCLUDE_EXTENSION);
+	string const to_format = f->extension();
 	string const file_format = getExtension(file);
 	// for latex .ps == .eps
 	if (to_format == file_format ||
@@ -682,7 +680,7 @@ string InsetGraphics::prepareFile(OutputParams const & runparams) const
 	// we move it to a temp dir or uncompress it.
 	FileName temp_file;
 	GraphicsCopyStatus status;
-	tie(status, temp_file) = copyToDirIfNeeded(params().filename, temp_path);
+	tie(status, temp_file) = copyToDirIfNeeded(params().filename, temp_path, false);
 
 	if (status == FAILURE)
 		return orig_file;
@@ -703,7 +701,7 @@ string InsetGraphics::prepareFile(OutputParams const & runparams) const
 		}
 		// only show DVI-specific warning when export format is plain latex
 		if (!isValidDVIFileName(output_file)
-			&& runparams.flavor == OutputParams::LATEX) {
+			&& runparams.flavor == Flavor::LaTeX) {
 				frontend::Alert::warning(_("Problematic filename for DVI"),
 				         _("The following filename can cause troubles "
 					       "when running the exported file through LaTeX "
@@ -749,7 +747,7 @@ string InsetGraphics::prepareFile(OutputParams const & runparams) const
 
 	if (from == to) {
 		// source and destination formats are the same
-		if (!runparams.nice && !FileName(temp_file).hasExtension(ext)) {
+		if (!runparams.nice && !temp_file.hasExtension(ext)) {
 			// The LaTeX compiler will not be able to determine
 			// the file format from the extension, so we must
 			// change it.
@@ -798,9 +796,15 @@ string InsetGraphics::prepareFile(OutputParams const & runparams) const
 
 	// FIXME (Abdel 12/08/06): Is there a need to show these errors?
 	ErrorList el;
-	if (theConverters().convert(&buffer(), temp_file, to_file, params().filename,
+	Converters::RetVal const rv = 
+	    theConverters().convert(&buffer(), temp_file, to_file, params().filename,
 			       from, to, el,
-			       Converters::try_default | Converters::try_cache)) {
+			       Converters::try_default | Converters::try_cache);
+	if (rv == Converters::KILLED) {
+		LYXERR0("Graphics preparation killed.");
+		if (buffer().isClone() && buffer().isExporting())
+			throw ConversionException();
+	} else if (rv == Converters::SUCCESS) {
 		runparams.exportdata->addExternalFile(tex_format,
 				to_file, output_to_file);
 		runparams.exportdata->addExternalFile("dvi",
@@ -822,7 +826,20 @@ void InsetGraphics::latex(otexstream & os,
 	bool const file_exists = !params().filename.empty()
 			&& params().filename.isReadableFile();
 	string message;
-	if (!file_exists) {
+	// PDFLaTeX and Xe/LuaTeX fall back to draft themselves
+	// and error about it. For DVI/PS, we do something similar here.
+	// We also don't do such tricks when simply exporting a LaTeX file.
+	if (!file_exists && !runparams.nice && runparams.flavor == Flavor::LaTeX) {
+		TeXErrors terr;
+		ErrorList & errorList = buffer().errorList("Export");
+		docstring const s = params().filename.empty() ?
+					_("Graphic not specified. Falling back to `draft' mode.")
+				      : bformat(_("Graphic `%1$s' was not found. Falling back to `draft' mode."),
+						params().filename.absoluteFilePath());
+		Paragraph const & par = buffer().paragraphs().front();
+		errorList.push_back(ErrorItem(_("Graphic not found!"), s,
+					      {par.id(), 0}, {par.id(), -1}));
+		buffer().bufferErrors(terr, errorList);
 		if (params().bbox.empty())
 		    message = "bb = 0 0 200 100";
 		if (!params().draft) {
@@ -833,11 +850,11 @@ void InsetGraphics::latex(otexstream & os,
 		if (!message.empty())
 			message += ", ";
 		message += "type=eps";
+		// If no existing file "filename" was found LaTeX
+		// draws only a rectangle with the above bb and the
+		// not found filename in it.
+		LYXERR(Debug::GRAPHICS, "\tMessage = \"" << message << '\"');
 	}
-	// If no existing file "filename" was found LaTeX
-	// draws only a rectangle with the above bb and the
-	// not found filename in it.
-	LYXERR(Debug::GRAPHICS, "\tMessage = \"" << message << '\"');
 
 	// These variables collect all the latex code that should be before and
 	// after the actual includegraphics command.
@@ -845,22 +862,16 @@ void InsetGraphics::latex(otexstream & os,
 	string after;
 
 	// Write the options if there are any.
-	bool const ps = runparams.flavor == OutputParams::LATEX
-		|| runparams.flavor == OutputParams::DVILUATEX;
+	bool const ps = runparams.flavor == Flavor::LaTeX
+		|| runparams.flavor == Flavor::DviLuaTeX;
 	string const opts = createLatexOptions(ps);
 	LYXERR(Debug::GRAPHICS, "\tOpts = " << opts);
 
-	if (contains(opts, '=')) {
-		std::set<Language const *> langs = buffer().masterBuffer()->getLanguages();
-		for (auto const lang : langs) {
-			if (lang->lang() == "turkish" || lang->lang() == "latin") {
-				// Turkish and Latin activate = (#2005).
-				// Deactivate locally for keyval option parsing
-				before = "\\begingroup\\catcode`\\=12";
-				after = "\\endgroup ";
-				break;
-			}
-		}
+	if (contains(opts, '=') && contains(runparams.active_chars, '=')) {
+		// We have a language that makes = active. Deactivate locally
+		// for keyval option parsing (#2005).
+		before = "\\begingroup\\catcode`\\=12";
+		after = "\\endgroup ";
 	}
 
 	if (runparams.moving_arg)
@@ -885,8 +896,7 @@ void InsetGraphics::latex(otexstream & os,
 	// encoding!
 	docstring uncodable;
 	docstring encodable_file_path;
-	for (size_type i = 0 ; i < file_path.size() ; ++i) {
-		char_type c = file_path[i];
+	for (char_type c : file_path) {
 		try {
 			if (runparams.encoding->encodable(c))
 				encodable_file_path += c;
@@ -910,7 +920,7 @@ void InsetGraphics::latex(otexstream & os,
 	if (!uncodable.empty() && !runparams.silent) {
 		// issue a warning about omitted characters
 		// FIXME: should be passed to the error dialog
-		frontend::Alert::warning(_("Uncodable characters in path"),
+		frontend::Alert::warning(_("Uncodable character in file path"),
 			bformat(_("The following characters in one of the graphic paths are\n"
 				  "not representable in the current encoding and have been omitted: %1$s.\n"
 				  "You need to adapt either the encoding or the path."),
@@ -944,62 +954,24 @@ int InsetGraphics::plaintext(odocstringstream & os,
 }
 
 
-static int writeImageObject(char const * format, odocstream & os,
-	OutputParams const & runparams, docstring const & graphic_label,
-	docstring const & attributes)
-{
-	if (runparams.flavor != OutputParams::XML)
-		os << "<![ %output.print." << format
-			 << "; [" << endl;
-
-	os <<"<imageobject><imagedata fileref=\"&"
-		 << graphic_label
-		 << ";."
-		 << format
-		 << "\" "
-		 << attributes;
-
-	if (runparams.flavor == OutputParams::XML)
-		os <<  " role=\"" << format << "\"/>" ;
-	else
-		os << " format=\"" << format << "\">" ;
-
-	os << "</imageobject>";
-
-	if (runparams.flavor != OutputParams::XML)
-		os << endl << "]]>" ;
-
-	return runparams.flavor == OutputParams::XML ? 0 : 2;
-}
-
-
 // For explanation on inserting graphics into DocBook checkout:
 // http://en.tldp.org/LDP/LDP-Author-Guide/html/inserting-pictures.html
 // See also the docbook guide at http://www.docbook.org/
-int InsetGraphics::docbook(odocstream & os,
-			   OutputParams const & runparams) const
+void InsetGraphics::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	// In DocBook v5.0, the graphic tag will be eliminated from DocBook, will
-	// need to switch to MediaObject. However, for now this is sufficient and
-	// easier to use.
-	if (runparams.flavor == OutputParams::XML)
-		runparams.exportdata->addExternalFile("docbook-xml",
-						      params().filename);
-	else
-		runparams.exportdata->addExternalFile("docbook",
-						      params().filename);
+	string fn = params().filename.relFileName(runparams.export_folder);
+	string tag = runparams.docbook_in_float ? "mediaobject" : "inlinemediaobject";
 
-	os << "<inlinemediaobject>";
-
-	int r = 0;
-	docstring attributes = createDocBookAttributes();
-	r += writeImageObject("png", os, runparams, graphic_label, attributes);
-	r += writeImageObject("pdf", os, runparams, graphic_label, attributes);
-	r += writeImageObject("eps", os, runparams, graphic_label, attributes);
-	r += writeImageObject("bmp", os, runparams, graphic_label, attributes);
-
-	os << "</inlinemediaobject>";
-	return r;
+	xs << xml::StartTag(tag);
+	xs << xml::CR();
+	xs << xml::StartTag("imageobject");
+	xs << xml::CR();
+	xs << xml::CompTag("imagedata", "fileref=\"" + fn + "\" " + to_utf8(createDocBookAttributes()));
+	xs << xml::CR();
+	xs << xml::EndTag("imageobject");
+	xs << xml::CR();
+	xs << xml::EndTag(tag);
+	xs << xml::CR();
 }
 
 
@@ -1025,7 +997,7 @@ string InsetGraphics::prepareHTMLFile(OutputParams const & runparams) const
 	// Copy to temporary directory.
 	FileName temp_file;
 	GraphicsCopyStatus status;
-	tie(status, temp_file) = copyToDirIfNeeded(params().filename, temp_path);
+	tie(status, temp_file) = copyToDirIfNeeded(params().filename, temp_path, true);
 
 	if (status == FAILURE)
 		return string();
@@ -1071,17 +1043,28 @@ string InsetGraphics::prepareHTMLFile(OutputParams const & runparams) const
 
 	// FIXME (Abdel 12/08/06): Is there a need to show these errors?
 	ErrorList el;
-	bool const success =
+	Converters::RetVal const rv =
 		theConverters().convert(&buffer(), temp_file, to_file, params().filename,
 			from, to, el, Converters::try_default | Converters::try_cache);
-	if (!success)
+	if (rv == Converters::KILLED) {
+		if (buffer().isClone() && buffer().isExporting())
+			throw ConversionException();
+		return string();
+	}
+	if (rv != Converters::SUCCESS)
 		return string();
 	runparams.exportdata->addExternalFile("xhtml", to_file, output_to_file);
 	return output_to_file;
 }
 
 
-docstring InsetGraphics::xhtml(XHTMLStream & xs, OutputParams const & op) const
+CtObject InsetGraphics::getCtObject(OutputParams const &) const
+{
+	return CtObject::Object;
+}
+
+
+docstring InsetGraphics::xhtml(XMLStream & xs, OutputParams const & op) const
 {
 	string const output_file = op.dryrun ? string() : prepareHTMLFile(op);
 
@@ -1090,7 +1073,7 @@ docstring InsetGraphics::xhtml(XHTMLStream & xs, OutputParams const & op) const
 		        << params().filename << "' for output. File missing?");
 		string const attr = "src='" + params().filename.absFileName()
 		                    + "' alt='image: " + output_file + "'";
-		xs << html::CompTag("img", attr);
+		xs << xml::CompTag("img", attr);
 		return docstring();
 	}
 
@@ -1118,7 +1101,7 @@ docstring InsetGraphics::xhtml(XHTMLStream & xs, OutputParams const & op) const
 
 	string const attr = imgstyle + "src='" + output_file + "' alt='image: "
 	                    + output_file + "'";
-	xs << html::CompTag("img", attr);
+	xs << xml::CompTag("img", attr);
 	return docstring();
 }
 
@@ -1138,6 +1121,10 @@ void InsetGraphics::validate(LaTeXFeatures & features) const
 		string const rel_file = params().filename.onlyFileNameWithoutExt();
 		if (contains(rel_file, "."))
 			features.require("lyxdot");
+	}
+	if (features.inDeletedInset()) {
+		features.require("tikz");
+		features.require("ct-tikz-object-sout");
 	}
 }
 
@@ -1225,16 +1212,14 @@ namespace graphics {
 
 void getGraphicsGroups(Buffer const & b, set<string> & ids)
 {
-	Inset & inset = b.inset();
-	InsetIterator it  = inset_iterator_begin(inset);
-	InsetIterator const end = inset_iterator_end(inset);
-	for (; it != end; ++it)
-		if (it->lyxCode() == GRAPHICS_CODE) {
-			InsetGraphics & ins = static_cast<InsetGraphics &>(*it);
-			InsetGraphicsParams inspar = ins.getParams();
-			if (!inspar.groupId.empty())
-				ids.insert(inspar.groupId);
-		}
+	for (Inset const & it : b.inset()) {
+		InsetGraphics const * ins = it.asInsetGraphics();
+		if (!ins)
+			continue;
+		InsetGraphicsParams const & inspar = ins->getParams();
+		if (!inspar.groupId.empty())
+			ids.insert(inspar.groupId);
+	}
 }
 
 
@@ -1243,15 +1228,13 @@ int countGroupMembers(Buffer const & b, string const & groupId)
 	int n = 0;
 	if (groupId.empty())
 		return n;
-	Inset & inset = b.inset();
-	InsetIterator it = inset_iterator_begin(inset);
-	InsetIterator const end = inset_iterator_end(inset);
-	for (; it != end; ++it)
-		if (it->lyxCode() == GRAPHICS_CODE) {
-			InsetGraphics & ins = static_cast<InsetGraphics &>(*it);
-			if (ins.getParams().groupId == groupId)
-				++n;
-		}
+	for (Inset const & it : b.inset()) {
+		InsetGraphics const * ins = it.asInsetGraphics();
+		if (!ins)
+			continue; 
+		if (ins->getParams().groupId == groupId)
+			++n;
+	}
 	return n;
 }
 
@@ -1260,19 +1243,17 @@ string getGroupParams(Buffer const & b, string const & groupId)
 {
 	if (groupId.empty())
 		return string();
-	Inset & inset = b.inset();
-	InsetIterator it  = inset_iterator_begin(inset);
-	InsetIterator const end = inset_iterator_end(inset);
-	for (; it != end; ++it)
-		if (it->lyxCode() == GRAPHICS_CODE) {
-			InsetGraphics & ins = static_cast<InsetGraphics &>(*it);
-			InsetGraphicsParams inspar = ins.getParams();
-			if (inspar.groupId == groupId) {
-				InsetGraphicsParams tmp = inspar;
-				tmp.filename.erase();
-				return InsetGraphics::params2string(tmp, b);
-			}
+	for (Inset const & it : b.inset()) {
+		InsetGraphics const * ins = it.asInsetGraphics();
+		if (!ins)
+			continue;
+		InsetGraphicsParams const & inspar = ins->getParams();
+		if (inspar.groupId == groupId) {
+			InsetGraphicsParams tmp = inspar;
+			tmp.filename.erase();
+			return InsetGraphics::params2string(tmp, b);
 		}
+	}
 	return string();
 }
 
@@ -1285,17 +1266,17 @@ void unifyGraphicsGroups(Buffer & b, string const & argument)
 	// This handles undo groups automagically
 	UndoGroupHelper ugh(&b);
 	Inset & inset = b.inset();
-	InsetIterator it  = inset_iterator_begin(inset);
-	InsetIterator const end = inset_iterator_end(inset);
-	for (; it != end; ++it) {
-		if (it->lyxCode() == GRAPHICS_CODE) {
-			InsetGraphics & ins = static_cast<InsetGraphics &>(*it);
-			InsetGraphicsParams inspar = ins.getParams();
-			if (params.groupId == inspar.groupId) {
-				b.undo().recordUndo(CursorData(it));
-				params.filename = inspar.filename;
-				ins.setParams(params);
-			}
+	InsetIterator it  = begin(inset);
+	InsetIterator const itend = end(inset);
+	for (; it != itend; ++it) {
+		InsetGraphics * ins = it->asInsetGraphics();
+		if (!ins)
+			continue;
+		InsetGraphicsParams const & inspar = ins->getParams();
+		if (params.groupId == inspar.groupId) {
+			CursorData(it).recordUndo();
+			params.filename = inspar.filename;
+			ins->setParams(params);
 		}
 	}
 }
@@ -1304,12 +1285,12 @@ void unifyGraphicsGroups(Buffer & b, string const & argument)
 InsetGraphics * getCurrentGraphicsInset(Cursor const & cur)
 {
 	Inset * instmp = &cur.inset();
-	if (instmp->lyxCode() != GRAPHICS_CODE)
+	if (!instmp->asInsetGraphics())
 		instmp = cur.nextInset();
-	if (!instmp || instmp->lyxCode() != GRAPHICS_CODE)
+	if (!instmp || !instmp->asInsetGraphics())
 		return 0;
 
-	return static_cast<InsetGraphics *>(instmp);
+	return instmp->asInsetGraphics();
 }
 
 } // namespace graphics

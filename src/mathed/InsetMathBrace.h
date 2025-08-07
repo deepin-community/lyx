@@ -22,39 +22,41 @@ namespace lyx {
 class InsetMathBrace : public InsetMathNest {
 public:
 	///
-	InsetMathBrace(Buffer * buf);
+	explicit InsetMathBrace(Buffer * buf);
 	///
-	InsetMathBrace(MathData const & ar);
+	explicit InsetMathBrace(Buffer * buf, MathData const & ar);
 	/// identifies brace insets
-	InsetMathBrace * asBraceInset() { return this; }
+	InsetMathBrace * asBraceInset() override { return this; }
 	/// identifies brace insets
-	InsetMathBrace const * asBraceInset() const { return this; }
-	/// we write extra braces in any case...
-	bool extraBraces() const { return true; }
+	InsetMathBrace const * asBraceInset() const override { return this; }
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo &, int x, int y) const;
+	void draw(PainterInfo &, int x, int y) const override;
+	/// we inherit the mode
+	mode_type currentMode() const override { return current_mode_; }
 	///
-	void write(WriteStream & os) const;
+	void write(TeXMathStream & os) const override;
 	/// write normalized content
-	void normalize(NormalStream & ns) const;
+	void normalize(NormalStream & ns) const override;
 	///
-	void maple(MapleStream &) const;
+	void maple(MapleStream &) const override;
 	///
-	void mathematica(MathematicaStream &) const;
+	void mathematica(MathematicaStream &) const override;
 	///
-	void octave(OctaveStream &) const;
+	void octave(OctaveStream &) const override;
 	///
-	void mathmlize(MathStream &) const;
+	void mathmlize(MathMLStream &) const override;
 	///
-	void htmlize(HtmlStream &) const;
+	void htmlize(HtmlStream &) const override;
 	///
-	void infoize(odocstream & os) const;
+	void infoize(odocstream & os) const override;
 	///
-	InsetCode lyxCode() const { return MATH_BRACE_CODE; }
+	InsetCode lyxCode() const override { return MATH_BRACE_CODE; }
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
+	/// the inherited mode
+	mutable mode_type current_mode_;
 };
 
 

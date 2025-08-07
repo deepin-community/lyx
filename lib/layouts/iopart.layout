@@ -4,7 +4,7 @@
 # IOP article textclass definition file.
 # Author: Uwe Stöhr (uwestoehr@web.de)
 
-Format 66
+Format 104
 
 Columns			1
 Sides			1
@@ -42,6 +42,7 @@ Style Standard
 	Align		Block
 	AlignPossible	Block, Left, Right, Center
 	LabelType	No_Label
+	DocBookTag  para
 End
 
 
@@ -78,6 +79,9 @@ Style Title
 	  Size		Largest
 	EndFont
 	HTMLTitle	true
+	DocBookTag      title
+	DocBookTagType  paragraph
+	DocBookInInfo   maybe
 End
 
 
@@ -146,6 +150,11 @@ Style Author
 	Font
 	  Size		Large
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -161,6 +170,12 @@ Style Address
 	Font
 	  Shape		Italic
 	EndFont
+	DocBookTag            address
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookWrapperMergeWithPrevious    true
+	DocBookInInfo         always
 End
 
 
@@ -171,6 +186,12 @@ Style Email
 	Font
 	  Shape		Up
 	EndFont
+	DocBookTag            email
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookWrapperMergeWithPrevious    true
+	DocBookInInfo         always
 End
 
 
@@ -200,6 +221,11 @@ Style Abstract
 	  Series	Bold
 	  Size		Large
 	EndFont
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 
@@ -216,9 +242,13 @@ Style Keywords
 	LabelType	Static
 	LabelString	"Keywords:"
 	LabelFont
-	  Color		Green
+	  Color		textlabel2
 	  Series	Bold
 	EndFont
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 
@@ -226,6 +256,16 @@ Style PACS
 	CopyStyle	Keywords
 	LatexName	pacs
 	LabelString	"Physics and Astronomy Classification System number:"
+	DocBookTag          subjectset
+	DocBookAttr         role='pacs'
+	DocBookTagType      block
+	DocBookItemWrapperTag      subject
+	DocBookItemWrapperTagType  paragraph
+	DocBookItemTag      subjectterm
+	DocBookItemTagType  inline
+	DocBookWrapperTag   NONE
+	DocBookWrapperAttr  ""
+	DocBookInInfo       always
 End
 
 
@@ -233,6 +273,16 @@ Style MSC
 	CopyStyle	Keywords
 	LatexName	ams
 	LabelString	"Mathematics Subject Classification number:"
+	DocBookTag          subjectset
+	DocBookAttr         role='msc'
+	DocBookTagType      block
+	DocBookItemWrapperTag      subject
+	DocBookItemWrapperTagType  paragraph
+	DocBookItemTag      subjectterm
+	DocBookItemTagType  inline
+	DocBookWrapperTag   NONE
+	DocBookWrapperAttr  ""
+	DocBookInInfo       always
 End
 
 
@@ -262,6 +312,9 @@ Style Acknowledgments
 	  Series	Bold
 	  Size		Normal
 	EndFont
+	# TODO: For IOP, this is rather a title than a paragraph style. But it's not in the TOC, so not much can be done.
+	DocBookTag  para
+	DocBookAttr role='acknowledgments'
 End
 
 
@@ -289,6 +342,16 @@ Style "Bibliography (plain)"
 	EndFont
 	TocLevel        1
 	IsTocCaption    0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
 End
 
 

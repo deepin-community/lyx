@@ -77,14 +77,14 @@ int const defaultSpace = 4;
 
 } // namespace
 
-InsetMathSpace::InsetMathSpace()
-	: space_(defaultSpace)
+InsetMathSpace::InsetMathSpace(Buffer * buf)
+	: InsetMath(buf), space_(defaultSpace)
 {
 }
 
 
-InsetMathSpace::InsetMathSpace(string const & name, string const & length)
-	: space_(defaultSpace)
+InsetMathSpace::InsetMathSpace(Buffer * buf, string const & name, string const & length)
+	: InsetMath(buf), space_(defaultSpace)
 {
 	for (int i = 0; i < nSpace; ++i)
 		if (space_info[i].name == name) {
@@ -101,8 +101,8 @@ InsetMathSpace::InsetMathSpace(string const & name, string const & length)
 }
 
 
-InsetMathSpace::InsetMathSpace(Length const & length, bool const prot)
-	: space_(defaultSpace), length_(length)
+InsetMathSpace::InsetMathSpace(Buffer * buf, Length const & length, bool const prot)
+	: InsetMath(buf), space_(defaultSpace), length_(length)
 {
 	for (int i = 0; i < nSpace; ++i)
 		if ((prot && space_info[i].name == "hspace*")
@@ -125,7 +125,7 @@ void InsetMathSpace::metrics(MetricsInfo & mi, Dimension & dim) const
 	dim.asc = 4;
 	dim.des = 0;
 	if (space_info[space_].custom)
-		dim.wid = abs(length_.inPixels(mi.base));
+		dim.wid = abs(mi.base.inPixels(length_));
 	else
 		dim.wid = space_info[space_].width;
 }
@@ -195,7 +195,7 @@ void InsetMathSpace::octave(OctaveStream & os) const
 }
 
 
-void InsetMathSpace::mathmlize(MathStream & ms) const
+void InsetMathSpace::mathmlize(MathMLStream & ms) const
 {
 	SpaceInfo const & si = space_info[space_];
 	if (si.negative || !si.visible)
@@ -203,16 +203,14 @@ void InsetMathSpace::mathmlize(MathStream & ms) const
 	string l;
 	if (si.custom)
 		l = length_.asHTMLString();
-	else if (si.kind != InsetSpaceParams::MEDIUM) {
-		stringstream ss;
-		ss << si.width;
-		l = ss.str() + "px";
-	}
+	else if (si.kind != InsetSpaceParams::MEDIUM)
+		l = to_string(si.width) + "px";
 
-	ms << "<mspace";
+	std::string attr;
 	if (!l.empty())
-		ms << " width=\"" << from_ascii(l) << "\"";
-	ms << " />";
+		attr = "width=\"" + l + "\"";
+
+	ms << CTag("mspace", attr);
 }
 
 
@@ -221,23 +219,23 @@ void InsetMathSpace::htmlize(HtmlStream & ms) const
 	SpaceInfo const & si = space_info[space_];
 	switch (si.kind) {
 	case InsetSpaceParams::THIN:
-		ms << from_ascii("&thinsp;");
+		ms << from_ascii("&#x202F;"); // HTML: &thinsp;
 		break;
 	case InsetSpaceParams::MEDIUM:
-		ms << from_ascii("&nbsp;");
+		ms << from_ascii("&#160;");
 		break;
 	case InsetSpaceParams::THICK:
-		ms << from_ascii("&emsp;");
+		ms << from_ascii("&#x2003;"); // HTML: &emsp;
 		break;
 	case InsetSpaceParams::ENSKIP:
 	case InsetSpaceParams::ENSPACE:
-		ms << from_ascii("&ensp;");
+		ms << from_ascii("&#x2002;"); // HTML: &ensp;
 		break;
 	case InsetSpaceParams::QUAD:
-		ms << from_ascii("&emsp;");
+		ms << from_ascii("&#x2003;"); // HTML: &emsp;
 		break;
 	case InsetSpaceParams::QQUAD:
-		ms << from_ascii("&emsp;&emsp;");
+		ms << from_ascii("&#x2003;&#x2003;"); // HTML: &emsp;&emsp;
 		break;
 	case InsetSpaceParams::HFILL:
 	case InsetSpaceParams::HFILL_PROTECTED:
@@ -247,12 +245,12 @@ void InsetMathSpace::htmlize(HtmlStream & ms) const
 	case InsetSpaceParams::CUSTOM_PROTECTED: {
 		string l = length_.asHTMLString();
 		ms << MTag("span", "width='" + l + "'")
-		   << from_ascii("&nbsp;") << ETag("span");
+		   << from_ascii("&#160;") << ETag("span");
 		break;
 	}
 	case InsetSpaceParams::NORMAL:
 	case InsetSpaceParams::PROTECTED:
-		ms << from_ascii("&nbsp;");
+		ms << from_ascii("&#160;");
 		break;
 	default:
 		break;
@@ -266,7 +264,7 @@ void InsetMathSpace::normalize(NormalStream & os) const
 }
 
 
-void InsetMathSpace::write(WriteStream & os) const
+void InsetMathSpace::write(TeXMathStream & os) const
 {
 	// All kinds work in text and math mode, so simply suspend
 	// writing a possibly pending mode closing brace.
@@ -319,9 +317,9 @@ void InsetMathSpace::doDispatch(Cursor & cur, FuncRequest & cmd)
 	switch (cmd.action()) {
 	case LFUN_INSET_MODIFY:
 		if (cmd.getArg(0) == "mathspace") {
-			MathData ar;
-			Buffer * buf = buffer_;
+			MathData ar(buffer_);
 			if (createInsetMath_fromDialogStr(cmd.argument(), ar)) {
+				Buffer * buf = buffer_;
 				cur.recordUndo();
 				*this = *ar[0].nucleus()->asSpaceInset();
 				buffer_ = buf;

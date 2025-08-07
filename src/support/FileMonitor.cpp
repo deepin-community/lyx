@@ -59,7 +59,7 @@ FileSystemWatcher::getGuard(FileName const & filename)
 //static
 FileMonitorPtr FileSystemWatcher::monitor(FileName const & filename)
 {
-	return make_unique<FileMonitor>(instance().getGuard(filename));
+	return lyx::make_unique<FileMonitor>(instance().getGuard(filename));
 }
 
 
@@ -67,7 +67,7 @@ FileMonitorPtr FileSystemWatcher::monitor(FileName const & filename)
 ActiveFileMonitorPtr FileSystemWatcher::activeMonitor(FileName const & filename,
                                                       int interval)
 {
-	return make_unique<ActiveFileMonitor>(instance().getGuard(filename),
+	return lyx::make_unique<ActiveFileMonitor>(instance().getGuard(filename),
 	                                      filename, interval);
 }
 
@@ -126,15 +126,7 @@ void FileMonitorGuard::refresh(bool const emit)
 	if (!qwatcher_->files().contains(qfilename)) {
 		bool const existed = exists_;
 		exists_ = QFile(qfilename).exists();
-#if (QT_VERSION >= 0x050000)
 		if (exists_ && !qwatcher_->addPath(qfilename))
-#else
-		auto add_path = [&]() {
-			qwatcher_->addPath(qfilename);
-			return qwatcher_->files().contains(qfilename);
-		};
-		if (exists_ && !add_path())
-#endif
 		{
 			LYXERR(Debug::FILES,
 			       "Could not add path to QFileSystemWatcher: " << filename_);
@@ -188,7 +180,7 @@ void FileMonitor::connectToFileMonitorGuard()
 }
 
 
-signals2::connection FileMonitor::connect(slot const & slot)
+connection FileMonitor::connect(slot const & slot)
 {
 	return fileChanged_.connect(slot);
 }

@@ -24,35 +24,35 @@ namespace lyx {
 class InsetMathNumber : public InsetMath {
 public:
 	///
-	explicit InsetMathNumber(docstring const & s);
+	explicit InsetMathNumber(Buffer * buf, docstring const & s);
 	///
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 	///
-	void draw(PainterInfo &, int x, int y) const;
+	void draw(PainterInfo &, int x, int y) const override;
 	///
 	docstring str() const { return str_; }
 	///
 	InsetMathNumber * asNumberInset() { return this; }
 
 	///
-	void normalize(NormalStream &) const;
+	void normalize(NormalStream &) const override;
 	///
-	void octave(OctaveStream &) const;
+	void octave(OctaveStream &) const override;
 	///
-	void maple(MapleStream &) const;
+	void maple(MapleStream &) const override;
 	///
-	void mathematica(MathematicaStream &) const;
+	void mathematica(MathematicaStream &) const override;
 	///
-	void mathmlize(MathStream &) const;
+	void mathmlize(MathMLStream &) const override;
 	///
-	void htmlize(HtmlStream &) const;
+	void htmlize(HtmlStream &) const override;
 	///
-	void write(WriteStream & os) const;
+	void write(TeXMathStream & os) const override;
 	///
-	InsetCode lyxCode() const { return MATH_NUMBER_CODE; }
+	InsetCode lyxCode() const override { return MATH_NUMBER_CODE; }
 
 private:
-	virtual Inset * clone() const;
+	Inset * clone() const override;
 	/// the number as string
 	docstring str_;
 };

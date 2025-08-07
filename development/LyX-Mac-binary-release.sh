@@ -47,7 +47,7 @@ LyXConfigureOptions="${LyXConfigureOptions} --disable-stdlib-debug"
 AspellConfigureOptions="--enable-warnings --enable-optimization=-O0 --enable-debug --disable-nls --enable-compile-in-filters --disable-pspell-compatibility"
 HunspellConfigureOptions="--with-warnings --disable-nls --disable-static"
 
-QtMajorVersion=qt4
+QtMajorVersion=$(echo "${QtVersion}"|cut -d. -f1)
 QtConfigureOptions="${QtConfigureOptions} -opensource -silent -shared -confirm-license"
 # stupid special case...
 case "${QtVersion}:${QtAPI}" in
@@ -63,7 +63,6 @@ case "${QtVersion}:${QtAPI}" in
 	QtConfigureOptions="${QtConfigureOptions} -fast -no-strip"
 	QtConfigureOptions="${QtConfigureOptions} -no-javascript-jit -no-pkg-config"
 	QtConfigureOptions="${QtConfigureOptions} -nomake examples -nomake demos -nomake docs -nomake tools"
-	QtMajorVersion=qt5
 	;;
 5.6*|5.7*)
 	QtConfigureOptions="${QtConfigureOptions} -no-strip"
@@ -73,7 +72,6 @@ case "${QtVersion}:${QtAPI}" in
 	QtConfigureOptions="${QtConfigureOptions} -skip qtquickcontrols"
 	QtConfigureOptions="${QtConfigureOptions} -skip qttools"
 	QtConfigureOptions="${QtConfigureOptions} -skip qtdeclarative"
-	QtMajorVersion=qt5
 	;;
 5.*)
 	QtConfigureOptions="${QtConfigureOptions} -no-strip"
@@ -82,7 +80,6 @@ case "${QtVersion}:${QtAPI}" in
 	for component in ${QtSkipComponents} ; do
 		QtConfigureOptions="${QtConfigureOptions} -skip ${component}"
 	done
-	QtMajorVersion=qt5
 	;;
 *)
 	QtConfigureOptions="${QtConfigureOptions} -fast -no-exceptions"
@@ -146,7 +143,6 @@ usage() {
 	echo " --aspell-deployment=yes|no ." default yes
 	echo " --with-qt-frameworks=yes|no." default no
 	echo " --qt-deployment=yes|no ....." default yes
-	echo " --with-macosx-target=TARGET " default 10.4 "(Tiger)"
 	echo " --with-sdkroot=SDKROOT ....." default 10.5 "(Leopard)"
 	echo " --with-arch=ARCH ..........." default ppc,i386
 	echo " --with-build-path=PATH ....." default \${lyx-src-dir}/../lyx-build
@@ -190,8 +186,9 @@ while [ $# -gt 0 ]; do
 		QTDIR=$(echo ${1}|cut -d= -f2)
 		shift
 		;;
-	--with-macosx-target=*)
+	--with-macos-deployment-target=*)
 		MACOSX_DEPLOYMENT_TARGET=$(echo ${1}|cut -d= -f2)
+		LyXConfigureOptions="${LyXConfigureOptions} ${1}"
 		shift
 		;;
 	--with-sdkroot=*)
@@ -268,9 +265,15 @@ while [ $# -gt 0 ]; do
 		aspell_deployment="no"
 		shift
 		;;
+	--with-included-hunspell)
+		LyXConfigureOptions="${LyXConfigureOptions} ${1}"
+		hunspell_deployment="no"
+		shift
+		;;
 	--without-hunspell)
 		LyXConfigureOptions="${LyXConfigureOptions} ${1}"
 		hunspell_deployment="no"
+		hunspell_dictionaries="no"
 		shift
 		;;
 	--only-qt*=*)
@@ -281,9 +284,8 @@ while [ $# -gt 0 ]; do
 		LyxOnlyPackage=$(echo ${1}|cut -d= -f2)
 		shift
 		;;
-	--enable-cxx11)
-		LyXConfigureOptions="${LyXConfigureOptions} ${1}"
-		EnableCXX11="--enable-cxx11"
+	--enable-cxx11|--enable-cxx-mode=*)
+		EnableCXXMode="${1}"
 		shift
 		;;
 	--*)
@@ -297,7 +299,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "${configure_qt_frameworks}" != "yes" ]; then
-	QtInstallDir=${QTDIR:-"/opt/qt4"}
+	QtInstallDir=${QTDIR}
 fi
 
 ARCH_LIST=${ARCH_LIST:-"ppc i386"}
@@ -329,10 +331,10 @@ QtBuildDir=${QtBuildDir:-"${LyxBuildDir}"/${QtBuildSubDir:-"qt-build"}}
 
 DictionarySourceDir=${DICTIONARYDIR:-$(dirname "${LyxSourceDir}")/dictionaries}
 DocumentationDir=$(dirname "${LyxSourceDir}")/Documents
-DmgBackground="${LyxSourceDir}"/development/MacOSX/dmg-background.png
+DmgBackground="${LyxSourceDir}"/development/MacOSX/dmg-background.tiff
 
 if [ -z "${LyXVersion}" ]; then
-	LyXVersion=$(grep AC_INIT "${LyxSourceDir}"/configure.ac | cut -d, -f2 | tr -d " ()")
+	LyXVersion=$(grep AC_INIT "${LyxSourceDir}"/configure.ac | cut -d, -f2 | tr -d " []()")
 fi
 LyXVersionSuffix=${LyXVersionSuffix:-$(echo "${LyXVersion}" | cut -d. -f1-2)}
 case "${LyXVersion}" in
@@ -360,13 +362,23 @@ case "${QtVersion}" in
 	QtLibraries=${QtLibraries:-"QtSvg QtXml QtPrintSupport QtWidgets QtGui QtNetwork QtConcurrent QtCore"}
 	QtFrameworkVersion="5"
 	;;
-5.12.*)
-	QtLibraries=${QtLibraries:-"QtDbus QtSvg QtXml QtPrintSupport QtMacExtras QtWidgets QtGui QtNetwork QtConcurrent QtCore"}
+5.1[2-5].*)
+	QtLibraries=${QtLibraries:-"QtDBus QtSvg QtXml QtPrintSupport QtMacExtras QtWidgets QtGui QtNetwork QtConcurrent QtCore"}
 	QtFrameworkVersion="5"
 	;;
 5*)
 	QtLibraries=${QtLibraries:-"QtSvg QtXml QtPrintSupport QtMacExtras QtWidgets QtGui QtNetwork QtConcurrent QtCore"}
 	QtFrameworkVersion="5"
+	;;
+6*)
+	QtLibraries=${QtLibraries:-"QtDBus QtSvg QtXml QtPrintSupport QtSvgWidgets QtWidgets QtGui QtNetwork QtConcurrent QtCore"}
+	QtFrameworkVersion="A"
+	case "${EnableCXXMode}" in
+	--enable-cxx11|--enable-cxx-mode=11)
+		echo Warning: Adjust cxx standard "${EnableCXXMode}" for Qt 6. C++17 or better is required.
+		EnableCXXMode="--enable-cxx-mode=17"
+		;;
+	esac
 	;;
 *)
 	QtLibraries=${QtLibraries:-"QtSvg QtXml QtGui QtNetwork QtCore"}
@@ -378,7 +390,7 @@ DMGNAME="${LyxBase}${LyXGitCommitHash:+-}${LyXGitCommitHash}"
 DMGSIZE="550m"
 
 # Check for existing SDKs
-SDKs=$(echo ${DEVELOPER_SDKS}/MacOSX10*sdk)
+SDKs=$(echo ${DEVELOPER_SDKS}/MacOSX1[01]*sdk)
 case $SDKs in
 *${SDKROOT}*)
 	;;
@@ -403,6 +415,22 @@ case $SDKs in
 	;;
 esac
 MYCFLAGS="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+MYLDFLAGS="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+
+case "${EnableCXXMode}" in
+--enable-cxx11|--enable-cxx-mode=11)
+	export CC=cc
+	export CXX="c++ -stdlib=libc++"
+	export CXXFLAGS=-std=c++11
+	LyXConfigureOptions="${LyXConfigureOptions} --enable-cxx-mode=11"
+	;;
+--enable-cxx-mode=17)
+	export CC=cc
+	export CXX="c++ -stdlib=libc++"
+	export CXXFLAGS=-std=c++17
+	LyXConfigureOptions="${LyXConfigureOptions} ${EnableCXXMode}"
+	;;
+esac
 
 build_qt() {
 	echo Build Qt library ${QtSourceDir}
@@ -418,16 +446,6 @@ build_qt() {
 		"${QtSourceDir}"/configure ${QtConfigureOptions} ${QTARCHS} -prefix "${QtInstallDir}"
 		make -j1 && make -j1 install
 	)
-	if [ -d "${QtInstallDir}" -a ! -f "${QtInstallDir}"/include/QtCore ]; then
-		cd "${QtInstallDir}" && (
-			mkdir -p include
-			cd include
-			for libnm in ${QtLibraries} ; do
-				test -d ${libnm} -o -L ${libnm} || \
-				( ln -s ../lib/${libnm}.framework/Headers ${libnm} && echo Link to framework ${libnm} )
-			done
-		)
-	fi
 }
 
 case ${QtOnlyPackage:-"no"} in
@@ -465,7 +483,7 @@ if [ -d "${LibMagicSourceDir}" -a ! -f "${LibMagicInstallHdr}" ]; then
 
 	for arch in ${ARCH_LIST} ; do
 		CPPFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYCFLAGS}"; export CPPFLAGS
-		LDFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYCFLAGS}"; export LDFLAGS
+		LDFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYLDFLAGS}"; export LDFLAGS
 		"${LibMagicSourceDir}/configure"\
 			--prefix="${LibMagicInstallDir}"\
 			${LibMagicConfigureOptions}
@@ -527,7 +545,7 @@ if [ -d "${HunSpellSourceDir}" -a ! -f "${HunSpellInstallHdr}" ]; then
 	for arch in ${ARCH_LIST} ; do
 		make distclean
 		CPPFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYCFLAGS}"; export CPPFLAGS
-		LDFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYCFLAGS}"; export LDFLAGS
+		LDFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYLDFLAGS}"; export LDFLAGS
 		"${HunSpellSourceDir}/configure"\
 			--prefix="${HunSpellInstallDir}"\
 			${HunspellConfigureOptions}
@@ -590,7 +608,7 @@ if [ -d "${ASpellSourceDir}" -a ! -f "${ASpellInstallHdr}" -a "yes" = "${aspell_
 	for arch in ${ARCH_LIST} ; do
 		make distclean
 		CPPFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYCFLAGS}"; export CPPFLAGS
-		LDFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYCFLAGS}"; export LDFLAGS
+		LDFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYLDFLAGS}"; export LDFLAGS
 		CXXFLAGS=-g "${ASpellSourceDir}/configure"\
 			--prefix="${ASpellInstallDir}"\
 			${AspellConfigureOptions}
@@ -643,14 +661,6 @@ build_lyx() {
 		rm -rf "${LyxAppPrefix}"
 	fi
 
-	case "${EnableCXX11}" in
-	"--enable-cxx11")
-		export CC=cc
-		export CXX="c++ -stdlib=libc++"
-		export CXXFLAGS=-std=c++11
-		;;
-	esac
-
 	# -------------------------------------
 	# Automate configure check
 	# -------------------------------------
@@ -689,8 +699,8 @@ build_lyx() {
 		if [ -d "${LyxBuildDir}" ];  then rm -r "${LyxBuildDir}"; fi
 		mkdir -p "${LyxBuildDir}" && cd "${LyxBuildDir}"
 
-		CPPFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYCFLAGS}"
-		LDFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch} ${MYCFLAGS}"
+		CPPFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch}"
+		LDFLAGS="${SDKROOT:+-isysroot ${SDKROOT}} -arch ${arch}"
 
 		if [ "$configure_qt_frameworks" = "yes" ]; then
 			export QT_CORE_CFLAGS="-FQtCore"
@@ -706,6 +716,7 @@ build_lyx() {
 		echo CPPFLAGS="${CPPFLAGS}"
 		export CPPFLAGS
 		echo CONFIGURE_OPTIONS="${LyXConfigureOptions}" ${QtInstallDir:+"--with-qt-dir=${QtInstallDir}"}
+		export PATH="${QtInstallDir}/libexec:$PATH"
 		"${LyxSourceDir}/configure"\
 			--prefix="${LyxAppPrefix}" --with-version-suffix="-${LyXVersionSuffix}"\
 			${QtInstallDir:+"--with-qt-dir=${QtInstallDir}"} \
@@ -792,41 +803,47 @@ EOF
 			cp -p "${libname}" "${condir}/PlugIns/${dirname}"
 		done
 	fi
+	echo Copy frameworks ${QtLibraries} ...
 	for libnm in ${QtLibraries} ; do
 		fwdir=$(framework_name "$libnm")
 		dirname=$(dirname "${fwdir}")
 		mkdir -p "${condir}/${dirname}"
 		dirname=$(basename "${fwdir}")
-		test -d "${condir}/${fwdir}" || (
-			echo Copy framework "${source}/lib/"$(basename "${fwdir}")
-			cp -pR "${source}/lib/"$(basename "${fwdir}") "${condir}/${fwdir}"
-			rm -f "${condir}/${fwdir}/${libnm}"_debug "${condir}/${fwdir}/${version}${libnm}"_debug
-			test -f "${condir}/${fwdir}/${libnm}".prl && mv "${condir}/${fwdir}/${libnm}".prl "${condir}/${fwdir}"/Resources
-			test -f "${condir}/${fwdir}/${libnm}"_debug.prl && mv "${condir}/${fwdir}/${libnm}"_debug.prl "${condir}/${fwdir}"/Resources
-			installname -id "@executable_path/../${fwdir}/${version}${libnm}" "${condir}/${fwdir}/${version}${libnm}"
-			find "${condir}/PlugIns" "${condir}/"$(dirname "${fwdir}") -name Headers -prune -o -type f -print | while read filename ; do
-				if [ "${filename}" != "${target}" ]; then
-					otool -L "${filename}" 2>/dev/null | sort -u | while read library ; do
-						# pattern match for: /path/to/qt/lib/QtGui.framework/Versions/4/QtGui (compatibility version 4.6.0, current version 4.6.2)
-						case "${library}" in
-						*@rpath/*"${libnm}"*"("*version*")"*)
-							echo rpath based name for ${libnm} is ok.
-							;;
-						*"${libnm}"*"("*version*")"*)
-							installname -change\
-								"${source}/lib/${dirname}/${version}${libnm}"\
-								"@executable_path/../${fwdir}/${version}${libnm}"\
-								"${filename}"
-							;;
-						esac
-					done
-				fi
-			done
-		)
-		installname -change\
-			"${source}/lib/${dirname}/${version}${libnm}"\
-			"@executable_path/../${fwdir}/${version}${libnm}"\
-			"${target}"
+		libpath="${source}/lib/${dirname}"
+		if [ -d "${libpath}" ]; then
+			test -d "${condir}/${fwdir}" || (
+				echo Copy framework "${libpath}"
+				cp -pR "${libpath}" "${condir}/${fwdir}"
+				rm -f "${condir}/${fwdir}/${libnm}"_debug "${condir}/${fwdir}/${version}${libnm}"_debug
+				test -f "${condir}/${fwdir}/${libnm}".prl && mv "${condir}/${fwdir}/${libnm}".prl "${condir}/${fwdir}"/Resources
+				test -f "${condir}/${fwdir}/${libnm}"_debug.prl && mv "${condir}/${fwdir}/${libnm}"_debug.prl "${condir}/${fwdir}"/Resources
+				installname -id "@executable_path/../${fwdir}/${version}${libnm}" "${condir}/${fwdir}/${version}${libnm}"
+				find "${condir}/PlugIns" "${condir}/"$(dirname "${fwdir}") -name Headers -prune -o -type f -print | while read filename ; do
+					if [ "${filename}" != "${target}" ]; then
+						otool -L "${filename}" 2>/dev/null | sort -u | while read library ; do
+							# pattern match for: /path/to/qt/lib/QtGui.framework/Versions/4/QtGui (compatibility version 4.6.0, current version 4.6.2)
+							case "${library}" in
+							*@rpath/*"${libnm}"*"("*version*")"*)
+								# echo rpath based name for ${libnm} is ok.
+								;;
+							*"${libnm}"*"("*version*")"*)
+								installname -change\
+									"${source}/lib/${dirname}/${version}${libnm}"\
+									"@executable_path/../${fwdir}/${version}${libnm}"\
+									"${filename}"
+								;;
+							esac
+						done
+					fi
+				done
+			)
+			installname -change\
+				"${source}/lib/${dirname}/${version}${libnm}"\
+				"@executable_path/../${fwdir}/${version}${libnm}"\
+				"${target}"
+		else
+			echo Warning: Cannot copy framework for "$libnm" ... missing source "${libpath}"
+		fi
 	done
 	if [ -d "${source}"/translations ]; then
 		if [ ! -d "${condir}/translations" ]; then
@@ -899,6 +916,8 @@ code_sign() {
 		"${condir}"/PlugIns/*/lib*.dylib \
 		"${condir}"/Library/Spotlight/* \
 		"${target}"/inkscape \
+		"${target}"/lilypond \
+		"${target}"/lilypond-book \
 		"${target}"/maxima \
 		"${target}"/tex2lyx \
 		"${target}"/lyxeditor \
@@ -943,12 +962,10 @@ copy_dictionaries() {
 		cp -p -r "${ASpellInstallDir}/lib/aspell-0.60"/* "${ASpellResources}"/data
 		cp -p -r "${ASpellInstallDir}/share/aspell"/* "${ASpellResources}"/dicts
 	fi
-	if [ -d "${HunSpellInstallDir}" -a "yes" = "${hunspell_dictionaries}" ]; then
+	if [ -d "${DictionarySourceDir}" -a "yes" = "${hunspell_dictionaries}" ]; then
 		HunSpellResources="${LyxAppPrefix}/Contents/Resources"
-		if [ -d "${DictionarySourceDir}" ]; then
-			( cd "${DictionarySourceDir}" && find dicts -name .svn -prune -o -type f -print | cpio -pmdv "${HunSpellResources}" )
-			deduplicate "${HunSpellResources}"/dicts
-		fi
+		( cd "${DictionarySourceDir}" && find dicts -name .svn -prune -o -type f -print | cpio -pmdv "${HunSpellResources}" )
+		deduplicate "${HunSpellResources}"/dicts
 	fi
 	if [ -d "${DictionarySourceDir}" -a "yes" = "${thesaurus_deployment}" ]; then
 		MyThesResources="${LyxAppPrefix}/Contents/Resources"
@@ -961,7 +978,7 @@ set_bundle_display_options() {
 	X_BOUNDS=$2
 	Y_BOUNDS=$3
 	Y_POSITION=$((Y_BOUNDS - 65))
-	Y_BOUNDS=$((Y_BOUNDS + 20))
+	Y_BOUNDS=$((Y_BOUNDS + 50))
 	LYX_X_POSITION=$((X_BOUNDS / 4))
 	LYX_Y_POSITION=$Y_POSITION
 	APP_X_POSITION=$((3 * X_BOUNDS / 4))
@@ -999,10 +1016,22 @@ set_bundle_display_options() {
 EOF
 }
 
+# The image was made with with inkscape and tiffutil from dmg-background.svgz
+make_image() {
+	INKSCAPE=/Applications/Inkscape.app/Contents/MacOS/inkscape
+	(
+		cd "${LyxSourceDir}"/development/MacOSX
+		test -x ${INKSCAPE} && ${INKSCAPE} --export-type=png -w 560 -o dmg-background.png dmg-background.svgz
+		test -x ${INKSCAPE} && ${INKSCAPE} --export-type=png -w 1120 -o dmg-background@2x.png dmg-background.svgz
+		tiffutil -cathidpicheck dmg-background.png dmg-background@2x.png -out dmg-background.tiff
+	)
+}
+
 make_dmg() {
 	cd "${1}"
 
-	BGSIZE=$(file "$DmgBackground" | awk -F , '/PNG/{print $2 }' | tr x ' ')
+	test -f "${DmgBackground}" || make_image
+	BGSIZE=$(file "$DmgBackground" | awk -F , '/TIFF/{ print $10 $4 ;}/PNG/{ print $2; }'|sed -e 's/width=//' -e 's/height=//' -e 's/x//')
 	BG_W=$(echo ${BGSIZE} | awk '{print $1 }')
 	BG_H=$(echo ${BGSIZE} | awk '{print $2 }')
 
@@ -1054,7 +1083,7 @@ build_package() {
 	for arch in ${ARCH_LIST} ; do
 		DMGARCH="${DMGARCH}-${arch}"
 	done
-	QtDmgArchSuffix=${QtMajorVersion}${DMGARCH}${QtAPI}.dmg
+	QtDmgArchSuffix="qt"${QtMajorVersion}${DMGARCH}${QtAPI}.dmg
 
 	test -n "${DMGLocation}" && (
 		make_dmg "${DMGLocation}"
@@ -1074,7 +1103,7 @@ if [ ${LyxOnlyPackage:-"no"} = "no" ]; then
 	build_lyx
 	convert_universal
 	copy_dictionaries
+	find "${LyxAppPrefix}" -type d -exec chmod go-w '{}' \;
 	test -n "${CODESIGN_IDENTITY}" && code_sign "${LYX_BUNDLE_PATH}"
-	find "${LyxAppPrefix}" -type d -exec chmod a-w '{}' \;
 fi
 build_package

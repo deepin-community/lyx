@@ -17,18 +17,20 @@
 #include "BufferView.h"
 #include "BranchList.h"
 #include "ColorSet.h"
-#include "Counters.h"
 #include "Cursor.h"
 #include "DispatchResult.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
+#include "Inset.h"
+#include "LaTeXFeatures.h"
 #include "Lexer.h"
 #include "LyX.h"
-#include "OutputParams.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
 #include "TextClass.h"
 #include "TocBackend.h"
 
+#include "support/convert.h"
 #include "support/debug.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
@@ -112,9 +114,23 @@ docstring const InsetBranch::buttonLabel(BufferView const &) const
 	if (inchild && master_selected != child_selected)
 		symb += (child_selected ? tick : cross);
 
-	if (decoration() == InsetLayout::MINIMALISTIC)
-		return symb + params_.branch;
+	docstring inv_symb = from_ascii(params_.inverted ? "~" : "");
 
+	if (decoration() == InsetDecoration::MINIMALISTIC)
+		return symb + inv_symb + params_.branch;
+
+	if (!buffer_) {
+		return symb + inv_symb + _("Branch (undefined): ")
+			+ params_.branch;
+	}
+	bool const has_layout =
+		buffer().params().documentClass().hasInsetLayout(layoutName());
+	if (has_layout) {
+		InsetLayout const & il = getLayout();
+		docstring const & label_string = il.labelstring();
+		if (!label_string.empty())
+			return symb + inv_symb + label_string;
+	}
 	docstring s;
 	if (inmaster && inchild)
 		s = _("Branch: ");
@@ -124,7 +140,7 @@ docstring const InsetBranch::buttonLabel(BufferView const &) const
 		s = _("Branch (master): ");
 	else // !inmaster && !inchild
 		s = _("Branch (undefined): ");
-	s += params_.branch;
+	s += inv_symb + params_.branch;
 
 	return symb + s;
 }
@@ -134,8 +150,16 @@ ColorCode InsetBranch::backgroundColor(PainterInfo const & pi) const
 {
 	if (params_.branch.empty())
 		return Inset::backgroundColor(pi);
+	string const branch_id = (buffer().masterParams().branchlist().find(params_.branch))
+			? convert<string>(buffer().masterParams().branchlist().id())
+			: convert<string>(buffer().params().branchlist().id());
 	// FIXME UNICODE
-	ColorCode c = lcolor.getFromLyXName(to_utf8(params_.branch));
+	string const branchcol = "branch" + branch_id + to_utf8(params_.branch);
+	ColorCode c = lcolor.getFromLyXName(branchcol);
+	// if we have background color, set to semantic value, as system colors
+	// might vary
+	if (lcolor.getX11HexName(c, (theApp() && theApp()->isInDarkMode())) == "background")
+		c = Color_background;
 	if (c == Color_none)
 		c = Color_error;
 	return c;
@@ -160,39 +184,9 @@ void InsetBranch::doDispatch(Cursor & cur, FuncRequest & cmd)
 	case LFUN_BRANCH_ACTIVATE:
 	case LFUN_BRANCH_DEACTIVATE:
 	case LFUN_BRANCH_MASTER_ACTIVATE:
-	case LFUN_BRANCH_MASTER_DEACTIVATE: {
-		bool const master = (cmd.action() == LFUN_BRANCH_MASTER_ACTIVATE
-				     || cmd.action() == LFUN_BRANCH_MASTER_DEACTIVATE);
-		Buffer * buf = master ? const_cast<Buffer *>(buffer().masterBuffer())
-				      : &buffer();
-
-		Branch * our_branch = buf->params().branchlist().find(params_.branch);
-		if (!our_branch)
-			break;
-
-		bool const activate = (cmd.action() == LFUN_BRANCH_ACTIVATE
-				       || cmd.action() == LFUN_BRANCH_MASTER_ACTIVATE);
-		if (our_branch->isSelected() != activate) {
-			// FIXME If the branch is in the master document, we cannot
-			// call recordUndo..., because the master may be hidden, and
-			// the code presently assumes that hidden documents can never
-			// be dirty. See GuiView::closeBufferAll(), for example.
-			// An option would be to check if the master is hidden.
-			// If it is, unhide.
-			if (!master)
-				buffer().undo().recordUndoBufferParams(cur);
-			else
-				// at least issue a warning for now (ugly, but better than dataloss).
-				frontend::Alert::warning(_("Branch state changes in master document"),
-				    lyx::support::bformat(_("The state of the branch '%1$s' "
-					"was changed in the master file. "
-					"Please make sure to save the master."), params_.branch), true);
-			our_branch->setSelected(activate);
-			// cur.forceBufferUpdate() is not enough
-			buf->updateBuffer();
-		}
+	case LFUN_BRANCH_MASTER_DEACTIVATE:
+		buffer().branchActivationDispatch(cmd.action(), params_.branch);
 		break;
-	}
 	case LFUN_BRANCH_INVERT:
 		cur.recordUndoInset(this);
 		params_.inverted = !params_.inverted;
@@ -203,9 +197,12 @@ void InsetBranch::doDispatch(Cursor & cur, FuncRequest & cmd)
 	case LFUN_BRANCH_ADD:
 		lyx::dispatch(FuncRequest(LFUN_BRANCH_ADD, params_.branch));
 		break;
+	case LFUN_BRANCH_SYNC_ALL:
+		lyx::dispatch(FuncRequest(LFUN_INSET_FORALL, "Branch:" + params_.branch + " inset-toggle assign"));
+		break;
 	case LFUN_INSET_TOGGLE:
 		if (cmd.argument() == "assign")
-			setStatus(cur, isBranchSelected() ? Open : Collapsed);
+			setStatus(cur, (isBranchSelected(true) != params_.inverted) ? Open : Collapsed);
 		else
 			InsetCollapsible::doDispatch(cur, cmd);
 		break;
@@ -229,7 +226,10 @@ bool InsetBranch::getStatus(Cursor & cur, FuncRequest const & cmd,
 		break;
 
 	case LFUN_BRANCH_ACTIVATE:
-		flag.setEnabled(known_branch && !isBranchSelected(true));
+	case LFUN_BRANCH_DEACTIVATE:
+	case LFUN_BRANCH_MASTER_ACTIVATE:
+	case LFUN_BRANCH_MASTER_DEACTIVATE:
+		flag.setEnabled(buffer().branchActivationEnabled(cmd.action(), params_.branch));
 		break;
 
 	case LFUN_BRANCH_INVERT:
@@ -241,18 +241,8 @@ bool InsetBranch::getStatus(Cursor & cur, FuncRequest const & cmd,
 		flag.setEnabled(!known_branch);
 		break;
 
-	case LFUN_BRANCH_DEACTIVATE:
-		flag.setEnabled(isBranchSelected(true));
-		break;
-
-	case LFUN_BRANCH_MASTER_ACTIVATE:
-		flag.setEnabled(buffer().parent()
-				&& buffer().masterBuffer()->params().branchlist().find(params_.branch)
-				&& !isBranchSelected());
-		break;
-
-	case LFUN_BRANCH_MASTER_DEACTIVATE:
-		flag.setEnabled(buffer().parent() && isBranchSelected());
+	case LFUN_BRANCH_SYNC_ALL:
+		flag.setEnabled(known_branch);
 		break;
 
 	case LFUN_INSET_TOGGLE:
@@ -293,7 +283,7 @@ bool InsetBranch::producesOutput() const
 
 void InsetBranch::latex(otexstream & os, OutputParams const & runparams) const
 {
-	if (producesOutput()) {
+	if (producesOutput() || runparams.find_with_non_output()) {
 		OutputParams rp = runparams;
 		rp.inbranch = true;
 		InsetText::latex(os, rp);
@@ -307,7 +297,7 @@ void InsetBranch::latex(otexstream & os, OutputParams const & runparams) const
 int InsetBranch::plaintext(odocstringstream & os,
 			   OutputParams const & runparams, size_t max_length) const
 {
-	if (!producesOutput())
+	if (!producesOutput() && !runparams.find_with_non_output())
 		return 0;
 
 	int len = InsetText::plaintext(os, runparams, max_length);
@@ -315,14 +305,18 @@ int InsetBranch::plaintext(odocstringstream & os,
 }
 
 
-int InsetBranch::docbook(odocstream & os,
-			 OutputParams const & runparams) const
+void InsetBranch::docbook(XMLStream & xs, OutputParams const & runparams) const
 {
-	return producesOutput() ?  InsetText::docbook(os, runparams) : 0;
+	if (producesOutput()) {
+		OutputParams rp = runparams;
+		rp.par_begin = 0;
+		rp.par_end = text().paragraphs().size();
+		docbookParagraphs(text(), buffer(), xs, rp);
+	}
 }
 
 
-docstring InsetBranch::xhtml(XHTMLStream & xs, OutputParams const & rp) const
+docstring InsetBranch::xhtml(XMLStream & xs, OutputParams const & rp) const
 {
 	if (producesOutput()) {
 		OutputParams newrp = rp;
@@ -351,7 +345,8 @@ void InsetBranch::forOutliner(docstring & os, size_t const maxlen,
 
 void InsetBranch::validate(LaTeXFeatures & features) const
 {
-	if (producesOutput())
+	// Showing previews in a disabled branch may require stuff
+	if (producesOutput() || features.runparams().for_preview)
 		InsetCollapsible::validate(features);
 }
 
@@ -360,6 +355,14 @@ string InsetBranch::contextMenuName() const
 {
 	return "context-branch";
 }
+
+
+docstring InsetBranch::layoutName() const
+{
+	docstring const name = support::subst(branch(), '_', ' ');
+	return from_ascii("Branch:") + name;
+}
+
 
 
 bool InsetBranch::isMacroScope() const
@@ -391,10 +394,10 @@ void InsetBranch::string2params(string const & in, InsetBranchParams & params)
 }
 
 
-void InsetBranch::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetBranch::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
 	setLabel(params_.branch + (params_.inverted ? " (-)" : ""));
-	InsetCollapsible::updateBuffer(it, utype);
+	InsetCollapsible::updateBuffer(it, utype, deleted);
 }
 
 

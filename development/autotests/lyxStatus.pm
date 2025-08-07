@@ -26,17 +26,18 @@ sub getFileType($);
 sub getFileIdx($);
 sub getExt($);
 sub getResult($);
-sub checkForHeader($);
+sub checkForHeader($$);
 sub checkForPreamble($);
 sub checkForLayoutStart($);
 sub checkForInsetStart($);
 sub checkForLatexCommand($);
-sub checkLyxLine($);
+sub checkLyxLine($$);
 
 my @stack = ();			# list of HASH-Arrays
 my $rFont = {};
 my $useNonTexFont = "true";
 my $inputEncoding = undef;
+my $sysdir = undef;
 
 # The elements are:
 # type (layout, inset, header, preamble, ...)
@@ -52,6 +53,8 @@ my $inputEncoding = undef;
 
 sub initLyxStack($$$)
 {
+  use Cwd 'abs_path';
+
   $rFont = $_[0];
   if ($_[1] eq "systemF") {
     $useNonTexFont = "true";
@@ -64,6 +67,11 @@ sub initLyxStack($$$)
     $inputEncoding = $_[2];
   }
   $stack[0] = { type => "Starting"};
+  my $p = abs_path( __FILE__ );
+  $p =~ s/\/development\/autotests\/.*$/\/lib/;
+  # Save the value to be used as replacement for systemlyxdir in \origin statements
+  $sysdir = $p;
+  # print "Sysdir set to $sysdir\n";
 }
 
 sub diestack($)
@@ -193,9 +201,9 @@ sub getResult($)
   return($m->{"result"});
 }
 
-sub checkForHeader($)
+sub checkForHeader($$)
 {
-  my ($l) = @_;
+  my ($l, $sourcedir) = @_;
 
   if ($l =~ /^\\begin_header\s*$/) {
     my %selem = ();
@@ -235,6 +243,14 @@ sub checkForHeader($)
 			      "result" => ["\\inputencoding " . $inputEncoding->{out}]);
       push(@rElems, $inputenc);
     }
+    my $origin = newMatch("search" => qr/^\\origin\s+(\/systemlyxdir)(.*)$/,
+                          "filetype" => "replace_only",
+                          "result" => ["\\origin $sysdir", "2"]);
+    push(@rElems, $origin);
+    my $originu = newMatch("search" => qr/^\\origin\s+unavailable/,
+                          "filetype" => "replace_only",
+                          "result" => ["\\origin $sourcedir"]);
+    push(@rElems, $originu);
     setMatching(\@rElems);
     return(1);
   }
@@ -276,7 +292,8 @@ sub checkForLayoutStart($)
     $selem{name} = $1;
     unshift(@stack, \%selem);
     if ($selem{name} =~ /^(Picture|Photo)$/ ) {
-      my $rElem = newMatch("ext" => [".eps", ".png"],
+      my $rElem = newMatch("ext" => [".eps", ".png", ""],
+                            "filetype" => "copy_only",
 			    "search" => qr/^(.+)/,
 			    "result" => ["", "", ""]);
       setMatching([$rElem]);
@@ -318,7 +335,7 @@ sub checkForLatexCommand($)
 	if ($param eq "bibtex") {
 	  my $rElem1 = newMatch("ext" => ".bib",
 				 "filetype" => "prefix_for_list",
-				 "search" => qr/^bibfiles\s+\"(.+)\"/,
+				 "search" => qr/^bibfiles\s+\"([^\"]+)\"/,
 				 "result" => ["bibfiles \"", "1", "\""]);
 	  my $rElem2 = newMatch("ext" => ".bst",
 				 "filetype" => "prefix_for_list",
@@ -356,11 +373,11 @@ sub checkForLatexCommand($)
 #    separator: to be used while concatenating the filenames
 #    filetype: prefix_only,replace_only,copy_only,interpret
 #              same as before, but without 'prefix_for_list'
-sub checkLyxLine($)
+sub checkLyxLine($$)
 {
-  my ($l) = @_;
+  my ($l, $sourcedir) = @_;
 
-  return({"found" => 0}) if (checkForHeader($l));
+  return({"found" => 0}) if (checkForHeader($l, $sourcedir));
   return({"found" => 0}) if (checkForPreamble($l));
   return({"found" => 0}) if (checkForEndBlock($l));
   return({"found" => 0}) if (checkForLayoutStart($l));

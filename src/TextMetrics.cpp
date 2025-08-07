@@ -20,34 +20,32 @@
 #include "TextMetrics.h"
 
 #include "Buffer.h"
-#include "buffer_funcs.h"
 #include "BufferParams.h"
 #include "BufferView.h"
 #include "CoordCache.h"
 #include "Cursor.h"
 #include "CutAndPaste.h"
-#include "InsetList.h"
-#include "Language.h"
 #include "Layout.h"
 #include "LyXRC.h"
 #include "MetricsInfo.h"
 #include "ParagraphParameters.h"
 #include "RowPainter.h"
+#include "Session.h"
 #include "Text.h"
 #include "TextClass.h"
 #include "VSpace.h"
 
+#include "insets/InsetSeparator.h"
 #include "insets/InsetText.h"
 
-#include "mathed/InsetMathMacroTemplate.h"
+#include "mathed/MacroTable.h"
 
 #include "frontends/FontMetrics.h"
-#include "frontends/Painter.h"
 #include "frontends/NullPainter.h"
 
-#include "support/convert.h"
 #include "support/debug.h"
 #include "support/lassert.h"
+#include "support/Changer.h"
 
 #include <stdlib.h>
 #include <cmath>
@@ -109,14 +107,9 @@ int numberOfHfills(Row const & row, ParagraphMetrics const & pm,
 
 
 TextMetrics::TextMetrics(BufferView * bv, Text * text)
-	: bv_(bv), text_(text)
-{
-	LBUFERR(bv_);
-	max_width_ = bv_->workWidth();
-	dim_.wid = max_width_;
-	dim_.asc = 10;
-	dim_.des = 10;
-}
+	: bv_(bv), text_(text), dim_(bv_->workWidth(), 10, 10),
+	  max_width_(dim_.wid), tight_(false)
+{}
 
 
 bool TextMetrics::contains(pit_type pit) const
@@ -125,11 +118,10 @@ bool TextMetrics::contains(pit_type pit) const
 }
 
 
-ParagraphMetrics const & TextMetrics::parMetrics(pit_type pit) const
+void TextMetrics::forget(pit_type pit)
 {
-	return const_cast<TextMetrics *>(this)->parMetrics(pit, true);
+	par_metrics_.erase(pit);
 }
-
 
 
 pair<pit_type, ParagraphMetrics const *> TextMetrics::first() const
@@ -147,6 +139,30 @@ pair<pit_type, ParagraphMetrics const *> TextMetrics::last() const
 }
 
 
+bool TextMetrics::isLastRow(Row const & row) const
+{
+	ParagraphList const & pars = text_->paragraphs();
+	return row.endpos() >= pars[row.pit()].size()
+		&& row.pit() + 1 == pit_type(pars.size());
+}
+
+
+bool TextMetrics::isFirstRow(Row const & row) const
+{
+	return row.pos() == 0 && row.pit() == 0;
+}
+
+
+void TextMetrics::setRowChanged(pit_type pit, pos_type pos)
+{
+	for (auto & pm_pair : par_metrics_)
+		if (pm_pair.first == pit)
+			for (Row & row : pm_pair.second.rows())
+				if (row.pos() == pos)
+					row.changed(true);
+}
+
+
 ParagraphMetrics & TextMetrics::parMetrics(pit_type pit, bool redo)
 {
 	ParMetricsCache::iterator pmc_it = par_metrics_.find(pit);
@@ -160,17 +176,112 @@ ParagraphMetrics & TextMetrics::parMetrics(pit_type pit, bool redo)
 }
 
 
-bool TextMetrics::metrics(MetricsInfo & mi, Dimension & dim, int min_width)
+ParagraphMetrics const & TextMetrics::parMetrics(pit_type pit) const
+{
+	return const_cast<TextMetrics *>(this)->parMetrics(pit, true);
+}
+
+
+ParagraphMetrics & TextMetrics::parMetrics(pit_type pit)
+{
+	return parMetrics(pit, true);
+}
+
+
+void TextMetrics::newParMetricsDown()
+{
+	pair<pit_type, ParagraphMetrics> const & last = *par_metrics_.rbegin();
+	pit_type const pit = last.first + 1;
+	if (pit == int(text_->paragraphs().size()))
+		return;
+
+	// do it and update its position.
+	redoParagraph(pit);
+	par_metrics_[pit].setPosition(last.second.bottom() + par_metrics_[pit].ascent());
+	updatePosCache(pit);
+}
+
+
+void TextMetrics::newParMetricsUp()
+{
+	pair<pit_type, ParagraphMetrics> const & first = *par_metrics_.begin();
+	if (first.first == 0)
+		return;
+
+	pit_type const pit = first.first - 1;
+	// do it and update its position.
+	redoParagraph(pit);
+	par_metrics_[pit].setPosition(first.second.top() - par_metrics_[pit].descent());
+	updatePosCache(pit);
+}
+
+
+void TextMetrics::updateMetrics(pit_type const anchor_pit, int const anchor_ypos,
+                                int const bv_height)
+{
+	LASSERT(text_->isMainText(), return);
+
+	// Forget existing positions
+	for (auto & pm_pair : par_metrics_)
+		pm_pair.second.resetPosition();
+
+	if (!contains(anchor_pit))
+		// Rebreak anchor paragraph.
+		redoParagraph(anchor_pit);
+	ParagraphMetrics & anchor_pm = parMetrics(anchor_pit);
+	anchor_pm.setPosition(anchor_ypos);
+
+	// Redo paragraphs above anchor if necessary.
+	int y1 = anchor_ypos - anchor_pm.ascent();
+	// We are now just above the anchor paragraph.
+	pit_type pit1 = anchor_pit - 1;
+	for (; pit1 >= 0 && y1 > 0; --pit1) {
+		if (!contains(pit1))
+			redoParagraph(pit1);
+		ParagraphMetrics & pm = parMetrics(pit1);
+		y1 -= pm.descent();
+		// Save the paragraph position in the cache.
+		pm.setPosition(y1);
+		y1 -= pm.ascent();
+	}
+
+	// Redo paragraphs below the anchor if necessary.
+	int y2 = anchor_ypos + anchor_pm.descent();
+	// We are now just below the anchor paragraph.
+	pit_type pit2 = anchor_pit + 1;
+	pit_type const npit = pit_type(text_->paragraphs().size());
+	for (; pit2 < npit && y2 < bv_height; ++pit2) {
+		if (!contains(pit2))
+			redoParagraph(pit2);
+		ParagraphMetrics & pm = parMetrics(pit2);
+		y2 += pm.ascent();
+		// Save the paragraph position in the cache.
+		pm.setPosition(y2);
+		y2 += pm.descent();
+	}
+
+	LYXERR(Debug::PAINTING, "TextMetrics::updateMetrics "
+		<< " anchor pit = " << anchor_pit
+		<< " anchor ypos = " << anchor_ypos
+		<< " y1 = " << y1
+		<< " y2 = " << y2
+		<< " pit1 = " << pit1
+		<< " pit2 = " << pit2);
+}
+
+
+bool TextMetrics::metrics(MetricsInfo const & mi, Dimension & dim, int min_width)
 {
 	LBUFERR(mi.base.textwidth > 0);
 	max_width_ = mi.base.textwidth;
+	tight_ = mi.tight_insets;
 	// backup old dimension.
 	Dimension const old_dim = dim_;
 	// reset dimension.
 	dim_ = Dimension();
 	dim_.wid = min_width;
 	pit_type const npar = text_->paragraphs().size();
-	if (npar > 1)
+	if (npar > 1 && !tight_)
 		// If there is more than one row, expand the text to
 		// the full allowable width.
 		dim_.wid = max_width_;
@@ -179,13 +290,21 @@ bool TextMetrics::metrics(MetricsInfo & mi, Dimension & dim, int min_width)
 	//	<< " maxWidth: " << max_width_ << "\nfont: " << mi.base.font << endl;
 
 	bool changed = false;
-	unsigned int h = 0;
+	int h = 0;
 	for (pit_type pit = 0; pit != npar; ++pit) {
-		changed |= redoParagraph(pit);
+		// create rows, but do not set alignment yet
+		changed |= redoParagraph(pit, false);
 		ParagraphMetrics const & pm = par_metrics_[pit];
 		h += pm.height();
 		if (dim_.wid < pm.width())
 			dim_.wid = pm.width();
+	}
+
+	// Now set alignment for all rows (the width might not have been known before).
+	for (pit_type pit = 0; pit != npar; ++pit) {
+		ParagraphMetrics & pm = par_metrics_[pit];
+		for (Row & row : pm.rows())
+			setRowAlignment(row, dim_.wid);
 	}
 
 	dim_.asc = par_metrics_[0].ascent();
@@ -228,55 +347,64 @@ void TextMetrics::applyOuterFont(Font & font) const
 }
 
 
+// This is an arbitrary magic value
+static const pos_type force_label = -12345;
+
+// if pos == force_label, this function will return the label font instead.
+// This undocumented and only for use by labelDisplayFont()
 Font TextMetrics::displayFont(pit_type pit, pos_type pos) const
 {
-	LASSERT(pos >= 0, { static Font f; return f; });
+	LASSERT(pos >= 0 || pos == force_label, { static Font f; return f; });
 
 	ParagraphList const & pars = text_->paragraphs();
 	Paragraph const & par = pars[pit];
 	Layout const & layout = par.layout();
 	Buffer const & buffer = bv_->buffer();
 	// FIXME: broken?
-	BufferParams const & params = buffer.params();
-	pos_type const body_pos = par.beginOfBody();
+	BufferParams const & bparams = buffer.params();
+	bool const label = pos < par.beginOfBody() || pos == force_label;
+
+	Font f = (pos == force_label) ? Font(inherit_font, bparams.language)
+	                              : par.getFontSettings(bparams, pos);
+	FontInfo const & lf = label ? layout.labelfont : layout.font;
 
 	// We specialize the 95% common case:
 	if (!par.getDepth()) {
-		Font f = par.getFontSettings(params, pos);
 		if (!text_->isMainText())
 			applyOuterFont(f);
-		bool lab = layout.labeltype == LABEL_MANUAL && pos < body_pos;
 
-		FontInfo const & lf = lab ? layout.labelfont : layout.font;
-		FontInfo rlf = lab ? layout.reslabelfont : layout.resfont;
+		FontInfo rlf = label ? layout.reslabelfont : layout.resfont;
 
 		// In case the default family has been customized
 		if (lf.family() == INHERIT_FAMILY)
-			rlf.setFamily(params.getFont().fontInfo().family());
+			rlf.setFamily(bparams.getFont().fontInfo().family());
 		f.fontInfo().realize(rlf);
 		return f;
 	}
 
-	// The uncommon case need not be optimized as much
-	FontInfo const & layoutfont = pos < body_pos ?
-		layout.labelfont : layout.font;
-
-	Font font = par.getFontSettings(params, pos);
-	font.fontInfo().realize(layoutfont);
+	// The uncommon case need not be optimized as much.
+	// FIXME : the two code paths seem different in function.
+	f.fontInfo().realize(lf);
 
 	if (!text_->isMainText())
-		applyOuterFont(font);
+		applyOuterFont(f);
 
 	// Realize against environment font information
 	// NOTE: the cast to pit_type should be removed when pit_type
 	// changes to a unsigned integer.
 	if (pit < pit_type(pars.size()))
-		font.fontInfo().realize(text_->outerFont(pit).fontInfo());
+		f.fontInfo().realize(text_->outerFont(pit).fontInfo());
 
 	// Realize with the fonts of lesser depth.
-	font.fontInfo().realize(params.getFont().fontInfo());
+	f.fontInfo().realize(bparams.getFont().fontInfo());
 
-	return font;
+	return f;
+}
+
+
+Font TextMetrics::labelDisplayFont(pit_type pit) const
+{
+	return displayFont(pit, force_label);
 }
 
 
@@ -318,13 +446,13 @@ bool TextMetrics::isRTLBoundary(pit_type pit, pos_type pos,
 	    || !contains(pit))
 		return false;
 
-	ParagraphMetrics & pm = par_metrics_[pit];
+	ParagraphMetrics const & pm = par_metrics_[pit];
 	// no RTL boundary in empty paragraph
 	if (pm.rows().empty())
 		return false;
 
-	pos_type endpos = pm.getRow(pos - 1, false).endpos();
-	pos_type startpos = pm.getRow(pos, false).pos();
+	pos_type const endpos = pm.getRow(pos - 1, false).endpos();
+	pos_type const startpos = pm.getRow(pos, false).pos();
 	// no RTL boundary at line start:
 	// abc\n   -> toggle to RTL ->    abc\n     (and not:    abc\n|
 	// |                              |                               )
@@ -342,7 +470,7 @@ bool TextMetrics::isRTLBoundary(pit_type pit, pos_type pos,
 			|| par.isSeparator(pos - 1)))
 		return false;
 
-	bool left = font.isVisibleRightToLeft();
+	bool const left = font.isVisibleRightToLeft();
 	bool right;
 	if (pos == par.size())
 		right = par.isRTL(bv_->buffer().params());
@@ -353,7 +481,7 @@ bool TextMetrics::isRTLBoundary(pit_type pit, pos_type pos,
 }
 
 
-bool TextMetrics::redoParagraph(pit_type const pit)
+bool TextMetrics::redoParagraph(pit_type const pit, bool const align_rows)
 {
 	Paragraph & par = text_->getPar(pit);
 	// IMPORTANT NOTE: We pass 'false' explicitly in order to not call
@@ -374,7 +502,7 @@ bool TextMetrics::redoParagraph(pit_type const pit)
 	// environment? I think the answer is: when paragraphs are merged;
 	// when layout is set; when material is pasted.
 	if (par.brokenBiblio()) {
-		Cursor & cur = const_cast<Cursor &>(bv_->cursor());
+		Cursor & cur = bv_->cursor();
 		// In some cases, we do not know how to record undo
 		if (&cur.inset() == &text_->inset())
 			cur.recordUndo(pit, pit);
@@ -415,28 +543,28 @@ bool TextMetrics::redoParagraph(pit_type const pit)
 	par.setBeginOfBody();
 	Font const bufferfont = buffer.params().getFont();
 	CoordCache::Insets & insetCache = bv_->coordCache().insets();
-	InsetList::const_iterator ii = par.insetList().begin();
-	InsetList::const_iterator iend = par.insetList().end();
-	for (; ii != iend; ++ii) {
+	map <Inset const *, int> extrawidths;
+	for (auto const & e : par.insetList()) {
 		// FIXME Doesn't this HAVE to be non-empty?
 		// position already initialized?
 		if (!parPos.empty()) {
-			parPos.pos() = ii->pos;
+			parPos.pos() = e.pos;
 
 			// A macro template would normally not be visible
 			// by itself. But the tex macro semantics allow
 			// recursion, so we artifically take the context
 			// after the macro template to simulate this.
-			if (ii->inset->lyxCode() == MATHMACRO_CODE)
+			if (e.inset->lyxCode() == MATHMACRO_CODE)
 				parPos.pos()++;
 		}
 
 		// If there is an end of paragraph marker, its size should be
 		// substracted to the available width. The logic here is
-		// almost the same as in breakRow, remember keep them in sync.
+		// almost the same as in tokenizeParagraph, remember keep them in sync.
 		int eop = 0;
-		if (lyxrc.paragraph_markers && ii->pos + 1 == par.size()
-		    && size_type(pit + 1) < text_->paragraphs().size()) {
+		if (e.pos + 1 == par.size()
+		      && (lyxrc.paragraph_markers || par.lookupChange(par.size()).changed())
+		      && size_type(pit + 1) < text_->paragraphs().size()) {
 			Font f(text_->layoutFont(pit));
 			// ¶ U+00B6 PILCROW SIGN
 			eop = theFontMetrics(f).width(char_type(0x00B6));
@@ -444,90 +572,109 @@ bool TextMetrics::redoParagraph(pit_type const pit)
 
 		// do the metric calculation
 		Dimension dim;
-		int const w = max_width_ - leftMargin(pit, ii->pos)
+		int const w = max_width_ - leftMargin(pit, e.pos)
 			- right_margin - eop;
-		Font const & font = ii->inset->inheritFont() ?
-			displayFont(pit, ii->pos) : bufferfont;
+		Font const & font = e.inset->inheritFont() ?
+			displayFont(pit, e.pos) : bufferfont;
 		MacroContext mc(&buffer, parPos);
-		MetricsInfo mi(bv_, font.fontInfo(), w, mc);
-		ii->inset->metrics(mi, dim);
-		if (!insetCache.has(ii->inset) || insetCache.dim(ii->inset) != dim) {
-			insetCache.add(ii->inset, dim);
+		MetricsInfo mi(bv_, font.fontInfo(), w, mc, e.pos == 0, tight_);
+		mi.base.outer_font = displayFont(pit, e.pos).fontInfo();
+		e.inset->metrics(mi, dim);
+		/* FIXME: This is a hack. This allows InsetMathHull to state
+		 * that it needs some elbow room beyond its width, in order to
+		 * fit the numbering and/or the left margin (with left
+		 * alignment), which are outside of the inset itself.
+		 *
+		 * To this end, InsetMathHull::metrics() sets a value in
+		 * MetricsInfo::extrawidth and this value is added later to
+		 * the width of the row that contains the inset (when this row
+		 * is tight or shorter than the max allowed width).
+		 *
+		 * See ticket #12320 for details.
+		*/
+		extrawidths[e.inset] = mi.extrawidth;
+
+		if (!insetCache.has(e.inset) || insetCache.dim(e.inset) != dim) {
+			insetCache.add(e.inset, dim);
 			changed = true;
 		}
 	}
 
-	pos_type first = 0;
-	size_t row_index = 0;
-	bool need_new_row = false;
-	// maximum pixel width of a row
-	do {
-		if (row_index == pm.rows().size())
-			pm.rows().push_back(Row());
-		Row & row = pm.rows()[row_index];
-		row.pit(pit);
-		row.pos(first);
-		row.pit(pit);
-		need_new_row = breakRow(row, right_margin);
+	// Transform the paragraph into a single row containing all the elements.
+	Row const bigrow = tokenizeParagraph(pit);
+	// Split the row in several rows fitting in available width
+	pm.rows() = breakParagraph(bigrow);
+
+	// Add the needed extra width to the rows that contain the insets that request it
+	for (Row & row : pm.rows())
+		for (Row::Element & e : row)
+			if (e.type == Row::INSET && (row.width() < max_width_ || tight_))
+				row.dim().wid += extrawidths[e.inset];
+
+	/* If there is more than one row, expand the text to the full
+	 * allowable width. This setting here is needed for the
+	 * setRowAlignment() below. We do nothing when tight insets are
+	 * requested.
+	 */
+	if (pm.rows().size() > 1 && !tight_ && dim_.wid < max_width_)
+			dim_.wid = max_width_;
+
+	// Compute height and alignment of the rows.
+	for (Row & row : pm.rows()) {
 		setRowHeight(row);
-		row.changed(true);
-		if (row_index || row.endpos() < par.size()
-		    || (row.right_boundary() && par.inInset().lyxCode() != CELL_CODE)) {
-			/* If there is more than one row or the row has been
-			 * broken by a display inset or a newline, expand the text
-			 * to the full allowable width. This setting here is
-			 * needed for the computeRowMetrics() below. In the case
-			 * of a display inset, we do nothing when inside a table
-			 * cell, because the tabular code is not prepared for
-			 * that, and it triggers when using a caption in a
-			 * longtable (see bugs #9945 and #9757).
-			 */
-			if (dim_.wid < max_width_)
-				dim_.wid = max_width_;
-		}
-		int const max_row_width = max(dim_.wid, row.width());
-		computeRowMetrics(row, max_row_width);
-		first = row.endpos();
-		++row_index;
+		if (align_rows)
+			setRowAlignment(row, max(dim_.wid, row.width()));
 
-		pm.dim().wid = max(pm.dim().wid, row.width());
+		pm.dim().wid = max(pm.dim().wid, row.width() + row.right_margin);
 		pm.dim().des += row.height();
-	} while (first < par.size() || need_new_row);
+	}
 
-	if (row_index < pm.rows().size())
-		pm.rows().resize(row_index);
-
-	// FIXME: It might be better to move this in another method
-	// specially tailored for the main text.
-	// Top and bottom margin of the document (only at top-level)
-	if (text_->isMainText()) {
-		// original value was 20px, which is 0.2in at 100dpi
-		int const margin = Length(0.2, Length::IN).inPixels(0);
-		if (pit == 0) {
-			pm.rows().front().dimension().asc += margin;
-			/* coverity thinks that we should update pm.dim().asc
-			 * below, but all the rows heights are actually counted as
-			 * part of the paragraph metric descent see loop above).
-			 */
-			// coverity[copy_paste_error]
-			pm.dim().des += margin;
+	// This type of margin can only be handled at the global paragraph level
+	if (par.layout().margintype == MARGIN_RIGHT_ADDRESS_BOX) {
+		int offset = 0;
+		if (par.isRTL(buffer.params())) {
+			// globally align the paragraph to the left.
+			int minleft = max_width_;
+			for (Row const & row : pm.rows())
+				minleft = min(minleft, row.left_margin);
+			offset = right_margin - minleft;
+		} else {
+			// globally align the paragraph to the right.
+			int maxwid = 0;
+			for (Row const & row : pm.rows())
+				maxwid = max(maxwid, row.width());
+			offset = max_width_ - right_margin - maxwid;
 		}
-		ParagraphList const & pars = text_->paragraphs();
-		if (pit + 1 == pit_type(pars.size())) {
-			pm.rows().back().dimension().des += margin;
-			pm.dim().des += margin;
+
+		for (Row & row : pm.rows()) {
+			row.left_margin += offset;
+			row.dim().wid += offset;
 		}
 	}
 
 	// The space above and below the paragraph.
-	int const top = parTopSpacing(pit);
-	pm.rows().front().dimension().asc += top;
-	int const bottom = parBottomSpacing(pit);
-	pm.rows().back().dimension().des += bottom;
+	int top = parTopSpacing(pit);
+	int bottom = parBottomSpacing(pit);
+
+	// Top and bottom margin of the document (only at top-level)
+	// FIXME: It might be better to move this in another method
+	// specially tailored for the main text.
+	if (text_->isMainText()) {
+		if (pit == 0)
+			top += bv_->topMargin();
+		if (pit + 1 == pit_type(text_->paragraphs().size())) {
+			bottom += bv_->bottomMargin();
+		}
+	}
+
+	// Add the top/bottom space to rows and paragraph metrics
+	pm.rows().front().dim().asc += top;
+	pm.rows().back().dim().des += bottom;
 	pm.dim().des += top + bottom;
 
-	pm.dim().asc += pm.rows()[0].ascent();
-	pm.dim().des -= pm.rows()[0].ascent();
+	// Move the pm ascent to be the same as the first row ascent
+	pm.dim().asc += pm.rows().front().ascent();
+	pm.dim().des -= pm.rows().front().ascent();
 
 	changed |= old_dim.height() != pm.dim().height();
 
@@ -562,19 +709,13 @@ LyXAlignment TextMetrics::getAlign(Paragraph const & par, Row const & row) const
 
 	// Display-style insets should always be on a centered row
 	if (Inset const * inset = par.getInset(row.pos())) {
-		switch (inset->display()) {
-		case Inset::AlignLeft:
-			align = LYX_ALIGN_BLOCK;
-			break;
-		case Inset::AlignCenter:
-			align = LYX_ALIGN_CENTER;
-			break;
-		case Inset::Inline:
-			// unchanged (use align)
-			break;
-		case Inset::AlignRight:
-			align = LYX_ALIGN_RIGHT;
-			break;
+		if (inset->rowFlags() & Display) {
+			if (inset->rowFlags() & AlignLeft)
+				align = LYX_ALIGN_LEFT;
+			else if (inset->rowFlags() & AlignRight)
+				align = LYX_ALIGN_RIGHT;
+			else
+				align = LYX_ALIGN_CENTER;
 		}
 	}
 
@@ -593,7 +734,7 @@ LyXAlignment TextMetrics::getAlign(Paragraph const & par, Row const & row) const
 }
 
 
-void TextMetrics::computeRowMetrics(Row & row, int width) const
+void TextMetrics::setRowAlignment(Row & row, int width) const
 {
 	row.label_hfill = 0;
 	row.separator = 0;
@@ -626,7 +767,7 @@ void TextMetrics::computeRowMetrics(Row & row, int width) const
 	}
 
 	// are there any hfills in the row?
-	ParagraphMetrics & pm = par_metrics_[row.pit()];
+	ParagraphMetrics const & pm = par_metrics_[row.pit()];
 	int nh = numberOfHfills(row, pm, par.beginOfBody());
 	int hfill = 0;
 	int hfill_rem = 0;
@@ -634,7 +775,7 @@ void TextMetrics::computeRowMetrics(Row & row, int width) const
 	// We don't have to look at the alignment if the row is already
 	// larger then the permitted width as then we force the
 	// LEFT_ALIGN'edness!
-	if (int(row.width()) >= max_width_)
+	if (row.width() >= max_width_)
 		return;
 
 	if (nh == 0) {
@@ -646,28 +787,28 @@ void TextMetrics::computeRowMetrics(Row & row, int width) const
 			if (!row.setExtraWidth(w) && row.isRTL()) {
 				// Justification failed and the text is RTL: align to the right
 				row.left_margin += w;
-				row.dimension().wid += w;
+				row.dim().wid += w;
 			}
 			break;
 		case LYX_ALIGN_LEFT:
 			// a displayed inset that is flushed
 			if (Inset const * inset = par.getInset(row.pos())) {
 				row.left_margin += inset->indent(*bv_);
-				row.dimension().wid += inset->indent(*bv_);
+				row.dim().wid += inset->indent(*bv_);
 			}
 			break;
 		case LYX_ALIGN_RIGHT:
 			if (Inset const * inset = par.getInset(row.pos())) {
 				int const new_w = max(w - inset->indent(*bv_), 0);
 				row.left_margin += new_w;
-				row.dimension().wid += new_w;
+				row.dim().wid += new_w;
 			} else {
 				row.left_margin += w;
-				row.dimension().wid += w;
+				row.dim().wid += w;
 			}
 			break;
 		case LYX_ALIGN_CENTER:
-			row.dimension().wid += w / 2;
+			row.dim().wid += w / 2;
 			row.left_margin += w / 2;
 			break;
 		case LYX_ALIGN_NONE:
@@ -682,7 +823,7 @@ void TextMetrics::computeRowMetrics(Row & row, int width) const
 	// Case nh > 0. There are hfill separators.
 	hfill = w / nh;
 	hfill_rem = w % nh;
-	row.dimension().wid += w;
+	row.dim().wid += w;
 	// Set size of hfill insets
 	pos_type const endpos = row.endpos();
 	pos_type body_pos = par.beginOfBody();
@@ -691,22 +832,20 @@ void TextMetrics::computeRowMetrics(Row & row, int width) const
 		body_pos = 0;
 
 	CoordCache::Insets & insetCache = bv_->coordCache().insets();
-	Row::iterator cit = row.begin();
-	Row::iterator const cend = row.end();
-	for ( ; cit != cend; ++cit) {
-		if (row.label_hfill && cit->endpos == body_pos
-		    && cit->type == Row::SPACE)
-			cit->dim.wid -= int(row.label_hfill * (nlh - 1));
-		if (cit->inset && pm.hfillExpansion(row, cit->pos)) {
-			if (cit->pos >= body_pos) {
-				cit->dim.wid += hfill;
+	for (Row::Element & e : row) {
+		if (row.label_hfill && e.endpos == body_pos
+		    && e.type == Row::SPACE)
+			e.dim.wid -= int(row.label_hfill * (nlh - 1));
+		if (e.inset && pm.hfillExpansion(row, e.pos)) {
+			if (e.pos >= body_pos) {
+				e.dim.wid += hfill;
 				--nh;
 				if (nh == 0)
-					cit->dim.wid += hfill_rem;
+					e.dim.wid += hfill_rem;
 			} else
-				cit->dim.wid += int(row.label_hfill);
+				e.dim.wid += int(row.label_hfill);
 			// Cache the inset dimension.
-			insetCache.add(cit->inset, cit->dim);
+			insetCache.add(e.inset, e.dim);
 		}
 	}
 }
@@ -718,13 +857,12 @@ int TextMetrics::labelFill(Row const & row) const
 	LBUFERR(par.beginOfBody() > 0 || par.isEnvSeparator(0));
 
 	int w = 0;
-	Row::const_iterator cit = row.begin();
-	Row::const_iterator const end = row.end();
 	// iterate over elements before main body (except the last one,
 	// which is extra space).
-	while (cit!= end && cit->endpos < par.beginOfBody()) {
-		w += cit->dim.wid;
-		++cit;
+	for (Row::Element const & e : row) {
+		if (e.endpos >= par.beginOfBody())
+			break;
+		w += e.dim.wid;
 	}
 
 	docstring const & label = par.params().labelWidthString();
@@ -737,31 +875,6 @@ int TextMetrics::labelFill(Row const & row) const
 	return max(0, fm.width(label) - w);
 }
 
-
-#if 0
-// Not used, see TextMetrics::breakRow
-// this needs special handling - only newlines count as a break point
-static pos_type addressBreakPoint(pos_type i, Paragraph const & par)
-{
-	pos_type const end = par.size();
-
-	for (; i < end; ++i)
-		if (par.isNewline(i))
-			return i + 1;
-
-	return end;
-}
-#endif
-
-
-int TextMetrics::labelEnd(pit_type const pit) const
-{
-	// labelEnd is only needed if the layout fills a flushleft label.
-	if (text_->getPar(pit).layout().margintype != MARGIN_MANUAL)
-		return 0;
-	// return the beginning of the body
-	return leftMargin(pit);
-}
 
 namespace {
 
@@ -821,50 +934,47 @@ private:
 
 } // namespace
 
-/** This is the function where the hard work is done. The code here is
- * very sensitive to small changes :) Note that part of the
- * intelligence is also in Row::shortenIfNeeded.
- */
-bool TextMetrics::breakRow(Row & row, int const right_margin) const
+
+Row TextMetrics::tokenizeParagraph(pit_type const pit) const
 {
-	Paragraph const & par = text_->getPar(row.pit());
+	Row row;
+	row.pit(pit);
+	Paragraph const & par = text_->getPar(pit);
+	Buffer const & buf = text_->inset().buffer();
+	BookmarksSection::BookmarkPosList bpl =
+		theSession().bookmarks().bookmarksInPar(buf.fileName(), par.id());
+
 	pos_type const end = par.size();
-	pos_type const pos = row.pos();
 	pos_type const body_pos = par.beginOfBody();
-	bool const is_rtl = text_->isRTL(par);
-	bool need_new_row = false;
-
-	row.clear();
-	row.left_margin = leftMargin(row.pit(), pos);
-	row.right_margin = right_margin;
-	row.needsChangeBar(false);
-	if (is_rtl)
-		swap(row.left_margin, row.right_margin);
-	// Remember that the row width takes into account the left_margin
-	// but not the right_margin.
-	row.dimension().wid = row.left_margin;
-	// the width available for the row.
-	int const width = max_width_ - row.right_margin;
-
-#if 0
-	//FIXME: As long as leftMargin() is not correctly implemented for
-	// MARGIN_RIGHT_ADDRESS_BOX, we should also not do this here.
-	// Otherwise, long rows will be painted off the screen.
-	if (par.layout().margintype == MARGIN_RIGHT_ADDRESS_BOX)
-		return addressBreakPoint(pos, par);
-#endif
 
 	// check for possible inline completion
 	DocIterator const & ic_it = bv_->inlineCompletionPos();
 	pos_type ic_pos = -1;
-	if (ic_it.inTexted() && ic_it.text() == text_ && ic_it.pit() == row.pit())
+	if (ic_it.inTexted() && ic_it.text() == text_ && ic_it.pit() == pit)
 		ic_pos = ic_it.pos();
 
 	// Now we iterate through until we reach the right margin
 	// or the end of the par, then build a representation of the row.
-	pos_type i = pos;
-	FontIterator fi = FontIterator(*this, par, row.pit(), pos);
-	while (i < end && (i == pos || row.width() <= width)) {
+	pos_type i = 0;
+	FontIterator fi = FontIterator(*this, par, pit, 0);
+	// The real stopping condition is a few lines below.
+	while (true) {
+		// Firstly, check whether there is a bookmark here.
+		if (lyxrc.bookmarks_visibility == LyXRC::BMK_INLINE)
+			for (auto const & bp_p : bpl)
+				if (bp_p.second == i) {
+					Font f = *fi;
+					f.fontInfo().setColor(Color_bookmark);
+					// ❶ U+2776 DINGBAT NEGATIVE CIRCLED DIGIT ONE
+					char_type const ch = 0x2775 + bp_p.first;
+					row.addVirtual(i, docstring(1, ch), f, Change());
+				}
+
+		// The stopping condition is here so that the display of a
+		// bookmark can take place at paragraph start too.
+		if (i >= end)
+			break;
+
 		char_type c = par.getChar(i);
 		// The most special cases are handled first.
 		if (par.isInset(i)) {
@@ -872,26 +982,22 @@ bool TextMetrics::breakRow(Row & row, int const right_margin) const
 			Dimension dim = bv_->coordCache().insets().dim(ins);
 			row.add(i, ins, dim, *fi, par.lookupChange(i));
 		} else if (c == ' ' && i + 1 == body_pos) {
-			// There is a space at i, but it should not be
-			// added as a separator, because it is just
-			// before body_pos. Instead, insert some spacing to
-			// align text
+			// This space is an \item separator. Represent it with a
+			// special space element, which dimension will be computed
+			// in breakRow.
 			FontMetrics const & fm = theFontMetrics(text_->labelFont(par));
-			// this is needed to make sure that the row width is correct
-			row.finalizeLast();
-			int const add = max(fm.width(par.layout().labelsep),
-			                    labelEnd(row.pit()) - row.width());
-			row.addSpace(i, add, *fi, par.lookupChange(i));
+			int const wid = fm.width(par.layout().labelsep);
+			row.addMarginSpace(i, wid, *fi, par.lookupChange(i));
 		} else if (c == '\t')
 			row.addSpace(i, theFontMetrics(*fi).width(from_ascii("    ")),
-				     *fi, par.lookupChange(i));
+			             *fi, par.lookupChange(i));
 		else if (c == 0x2028 || c == 0x2029) {
 			/**
 			 * U+2028 LINE SEPARATOR
 			 * U+2029 PARAGRAPH SEPARATOR
 
 			 * These are special unicode characters that break
-			 * lines/pragraphs. Not handling them lead to trouble wrt
+			 * lines/pragraphs. Not handling them leads to trouble wrt
 			 * Qt QTextLayout formatting. We add a visible character
 			 * on screen so that the user can see that something is
 			 * happening.
@@ -901,17 +1007,9 @@ bool TextMetrics::breakRow(Row & row, int const right_margin) const
 			// ¶ U+00B6 PILCROW SIGN
 			char_type const screen_char = (c == 0x2028) ? 0x2936 : 0x00B6;
 			row.add(i, screen_char, *fi, par.lookupChange(i));
-		} else {
-			// FIXME: please someone fix the Hebrew/Arabic parenthesis mess!
-			// see also Paragraph::getUChar.
-			if (fi->language()->lang() == "hebrew") {
-				if (c == '(')
-					c = ')';
-				else if (c == ')')
-					c = '(';
-			}
+		} else
+			// row elements before body are unbreakable
 			row.add(i, c, *fi, par.lookupChange(i));
-		}
 
 		// add inline completion width
 		// draw logically behind the previous character
@@ -928,68 +1026,227 @@ bool TextMetrics::breakRow(Row & row, int const right_margin) const
 			row.addVirtual(i + 1, comp.substr(uniqueTo), f, Change());
 		}
 
-		// Handle some situations that abruptly terminate the row
-		// - A newline inset
-		// - Before a display inset
-		// - After a display inset
-		Inset const * inset = 0;
-		if (par.isNewline(i) || par.isEnvSeparator(i)
-		    || (i + 1 < end && (inset = par.getInset(i + 1))
-			&& inset->display())
-		    || (!row.empty() && row.back().inset
-			&& row.back().inset->display())) {
-			row.flushed(true);
-			need_new_row = par.isNewline(i);
-			++i;
-			break;
-		}
-
 		++i;
 		++fi;
 	}
 	row.finalizeLast();
-	row.endpos(i);
+	row.endpos(end);
 
-	// End of paragraph marker. The logic here is almost the
+	// End of paragraph marker, either if LyXRc requires it, or there
+	// is an end of paragraph change. The logic here is almost the
 	// same as in redoParagraph, remember keep them in sync.
 	ParagraphList const & pars = text_->paragraphs();
-	if (lyxrc.paragraph_markers && !need_new_row
-	    && i == end && size_type(row.pit() + 1) < pars.size()) {
+	Change const & endchange = par.lookupChange(end);
+	if (endchange.changed())
+		row.needsChangeBar(true);
+	if ((lyxrc.paragraph_markers || endchange.changed())
+	    && size_type(pit + 1) < pars.size()) {
 		// add a virtual element for the end-of-paragraph
 		// marker; it is shown on screen, but does not exist
 		// in the paragraph.
-		Font f(text_->layoutFont(row.pit()));
+		Font f(text_->layoutFont(pit));
 		f.fontInfo().setColor(Color_paragraphmarker);
-		BufferParams const & bparams
-			= text_->inset().buffer().params();
-		f.setLanguage(par.getParLanguage(bparams));
+		f.setLanguage(par.getParLanguage(buf.params()));
 		// ¶ U+00B6 PILCROW SIGN
-		row.addVirtual(end, docstring(1, char_type(0x00B6)), f, Change());
+		row.addVirtual(end, docstring(1, char_type(0x00B6)), f, endchange);
 	}
 
-	// Is there a end-of-paragaph change?
-	if (i == end && par.lookupChange(end).changed() && !need_new_row)
-		row.needsChangeBar(true);
-
-	// if the row is too large, try to cut at last separator. In case
-	// of success, reset indication that the row was broken abruptly.
-	int const next_width = max_width_ - leftMargin(row.pit(), row.endpos())
-		- rightMargin(row.pit());
-
-	if (row.shortenIfNeeded(body_pos, width, next_width))
-		row.flushed(false);
-	row.right_boundary(!row.empty() && row.endpos() < end
-	                   && row.back().endpos == row.endpos());
-	// Last row in paragraph is flushed
-	if (row.endpos() == end)
-		row.flushed(true);
-
-	// make sure that the RTL elements are in reverse ordering
-	row.reverseRTL(is_rtl);
-	//LYXERR0("breakrow: row is " << row);
-
-	return need_new_row;
+	return row;
 }
+
+
+namespace {
+
+/** Helper template flexible_const_iterator<T>
+ * A way to iterate over a const container, but insert fake elements in it.
+ * In the case of a row, we will have to break some elements, which
+ * create new ones. This class allows to abstract this.
+ * Only the required parts are implemented for now.
+ */
+template<class T>
+class flexible_const_iterator {
+	typedef typename T::value_type value_type;
+public:
+
+	//
+	flexible_const_iterator & operator++() {
+		if (pile_.empty())
+			++cit_;
+		else
+			pile_.pop_back();
+		return *this;
+	}
+
+	value_type operator*() const { return pile_.empty() ? *cit_ : pile_.back(); }
+
+	value_type const * operator->() const { return pile_.empty() ? &*cit_ : &pile_.back(); }
+
+	void put(value_type const & e) { pile_.push_back(e); }
+
+	// Put a sequence of elements on the pile (in reverse order!)
+	void put(vector<value_type> const & elts) {
+		pile_.insert(pile_.end(), elts.rbegin(), elts.rend());
+	}
+
+// This should be private, but declaring the friend functions is too much work
+//private:
+	typename T::const_iterator cit_;
+	// A vector that is used as like a pile to store the elements to
+	// consider before incrementing the underlying iterator.
+	vector<value_type> pile_;
+};
+
+
+template<class T>
+flexible_const_iterator<T> flexible_begin(T const & t)
+{
+	return { t.begin(), vector<typename T::value_type>() };
+}
+
+
+template<class T>
+flexible_const_iterator<T> flexible_end(T const & t)
+{
+	return { t.end(), vector<typename T::value_type>() };
+}
+
+
+// Equality is only possible if respective piles are empty
+template<class T>
+bool operator==(flexible_const_iterator<T> const & t1,
+                flexible_const_iterator<T> const & t2)
+{
+	return t1.cit_ == t2.cit_ && t1.pile_.empty() && t2.pile_.empty();
+}
+
+
+Row newRow(TextMetrics const & tm, pit_type pit, pos_type pos, bool is_rtl)
+{
+	Row nrow;
+	nrow.pit(pit);
+	nrow.pos(pos);
+	nrow.left_margin = tm.leftMargin(pit, pos);
+	nrow.right_margin = tm.rightMargin(pit);
+	nrow.setRTL(is_rtl);
+	if (is_rtl)
+		swap(nrow.left_margin, nrow.right_margin);
+	// Remember that the row width takes into account the left_margin
+	// but not the right_margin.
+	nrow.dim().wid = nrow.left_margin;
+	return nrow;
+}
+
+
+void cleanupRow(Row & row, bool at_end)
+{
+	if (row.empty()) {
+		row.endpos(row.pos());
+		return;
+	}
+
+	row.endpos(row.back().endpos);
+	// remove trailing spaces on row break
+	if (!at_end && !row.flushed())
+		row.back().rtrim();
+	// boundary exists when there was no space at the end of row
+	row.end_boundary(!at_end && row.back().endpos == row.endpos());
+	// make sure that the RTL elements are in reverse ordering
+	row.reverseRTL();
+}
+
+
+// Implement the priorities described in RowFlags.h.
+bool needsRowBreak(int f1, int f2)
+{
+	if (f1 & AlwaysBreakAfter /*|| f2 & AlwaysBreakBefore*/)
+		return true;
+	if (f1 & NoBreakAfter || f2 & NoBreakBefore)
+		return false;
+	if (f1 & BreakAfter || f2 & BreakBefore)
+		return true;
+	return false;
+}
+
+
+}
+
+
+RowList TextMetrics::breakParagraph(Row const & bigrow) const
+{
+	RowList rows;
+	bool const is_rtl = text_->isRTL(bigrow.pit());
+	bool const end_label = text_->getEndLabel(bigrow.pit()) != END_LABEL_NO_LABEL;
+	int const next_width = max_width_ - leftMargin(bigrow.pit(), bigrow.endpos())
+		- rightMargin(bigrow.pit());
+
+	int width = 0;
+	flexible_const_iterator<Row> fcit = flexible_begin(bigrow);
+	flexible_const_iterator<Row> const end = flexible_end(bigrow);
+	while (true) {
+		bool const row_empty = rows.empty() || rows.back().empty();
+		// The row flags of previous element, if there is one.
+		// Otherwise we use NoBreakAfter to avoid an empty row before
+		// e.g. a displayed equation.
+		int const f1 = row_empty ? NoBreakAfter : rows.back().back().row_flags;
+		// The row flags of next element, if there is one.
+		// Otherwise we use NoBreakBefore (see above), unless the
+		// paragraph has an end label (for which an empty row is OK).
+		int const f2 = (fcit == end) ? (end_label ? Inline : NoBreakBefore)
+		                             : fcit->row_flags;
+		if (rows.empty() || needsRowBreak(f1, f2)) {
+			if (!rows.empty()) {
+				// Flush row as requested by row flags
+				rows.back().flushed((f1 & Flush) || (f2 & FlushBefore));
+				cleanupRow(rows.back(), false);
+			}
+			pos_type pos = rows.empty() ? 0 : rows.back().endpos();
+			rows.push_back(newRow(*this, bigrow.pit(), pos, is_rtl));
+			// the width available for the row.
+			width = max_width_ - rows.back().right_margin;
+		}
+
+		// The stopping condition is here because we may need a new
+		// empty row at the end.
+		if (fcit == end)
+			break;
+
+		// Next element to consider is either the top of the temporary
+		// pile, or the place when we were in main row
+		Row::Element elt = *fcit;
+		Row::Elements tail;
+		elt.splitAt(width - rows.back().width(), next_width, Row::FIT, tail);
+		Row & rb = rows.back();
+		if (elt.type == Row::MARGINSPACE)
+			elt.dim.wid = max(elt.dim.wid, leftMargin(bigrow.pit()) - rb.width());
+		rb.push_back(elt);
+		rb.finalizeLast();
+		if (rb.width() > width) {
+			// Keep the tail for later; this ought to be rare, but play safe.
+			if (!tail.empty())
+				fcit.put(tail);
+			// if the row is too large, try to cut at last separator.
+			tail = rb.shortenIfNeeded(width, next_width);
+		}
+
+		// Go to next element
+		++fcit;
+
+		// Handle later the elements returned by splitAt or shortenIfNeeded.
+		fcit.put(tail);
+	}
+
+	if (!rows.empty()) {
+		// Last row in paragraph is flushed
+		rows.back().flushed(true);
+		cleanupRow(rows.back(), true);
+		// Is there an end-of-paragraph change?
+		if (bigrow.needsChangeBar())
+			rows.back().needsChangeBar(true);
+	}
+
+	return rows;
+}
+
 
 int TextMetrics::parTopSpacing(pit_type const pit) const
 {
@@ -1040,7 +1297,10 @@ int TextMetrics::parTopSpacing(pit_type const pit) const
 	    && prevpar.getLabelWidthString() == par.getLabelWidthString()) {
 		layoutasc = layout.itemsep * dh;
 	} else if (pit != 0 && layout.topsep > 0)
-		layoutasc = layout.topsep * dh;
+		// combine the separation between different layouts (with same depth)
+		layoutasc = max(0.0,
+			prevpar.getDepth() != par.getDepth() ? layout.topsep
+			: layout.topsep - prevpar.layout().bottomsep) * dh;
 
 	asc += int(layoutasc * 2 / (2 + pars[pit].getDepth()));
 
@@ -1048,8 +1308,8 @@ int TextMetrics::parTopSpacing(pit_type const pit) const
 	if (prev != pit_type(pars.size())) {
 		asc += int(pars[prev].layout().parsep * dh);
 	} else if (pit != 0) {
-		Paragraph const & prevpar = pars[pit - 1];
-		if (prevpar.getDepth() != 0 || prevpar.layout() == layout)
+		Paragraph const & prevpar2 = pars[pit - 1];
+		if (prevpar2.getDepth() != 0 || prevpar2.layout() == layout)
 			asc += int(layout.parsep * dh);
 	}
 
@@ -1093,25 +1353,52 @@ void TextMetrics::setRowHeight(Row & row) const
 {
 	Paragraph const & par = text_->getPar(row.pit());
 	Layout const & layout = par.layout();
-	double const spacing_val = layout.spacing.getValue() * text_->spacing(par);
+	// leading space (line spacing) factor based on current paragraph
+	double spacing_val = layout.spacing.getValue() * text_->spacing(par);
+
+	// if this is the first row but not the first paragraph, take into
+	// account the spacing of the previous paragraph.
+	if (row.pos() == 0 && row.pit() > 0) {
+		// for the first row in the paragraph,
+		// use previous paragraphs line spacing if it is larger
+		Paragraph const & previousPar = text_->getPar(row.pit() - 1);
+		Layout const & previousLayout = previousPar.layout();
+		// leading space factor based on previous paragraph
+		double const previous_spacing_val
+			= previousLayout.spacing.getValue() * text_->spacing(previousPar);
+		if (previous_spacing_val > spacing_val)
+			spacing_val = previous_spacing_val;
+	}
 
 	// Initial value for ascent (useful if row is empty).
 	Font const font = displayFont(row.pit(), row.pos());
 	FontMetrics const & fm = theFontMetrics(font);
-	int maxasc = int(fm.maxAscent() * spacing_val);
-	int maxdes = int(fm.maxDescent() * spacing_val);
+	int maxasc = int(fm.maxAscent()
+		// add leading space
+		+ fm.maxHeight() * (spacing_val - 1));
+	int maxdes = int(fm.maxDescent());
+
+	// Take label string into account (useful if labelfont is large)
+	if (row.pos() == 0 && layout.labelIsInline()) {
+		FontInfo const labelfont = text_->labelFont(par);
+		FontMetrics const & lfm = theFontMetrics(labelfont);
+		maxasc = max(maxasc, int(lfm.maxAscent()
+			// add leading space
+			+ lfm.maxHeight() * (spacing_val - 1)));
+		maxdes = max(maxdes, int(lfm.maxDescent()));
+	}
 
 	// Find the ascent/descent of the row contents
-	Row::const_iterator cit = row.begin();
-	Row::const_iterator cend = row.end();
-	for ( ; cit != cend; ++cit) {
-		if (cit->inset) {
-			maxasc = max(maxasc, cit->dim.ascent());
-			maxdes = max(maxdes, cit->dim.descent());
+	for (Row::Element const & e : row) {
+		if (e.inset) {
+			maxasc = max(maxasc, e.dim.ascent());
+			maxdes = max(maxdes, e.dim.descent());
 		} else {
-			FontMetrics const & fm = theFontMetrics(cit->font);
-			maxasc = max(maxasc, int(fm.maxAscent() * spacing_val));
-			maxdes = max(maxdes, int(fm.maxDescent() * spacing_val));
+			FontMetrics const & fm2 = theFontMetrics(e.font);
+			maxasc = max(maxasc, int(fm2.maxAscent()
+				// add leading space
+				+ fm2.maxHeight() * (spacing_val - 1)));
+			maxdes = max(maxdes, int(fm2.maxDescent()));
 		}
 	}
 
@@ -1119,8 +1406,11 @@ void TextMetrics::setRowHeight(Row & row) const
 	++maxasc;
 	++maxdes;
 
-	row.dimension().asc = maxasc;
-	row.dimension().des = maxdes;
+	row.dim().asc = maxasc;
+	row.dim().des = maxdes;
+
+	// This is useful for selections
+	row.contents_dim() = row.dim();
 }
 
 
@@ -1194,7 +1484,7 @@ pos_type TextMetrics::getPosNearX(Row const & row, int & x,
 		              || inset->lyxCode() == SEPARATOR_CODE))
 			pos = row.back().pos;
 		else
-			boundary = row.right_boundary();
+			boundary = row.end_boundary();
 	}
 
 	x += xo - offset;
@@ -1219,41 +1509,12 @@ pos_type TextMetrics::x2pos(pit_type pit, int row, int x) const
 }
 
 
-void TextMetrics::newParMetricsDown()
-{
-	pair<pit_type, ParagraphMetrics> const & last = *par_metrics_.rbegin();
-	pit_type const pit = last.first + 1;
-	if (pit == int(text_->paragraphs().size()))
-		return;
-
-	// do it and update its position.
-	redoParagraph(pit);
-	par_metrics_[pit].setPosition(last.second.position()
-		+ last.second.descent() + par_metrics_[pit].ascent());
-	updatePosCache(pit);
-}
-
-
-void TextMetrics::newParMetricsUp()
-{
-	pair<pit_type, ParagraphMetrics> const & first = *par_metrics_.begin();
-	if (first.first == 0)
-		return;
-
-	pit_type const pit = first.first - 1;
-	// do it and update its position.
-	redoParagraph(pit);
-	par_metrics_[pit].setPosition(first.second.position()
-		- first.second.ascent() - par_metrics_[pit].descent());
-	updatePosCache(pit);
-}
-
 // y is screen coordinate
 pit_type TextMetrics::getPitNearY(int y)
 {
 	LASSERT(!text_->paragraphs().empty(), return -1);
 	LASSERT(!par_metrics_.empty(), return -1);
-	LYXERR(Debug::DEBUG, "y: " << y << " cache size: " << par_metrics_.size());
+	LYXERR(Debug::PAINTING, "y: " << y << " cache size: " << par_metrics_.size());
 
 	// look for highest numbered paragraph with y coordinate less than given y
 	pit_type pit = -1;
@@ -1263,9 +1524,7 @@ pit_type TextMetrics::getPitNearY(int y)
 	ParMetricsCache::const_iterator last = et;
 	--last;
 
-	ParagraphMetrics const & pm = it->second;
-
-	if (y < it->second.position() - int(pm.ascent())) {
+	if (y < it->second.top()) {
 		// We are looking for a position that is before the first paragraph in
 		// the cache (which is in priciple off-screen, that is before the
 		// visible part.
@@ -1278,9 +1537,7 @@ pit_type TextMetrics::getPitNearY(int y)
 		return pit;
 	}
 
-	ParagraphMetrics const & pm_last = par_metrics_[last->first];
-
-	if (y >= last->second.position() + int(pm_last.descent())) {
+	if (y >= par_metrics_[last->first].bottom()) {
 		// We are looking for a position that is after the last paragraph in
 		// the cache (which is in priciple off-screen), that is before the
 		// visible part.
@@ -1294,18 +1551,16 @@ pit_type TextMetrics::getPitNearY(int y)
 	}
 
 	for (; it != et; ++it) {
-		LYXERR(Debug::DEBUG, "examining: pit: " << it->first
+		LYXERR(Debug::PAINTING, "examining: pit: " << it->first
 			<< " y: " << it->second.position());
 
-		ParagraphMetrics const & pm = par_metrics_[it->first];
-
-		if (it->first >= pit && int(it->second.position()) - int(pm.ascent()) <= y) {
+		if (it->first >= pit && it->second.top() <= y) {
 			pit = it->first;
 			yy = it->second.position();
 		}
 	}
 
-	LYXERR(Debug::DEBUG, "found best y: " << yy << " for pit: " << pit);
+	LYXERR(Debug::PAINTING, "found best y: " << yy << " for pit: " << pit);
 
 	return pit;
 }
@@ -1316,7 +1571,7 @@ Row const & TextMetrics::getPitAndRowNearY(int & y, pit_type & pit,
 {
 	ParagraphMetrics const & pm = par_metrics_[pit];
 
-	int yy = pm.position() - pm.ascent();
+	int yy = pm.top();
 	LBUFERR(!pm.rows().empty());
 	RowList::const_iterator rit = pm.rows().begin();
 	RowList::const_iterator rlast = pm.rows().end();
@@ -1370,9 +1625,9 @@ Inset * TextMetrics::editXY(Cursor & cur, int x, int y,
 	cur.pit() = pit;
 
 	// Do we cover an inset?
-	InsetList::InsetTable * it = checkInsetHit(pit, x, y);
+	InsetList::Element * e = checkInsetHit(pit, x, y);
 
-	if (!it) {
+	if (!e) {
 		// No inset, set position in the text
 		bool bound = false; // is modified by getPosNearX
 		cur.pos() = getPosNearX(row, x, bound);
@@ -1382,11 +1637,11 @@ Inset * TextMetrics::editXY(Cursor & cur, int x, int y,
 		return 0;
 	}
 
-	Inset * inset = it->inset;
+	Inset * inset = e->inset;
 	//lyxerr << "inset " << inset << " hit at x: " << x << " y: " << y << endl;
 
 	// Set position in front of inset
-	cur.pos() = it->pos;
+	cur.pos() = e->pos;
 	cur.boundary(false);
 	cur.setTargetX(x);
 
@@ -1394,7 +1649,7 @@ Inset * TextMetrics::editXY(Cursor & cur, int x, int y,
 	Inset * edited = inset->editXY(cur, x, y);
 	// FIXME: it is not clear that the test on position is needed
 	// Remove it if/when semantics of editXY is clarified
-	if (cur.text() == text_ && cur.pos() == it->pos) {
+	if (cur.text() == text_ && cur.pos() == e->pos) {
 		// non-editable inset, set cursor after the inset if x is
 		// nearer to that position (bug 9628)
 		bool bound = false; // is modified by getPosNearX
@@ -1418,28 +1673,28 @@ void TextMetrics::setCursorFromCoordinates(Cursor & cur, int const x, int const 
 
 	ParagraphMetrics const & pm = par_metrics_[pit];
 
-	int yy = pm.position() - pm.ascent();
-	LYXERR(Debug::DEBUG, "x: " << x << " y: " << y <<
+	int yy = pm.position() - pm.rows().front().ascent();
+	LYXERR(Debug::PAINTING, "x: " << x << " y: " << y <<
 		" pit: " << pit << " yy: " << yy);
 
 	int r = 0;
 	LBUFERR(pm.rows().size());
 	for (; r < int(pm.rows().size()) - 1; ++r) {
 		Row const & row = pm.rows()[r];
-		if (int(yy + row.height()) > y)
+		if (yy + row.height() > y)
 			break;
 		yy += row.height();
 	}
 
 	Row const & row = pm.rows()[r];
 
-	LYXERR(Debug::DEBUG, "row " << r << " from pos: " << row.pos());
+	LYXERR(Debug::PAINTING, "row " << r << " from pos: " << row.pos());
 
 	bool bound = false;
 	int xx = x;
 	pos_type const pos = getPosNearX(row, xx, bound);
 
-	LYXERR(Debug::DEBUG, "setting cursor pit: " << pit << " pos: " << pos);
+	LYXERR(Debug::PAINTING, "setting cursor pit: " << pit << " pos: " << pos);
 
 	text_->setCursor(cur, pit, pos, true, bound);
 	// remember new position.
@@ -1448,24 +1703,24 @@ void TextMetrics::setCursorFromCoordinates(Cursor & cur, int const x, int const 
 
 
 //takes screen x,y coordinates
-InsetList::InsetTable * TextMetrics::checkInsetHit(pit_type pit, int x, int y)
+InsetList::Element * TextMetrics::checkInsetHit(pit_type pit, int x, int y)
 {
 	Paragraph const & par = text_->paragraphs()[pit];
 	CoordCache::Insets const & insetCache = bv_->coordCache().getInsets();
 
-	LYXERR(Debug::DEBUG, "x: " << x << " y: " << y << "  pit: " << pit);
+	LYXERR(Debug::PAINTING, "x: " << x << " y: " << y << "  pit: " << pit);
 
-	for (auto const & it : par.insetList()) {
-		LYXERR(Debug::DEBUG, "examining inset " << it.inset);
+	for (InsetList::Element const & e : par.insetList()) {
+		LYXERR(Debug::PAINTING, "examining inset " << e.inset);
 
-		if (insetCache.covers(it.inset, x, y)) {
-			LYXERR(Debug::DEBUG, "Hit inset: " << it.inset);
-			return const_cast<InsetList::InsetTable *>(&it);
+		if (insetCache.covers(e.inset, x, y)) {
+			LYXERR(Debug::PAINTING, "Hit inset: " << e.inset);
+			return const_cast<InsetList::Element *>(&e);
 		}
 	}
 
-	LYXERR(Debug::DEBUG, "No inset hit. ");
-	return 0;
+	LYXERR(Debug::PAINTING, "No inset hit. ");
+	return nullptr;
 }
 
 
@@ -1474,12 +1729,12 @@ Inset * TextMetrics::checkInsetHit(int x, int y)
 {
 	pit_type const pit = getPitNearY(y);
 	LASSERT(pit != -1, return 0);
-	InsetList::InsetTable * it = checkInsetHit(pit, x, y);
+	InsetList::Element * e = checkInsetHit(pit, x, y);
 
-	if (!it)
+	if (!e)
 		return 0;
 
-	return it->inset;
+	return e->inset;
 }
 
 
@@ -1581,22 +1836,10 @@ void TextMetrics::deleteLineForward(Cursor & cur)
 }
 
 
-bool TextMetrics::isLastRow(Row const & row) const
-{
-	ParagraphList const & pars = text_->paragraphs();
-	return row.endpos() >= pars[row.pit()].size()
-		&& row.pit() + 1 == pit_type(pars.size());
-}
-
-
-bool TextMetrics::isFirstRow(Row const & row) const
-{
-	return row.pos() == 0 && row.pit() == 0;
-}
-
-
 int TextMetrics::leftMargin(pit_type pit) const
 {
+	// FIXME: what is the semantics? It depends on whether the
+	// paragraph is empty!
 	return leftMargin(pit, text_->paragraphs()[pit].size());
 }
 
@@ -1609,7 +1852,10 @@ int TextMetrics::leftMargin(pit_type const pit, pos_type const pos) const
 	LASSERT(pit < int(pars.size()), return 0);
 	Paragraph const & par = pars[pit];
 	LASSERT(pos >= 0, return 0);
-	LASSERT(pos <= par.size(), return 0);
+	// We do not really care whether pos > par.size(), since we do not
+	// access the data. It can be actually useful, when querying the
+	// margin without indentation (see leftMargin(pit_type).
+
 	Buffer const & buffer = bv_->buffer();
 	//lyxerr << "TextMetrics::leftMargin: pit: " << pit << " pos: " << pos << endl;
 	DocumentClass const & tclass = buffer.params().documentClass();
@@ -1654,11 +1900,13 @@ int TextMetrics::leftMargin(pit_type const pit, pos_type const pos) const
 		}
 	}
 
-	// This happens after sections or environments in standard classes.
-	// We have to check the previous layout at same depth.
+	// Check for reasons to remove indentation.
+	// First, at document level.
 	if (buffer.params().paragraph_separation ==
 			BufferParams::ParagraphSkipSeparation)
 		parindent.erase();
+	// This happens after sections or environments in standard classes.
+	// We have to check the previous layout at same depth.
 	else if (pit > 0 && pars[pit - 1].getDepth() >= par.getDepth()) {
 		pit_type prev = text_->depthHook(pit, par.getDepth());
 		if (par.layout() == pars[prev].layout()) {
@@ -1667,6 +1915,15 @@ int TextMetrics::leftMargin(pit_type const pit, pos_type const pos) const
 				parindent.erase();
 		} else if (pars[prev].layout().nextnoindent)
 			parindent.erase();
+	}
+	// The previous paragraph may have ended with a separator inset.
+	if (pit > 0) {
+		Paragraph const & ppar = pars[pit - 1];
+		if (ppar.size() > 0) {
+			auto * in = dynamic_cast<InsetSeparator const *>(ppar.getInset(ppar.size() - 1));
+			if (in != nullptr && in->nextnoindent())
+				parindent.erase();
+		}
 	}
 
 	FontInfo const labelfont = text_->labelFont(par);
@@ -1724,26 +1981,9 @@ int TextMetrics::leftMargin(pit_type const pit, pos_type const pos) const
 		}
 		break;
 
-	case MARGIN_RIGHT_ADDRESS_BOX: {
-#if 0
-		// The left margin depends on the widest row in this paragraph.
-		// This code is wrong because it depends on the rows, but at the
-		// same time this function is used in redoParagraph to construct
-		// the rows.
-		ParagraphMetrics const & pm = par_metrics_[pit];
-		RowList::const_iterator rit = pm.rows().begin();
-		RowList::const_iterator end = pm.rows().end();
-		int minfill = max_width_;
-		for ( ; rit != end; ++rit)
-			if (rit->fill() < minfill)
-				minfill = rit->fill();
-		l_margin += bfm.signedWidth(layout.leftmargin);
-		l_margin += minfill;
-#endif
-		// also wrong, but much shorter.
-		l_margin += max_width_ / 2;
+	case MARGIN_RIGHT_ADDRESS_BOX:
+		// This is handled globally in redoParagraph().
 		break;
-	}
 	}
 
 	if (!par.params().leftIndent().zero())
@@ -1763,10 +2003,10 @@ int TextMetrics::leftMargin(pit_type const pit, pos_type const pos) const
 	    && !par.params().noindent()
 	    // in some insets, paragraphs are never indented
 	    && !text_->inset().neverIndent()
-	    // display style insets are always centered, omit indentation
+	    // display style insets do not need indentation
 	    && !(!par.empty()
-	         && par.isInset(pos)
-	         && par.getInset(pos)->display())
+	         && par.isInset(0)
+	         && par.getInset(0)->rowFlags() & Display)
 	    && (!(tclass.isDefaultLayout(par.layout())
 	        || tclass.isPlainLayout(par.layout()))
 	        || buffer.params().paragraph_separation
@@ -1793,17 +2033,15 @@ void TextMetrics::draw(PainterInfo & pi, int x, int y) const
 	origin_.x_ = x;
 	origin_.y_ = y;
 
-	ParMetricsCache::iterator it = par_metrics_.begin();
-	ParMetricsCache::iterator const pm_end = par_metrics_.end();
-	y -= it->second.ascent();
-	for (; it != pm_end; ++it) {
-		ParagraphMetrics const & pmi = it->second;
-		y += pmi.ascent();
-		pit_type const pit = it->first;
+	y -= par_metrics_.begin()->second.ascent();
+	for (auto & pm_pair : par_metrics_) {
+		pit_type const pit = pm_pair.first;
+		ParagraphMetrics & pm = pm_pair.second;
+		y += pm.ascent();
 		// Save the paragraph position in the cache.
-		it->second.setPosition(y);
+		pm.setPosition(y);
 		drawParagraph(pi, pit, x, y);
-		y += pmi.descent();
+		y += pm.descent();
 	}
 }
 
@@ -1814,6 +2052,16 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 	if (pm.rows().empty())
 		return;
 	size_t const nrows = pm.rows().size();
+	int const wh = bv_->workHeight();
+	// Remember left and right margin for drawing math numbers
+	Changer changeleft, changeright;
+	if (text_->isRTL(pit)) {
+		changeleft = changeVar(pi.leftx, x + rightMargin(pit));
+		changeright = changeVar(pi.rightx, x + width() - leftMargin(pit));
+	} else {
+		changeleft = changeVar(pi.leftx, x + leftMargin(pit));
+		changeright = changeVar(pi.rightx, x + width() - rightMargin(pit));
+	}
 
 	// Use fast lane in nodraw stage.
 	if (pi.pain.isNull()) {
@@ -1825,15 +2073,17 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 			if (i)
 				y += row.ascent();
 
-			RowPainter rp(pi, *text_, row, row_x, y);
-
-			rp.paintOnlyInsets();
+			// It is not needed to draw on screen if we are not inside
+			bool const inside = (y + row.descent() >= 0 && y - row.ascent() < wh);
+			if (inside) {
+				RowPainter rp(pi, *text_, row, row_x, y);
+				rp.paintOnlyInsets();
+			}
 			y += row.descent();
 		}
 		return;
 	}
 
-	int const ww = bv_->workHeight();
 	Cursor const & cur = bv_->cursor();
 	DocIterator sel_beg = cur.selectionBegin();
 	DocIterator sel_end = cur.selectionEnd();
@@ -1860,6 +2110,9 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 		}
 	}
 
+	BookmarksSection::BookmarkPosList bpl =
+		theSession().bookmarks().bookmarksInPar(bv_->buffer().fileName(), pm.id());
+
 	for (size_t i = 0; i != nrows; ++i) {
 
 		Row const & row = pm.rows()[i];
@@ -1870,7 +2123,7 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 
 		// It is not needed to draw on screen if we are not inside.
 		bool const inside = (y + row.descent() >= 0
-			&& y - row.ascent() < ww);
+			&& y - row.ascent() < wh);
 		if (!inside) {
 			// Inset positions have already been set in nodraw stage.
 			y += row.descent();
@@ -1880,7 +2133,7 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 		if (selection)
 			row.setSelectionAndMargins(sel_beg_par, sel_end_par);
 		else
-			row.setSelection(-1, -1);
+			row.clearSelectionAndMargins();
 
 		// The row knows nothing about the paragraph, so we have to check
 		// whether this row is the first or last and update the margins.
@@ -1891,12 +2144,8 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 				row.change(row.end_margin_sel, sel_end.pit() > pit);
 		}
 
-		// has row changed since last paint?
-		bool row_has_changed = row.changed()
-			|| bv_->hadHorizScrollOffset(text_, pit, row.pos());
-
 		// Take this opportunity to spellcheck the row contents.
-		if (row_has_changed && pi.do_spellcheck && lyxrc.spellcheck_continuously) {
+		if (row.changed() && pi.do_spellcheck && lyxrc.spellcheck_continuously) {
 			text_->getPar(pit).spellCheck();
 		}
 
@@ -1904,10 +2153,13 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 
 		// Don't paint the row if a full repaint has not been requested
 		// and if it has not changed.
-		if (!pi.full_repaint && !row_has_changed) {
+		if (!pi.full_repaint && !row.changed()) {
 			// Paint only the insets if the text itself is
 			// unchanged.
 			rp.paintOnlyInsets();
+			rp.paintTooLargeMarks(
+				row_x + row.left_x() < bv_->leftMargin(),
+				row_x + row.right_x() > bv_->workWidth() - bv_->rightMargin());
 			row.changed(false);
 			y += row.descent();
 			continue;
@@ -1915,32 +2167,24 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 
 		// Clear background of this row if paragraph background was not
 		// already cleared because of a full repaint.
-		if (!pi.full_repaint && row_has_changed) {
+		if (!pi.full_repaint && row.changed()) {
 			LYXERR(Debug::PAINTING, "Clear rect@("
-			       << max(row_x, 0) << ", " << y - row.ascent() << ")="
+			       << x << ", " << y - row.ascent() << ")="
 			       << width() << " x " << row.height());
-			// FIXME: this is a hack. We clear an amount equal to
-			// cursor width. This will not work if the caret has a
-			// ridiculous width like 6. (see ticket #10797)
-			// This is the same formula as in GuiWorkArea.
-			int const caret_width = lyxrc.cursor_width
-				? lyxrc.cursor_width
-				: 1 + int((lyxrc.currentZoom + 50) / 200.0);
-			pi.pain.fillRectangle(max(row_x, 0), y - row.ascent(),
-			                      width() + caret_width,
-			                      row.height(), pi.background_color);
+			pi.pain.fillRectangle(x, y - row.ascent(),
+			                      width(), row.height(), pi.background_color);
 		}
 
 		// Instrumentation for testing row cache (see also
 		// 12 lines lower):
 		if (lyxerr.debugging(Debug::PAINTING)
-		    && (row.selection() || pi.full_repaint || row_has_changed)) {
+		    && (row.selection() || pi.full_repaint || row.changed())) {
 			string const foreword = text_->isMainText() ? "main text redraw "
 				: "inset text redraw: ";
 			LYXERR0(foreword << "pit=" << pit << " row=" << i
 			        << (row.selection() ? " row_selection": "")
 			        << (pi.full_repaint ? " full_repaint" : "")
-			        << (row_has_changed ? " row_has_changed" : ""));
+			        << (row.changed() ? " row.changed" : ""));
 		}
 
 		// Backup full_repaint status and force full repaint
@@ -1953,17 +2197,20 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 		rp.paintDepthBar();
 		if (row.needsChangeBar())
 			rp.paintChangeBar();
-		if (i == 0 && !row.isRTL())
+		if (i == 0)
 			rp.paintFirst();
-		if (i == nrows - 1 && row.isRTL())
+		if (i == nrows - 1)
 			rp.paintLast();
 		rp.paintText();
-		if (i == nrows - 1 && !row.isRTL())
-			rp.paintLast();
-		if (i == 0 && row.isRTL())
-			rp.paintFirst();
-		rp.paintTooLargeMarks(row_x + row.left_x() < 0,
-				      row_x + row.right_x() > bv_->workWidth());
+		rp.paintTooLargeMarks(
+			row_x + row.left_x() < bv_->leftMargin(),
+			row_x + row.right_x() > bv_->workWidth() - bv_->rightMargin());
+		// indicate bookmarks presence in margin
+		if (lyxrc.bookmarks_visibility == LyXRC::BMK_MARGIN)
+			for (auto const & bp_p : bpl)
+				if (bp_p.second >= row.pos() && bp_p.second < row.endpos())
+					rp.paintBookmark(bp_p.first);
+
 		y += row.descent();
 
 #if 0
@@ -1975,7 +2222,7 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 		static int count = 0;
 		++count;
 		FontInfo fi(sane_font);
-		fi.setSize(FONT_SIZE_TINY);
+		fi.setSize(TINY_SIZE);
 		fi.setColor(Color_red);
 		pi.pain.text(row_x, y, convert<docstring>(count), fi);
 #endif
@@ -1993,26 +2240,22 @@ void TextMetrics::drawParagraph(PainterInfo & pi, pit_type const pit, int const 
 void TextMetrics::completionPosAndDim(Cursor const & cur, int & x, int & y,
 	Dimension & dim) const
 {
-	Cursor const & bvcur = cur.bv().cursor();
+	DocIterator from = cur.bv().cursor();
+	DocIterator to = from;
+	text_->getWord(from.top(), to.top(), PREVIOUS_WORD);
 
-	// get word in front of cursor
-	docstring word = text_->previousWord(bvcur.top());
-	DocIterator wordStart = bvcur;
-	wordStart.pos() -= word.length();
-
-	// calculate dimensions of the word
-	Row row;
-	row.pit(bvcur.pit());
-	row.pos(wordStart.pos());
-	row.endpos(bvcur.pos());
-	setRowHeight(row);
-	dim = row.dimension();
+	// The vertical dimension of the word
+	Font const font = displayFont(cur.pit(), from.pos());
+	FontMetrics const & fm = theFontMetrics(font);
+	// the +1's below are related to the extra pixels added in setRowHeight
+	dim.asc = fm.maxAscent() + 1;
+	dim.des = fm.maxDescent() + 1;
 
 	// get position on screen of the word start and end
 	//FIXME: Is it necessary to explicitly set this to false?
-	wordStart.boundary(false);
-	Point lxy = cur.bv().getPos(wordStart);
-	Point rxy = cur.bv().getPos(bvcur);
+	from.boundary(false);
+	Point lxy = cur.bv().getPos(from);
+	Point rxy = cur.bv().getPos(to);
 	dim.wid = abs(rxy.x_ - lxy.x_);
 
 	// calculate position of word

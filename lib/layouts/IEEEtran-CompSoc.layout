@@ -6,7 +6,7 @@
 # IEEtran Computer Society textclass definition file.
 
 
-Format 66
+Format 104
 
 Input IEEEtran.layout
 
@@ -39,7 +39,7 @@ InsetLayout Flex:Author_Footnote
     Size	Small
   EndFont
   LabelFont
-    Color	blue
+    Color	textlabel1
     Size	Small
   EndFont
 	ResetsFont true
@@ -55,6 +55,10 @@ End
 Style Keywords
   InTitle	1
   BottomSep	0.1
+  DocBookTag         keyword
+  DocBookTagType     paragraph
+  DocBookWrapperTag  keywordset
+  DocBookInInfo      always
 End
 
 

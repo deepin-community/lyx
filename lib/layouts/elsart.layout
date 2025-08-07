@@ -23,7 +23,7 @@
 #       numbered sections, as does the class file.
 
 
-Format 66
+Format 104
 Columns                 1
 Sides                   2
 PageStyle               headings
@@ -36,13 +36,6 @@ End
 # elsart does not use the plain old \maketitle
 TitleLatexType Environment
 TitleLatexName frontmatter
-
-Counter summ
-End
-
-
-Counter case
-End
 
 
 Style Standard
@@ -58,6 +51,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -75,8 +69,12 @@ Style Keywords
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
 	Font
-	  Color               blue
+	  Color               textlabel1
 	EndFont
+	DocBookTag         keyword
+	DocBookTagType     paragraph
+	DocBookWrapperTag  keywordset
+	DocBookInInfo      always
 End
 
 
@@ -109,6 +107,9 @@ Style Title
 	  Size                Largest
 	EndFont
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -132,6 +133,11 @@ Style Author
 	Font
 	  Series              Bold
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType block
+	DocBookInInfo         always
 End
 
 
@@ -151,6 +157,11 @@ Style Author_Address
 	LabelFont
 	  Shape               Italic
 	EndFont
+	DocBookTag            address
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType block
+	DocBookInInfo         always
 End
 
 
@@ -172,6 +183,11 @@ Style Author_Email
 	  Shape               Italic
 	  Family              Roman
 	EndFont
+	DocBookTag            email
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType block
+	DocBookInInfo         always
 End
 
 
@@ -194,6 +210,11 @@ Style Author_URL
 	  Shape               Italic
 	  Family              Roman
 	EndFont
+	DocBookTag            uri
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType block
+	DocBookInInfo         always
 End
 
 
@@ -212,6 +233,8 @@ Style Thanks
 	  Family              Typewriter
 	  Shape               Italic
 	EndFont
+	DocBookTag            footnote
+	DocBookItemTag        para
 End
 
 
@@ -239,6 +262,11 @@ Style Abstract
 	  Series              Bold
 	  Size                Large
 	EndFont
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 
@@ -262,10 +290,23 @@ End
 # - Note
 # - Claim
 # - Summary
-# - Acknowledgement
+# - Acknowledgment
 # - Case
 
 Counter theorem
+	GuiName Theorem
+	RefFormat thm "Theorem \arabic{theorem}"
+	RefFormat cor "Corollary \arabic{theorem}"
+	RefFormat lem "Lemma \arabic{theorem}"
+	RefFormat prop "Proposition \arabic{theorem}"
+	RefFormat conj "Conjecture \arabic{theorem}"
+	RefFormat def "Definition \arabic{theorem}"
+	RefFormat exa "Example \arabic{theorem}"
+	RefFormat prob "Problem \arabic{theorem}"
+	RefFormat exer "Exercise \arabic{theorem}"
+	RefFormat solu "Solution \arabic{theorem}"
+	RefFormat rem "Remark \arabic{theorem}"
+	RefFormat claim "Claim \arabic{theorem}"
 End
 
 
@@ -295,6 +336,11 @@ Style Theorem
 	  Shape               Up
 	  Series              Bold
 	EndFont
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='theorem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -324,6 +370,11 @@ Style Proof
 	LabelFont
 	  Series              Bold
 	EndFont
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='proof'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -331,6 +382,11 @@ Style Lemma
 	CopyStyle             Theorem
 	LatexName             lem
 	LabelString           "Lemma \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='lemma'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -338,6 +394,11 @@ Style Corollary
 	CopyStyle             Theorem
 	LatexName             cor
 	LabelString           "Corollary \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='corollary'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -345,6 +406,11 @@ Style Proposition
 	CopyStyle             Theorem
 	LatexName             prop
 	LabelString           "Proposition \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='proposition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -352,6 +418,11 @@ Style Criterion
 	CopyStyle             Theorem
 	LatexName             crit
 	LabelString           "Criterion \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='criterion'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -359,6 +430,11 @@ Style Algorithm
 	CopyStyle             Theorem
 	LatexName             alg
 	LabelString           "Algorithm \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='algorithm'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -373,6 +449,11 @@ Style Definition
 	  Shape               Up
 	  Series              Bold
 	EndFont
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='definition'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -380,6 +461,11 @@ Style Conjecture
 	CopyStyle             Theorem
 	LatexName             conj
 	LabelString           "Conjecture \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='conjecture'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	DocBookWrapperMergeWithPrevious  true
 End
 
 
@@ -387,6 +473,9 @@ Style Example
 	CopyStyle             Theorem
 	LatexName             exmp
 	LabelString           "Example \arabic{theorem}"
+	DocBookWrapperTag     informalexample
+	DocBookTag            para
+	DocBookAttr           ""
 End
 
 
@@ -394,6 +483,10 @@ Style Problem
 	CopyStyle             Theorem
 	LatexName             prob
 	LabelString           "Problem \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='problem'
+	DocBookTag            para
+	DocBookGenerateTitle  true
 End
 
 
@@ -401,6 +494,10 @@ Style Remark
 	CopyStyle             Theorem
 	LatexName             rem
 	LabelString           "Remark \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='remark'
+	DocBookTag            para
+	DocBookGenerateTitle  true
 End
 
 
@@ -408,6 +505,10 @@ Style Note
 	CopyStyle             Theorem
 	LatexName             note
 	LabelString           "Note \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='note'
+	DocBookTag            para
+	DocBookGenerateTitle  true
 End
 
 
@@ -415,39 +516,67 @@ Style Claim
 	CopyStyle             Theorem
 	LatexName             claim
 	LabelString           "Claim \arabic{theorem}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='claim'
+	DocBookTag            para
+	DocBookGenerateTitle  true
 End
 
+
+Counter summ
+	GuiName Summary
+	PrettyFormat "Summary ##"
+End
 
 Style Summary
 	CopyStyle             Theorem
 	LatexName             summ
 	LabelCounter          summ
 	LabelString           "Summary \arabic{summ}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='summary'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	RefPrefix             summ
 End
 
+
+Counter case
+	GuiName Case
+	PrettyFormat "Case ##"
+End
 
 Style Case
 	CopyStyle             Theorem
 	LatexName             case
 	LabelCounter          case
 	LabelString           "Case \arabic{case}"
+	DocBookWrapperTag     figure
+	DocBookWrapperAttr    role='case'
+	DocBookTag            para
+	DocBookGenerateTitle  true
+	RefPrefix             case
 End
 
 
 # This is not taken from the AMS defs, so as to match the output of the
 # style file.
-Style Acknowledgement
+Style Acknowledgment
 	Margin                Static
 	LatexType             environment
 	LatexName             ack
 	LabelType             Above
 	LabelBottomsep        1
-	LabelString           "Acknowledgements"
+	LabelString           "Acknowledgment"
 	parsep                0.3
 	LabelFont
 	  Size                large
 	  Series              Bold
 	EndFont
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
+	RefPrefix             ack
 End
+
 
 Input theorems-refprefix.inc

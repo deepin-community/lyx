@@ -26,7 +26,6 @@
 #include "frontends/FontMetrics.h"
 
 #include "support/debug.h"
-#include "support/lstrings.h"
 #include "support/textutils.h"
 
 #include <algorithm>
@@ -35,8 +34,6 @@ using namespace std;
 
 
 namespace lyx {
-
-extern bool has_math_fonts;
 
 
 namespace {
@@ -95,8 +92,8 @@ static bool slanted(char_type c)
 }
 
 
-InsetMathChar::InsetMathChar(char_type c)
-	: char_(c), kerning_(0), subst_(makeSubstitute(c))
+InsetMathChar::InsetMathChar(Buffer * buf, char_type c)
+	: InsetMath(buf), char_(c), kerning_(0), subst_(makeSubstitute(c))
 {}
 
 
@@ -121,7 +118,7 @@ void InsetMathChar::metrics(MetricsInfo & mi, Dimension & dim) const
 	} else if (!isASCII(char_) && Encodings::unicodeCharInfo(char_).isUnicodeSymbol()) {
 		Changer dummy1 = mi.base.changeFontSet("mathnormal");
 		Changer dummy2 = Encodings::isMathAlpha(char_)
-				? Changer()
+				? noChange()
 				: mi.base.font.changeShape(UP_SHAPE);
 		dim = theFontMetrics(mi.base.font).dimension(char_);
 		kerning_ = -mathed_char_kerning(mi.base.font, char_);
@@ -166,7 +163,7 @@ void InsetMathChar::draw(PainterInfo & pi, int x, int y) const
 		} else if (!isASCII(char_) && Encodings::unicodeCharInfo(char_).isUnicodeSymbol()) {
 			Changer dummy1 = pi.base.changeFontSet("mathnormal");
 			Changer dummy2 = Encodings::isMathAlpha(char_)
-					? Changer()
+					? noChange()
 					: pi.base.font.changeShape(UP_SHAPE);
 			pi.draw(x, y, char_);
 			return;
@@ -195,8 +192,13 @@ void InsetMathChar::drawT(TextPainter & pain, int x, int y) const
 }
 
 
-void InsetMathChar::write(WriteStream & os) const
+void InsetMathChar::write(TeXMathStream & os) const
 {
+	if (os.latex() && os.pendingSpace()) {
+		if (isAlphaASCII(char_))
+			os.os() << ' ';
+		os.pendingSpace(false);
+	}
 	os.os().put(char_);
 }
 
@@ -228,7 +230,9 @@ void InsetMathChar::octave(OctaveStream & os) const
 // mathalpha, then we'll treat it as an identifier, otherwise as an
 // operator.
 // Worst case: We get bad spacing, or bad italics.
-void InsetMathChar::mathmlize(MathStream & ms) const
+// In any case, never let MathML stretch a single character when it
+// is recognised as an operator, to match TeX' behaviour.
+void InsetMathChar::mathmlize(MathMLStream & ms) const
 {
 	std::string entity;
 	switch (char_) {
@@ -236,7 +240,7 @@ void InsetMathChar::mathmlize(MathStream & ms) const
 		case '>': entity = "&gt;"; break;
 		case '&': entity = "&amp;"; break;
 		case ' ': {
-			ms << from_ascii("&nbsp;");
+			ms << from_ascii("&#0160;");
 			return;
 		}
 		default: break;
@@ -244,22 +248,25 @@ void InsetMathChar::mathmlize(MathStream & ms) const
 
 	if (ms.inText()) {
 		if (entity.empty())
-			ms.os().put(char_);
+			ms << char_;
 		else
 			ms << from_ascii(entity);
 		return;
 	}
 
 	if (!entity.empty()) {
-		ms << "<mo>" << from_ascii(entity) << "</mo>";
+		ms << MTagInline("mo", "stretchy='false'")
+		   << from_ascii(entity)
+		   << ETagInline("mo");
 		return;
 	}
 
 	char const * type =
 		(isAlphaASCII(char_) || Encodings::isMathAlpha(char_))
 			? "mi" : "mo";
-	// we don't use MTag and ETag because we do not want the spacing
-	ms << "<" << type << ">" << char_type(char_) << "</" << type << ">";
+	ms << MTagInline(type, std::string(type) == "mo" ? "stretchy='false'" : "")
+	   << char_type(char_)
+	   << ETagInline(type);
 }
 
 
@@ -272,7 +279,7 @@ void InsetMathChar::htmlize(HtmlStream & ms) const
 		case '<': entity = "&lt;"; break;
 		case '>': entity = "&gt;"; break;
 		case '&': entity = "&amp;"; break;
-		case ' ': entity = "&nbsp;"; break;
+		case ' ': entity = "&#160;"; break;
 		default: break;
 	}
 
@@ -304,16 +311,27 @@ void InsetMathChar::htmlize(HtmlStream & ms) const
 MathClass InsetMathChar::mathClass() const
 {
 	// this information comes from fontmath.ltx in LaTeX source.
-	char const ch = static_cast<char>(char_);
 	if (subst_)
 		return string_to_class(subst_->extra);
-	else if (support::contains(",;", ch))
+
+	if (!isASCII(char_))
+		return MC_ORD;
+
+	switch (static_cast<char>(char_)) {
+	case ',':
+	case ';':
 		return MC_PUNCT;
-	else if (support::contains("([", ch))
+	case '(':
+	case '[':
 		return MC_OPEN;
-	else if (support::contains(")]!?", ch))
+	case ')':
+	case ']':
+	case '!':
+	case '?':
 		return MC_CLOSE;
-	else return MC_ORD;
+	default:
+		return MC_ORD;
+	}
 }
 
 

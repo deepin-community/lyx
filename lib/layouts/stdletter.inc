@@ -3,7 +3,7 @@
 # Heavily modifed and enhanced by several developers.
 
 
-Format 66
+Format 104
 Columns                 1
 Sides                   1
 PageStyle               Empty
@@ -19,6 +19,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -31,6 +32,7 @@ Style My_Address
 	BottomSep             1.5
 	ParSep                1.5
 	Align                 Left
+	DocBookTag            address
 End
 
 
@@ -46,6 +48,8 @@ Style Send_To_Address
 	Align                 Left
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            address
+	DocBookAttr           role='send-to-address'
 End
 
 
@@ -67,8 +71,10 @@ Style Opening
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
+	DocBookTag            para
+	DocBookAttr           role='opening'
 End
 
 
@@ -89,8 +95,10 @@ Style Signature
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               red
+	  Color               textlabel3
 	EndFont
+	DocBookTag            para
+	DocBookAttr           role='signature'
 End
 
 
@@ -98,6 +106,8 @@ Style Closing
 	CopyStyle             Signature
 	LatexName             closing
 	LabelString           "Closing:"
+	DocBookTag            para
+	DocBookAttr           role='opening'
 End
 
 
@@ -108,8 +118,10 @@ Style cc
 	LabelFont
 	  Series              Bold
 	  Shape               Italic
-	  Color               green
+	  Color               textlabel2
 	EndFont
+	DocBookTag            para
+	DocBookAttr           role='carbon-copy'
 End
 
 
@@ -118,6 +130,8 @@ Style encl
 	LatexName             encl
 	LabelString           "encl:"
 	Spacing               Other 1.5
+	DocBookTag            para
+	DocBookAttr           role='enclosed'
 End
 
 
@@ -125,6 +139,9 @@ Style Location
 	CopyStyle             cc
 	LatexName             thispagestyle{firstpage}\location
 	LabelString           "Location:"
+	DocBookTag            otheraddr
+	DocBookAttr           role='place'
+	DocBookTagType        paragraph
 End
 
 
@@ -132,4 +149,7 @@ Style Telephone
 	CopyStyle             cc
 	LatexName             thispagestyle{firstpage}\telephone
 	LabelString           "Telephone:"
+	DocBookTag            phone
+	DocBookAttr           ""
+	DocBookTagType        paragraph
 End

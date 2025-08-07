@@ -5,7 +5,7 @@
  * Licence details can be found in the file COPYING.
  *
  * \author Martin Vermeer
- * \author Richard Heck
+ * \author Richard Kimberly Heck
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -15,7 +15,6 @@
 #include "InsetLayout.h"
 
 #include "ColorSet.h"
-#include "Layout.h"
 #include "Lexer.h"
 #include "TextClass.h"
 
@@ -33,45 +32,28 @@ using namespace lyx::support;
 
 namespace lyx {
 
-InsetLayout::InsetLayout() :
-	name_(from_ascii("undefined")), lyxtype_(STANDARD),
-	labelstring_(from_ascii("UNDEFINED")), contentaslabel_(false),
-	decoration_(DEFAULT), latextype_(NOLATEXTYPE), font_(inherit_font),
-	labelfont_(sane_font), bgcolor_(Color_error),
-	fixedwidthpreambleencoding_(false), htmlforcecss_ (false),
-	htmlisblock_(true), multipar_(true), custompars_(true),
-	forceplain_(false), passthru_(false), parbreakisnewline_(false),
-	freespacing_(false), keepempty_(false), forceltr_(false),
-	forceownlines_(false), needprotect_(false), intoc_(false),
-	spellcheck_(true), resetsfont_(false), display_(true),
-	forcelocalfontswitch_(false), add_to_toc_(false), is_toc_caption_(false)
-{
-	labelfont_.setColor(Color_error);
-}
-
-
-InsetLayout::InsetDecoration translateDecoration(std::string const & str)
+InsetDecoration translateDecoration(std::string const & str)
 {
 	if (compare_ascii_no_case(str, "classic") == 0)
-		return InsetLayout::CLASSIC;
+		return InsetDecoration::CLASSIC;
 	if (compare_ascii_no_case(str, "minimalistic") == 0)
-		return InsetLayout::MINIMALISTIC;
+		return InsetDecoration::MINIMALISTIC;
 	if (compare_ascii_no_case(str, "conglomerate") == 0)
-		return InsetLayout::CONGLOMERATE;
-	return InsetLayout::DEFAULT;
+		return InsetDecoration::CONGLOMERATE;
+	return InsetDecoration::DEFAULT;
 }
 
 namespace {
 
-InsetLayout::InsetLaTeXType translateLaTeXType(std::string const & str)
+InsetLaTeXType translateLaTeXType(std::string const & str)
 {
 	if (compare_ascii_no_case(str, "command") == 0)
-		return InsetLayout::COMMAND;
+		return InsetLaTeXType::COMMAND;
 	if (compare_ascii_no_case(str, "environment") == 0)
-		return InsetLayout::ENVIRONMENT;
+		return InsetLaTeXType::ENVIRONMENT;
 	if (compare_ascii_no_case(str, "none") == 0)
-		return InsetLayout::NOLATEXTYPE;
-	return InsetLayout::ILT_ERROR;
+		return InsetLaTeXType::NOLATEXTYPE;
+	return InsetLaTeXType::ILT_ERROR;
 }
 
 } // namespace
@@ -82,6 +64,10 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 {
 	enum {
 		IL_ADDTOTOC,
+		IL_ALLOWED_IN_INSET,
+		IL_ALLOWED_IN_LAYOUT,
+		IL_ALLOWED_OCCURRENCES,
+		IL_ALLOWED_OCCURRENCES_PER_ITEM,
 		IL_ARGUMENT,
 		IL_BABELPREAMBLE,
 		IL_BGCOLOR,
@@ -91,6 +77,7 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		IL_CUSTOMPARS,
 		IL_DECORATION,
 		IL_DISPLAY,
+		IL_EDITEXTERNAL,
 		IL_FIXEDWIDTH_PREAMBLE_ENCODING,
 		IL_FONT,
 		IL_FORCE_LOCAL_FONT_SWITCH,
@@ -100,6 +87,7 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		IL_FREESPACING,
 		IL_HTMLTAG,
 		IL_HTMLATTR,
+		IL_HTMLCLASS,
 		IL_HTMLFORCECSS,
 		IL_HTMLINNERTAG,
 		IL_HTMLINNERATTR,
@@ -107,6 +95,29 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		IL_HTMLLABEL,
 		IL_HTMLSTYLE,
 		IL_HTMLPREAMBLE,
+		IL_DOCBOOKTAG,
+		IL_DOCBOOKATTR,
+		IL_DOCBOOKTAGTYPE,
+		IL_DOCBOOKSECTION,
+		IL_DOCBOOKININFO,
+		IL_DOCBOOKARGUMENTBEFOREMAINTAG,
+		IL_DOCBOOKARGUMENTAFTERMAINTAG,
+		IL_DOCBOOKNOTINPARA,
+		IL_DOCBOOKWRAPPERTAG,
+		IL_DOCBOOKWRAPPERTAGTYPE,
+		IL_DOCBOOKWRAPPERATTR,
+		IL_DOCBOOKITEMTAG,
+		IL_DOCBOOKITEMTAGTYPE,
+		IL_DOCBOOKITEMATTR,
+		IL_DOCBOOKITEMWRAPPERTAG,
+		IL_DOCBOOKITEMWRAPPERTAGTYPE,
+		IL_DOCBOOKITEMWRAPPERATTR,
+		IL_DOCBOOKINNERTAG,
+		IL_DOCBOOKINNERTAGTYPE,
+		IL_DOCBOOKINNERATTR,
+		IL_DOCBOOKNOFONTINSIDE,
+		IL_DOCBOOKRENDERASIMAGE,
+		IL_INHERITFONT,
 		IL_INTOC,
 		IL_ISTOCCAPTION,
 		IL_LABELFONT,
@@ -119,10 +130,15 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		IL_LYXTYPE,
 		IL_OBSOLETEDBY,
 		IL_KEEPEMPTY,
+		IL_MENUSTRING,
 		IL_MULTIPAR,
+		IL_NEEDCPROTECT,
+		IL_NEEDMBOXPROTECT,
 		IL_NEEDPROTECT,
+		IL_NEWLINE_CMD,
 		IL_PASSTHRU,
 		IL_PASSTHRU_CHARS,
+		IL_PARBREAKIGNORED,
 		IL_PARBREAKISNEWLINE,
 		IL_PREAMBLE,
 		IL_REQUIRES,
@@ -137,6 +153,10 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 
 	LexerKeyword elementTags[] = {
 		{ "addtotoc", IL_ADDTOTOC },
+		{ "allowedininsets", IL_ALLOWED_IN_INSET },
+		{ "allowedinlayouts", IL_ALLOWED_IN_LAYOUT },
+		{ "allowedoccurrences", IL_ALLOWED_OCCURRENCES },
+		{ "allowedoccurrencesperitem", IL_ALLOWED_OCCURRENCES_PER_ITEM },
 		{ "argument", IL_ARGUMENT },
 		{ "babelpreamble", IL_BABELPREAMBLE },
 		{ "bgcolor", IL_BGCOLOR },
@@ -146,6 +166,29 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		{ "custompars", IL_CUSTOMPARS },
 		{ "decoration", IL_DECORATION },
 		{ "display", IL_DISPLAY },
+		{ "docbookargumentaftermaintag", IL_DOCBOOKARGUMENTAFTERMAINTAG },
+		{ "docbookargumentbeforemaintag", IL_DOCBOOKARGUMENTBEFOREMAINTAG },
+		{ "docbookattr", IL_DOCBOOKATTR },
+		{ "docbookininfo", IL_DOCBOOKININFO },
+		{ "docbookinnerattr", IL_DOCBOOKINNERATTR },
+		{ "docbookinnertag", IL_DOCBOOKINNERTAG },
+		{ "docbookinnertagtype", IL_DOCBOOKINNERTAGTYPE },
+		{ "docbookitemattr", IL_DOCBOOKITEMATTR },
+		{ "docbookitemtag", IL_DOCBOOKITEMTAG },
+		{ "docbookitemtagtype", IL_DOCBOOKITEMTAGTYPE },
+		{ "docbookitemwrapperattr", IL_DOCBOOKITEMWRAPPERATTR },
+		{ "docbookitemwrappertag", IL_DOCBOOKITEMWRAPPERTAG },
+		{ "docbookitemwrappertagtype", IL_DOCBOOKITEMWRAPPERTAGTYPE },
+		{ "docbooknofontinside", IL_DOCBOOKNOFONTINSIDE },
+		{ "docbooknotinpara", IL_DOCBOOKNOTINPARA },
+		{ "docbookrenderasimage", IL_DOCBOOKRENDERASIMAGE },
+		{ "docbooksection", IL_DOCBOOKSECTION },
+		{ "docbooktag", IL_DOCBOOKTAG },
+		{ "docbooktagtype", IL_DOCBOOKTAGTYPE },
+		{ "docbookwrapperattr", IL_DOCBOOKWRAPPERATTR },
+		{ "docbookwrappertag", IL_DOCBOOKWRAPPERTAG },
+		{ "docbookwrappertagtype", IL_DOCBOOKWRAPPERTAGTYPE },
+		{ "editexternal", IL_EDITEXTERNAL },
 		{ "end", IL_END },
 		{ "fixedwidthpreambleencoding", IL_FIXEDWIDTH_PREAMBLE_ENCODING },
 		{ "font", IL_FONT },
@@ -155,6 +198,7 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		{ "forceplain", IL_FORCEPLAIN },
 		{ "freespacing", IL_FREESPACING },
 		{ "htmlattr", IL_HTMLATTR },
+		{ "htmlclass", IL_HTMLCLASS },
 		{ "htmlforcecss", IL_HTMLFORCECSS },
 		{ "htmlinnerattr", IL_HTMLINNERATTR},
 		{ "htmlinnertag", IL_HTMLINNERTAG},
@@ -163,6 +207,7 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		{ "htmlpreamble", IL_HTMLPREAMBLE },
 		{ "htmlstyle", IL_HTMLSTYLE },
 		{ "htmltag", IL_HTMLTAG },
+		{ "inheritfont", IL_INHERITFONT },
 		{ "intoc", IL_INTOC },
 		{ "istoccaption", IL_ISTOCCAPTION },
 		{ "keepempty", IL_KEEPEMPTY },
@@ -174,9 +219,14 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		{ "latextype", IL_LATEXTYPE },
 		{ "leftdelim", IL_LEFTDELIM },
 		{ "lyxtype", IL_LYXTYPE },
+		{ "menustring", IL_MENUSTRING },
 		{ "multipar", IL_MULTIPAR },
+		{ "needcprotect", IL_NEEDCPROTECT },
+		{ "needmboxprotect", IL_NEEDMBOXPROTECT },
 		{ "needprotect", IL_NEEDPROTECT },
+		{ "newlinecmd", IL_NEWLINE_CMD },
 		{ "obsoletedby", IL_OBSOLETEDBY },
+		{ "parbreakignored", IL_PARBREAKIGNORED },
 		{ "parbreakisnewline", IL_PARBREAKISNEWLINE },
 		{ "passthru", IL_PASSTHRU },
 		{ "passthruchars", IL_PASSTHRU_CHARS },
@@ -191,8 +241,10 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 
 	lex.pushTable(elementTags);
 
-	labelfont_ = inherit_font;
-	bgcolor_ = Color_none;
+	if (labelfont_ == sane_font)
+		labelfont_ = inherit_font;
+	if (bgcolor_ == Color_error)
+		bgcolor_ = Color_none;
 	bool getout = false;
 	// whether we've read the CustomPars or ForcePlain tag
 	// for issuing a warning in case MultiPars comes later
@@ -230,13 +282,13 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 			string lt;
 			lex >> lt;
 			lyxtype_ = translateLyXType(lt);
-			if (lyxtype_  == NOLYXTYPE) {
+			if (lyxtype_  == InsetLyXType::NOLYXTYPE) {
 				LYXERR0("Unknown LyXType `" << lt << "'.");
 				// this is not really a reason to abort
 				if (validating)
 					return false;
 			}
-			if (lyxtype_ == CHARSTYLE) {
+			if (lyxtype_ == InsetLyXType::CHARSTYLE) {
 				// by default, charstyles force the plain layout
 				multipar_ = false;
 				forceplain_ = true;
@@ -247,7 +299,7 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 			string lt;
 			lex >> lt;
 			latextype_ = translateLaTeXType(lt);
-			if (latextype_  == ILT_ERROR) {
+			if (latextype_  == InsetLaTeXType::ILT_ERROR) {
 				LYXERR0("Unknown LaTeXType `" << lt << "'.");
 				// this is not really a reason to abort
 				if (validating)
@@ -258,6 +310,9 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		case IL_LABELSTRING:
 			lex >> labelstring_;
 			break;
+		case IL_MENUSTRING:
+			lex >> menustring_;
+			break;
 		case IL_DECORATION:
 			lex >> tmp;
 			decoration_ = translateDecoration(tmp);
@@ -267,7 +322,7 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 			break;
 		case IL_LATEXPARAM:
 			lex >> tmp;
-			latexparam_ = subst(tmp, "&quot;", "\"");
+			latexparam_ = subst(tmp, "&#34;", "\"");
 			break;
 		case IL_LEFTDELIM:
 			lex >> leftdelim_;
@@ -293,6 +348,9 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 			break;
 		case IL_FORCEOWNLINES:
 			lex >> forceownlines_;
+			break;
+		case IL_INHERITFONT:
+			lex >> inheritfont_;
 			break;
 		case IL_INTOC:
 			lex >> intoc_;
@@ -324,6 +382,12 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		case IL_PASSTHRU_CHARS:
 			lex >> passthru_chars_;
 			break;
+		case IL_NEWLINE_CMD:
+			lex >> newline_cmd_;
+			break;
+		case IL_PARBREAKIGNORED:
+			lex >> parbreakignored_;
+			break;
 		case IL_PARBREAKISNEWLINE:
 			lex >> parbreakisnewline_;
 			break;
@@ -335,6 +399,20 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 			break;
 		case IL_NEEDPROTECT:
 			lex >> needprotect_;
+			break;
+		case IL_NEEDCPROTECT: {
+			string val;
+			lex >> val;
+			nocprotect_ = false;
+			needcprotect_ = false;
+			if (val == "-1")
+				nocprotect_ = true;
+			else if (val == "1" || val == "true")
+				needcprotect_ = true;
+			break;
+		}
+		case IL_NEEDMBOXPROTECT:
+			lex >> needmboxprotect_;
 			break;
 		case IL_CONTENTASLABEL:
 			lex >> contentaslabel_;
@@ -444,6 +522,9 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		case IL_HTMLATTR:
 			lex >> htmlattr_;
 			break;
+		case IL_HTMLCLASS:
+			lex >> htmlclass_;
+			break;
 		case IL_HTMLFORCECSS:
 			lex >> htmlforcecss_;
 			break;
@@ -465,11 +546,77 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 		case IL_HTMLPREAMBLE:
 			htmlpreamble_ = lex.getLongString(from_ascii("EndPreamble"));
 			break;
+		case IL_DOCBOOKTAG:
+			lex >> docbooktag_;
+			break;
+		case IL_DOCBOOKATTR:
+			lex >> docbookattr_;
+			break;
+		case IL_DOCBOOKTAGTYPE:
+			lex >> docbooktagtype_;
+			break;
+		case IL_DOCBOOKINNERTAG:
+			lex >> docbookinnertag_;
+			break;
+		case IL_DOCBOOKINNERATTR:
+			lex >> docbookinnerattr_;
+			break;
+		case IL_DOCBOOKINNERTAGTYPE:
+			lex >> docbookinnertagtype_;
+			break;
+		case IL_DOCBOOKININFO:
+			lex >> docbookininfo_;
+			break;
+		case IL_DOCBOOKARGUMENTBEFOREMAINTAG:
+			lex >> docbookargumentbeforemaintag_;
+			break;
+		case IL_DOCBOOKARGUMENTAFTERMAINTAG:
+			lex >> docbookargumentaftermaintag_;
+			break;
+		case IL_DOCBOOKNOTINPARA:
+			lex >> docbooknotinpara_;
+			break;
+		case IL_DOCBOOKSECTION:
+			lex >> docbooksection_;
+			break;
+		case IL_DOCBOOKITEMTAG:
+			lex >> docbookitemtag_;
+			break;
+		case IL_DOCBOOKITEMTAGTYPE:
+			lex >> docbookitemtagtype_;
+			break;
+		case IL_DOCBOOKITEMATTR:
+			lex >> docbookitemattr_;
+			break;
+		case IL_DOCBOOKITEMWRAPPERTAG:
+			lex >> docbookitemwrappertag_;
+			break;
+		case IL_DOCBOOKITEMWRAPPERTAGTYPE:
+			lex >> docbookitemwrappertagtype_;
+			break;
+		case IL_DOCBOOKITEMWRAPPERATTR:
+			lex >> docbookitemwrapperattr_;
+			break;
+		case IL_DOCBOOKWRAPPERTAG:
+			lex >> docbookwrappertag_;
+			break;
+		case IL_DOCBOOKWRAPPERTAGTYPE:
+			lex >> docbookwrappertagtype_;
+			break;
+		case IL_DOCBOOKWRAPPERATTR:
+			lex >> docbookwrapperattr_;
+			break;
+		case IL_DOCBOOKNOFONTINSIDE:
+			lex >> docbooknofontinside_;
+			break;
+		case IL_DOCBOOKRENDERASIMAGE:
+			lex >> docbookrenderasimage_;
+			break;
 		case IL_REQUIRES: {
 			lex.eatLine();
 			vector<string> const req
 				= getVectorFromString(lex.getString(true));
-			requires_.insert(req.begin(), req.end());
+			required_.insert(req.begin(), req.end());
 			break;
 		}
 		case IL_SPELLCHECK:
@@ -487,6 +634,40 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 			break;
 		case IL_ISTOCCAPTION:
 			lex >> is_toc_caption_;
+			break;
+		case IL_EDITEXTERNAL:
+			lex >> edit_external_;
+			break;
+		case IL_ALLOWED_IN_INSET: {
+			docstring allowed = lex.getLongString(from_ascii("EndAllowedInInsets"));
+			allowed = subst(allowed, from_ascii("\n"), docstring());
+			allowed = subst(allowed, from_ascii("\t"), docstring());
+			allowed = subst(allowed, from_ascii("\""), docstring());
+			allowed = subst(allowed, '_', ' ');
+			vector<docstring> const allowances =
+				getVectorFromString(allowed, from_ascii(","), false, true);
+			allowed_in_insets_.clear();
+			allowed_in_insets_.insert(allowances.begin(), allowances.end());
+			break;
+		}
+
+		case IL_ALLOWED_IN_LAYOUT: {
+			docstring allowed = lex.getLongString(from_ascii("EndAllowedInLayouts"));
+			allowed = subst(allowed, from_ascii("\n"), docstring());
+			allowed = subst(allowed, from_ascii("\t"), docstring());
+			allowed = subst(allowed, from_ascii("\""), docstring());
+			allowed = subst(allowed, '_', ' ');
+			vector<docstring> const allowances =
+				getVectorFromString(allowed, from_ascii(","), false, true);
+			allowed_in_layouts_.clear();
+			allowed_in_layouts_.insert(allowances.begin(), allowances.end());
+			break;
+		}
+		case IL_ALLOWED_OCCURRENCES:
+			lex >> allowed_occurrences_;
+			break;
+		case IL_ALLOWED_OCCURRENCES_PER_ITEM:
+			lex >> allowed_occurrences_per_item_;
 			break;
 		case IL_END:
 			getout = true;
@@ -507,19 +688,17 @@ bool InsetLayout::read(Lexer & lex, TextClass const & tclass,
 }
 
 
-InsetLayout::InsetLyXType translateLyXType(std::string const & str)
+InsetLyXType translateLyXType(std::string const & str)
 {
 	if (compare_ascii_no_case(str, "charstyle") == 0)
-		return InsetLayout::CHARSTYLE;
+		return InsetLyXType::CHARSTYLE;
 	if (compare_ascii_no_case(str, "custom") == 0)
-		return InsetLayout::CUSTOM;
-	if (compare_ascii_no_case(str, "element") == 0)
-		return InsetLayout::ELEMENT;
+		return InsetLyXType::CUSTOM;
 	if (compare_ascii_no_case(str, "end") == 0)
-		return InsetLayout::END;
+		return InsetLyXType::END;
 	if (compare_ascii_no_case(str, "standard") == 0)
-		return InsetLayout::STANDARD;
-	return InsetLayout::NOLYXTYPE;
+		return InsetLyXType::STANDARD;
+	return InsetLyXType::NOLYXTYPE;
 }
 
 
@@ -531,11 +710,23 @@ string const & InsetLayout::htmltag() const
 }
 
 
-string const & InsetLayout::htmlattr() const
+string const & InsetLayout::htmlclass() const
 {
-	if (htmlattr_.empty())
-		htmlattr_ = "class=\"" + defaultCSSClass() + "\"";
-	return htmlattr_;
+	if (htmlclass_.empty())
+		htmlclass_ = defaultCSSClass();
+	return htmlclass_;
+}
+
+
+std::string const & InsetLayout::htmlGetAttrString() const {
+	if (!htmlfullattrs_.empty())
+		return htmlfullattrs_;
+	htmlfullattrs_ = htmlclass();
+	if (!htmlfullattrs_.empty())
+		htmlfullattrs_ = "class='" + htmlfullattrs_ + "'";
+	if (!htmlattr_.empty())
+		htmlfullattrs_ += " " + htmlattr_;
+	return htmlfullattrs_;
 }
 
 
@@ -593,18 +784,72 @@ docstring InsetLayout::htmlstyle() const
 	return retval;
 }
 
+
+std::string const & InsetLayout::docbookininfo() const
+{
+	// Same as Layout::docbookininfo.
+	// Indeed, a trilean. Only titles should be "maybe": otherwise, metadata is "always", content is "never".
+	if (docbookininfo_.empty() || (docbookininfo_ != "never" && docbookininfo_ != "always" && docbookininfo_ != "maybe"))
+		docbookininfo_ = "never";
+	return docbookininfo_;
+}
+
+
+std::string InsetLayout::docbooktagtype() const
+{
+	if (docbooktagtype_ != "block" && docbooktagtype_ != "paragraph" && docbooktagtype_ != "inline")
+		docbooktagtype_ = "block";
+	return docbooktagtype_;
+}
+
+
+std::string InsetLayout::docbookinnertagtype() const
+{
+	if (docbookinnertagtype_ != "block" && docbookinnertagtype_ != "paragraph" && docbookinnertagtype_ != "inline")
+		docbookinnertagtype_ = "block";
+	return docbookinnertagtype_;
+}
+
+
+std::string InsetLayout::docbookwrappertagtype() const
+{
+	if (docbookwrappertagtype_ != "block" && docbookwrappertagtype_ != "paragraph" && docbookwrappertagtype_ != "inline")
+		docbookwrappertagtype_ = "block";
+	return docbookwrappertagtype_;
+}
+
+
+std::string InsetLayout::docbookitemtagtype() const
+{
+	if (docbookitemtagtype_ != "block" && docbookitemtagtype_ != "paragraph" && docbookitemtagtype_ != "inline")
+		docbookitemtagtype_ = "block";
+	return docbookitemtagtype_;
+}
+
+
+std::string InsetLayout::docbookitemwrappertagtype() const
+{
+	if (docbookitemwrappertagtype_ != "block" && docbookitemwrappertagtype_ != "paragraph" && docbookitemwrappertagtype_ != "inline")
+		docbookitemwrappertagtype_ = "block";
+	return docbookitemwrappertagtype_;
+}
+
+
 void InsetLayout::readArgument(Lexer & lex)
 {
 	Layout::latexarg arg;
 	arg.mandatory = false;
 	arg.autoinsert = false;
 	arg.insertcotext = false;
+	arg.insertonnewline = false;
 	bool error = false;
 	bool finished = false;
 	arg.font = inherit_font;
 	arg.labelfont = inherit_font;
 	arg.is_toc_caption = false;
+	arg.free_spacing = false;
 	arg.passthru = PT_INHERITED;
+	arg.nodelims = false;
 	string nr;
 	lex >> nr;
 	bool const postcmd = prefixIs(nr, "post:");
@@ -631,6 +876,9 @@ void InsetLayout::readArgument(Lexer & lex)
 		} else if (tok == "insertcotext") {
 			lex.next();
 			arg.insertcotext = lex.getBool();
+		} else if (tok == "insertonnewline") {
+			lex.next();
+			arg.insertonnewline = lex.getBool();
 		} else if (tok == "leftdelim") {
 			lex.next();
 			arg.ldelim = lex.getDocString();
@@ -651,11 +899,14 @@ void InsetLayout::readArgument(Lexer & lex)
 			lex.next();
 			arg.tooltip = lex.getDocString();
 		} else if (tok == "requires") {
-			lex.next();
-			arg.requires = lex.getString();
+			lex.eatLine();
+			arg.required = trim(lex.getString(true));
 		} else if (tok == "decoration") {
 			lex.next();
 			arg.decoration = lex.getString();
+		} else if (tok == "newlinecmd") {
+			lex.next();
+			arg.newlinecmd = lex.getString();
 		} else if (tok == "font") {
 			arg.font = lyxRead(lex, arg.font);
 		} else if (tok == "labelfont") {
@@ -675,6 +926,24 @@ void InsetLayout::readArgument(Lexer & lex)
 		} else if (tok == "istoccaption") {
 			lex.next();
 			arg.is_toc_caption = lex.getBool();
+		} else if (tok == "freespacing") {
+			lex.next();
+			arg.free_spacing = lex.getBool();
+		} else if (tok == "docbooktag") {
+			lex.next();
+			arg.docbooktag = lex.getDocString();
+		} else if (tok == "docbookattr") {
+			lex.next();
+			arg.docbookattr = lex.getDocString();
+		} else if (tok == "docbooktagtype") {
+			lex.next();
+			arg.docbooktagtype = lex.getDocString();
+		} else if (tok == "docbookargumentbeforemaintag") {
+			lex.next();
+			arg.docbookargumentbeforemaintag = lex.getBool();
+		} else if (tok == "docbookargumentaftermaintag") {
+			lex.next();
+			arg.docbookargumentaftermaintag = lex.getBool();
 		} else {
 			lex.printError("Unknown tag");
 			error = true;
@@ -698,9 +967,9 @@ Layout::LaTeXArgMap InsetLayout::args() const
 }
 
 
-unsigned int InsetLayout::optArgs() const
+int InsetLayout::optArgs() const
 {
-	unsigned int nr = 0;
+	int nr = 0;
 	Layout::LaTeXArgMap const args = InsetLayout::args();
 	Layout::LaTeXArgMap::const_iterator it = args.begin();
 	for (; it != args.end(); ++it) {
@@ -711,9 +980,9 @@ unsigned int InsetLayout::optArgs() const
 }
 
 
-unsigned int InsetLayout::requiredArgs() const
+int InsetLayout::requiredArgs() const
 {
-	unsigned int nr = 0;
+	int nr = 0;
 	Layout::LaTeXArgMap const args = InsetLayout::args();
 	Layout::LaTeXArgMap::const_iterator it = args.begin();
 	for (; it != args.end(); ++it) {

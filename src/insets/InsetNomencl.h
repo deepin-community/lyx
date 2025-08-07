@@ -28,29 +28,26 @@ public:
 	///
 	InsetNomencl(Buffer * buf, InsetCommandParams const &);
 
-	///
-	int docbookGlossary(odocstream &) const;
-
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	/// Updates needed features for this inset.
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	InsetCode lyxCode() const { return NOMENCL_CODE; }
+	InsetCode lyxCode() const override { return NOMENCL_CODE; }
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	/// Does nothing at the moment.
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	//@}
 
 	/// \name Static public methods obligated for InsetCommand derived classes
@@ -68,17 +65,14 @@ private:
 	/// \name Private functions inherited from Inset class
 	//@{
 	///
-	Inset * clone() const { return new InsetNomencl(*this); }
+	Inset * clone() const override { return new InsetNomencl(*this); }
 	//@}
 
 	/// \name Private functions inherited from InsetCommand class
 	//@{
 	///
-	docstring screenLabel() const;
+	docstring screenLabel() const override;
 	//@}
-
-	/// unique id for this nomenclature entry for docbook export
-	docstring nomenclature_entry_id;
 };
 
 
@@ -90,21 +84,21 @@ public:
 	/// \name Public functions inherited from Inset class
 	//@{
 	/// Updates needed features for this inset.
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	InsetCode lyxCode() const;
+	InsetCode lyxCode() const override;
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	///
-	DisplayType display() const { return AlignCenter; }
+	int rowFlags() const override { return Display; }
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	//@}
 
 	/// \name Static public methods obligated for InsetCommand derived classes
@@ -122,19 +116,19 @@ private:
 	/// \name Private functions inherited from Inset class
 	//@{
 	///
-	Inset * clone() const { return new InsetPrintNomencl(*this); }
+	Inset * clone() const override { return new InsetPrintNomencl(*this); }
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus & status) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus & status) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	docstring layoutName() const { return from_ascii("PrintNomencl"); }
+	docstring layoutName() const override { return from_ascii("PrintNomencl"); }
 	//@}
 
 	/// \name Private functions inherited from InsetCommand class
 	//@{
 	///
-	docstring screenLabel() const;
+	docstring screenLabel() const override;
 	//@}
 };
 

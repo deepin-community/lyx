@@ -16,13 +16,12 @@
 
 #include "ParagraphParameters.h"
 
-#include "Buffer.h"
-#include "support/gettext.h"
 #include "Layout.h"
 #include "Lexer.h"
-#include "Text.h"
 #include "Paragraph.h"
 
+#include "support/debug.h"
+#include "support/docstring.h"
 #include "support/lstrings.h"
 
 #include <sstream>
@@ -169,7 +168,7 @@ void ParagraphParameters::leftIndent(Length const & li)
 }
 
 
-void ParagraphParameters::read(string str, bool merge)
+void ParagraphParameters::read(string const & str, bool merge)
 {
 	istringstream is(str);
 	Lexer lex;
@@ -245,14 +244,14 @@ void ParagraphParameters::read(Lexer & lex, bool merge)
 
 
 void ParagraphParameters::apply(
-		ParagraphParameters const & p, Layout const & layout)
+		ParagraphParameters const & params, Layout const & layout)
 {
-	spacing(p.spacing());
+	spacing(params.spacing());
 	// does the layout allow the new alignment?
-	if (p.align() & layout.alignpossible)
-		align(p.align());
-	labelWidthString(p.labelWidthString());
-	noindent(p.noindent());
+	if (params.align() & layout.alignpossible)
+		align(params.align());
+	labelWidthString(params.labelWidthString());
+	noindent(params.noindent());
 }
 
 
@@ -315,6 +314,12 @@ void params2string(Paragraph const & par, string & data)
 	os << "\\ininset " << 1 << '\n';
 
 	data = os.str();
+}
+
+
+LyXErr & operator<<(LyXErr & os, ParagraphParameters const & parp) {
+	parp.write(os.stream());
+	return os;
 }
 
 

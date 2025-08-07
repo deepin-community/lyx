@@ -17,8 +17,9 @@
 #include "Author.h"
 #include "Buffer.h"
 #include "BufferParams.h"
+#include "Color.h"
 #include "Encoding.h"
-#include "LaTeXFeatures.h"
+#include "LyXRC.h"
 #include "MetricsInfo.h"
 #include "OutputParams.h"
 #include "Paragraph.h"
@@ -70,26 +71,29 @@ bool Change::isSimilarTo(Change const & change) const
 Color Change::color() const
 {
 	Color color = Color_none;
-	switch (author % 5) {
-		case 0:
-			color = Color_changedtextauthor1;
-			break;
-		case 1:
-			color = Color_changedtextauthor2;
-			break;
-		case 2:
-			color = Color_changedtextauthor3;
-			break;
-		case 3:
-			color = Color_changedtextauthor4;
-			break;
-		case 4:
-			color = Color_changedtextauthor5;
-			break;
+	if (author == 0)
+		color = Color_changedtext_workarea_author1;
+	else if (author == 1)
+		color = Color_changedtext_workarea_comparison;
+	else {
+		switch ((author - 2) % 4) {
+			case 0:
+				color = Color_changedtext_workarea_author2;
+				break;
+			case 1:
+				color = Color_changedtext_workarea_author3;
+				break;
+			case 2:
+				color = Color_changedtext_workarea_author4;
+				break;
+			case 3:
+				color = Color_changedtext_workarea_author5;
+				break;
+		}
 	}
 
 	if (deleted())
-		color.mergeColor = Color_deletedtextmodifier;
+		color.mergeColor = Color_deletedtext_workarea_modifier;
 
 	return color;
 }
@@ -338,7 +342,7 @@ void Changes::merge()
 
 namespace {
 
-docstring getLaTeXMarkup(docstring const & macro, docstring const & author,
+docstring getLaTeXMarkup(docstring const & macro, Author const & author,
 			 docstring const & chgTime,
 			 OutputParams const & runparams)
 {
@@ -348,18 +352,52 @@ docstring getLaTeXMarkup(docstring const & macro, docstring const & author,
 	docstring uncodable_author;
 	odocstringstream ods;
 
+	docstring const author_name = author.name();
+	docstring const author_initials = author.initials();
+	
 	ods << macro;
+	if (!author_initials.empty()) {
+		docstring uncodable_initials;
+		// convert utf8 author initials to something representable
+		// in the current encoding
+		pair<docstring, docstring> author_initials_latexed =
+			runparams.encoding->latexString(author_initials, runparams.dryrun);
+		if (!author_initials_latexed.second.empty()) {
+			LYXERR0("Omitting uncodable characters '"
+				<< author_initials_latexed.second
+				<< "' in change author initials!");
+			uncodable_initials = author_initials;
+		}
+		ods << "[" << author_initials_latexed.first << "]";
+		// warn user (once) if we found uncodable glyphs.
+		if (!uncodable_initials.empty()) {
+			static std::set<docstring> warned_author_initials;
+			static Mutex warned_mutex;
+			Mutex::Locker locker(&warned_mutex);
+			if (warned_author_initials.find(uncodable_initials) == warned_author_initials.end()) {
+				frontend::Alert::warning(_("Uncodable character in author initials"),
+					support::bformat(_("The author initials '%1$s',\n"
+					  "used for change tracking, contain the following glyphs that\n"
+					  "cannot be represented in the current encoding: %2$s.\n"
+					  "These glyphs will be omitted in the exported LaTeX file.\n\n"
+					  "Choose an appropriate document encoding (such as utf8)\n"
+					  "or change the author initials."),
+					uncodable_initials, author_initials_latexed.second));
+				warned_author_initials.insert(uncodable_initials);
+			}
+		}
+	}
 	// convert utf8 author name to something representable
 	// in the current encoding
 	pair<docstring, docstring> author_latexed =
-		runparams.encoding->latexString(author, runparams.dryrun);
+		runparams.encoding->latexString(author_name, runparams.dryrun);
 	if (!author_latexed.second.empty()) {
 		LYXERR0("Omitting uncodable characters '"
 			<< author_latexed.second
 			<< "' in change author name!");
-		uncodable_author = author;
+		uncodable_author = author_name;
 	}
-	ods << author_latexed.first << "}{" << chgTime << "}{";
+	ods << "{" << author_latexed.first << "}{" << chgTime << "}{";
 
 	// warn user (once) if we found uncodable glyphs.
 	if (!uncodable_author.empty()) {
@@ -394,16 +432,14 @@ int Changes::latexMarkChange(otexstream & os, BufferParams const & bparams,
 
 	int column = 0;
 
-	bool const dvipost = LaTeXFeatures::isAvailable("dvipost") &&
-			(runparams.flavor == OutputParams::LATEX
-			 || runparams.flavor == OutputParams::DVILUATEX);
-
 	if (oldChange.type != Change::UNCHANGED) {
-		// close \lyxadded or \lyxdeleted
-		os << '}';
-		column++;
+		if (oldChange.type != Change::DELETED || runparams.ctObject != CtObject::OmitObject) {
+			// close \lyxadded or \lyxdeleted
+			os << '}';
+			column++;
+		}
 		if (oldChange.type == Change::DELETED
-		    && !runparams.wasDisplayMath && !dvipost)
+		    && !runparams.wasDisplayMath)
 			--runparams.inulemcmd;
 	}
 
@@ -414,25 +450,26 @@ int Changes::latexMarkChange(otexstream & os, BufferParams const & bparams,
 
 	docstring macro_beg;
 	if (change.type == Change::DELETED) {
-		macro_beg = from_ascii("\\lyxdeleted{");
-		if (!runparams.inDisplayMath && !dvipost)
-			++runparams.inulemcmd;
+		if (runparams.ctObject == CtObject::OmitObject)
+			return 0;
+		else if (runparams.ctObject == CtObject::Object)
+			macro_beg = from_ascii("\\lyxobjdeleted");
+		else if (runparams.ctObject == CtObject::DisplayObject)
+			macro_beg = from_ascii("\\lyxdisplayobjdeleted");
+		else if (runparams.ctObject == CtObject::UDisplayObject)
+			macro_beg = from_ascii("\\lyxudisplayobjdeleted");
+		else {
+			macro_beg = from_ascii("\\lyxdeleted");
+			if (!runparams.inDisplayMath)
+				++runparams.inulemcmd;
+		}
 	}
 	else if (change.type == Change::INSERTED)
-		macro_beg = from_ascii("\\lyxadded{");
+		macro_beg = from_ascii("\\lyxadded");
 
 	docstring str = getLaTeXMarkup(macro_beg,
-				       bparams.authors().get(change.author).name(),
+				       bparams.authors().get(change.author),
 				       chgTime, runparams);
-
-	// signature needed by \lyxsout to correctly strike out display math
-	if (change.type == Change::DELETED && runparams.inDisplayMath
-	    && !dvipost) {
-		if (os.blankLine())
-			str += from_ascii("\\\\\\noindent\n");
-		else
-			str += from_ascii("\\\\\\\\\n");
-	}
 
 	os << str;
 	column += str.size();
@@ -469,7 +506,7 @@ void Changes::lyxMarkChange(ostream & os, BufferParams const & bparams, int & co
 }
 
 
-void Changes::checkAuthors(AuthorList const & authorList)
+void Changes::checkAuthors(AuthorList const & authorList) const
 {
 	for (ChangeRange const & cr : table_)
 		if (cr.change.type != Change::UNCHANGED)
@@ -523,18 +560,10 @@ void Changes::addToToc(DocIterator const & cdit, Buffer const & buffer,
 }
 
 
-void Changes::updateBuffer(Buffer const & buf)
-{
-	bool const changed = isChanged();
-	buf.setChangesPresent(buf.areChangesPresent() || changed);
-	previously_changed_ = changed;
-}
-
-
 void Change::paintCue(PainterInfo & pi, double const x1, double const y,
                       double const x2, FontInfo const & font) const
 {
-	if (!changed())
+	if (!changed() || (!lyxrc.ct_additions_underlined && inserted()))
 		return;
 	// Calculate 1/3 height of font
 	FontMetrics const & fm = theFontMetrics(font);
@@ -560,11 +589,14 @@ void Change::paintCue(PainterInfo & pi, double const x1, double const y1,
 	switch(type) {
 	case UNCHANGED:
 		return;
-	case INSERTED:
+	case INSERTED: {
+		if (!lyxrc.ct_additions_underlined)
+			return;
 		pi.pain.line(int(x1), int(y2) + 1, int(x2), int(y2) + 1,
 		             color(), Painter::line_solid,
 		             pi.base.solidLineThickness());
 		return;
+	}
 	case DELETED:
 		// FIXME: we cannot use antialias since we keep drawing on the same
 		// background with the current painting mechanism.

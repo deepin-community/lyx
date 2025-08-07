@@ -24,7 +24,8 @@ import sys, os
 
 # Uncomment only what you need to import, please.
 
-from parser_tools import count_pars_in_inset, del_token, find_token, find_token_exact, \
+from parser_tools import count_pars_in_inset, del_complete_lines, del_token, \
+    find_token, find_token_exact, \
     find_token_backwards, find_end_of, find_end_of_inset, find_end_of_layout, \
     find_end_of_sequence, find_re, get_option_value, get_containing_layout, \
     get_containing_inset, get_value, get_quoted_value, set_option_value
@@ -33,7 +34,7 @@ from parser_tools import count_pars_in_inset, del_token, find_token, find_token_
   #find_end_of_inset, find_end_of_layout, \
   #is_in_inset, del_token, check_token
 
-from lyx2lyx_tools import add_to_preamble, put_cmd_in_ert, get_ert
+from lyx2lyx_tools import add_to_preamble, put_cmd_in_ert, get_ert, revert_language
 
 #from lyx2lyx_tools import insert_to_preamble, \
 #  lyx2latex, latex_length, revert_flex_inset, \
@@ -58,7 +59,7 @@ def revert_Argument_to_TeX_brace(document, line, endline, n, nmax, environment, 
     usage:
     revert_Argument_to_TeX_brace(document, LineOfBegin, LineOfEnd, StartArgument, EndArgument, isEnvironment, isOpt)
     LineOfBegin is the line  of the \\begin_layout or \\begin_inset statement
-    LineOfEnd is the line  of the \end_layout or \end_inset statement, if "0" is given, the end of the file is used instead
+    LineOfEnd is the line  of the \\end_layout or \\end_inset statement, if "0" is given, the end of the file is used instead
     StartArgument is the number of the first argument that needs to be converted
     EndArgument is the number of the last argument that needs to be converted or the last defined one
     isEnvironment must be true, if the layout is for a LaTeX environment
@@ -352,7 +353,7 @@ def revert_undertilde(document):
 
 
 def revert_negative_space(document):
-    "Revert InsetSpace negmedspace and negthickspace into its TeX-code counterpart"
+    "Revert InsetSpace negmedspace and negthickspace into their TeX-code counterparts"
     i = 0
     j = 0
     reverted = False
@@ -365,7 +366,7 @@ def revert_negative_space(document):
           if reverted == True:
             i = find_token(document.header, "\\use_amsmath 2", 0)
             if i == -1:
-              add_to_preamble(document, ["\\@ifundefined{negthickspace}{\\usepackage{amsmath}}"])
+              add_to_preamble(document, ["\\@ifundefined{negthickspace}{\\usepackage{amsmath}}{}"])
           return
       if i == -1:
         return
@@ -555,8 +556,6 @@ def handle_longtable_captions(document, forward):
                     get_option_value(document.body[begin_row], 'endlastfoot') != 'true'):
                     document.body[begin_row] = set_option_value(document.body[begin_row], 'caption', 'true", endfirsthead="true')
             elif get_option_value(document.body[begin_row], 'caption') == 'true':
-                if get_option_value(document.body[begin_row], 'endfirsthead') == 'true':
-                    document.body[begin_row] = set_option_value(document.body[begin_row], 'endfirsthead', 'false')
                 if get_option_value(document.body[begin_row], 'endhead') == 'true':
                     document.body[begin_row] = set_option_value(document.body[begin_row], 'endhead', 'false')
                 if get_option_value(document.body[begin_row], 'endfoot') == 'true':
@@ -618,15 +617,16 @@ def convert_use_package(document, pkg, commands, oldauto):
     # oldauto defines how the version we are converting from behaves:
     # if it is true, the old version uses the package automatically.
     # if it is false, the old version never uses the package.
-    i = find_token(document.header, "\\use_package", 0)
+    i = find_token(document.header, "\\use_package")
     if i == -1:
         document.warning("Malformed LyX document: Can't find \\use_package.")
         return;
-    j = find_token(document.preamble, "\\usepackage{" + pkg + "}", 0)
-    if j != -1:
-        # package was loaded in the preamble, convert this to header setting for round trip
+    packageline = "\\usepackage{%s}" % pkg
+    if (del_complete_lines(document.preamble,
+                           ['% Added by lyx2lyx', packageline]) or
+        del_complete_lines(document.preamble, [packageline])):
+        # package was loaded in the preamble, convert this to header setting
         document.header.insert(i + 1, "\\use_package " + pkg + " 2") # on
-        del document.preamble[j]
     # If oldauto is true we have two options:
     # We can either set the package to auto - this is correct for files in
     # format 425 to 463, and may create a conflict for older files which use
@@ -1060,7 +1060,7 @@ def convert_table_rotation(document):
 
 
 def convert_listoflistings(document):
-    'Convert ERT \lstlistoflistings to TOC lstlistoflistings inset'
+    r'Convert ERT \lstlistoflistings to TOC lstlistoflistings inset'
     # We can support roundtrip because the command is so simple
     i = 0
     while True:
@@ -1169,24 +1169,16 @@ def revert_ancientgreek(document):
 def revert_languages(document):
     "Set the document language for new supported languages to English"
 
-    languages = [
-                 "coptic", "divehi", "hindi", "kurmanji", "lao", "marathi", "occitan", "sanskrit",
-                 "syriac", "tamil", "telugu", "urdu"
-                ]
-    for n in range(len(languages)):
-        if document.language == languages[n]:
-            document.language = "english"
-            i = find_token(document.header, "\\language", 0)
-            if i != -1:
-                document.header[i] = "\\language english"
-        j = 0
-        while j < len(document.body):
-            j = find_token(document.body, "\\lang " + languages[n], j)
-            if j != -1:
-                document.body[j] = document.body[j].replace("\\lang " + languages[n], "\\lang english")
-                j += 1
-            else:
-                j = len(document.body)
+    # polyglossia-only
+    polyglossia_languages = ["coptic", "divehi", "hindi", "lao", "marathi",
+                             "occitan", "sanskrit", "syriac", "tamil",
+                             "telugu", "urdu"]
+    # babel-only
+    babel_languages = ["kurmanji"]
+    for lang in polyglossia_languages:
+        revert_language(document, lang, "", lang)
+    for lang in babel_languages:
+        revert_language(document, lang, lang, "")
 
 
 def convert_armenian(document):
@@ -1555,10 +1547,11 @@ def convert_latexargs(document):
                     "theorems-chap-bytype", "theorems-chap", "theorems-named", "theorems-sec-bytype",
                     "theorems-sec", "theorems-starred", "theorems-std", "todonotes"]
     # Modules we need to take care of
-    caveat_modules = ["initials"]
+    caveat_modules = ["initials"] # TODO: , "graphicboxes", "bicaption"]
     # information about the relevant styles in caveat_modules (number of opt and req args)
     # use this if we get more caveat_modules. For now, use hard coding (see below).
     # initials = [{'Layout' : 'Initial', 'opt' : 1, 'req' : 1}]
+    # graphicboxes = { ... }
 
     # Is this a known safe layout?
     safe_layout = document.textclass in safe_layouts
@@ -4560,19 +4553,7 @@ def revert_aa2(document):
 def revert_tibetan(document):
     "Set the document language for Tibetan to English"
 
-    if document.language == "tibetan":
-        document.language = "english"
-        i = find_token(document.header, "\\language", 0)
-        if i != -1:
-            document.header[i] = "\\language english"
-    j = 0
-    while j < len(document.body):
-        j = find_token(document.body, "\\lang tibetan", j)
-        if j != -1:
-            document.body[j] = document.body[j].replace("\\lang tibetan", "\\lang english")
-            j += 1
-        else:
-            j = len(document.body)
+    revert_language(document, "tibetan", "", "tibetan")
 
 
 #############

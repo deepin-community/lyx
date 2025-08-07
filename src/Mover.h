@@ -15,6 +15,7 @@
 #include <map>
 #include <string>
 
+#include "support/mute_warning.h"
 
 namespace lyx {
 
@@ -137,13 +138,11 @@ public:
 	std::string const & command() const { return command_; }
 
 private:
-	virtual bool
-	do_copy(support::FileName const & from, support::FileName const & to,
-		std::string const & latex) const;
+	bool do_copy(support::FileName const & from, support::FileName const & to,
+		std::string const & latex) const override;
 
-	virtual bool
-	do_rename(support::FileName const & from, support::FileName const & to,
-		  std::string const & latex) const;
+	bool do_rename(support::FileName const & from, support::FileName const & to,
+		  std::string const & latex) const override;
 
 	std::string command_;
 };
@@ -183,8 +182,10 @@ private:
 
 
 extern Movers & theMovers();
+LYX_BEGIN_MUTE_GCC_WARNING(dangling-reference)
 /// @c returns the Mover registered for format @c fmt.
 extern Mover const & getMover(std::string  const & fmt);
+LYX_END_MUTE_GCC_WARNING
 /** Register a specialised @c command to be used to copy a file
  *  of format @c fmt.
  */

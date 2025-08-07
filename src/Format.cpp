@@ -14,16 +14,18 @@
 #include "Buffer.h"
 #include "BufferParams.h"
 #include "LyXRC.h"
+#include "OutputParams.h"
 #include "ServerSocket.h"
 
 #include "frontends/alert.h" //to be removed?
 
 #include "support/debug.h"
+#include "support/docstream.h"
 #include "support/filetools.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
+#include "support/lyxmagic.h"
 #include "support/mutex.h"
-#include "support/docstream.h"
 #include "support/os.h"
 #include "support/PathChanger.h"
 #include "support/Systemcall.h"
@@ -31,16 +33,13 @@
 #include "support/Translator.h"
 
 #include <algorithm>
+#include <functional>
 #include <map>
 #include <ctime>
 
 // FIXME: Q_OS_MAC is not available, it's in Qt
 #ifdef USE_MACOSX_PACKAGING
 #include "support/linkback/LinkBackProxy.h"
-#endif
-
-#ifdef HAVE_MAGIC_H
-#include <magic.h>
 #endif
 
 using namespace std;
@@ -57,52 +56,8 @@ string const token_from_format("$$i");
 string const token_path_format("$$p");
 string const token_socket_format("$$a");
 
-
-class FormatNamesEqual : public unary_function<Format, bool> {
-public:
-	FormatNamesEqual(string const & name)
-		: name_(name)
-	{}
-	bool operator()(Format const & f) const
-	{
-		return f.name() == name_;
-	}
-private:
-	string name_;
-};
-
-
-class FormatExtensionsEqual : public unary_function<Format, bool> {
-public:
-	FormatExtensionsEqual(string const & extension)
-		: extension_(extension)
-	{}
-	bool operator()(Format const & f) const
-	{
-		return f.hasExtension(extension_);
-	}
-private:
-	string extension_;
-};
-
-
-class FormatMimeEqual : public unary_function<Format, bool> {
-public:
-	FormatMimeEqual(string const & mime)
-		: mime_(mime)
-	{}
-	bool operator()(Format const & f) const
-	{
-		// The test for empty mime strings is needed since we allow
-		// formats with empty mime types.
-		return f.mime() == mime_ && !mime_.empty();
-	}
-private:
-	string mime_;
-};
-
-
 } // namespace
+
 
 bool Format::formatSorter(Format const * lhs, Format const * rhs)
 {
@@ -140,9 +95,9 @@ string const Format::extensions() const
 }
 
 
-bool Format::hasExtension(string const & e) const
+bool Format::hasExtension(string const & ext) const
 {
-	return (find(extension_list_.begin(), extension_list_.end(), e)
+	return (find(extension_list_.begin(), extension_list_.end(), ext)
 		!= extension_list_.end());
 }
 
@@ -167,17 +122,39 @@ void Format::setExtensions(string const & e)
 }
 
 
+namespace {
+
+std::function<bool (Format const &)> FormatNameIs(string const & name)
+{
+	return [name](Format const & f){ return f.name() == name; };
+}
+
+}
+
 // This method should return a reference, and throw an exception
 // if the format named name cannot be found (Lgb)
 Format const * Formats::getFormat(string const & name) const
 {
 	FormatList::const_iterator cit =
 		find_if(formatlist_.begin(), formatlist_.end(),
-			FormatNamesEqual(name));
+			FormatNameIs(name));
 	if (cit != formatlist_.end())
 		return &(*cit);
 	else
-		return 0;
+		return nullptr;
+}
+
+
+Format * Formats::getFormat(string const & name)
+{
+	FormatList::iterator it =
+		find_if(formatlist_.begin(), formatlist_.end(),
+				FormatNameIs(name));
+
+	if (it != formatlist_.end())
+		return &(*it);
+
+	return nullptr;
 }
 
 
@@ -279,8 +256,12 @@ string guessFormatFromContents(FileName const & fn)
 			} else if (stamp == "\377\330") {
 				format =  "jpg";
 
+			} else if (prefixIs(str, "\x89PNG")) {
+				format =  "png";
+
 			} else if (stamp == "\001\332") {
 				format =  "sgi";
+
 			} else if (prefixIs(str, binEPSStamp)) {
 				format =  "eps";
 
@@ -340,8 +321,8 @@ string guessFormatFromContents(FileName const & fn)
 			// autodetect pdf format for graphics inclusion
 			format = "pdf6";
 
-		else if (contains(str, "PNG"))
-			format = "png";
+		else if (contains(str, " EMF"))
+			format = "emf";
 
 		else if (contains(str, "%!PS-Adobe")) {
 			// eps or ps
@@ -407,52 +388,37 @@ string Formats::getFormatFromFile(FileName const & filename) const
 
 	string psformat;
 	string format;
-#ifdef HAVE_MAGIC_H
 	if (filename.exists()) {
-		magic_t magic_cookie = magic_open(MAGIC_MIME);
-		if (magic_cookie) {
-			if (magic_load(magic_cookie, NULL) != 0) {
-				LYXERR(Debug::GRAPHICS, "Formats::getFormatFromFile\n"
-					<< "\tCouldn't load magic database - "
-					<< magic_error(magic_cookie));
-			} else {
-				char const * result = magic_file(magic_cookie,
-					filename.toFilesystemEncoding().c_str());
-				string mime;
-				if (result)
-					mime = token(result, ';', 0);
-				else {
-					LYXERR(Debug::GRAPHICS, "Formats::getFormatFromFile\n"
-						<< "\tCouldn't query magic database - "
-						<< magic_error(magic_cookie));
-				}
-				// our own detection is better for binary files (can be anything)
-				// and different plain text formats
-				if (!mime.empty() && mime != "application/octet-stream" &&
-				    mime != "text/plain") {
-					Formats::const_iterator cit =
-						find_if(formatlist_.begin(), formatlist_.end(),
-							FormatMimeEqual(mime));
-					if (cit != formatlist_.end()) {
-						LYXERR(Debug::GRAPHICS, "\tgot format from MIME type: "
-							<< mime << " -> " << cit->name());
-						// See special eps/ps handling below
-						if (mime == "application/postscript")
-							psformat = cit->name();
-						else
-							format = cit->name();
-					}
-				}
+		// one instance of Magic that will be reused for next calls
+		// This avoids to read the magic file everytime
+		// If libmagic is not available, Magic::file returns an empty string.
+		static Magic magic;
+		string const result = magic.file(filename.toFilesystemEncoding());
+		string const mime = token(result, ';', 0);
+		// our own detection is better for binary files (can be anything)
+		// and different plain text formats
+		if (!mime.empty() && mime != "application/octet-stream" &&
+			mime != "text/plain") {
+			Formats::const_iterator cit =
+				find_if(formatlist_.begin(), formatlist_.end(),
+						[mime](Format const & f){ return f.mime() == mime; });
+			if (cit != formatlist_.end()) {
+				LYXERR(Debug::GRAPHICS, "\tgot format from MIME type: "
+					   << mime << " -> " << cit->name());
+				// See special eps/ps handling below
+				if (mime == "application/postscript")
+					psformat = cit->name();
+				else
+					format = cit->name();
 			}
-			magic_close(magic_cookie);
-			// libmagic recognizes as latex also some formats of ours
-			// such as pstex and pdftex. Therefore we have to perform
-			// additional checks in this case (bug 9244).
-			if (!format.empty() && format != "latex")
-				return format;
 		}
+
+		// libmagic recognizes as latex also some formats of ours
+		// such as pstex and pdftex. Therefore we have to perform
+		// additional checks in this case (bug 9244).
+		if (!format.empty() && format != "latex")
+			return format;
 	}
-#endif
 
 	string const ext = getExtension(filename.absFileName());
 	if (format.empty()) {
@@ -501,7 +467,7 @@ string Formats::getFormatFromExtension(string const & ext) const
 		// but better than nothing
 		Formats::const_iterator cit =
 			find_if(formatlist_.begin(), formatlist_.end(),
-				FormatExtensionsEqual(ext));
+				[ext](Format const & f){ return f.hasExtension(ext); });
 		if (cit != formatlist_.end()) {
 			LYXERR(Debug::GRAPHICS, "\twill guess format from file extension: "
 				<< ext << " -> " << cit->name());
@@ -590,11 +556,11 @@ int Formats::getNumber(string const & name) const
 {
 	FormatList::const_iterator cit =
 		find_if(formatlist_.begin(), formatlist_.end(),
-			FormatNamesEqual(name));
-	if (cit != formatlist_.end())
-		return distance(formatlist_.begin(), cit);
-	else
+			FormatNameIs(name));
+	if (cit == formatlist_.end())
 		return -1;
+
+	return distance(formatlist_.begin(), cit);
 }
 
 
@@ -611,15 +577,13 @@ void Formats::add(string const & name, string const & extensions,
 		  string const & viewer, string const & editor,
 		  string const & mime, int flags)
 {
-	FormatList::iterator it =
-		find_if(formatlist_.begin(), formatlist_.end(),
-			FormatNamesEqual(name));
-	if (it == formatlist_.end())
-		formatlist_.push_back(Format(name, extensions, prettyname,
-					    shortcut, viewer, editor, mime, flags));
+	Format * format = getFormat(name);
+	if (format)
+		*format = Format(name, extensions, prettyname, shortcut, viewer,
+				 editor, mime, flags);
 	else
-		*it = Format(name, extensions, prettyname, shortcut, viewer,
-			     editor, mime, flags);
+		formatlist_.push_back(Format(name, extensions, prettyname,
+						shortcut, viewer, editor, mime, flags));
 }
 
 
@@ -627,7 +591,7 @@ void Formats::erase(string const & name)
 {
 	FormatList::iterator it =
 		find_if(formatlist_.begin(), formatlist_.end(),
-			FormatNamesEqual(name));
+			FormatNameIs(name));
 	if (it != formatlist_.end())
 		formatlist_.erase(it);
 }
@@ -642,22 +606,22 @@ void Formats::sort()
 void Formats::setViewer(string const & name, string const & command)
 {
 	add(name);
-	FormatList::iterator it =
-		find_if(formatlist_.begin(), formatlist_.end(),
-			FormatNamesEqual(name));
-	if (it != formatlist_.end())
-		it->setViewer(command);
+	Format * format = getFormat(name);
+	if (format)
+		format->setViewer(command);
+	else
+		LYXERR0("Unable to set viewer for non-existent format: " << name);
 }
 
 
 void Formats::setEditor(string const & name, string const & command)
 {
 	add(name);
-	FormatList::iterator it =
-		find_if(formatlist_.begin(), formatlist_.end(),
-			FormatNamesEqual(name));
-	if (it != formatlist_.end())
-		it->setEditor(command);
+	Format * format = getFormat(name);
+	if (format)
+		format->setEditor(command);
+	else
+		LYXERR0("Unable to set editor for non-existent format: " << name);
 }
 
 
@@ -756,10 +720,9 @@ bool Formats::view(Buffer const & buffer, FileName const & filename,
 bool Formats::edit(Buffer const & buffer, FileName const & filename,
 			 string const & format_name) const
 {
-	if (filename.empty() || !filename.exists()) {
-		Alert::error(_("Cannot edit file"),
-			bformat(_("File does not exist: %1$s"),
-				from_utf8(filename.absFileName())));
+	if (filename.empty()) {
+		Alert::error(_("No Filename"),
+			_("No filename was provided!"));
 		return false;
 	}
 
@@ -855,20 +818,20 @@ string const Formats::extensions(string const & name) const
 
 namespace {
 
-typedef Translator<OutputParams::FLAVOR, string> FlavorTranslator;
+typedef Translator<Flavor, string> FlavorTranslator;
 
 
 FlavorTranslator initFlavorTranslator()
 {
-	FlavorTranslator f(OutputParams::LATEX, "latex");
-	f.addPair(OutputParams::DVILUATEX, "dviluatex");
-	f.addPair(OutputParams::LUATEX, "luatex");
-	f.addPair(OutputParams::PDFLATEX, "pdflatex");
-	f.addPair(OutputParams::XETEX, "xetex");
-	f.addPair(OutputParams::XML, "docbook-xml");
-	f.addPair(OutputParams::HTML, "xhtml");
-	f.addPair(OutputParams::TEXT, "text");
-	f.addPair(OutputParams::LYX, "lyx");
+	FlavorTranslator f(Flavor::LaTeX, "latex");
+	f.addPair(Flavor::DviLuaTeX, "dviluatex");
+	f.addPair(Flavor::LuaTeX, "luatex");
+	f.addPair(Flavor::PdfLaTeX, "pdflatex");
+	f.addPair(Flavor::XeTeX, "xetex");
+	f.addPair(Flavor::DocBook5, "docbook-xml");
+	f.addPair(Flavor::Html, "xhtml");
+	f.addPair(Flavor::Text, "text");
+	f.addPair(Flavor::LyX, "lyx");
 	return f;
 }
 
@@ -882,14 +845,14 @@ FlavorTranslator const & flavorTranslator()
 } // namespace
 
 
-std::string flavor2format(OutputParams::FLAVOR flavor)
+std::string flavor2format(Flavor flavor)
 {
 	return flavorTranslator().find(flavor);
 }
 
 
 /* Not currently needed, but I'll leave the code in case it is.
-OutputParams::FLAVOR format2flavor(std::string fmt)
+Flavor format2flavor(std::string fmt)
 {
 	return flavorTranslator().find(fmt);
 } */

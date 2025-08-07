@@ -12,6 +12,8 @@
 
 #include <config.h>
 
+#include "LyXRC.h"
+
 #include "support/ConsoleApplication.h"
 #include "support/debug.h"
 #include "support/FileName.h"
@@ -66,13 +68,9 @@ using namespace lyx::support;
 
 namespace lyx {
 
-// Dummy verbose support
+// Required global variables
 bool verbose = false;
-
-// Dummy LyXRC support
-struct LyXRC {
-	string icon_set;
-} lyxrc;
+LyXRC lyxrc;
 
 // Keep the linker happy on Windows
 void lyx_exit(int)
@@ -94,14 +92,6 @@ Messages const & getMessages(string const &)
 
 
 namespace support {
-
-string itoa(unsigned int i)
-{
-	char buf[20];
-	sprintf(buf, "%d", i);
-	return buf;
-}
-
 
 /// Returns the absolute pathnames of all lyx local sockets in
 /// file system encoding.
@@ -350,10 +340,10 @@ void LyXDataSocket::writeln(string const & line)
 	string linen(line + '\n');
 	int size = linen.size();
 	int written = ::write(fd_, linen.c_str(), size);
-	if (written < size) { // Allways mean end of connection.
+	if (written < size) { // Always mean end of connection.
 		if ((written == -1) && (errno == EPIPE)) {
 			// The program will also receive a SIGPIPE
-			// that must be catched
+			// that must be caught
 			cerr << "lyxclient: connection closed while writing."
 			     << endl;
 		} else {
@@ -470,8 +460,7 @@ int h(vector<docstring> const &)
 }
 
 
-docstring clientName =
-	from_ascii(itoa(::getppid()) + ">" + itoa(::getpid()));
+docstring clientName;
 
 int n(vector<docstring> const & arg)
 {
@@ -527,7 +516,7 @@ int a(vector<docstring> const & arg)
 		     << endl;
 		return -1;
 	}
-	// -a supercedes LYXSOCKET environment variable
+	// -a supersedes LYXSOCKET environment variable
 	serverAddress = arg[0];
 	return 1;
 }
@@ -720,19 +709,12 @@ int LyXClientApp::run()
 
 int main(int argc, char * argv[])
 {
-	lyx::lyxerr.setStream(cerr);
+	using namespace lyx;
+	lyxerr.setStream(cerr);
+	cmdline::clientName =
+		from_ascii(to_string(::getppid()) + ">" + to_string(::getpid()));
 
-	lyx::LyXClientApp app(argc, argv);
+	LyXClientApp app(argc, argv);
 	return app.exec();
 }
 
-
-namespace boost {
-
-void assertion_failed(char const* a, char const* b, char const* c, long d)
-{
-	lyx::lyxerr << "Assertion failed: " << a << ' ' << b << ' ' << c << ' '
-		<< d << '\n';
-}
-
-} // namespace boost

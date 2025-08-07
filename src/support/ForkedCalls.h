@@ -53,7 +53,7 @@ public:
 	 *  we can return easily to C++ methods, rather than just globally
 	 *  accessible functions.
 	 */
-	typedef signals2::signal<void(pid_t, int)> sig;
+	typedef signal<void(pid_t, int)> sig;
 	typedef sig::slot_type slot;
 
 	/** The signal is connected in the calling routine to the desired
@@ -141,7 +141,7 @@ private:
 /**
  * An instance of class ForkedCall represents a single child process.
  *
- * Class ForkedCall uses fork() and execvp() to lauch the child process.
+ * Class ForkedCall uses fork() and execvp() to launch the child process.
  *
  * Once launched, control is returned immediately to the parent process
  * but a Signal can be emitted upon completion of the child.
@@ -157,7 +157,7 @@ public:
 	ForkedCall(std::string const & path = empty_string(),
 	           std::string const & lpath = empty_string());
 	///
-	virtual std::shared_ptr<ForkedProcess> clone() const {
+	std::shared_ptr<ForkedProcess> clone() const override {
 		return std::make_shared<ForkedCall>(*this);
 	}
 
@@ -181,7 +181,7 @@ public:
 
 private:
 	///
-	virtual int generateChild();
+	int generateChild() override;
 	///
 	std::string cmd_prefix_;
 };

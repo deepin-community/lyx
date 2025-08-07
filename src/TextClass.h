@@ -15,7 +15,6 @@
 #include "DocumentClassPtr.h"
 #include "FloatList.h"
 #include "FontInfo.h"
-#include "Layout.h"
 #include "LayoutEnums.h"
 #include "LayoutModuleList.h"
 
@@ -38,7 +37,6 @@ namespace lyx {
 
 namespace support { class FileName; }
 
-class Counters;
 class FloatList;
 class Layout;
 class LayoutFile;
@@ -211,7 +209,11 @@ public:
 	bool hasOutputFormat() const { return has_output_format_; }
 	/// Return the non-localised names for the toc types.
 	std::map<std::string, docstring> const &
-	outlinerNames() const { return outliner_names_; }
+		outlinerNames() const { return outliner_names_; }
+	/// \returns Layout named \p name if it exists, otherwise 0
+	Layout const * getLayout(docstring const & name) const;
+	/// \returns Layout named \p name if it exists, otherwise 0
+	Layout * getLayout(docstring const & name);
 
 protected:
 	/// Protect construction
@@ -271,11 +273,21 @@ protected:
 	///
 	std::string opt_fontsize_;
 	///
+	std::string opt_pagesize_;
+	///
 	std::string opt_pagestyle_;
 	/// Specific class options
 	std::string options_;
+	/// Format of the fontsize option
+	std::string fontsize_format_;
+	/// Default page size
+	std::string pagesize_;
+	/// Format of the papersize option
+	std::string pagesize_format_;
 	///
 	std::string pagestyle_;
+	///
+	std::string tablestyle_;
 	///
 	std::string class_header_;
 	///
@@ -289,12 +301,17 @@ protected:
 	docstring htmlpreamble_;
 	/// same, but specifically for CSS information
 	docstring htmlstyles_;
-	/// the paragraph style to use for TOCs, Bibliography, etc
+	/// the paragraph style to use for TOCs, bibliography, etc.
 	mutable docstring html_toc_section_;
+	/// root element when exporting as DocBook
+	std::string docbookroot_;
+	/// whether this root element does not accept text without a section (i.e. the first text that is met in LyX must
+	/// be considered as the abstract if this is true); this text must be output within <info> and <abstract>
+	bool docbookforceabstract_;
 	/// latex packages loaded by document class.
 	std::set<std::string> provides_;
 	/// latex packages requested by document class.
-	std::set<std::string> requires_;
+	std::set<std::string> required_;
 	///
 	std::map<std::string, std::string> package_options_;
 	/// default modules wanted by document class
@@ -351,8 +368,12 @@ protected:
 	bool cite_full_author_list_;
 	/// The possible citation styles
 	std::map<CiteEngineType, std::vector<CitationStyle> > cite_styles_;
+	/// Class-added citation styles
+	std::map<CiteEngineType, std::vector<CitationStyle> > class_cite_styles_;
 	///
 	std::map<std::string, docstring> outliner_names_;
+	/// Does this class put the bibliography to toc by itself?
+	bool bibintoc_;
 private:
 	///////////////////////////////////////////////////////////////////
 	// helper routines for reading layout files
@@ -366,7 +387,7 @@ private:
 	/// Reads the layout file without running layout2layout.
 	ReturnValues readWithoutConv(support::FileName const & filename, ReadType rt);
 	/// \return true for success.
-	bool readStyle(Lexer &, Layout &) const;
+	bool readStyle(Lexer &, Layout &, ReadType) const;
 	///
 	void readOutputType(Lexer &);
 	///
@@ -380,11 +401,13 @@ private:
 	///
 	bool readFloat(Lexer &);
 	///
-	bool readCiteEngine(Lexer &);
+	std::vector<CitationStyle> const & getCiteStyles(CiteEngineType const &) const;
+	///
+	bool readCiteEngine(Lexer &, ReadType, bool const add = false);
 	///
 	int readCiteEngineType(Lexer &) const;
 	///
-	bool readCiteFormat(Lexer &);
+	bool readCiteFormat(Lexer &, ReadType);
 	///
 	bool readOutlinerName(Lexer &);
 };
@@ -410,7 +433,7 @@ public:
 	/// \return true if there is a Layout with latexname lay
 	bool hasLaTeXLayout(std::string const & lay) const;
 	/// A DocumentClass nevers count as loaded, since it is dynamic
-	virtual bool loaded() const { return false; }
+	bool loaded() const override { return false; }
 	/// \return the layout object of an inset given by name. If the name
 	/// is not found as such, the part after the ':' is stripped off, and
 	/// searched again. In this way, an error fallback can be provided:
@@ -441,19 +464,33 @@ public:
 	///
 	std::string const & opt_fontsize() const { return opt_fontsize_; }
 	///
+	std::string const & opt_pagesize() const { return opt_pagesize_; }
+	///
 	std::string const & opt_pagestyle() const { return opt_pagestyle_; }
 	///
 	std::string const & options() const { return options_; }
 	///
 	std::string const & class_header() const { return class_header_; }
 	///
+	std::string const & fontsizeformat() const { return fontsize_format_; }
+	///
+	std::string const & pagesize() const { return pagesize_; }
+	///
+	std::string const & pagesizeformat() const { return pagesize_format_; }
+	///
 	std::string const & pagestyle() const { return pagestyle_; }
+	///
+	std::string const & tablestyle() const { return tablestyle_; }
 	///
 	docstring const & preamble() const { return preamble_; }
 	///
 	docstring const & htmlpreamble() const { return htmlpreamble_; }
 	///
 	docstring const & htmlstyles() const { return htmlstyles_; }
+	///
+	bool docbookforceabstract() const { return docbookforceabstract_; }
+	///
+	std::string const & docbookroot() const { return docbookroot_; }
 	/// Looks for the layout of "highest level", other than Part (or other
 	/// layouts with a negative toc number), for use in constructing TOCs and
 	/// similar information.
@@ -464,7 +501,7 @@ public:
 	/// is this feature already provided by the class?
 	bool provides(std::string const & p) const;
 	/// features required by the class?
-	std::set<std::string> const & requires() const { return requires_; }
+	std::set<std::string> const & required() const { return required_; }
 	/// package options to write to LaTeX file
 	std::map<std::string, std::string> const & packageOptions() const
 		{ return package_options_; }
@@ -514,7 +551,9 @@ public:
 	/// The maximum number of citations before "et al."
 	size_t max_citenames() const { return maxcitenames_; }
 	///
-	bool const & fullAuthorList() const { return cite_full_author_list_; }
+	bool fullAuthorList() const { return cite_full_author_list_; }
+	///
+	bool bibInToc() const { return bibintoc_; }
 protected:
 	/// Constructs a DocumentClass based upon a LayoutFile.
 	DocumentClass(LayoutFile const & tc);
@@ -524,8 +563,8 @@ private:
 	/// The only way to make a DocumentClass is to call this function.
 	friend DocumentClassPtr
 		getDocumentClass(LayoutFile const &, LayoutModuleList const &,
-				 LayoutModuleList const &,
-				 bool const clone);
+				 std::string const &,
+				 bool clone, bool internal);
 };
 
 
@@ -535,8 +574,8 @@ private:
 /// on the CutStack.
 DocumentClassPtr getDocumentClass(LayoutFile const & baseClass,
 			LayoutModuleList const & modlist,
-			LayoutModuleList const & celist,
-			bool const clone = false);
+			std::string const & cengine = std::string(),
+			bool clone = false, bool internal = false);
 
 /// convert page sides option to text 1 or 2
 std::ostream & operator<<(std::ostream & os, PageSides p);

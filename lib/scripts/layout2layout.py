@@ -11,7 +11,7 @@
 # This script will update a .layout file to current format
 
 # The latest layout format is also defined in src/TextClass.cpp
-currentFormat = 66
+currentFormat = 104
 
 
 # Incremented to format 4, 6 April 2007, lasgouttes
@@ -224,6 +224,133 @@ currentFormat = 66
 # New Layout tags "AutoNests ... EndAutoNests" and
 # "IsAutoNestedBy ... EndIsAutoNestedBy"
 
+# Incremented to format 67, 14 April 2018 by spitz
+# New Layout tag "NeedsCProtect"
+
+# Incremented to format 68, 21 May 2018 by spitz
+# New Layout tag "AddToCiteEngine"
+
+# Incremented to format 69, 16 August 2018 by spitz
+# New argument type "listpreamble"
+
+# Incremented to format 70, 5 June 2018 by rkh
+# New InsetLayout tag EditExternal
+
+# Incremented to format 71, 12 March 2019 by spitz
+# New [Inset]Layout tag NeedMBoxProtect
+
+# Incremented to format 72, 26 March 2019 by spitz
+# New TextClass tag TableStyle
+
+# Incremented to format 73, 18 April 2019 by spitz
+# New InsetLayout tag MenuString
+
+# Incremented to format 74, 18 April 2019 by spitz
+# New InsetLayout and Argument tag NewlineCmd
+
+# Incremented to format 75, 2 June 2019 by spitz
+# New Argument tags FreeSpacing, InsertOnNewline
+# New InsetLayout tag ParbreakIgnored
+
+# Incremented to format 76, 8 July 2019 by spitz
+# New textclass tag BibInToc
+
+# Incremented to format 77, 6 August 2019 by spitz
+# New textclass tag PageSize (= default page size)
+# and textclass option PageSize (= list of available page sizes)
+
+# Incremented to format 78, 6 August 2019 by spitz
+# New textclass tag FontsizeFormat
+
+# Incremented to format 79, 7 August 2019 by spitz
+# New textclass tag PagesizeFormat
+
+# Incremented to format 80, 12 August 2019 by spitz
+# New float option Requires
+
+# Incremented to format 81, 12 August 2019 by rikiheck
+# New tag GuiName for counters
+
+# Incremented to format 82, 4 June 2017 by tcuvelier
+# - Add new tags for Layout:
+#   DocBookTag, DocBookAttr, DocBookInInfo,
+#   DocBookWrapperTag, DocBookWrapperAttr,
+#   DocBookItemWrapperTag, DocBookItemWrapperAttr,
+#   DocBookItemTag, DocBookItemAttr,
+#   DocBookLabelTag, DocBookLabelAttr
+# - Removed tag Header from ClassOptionsClassOptions
+# - Removed tag Element for flex insets
+
+# Incremented to format 83, 2 August 2020 by tcuvelier
+# New tags DocBookWrapperMergeWithPrevious and DocBookAbstract
+
+# Incremented to format 84, 17 August 2020 by tcuvelier
+# New tags DocBookTagType, DocBookWrapperTagTagType,
+# DocBookItemWrapperTagTagType, DocBookItemTagTagType,
+# DocBookLabelTag
+
+# Incremented to format 85, 7 October 2020 by tcuvelier
+# New tags DocBookInnerTag, DocBookInnerAttr,
+# DocBookInnerTagType
+
+# Incremented to format 86, 20 October 2020 by tcuvelier
+# New tag DocBookSection.
+
+# Incremented to format 87, 2 November 2020 by rkh
+
+# Incremented to format 88, 28 November 2020 by tcuvelier
+# New tag DocBookNotInPara.
+
+# Incremented to format 89, 5 December 2020 by rkh
+# New tag LaTeXName for counters
+
+# Incremented to format 90, 11 December 2020 by spitz
+# Use semantic label colors
+
+# Incremented to format 91, 25 January 2021 by spitz
+# InputGlobal tag
+
+# Incremented to format 92, 30 January 2021 by spitz
+# Add ProvideInsetLayout and ModifyInsetLayout
+
+# Incremented to format 93, 13 February 2021 by spitz
+# Add DocBookNoFontInside
+
+# Incremented to format 94, 19 September 2021 by tcuvelier
+# Add DocBookFloatType, DocBookCaption
+
+# Incremented to format 95, 27 September 2021 by tcuvelier
+# Add DocBookRenderAsImage
+
+# Incremented to format 96, 4 December 2022 by rikiheck
+# Add HTMLInToc
+
+# Incremented to format 97, 4 December 2022 by rikiheck
+# Add HTMLClass
+
+# Incremented to format 98, 5 December 2022 by rikiheck
+# Add HTMLClass for InsetLayout
+
+# Incremented to format 99, 22 December 2022 by tcuvelier
+# Add DocBookGenerateTitle for Layout
+
+# Incremented to format 100, 9 May 2023 by forenr
+# Add inset label color
+
+# Incremented to format 101, 22 July 2023 by lasgouttes
+# add InsetLayout tag InheritFont
+
+# Incremented to format 102, 25 July 2023 by spitz
+# add InsetLayout tags AllowedInInsets, EndAllowedInInsets,
+# AllowedInLayouts, EndAllowedInLayouts, AllowedOccurrences,
+# AllowedOccurrencesPerItem
+
+# Incremented to format 103, 27 July 2023 by rikiheck
+# Allow e.g. \roman{section} in PrettyFormat
+
+# Incremented to format 104, 28 July 2023 by rikiheck
+# RefFormat for counters and PrettyFormat for floats
+
 # Do not forget to document format change in Customization
 # Manual (section "Declaring a new text class").
 
@@ -256,7 +383,7 @@ def error(message):
 
 def trim_bom(line):
     " Remove byte order mark."
-    if line[0:3] == "\357\273\277":
+    if line[0:3] == b"\357\273\277":
         return line[3:]
     else:
         return line
@@ -283,6 +410,7 @@ def concatenate_label(old, new):
         return old[0:-1] + new + b'"'
     else:
         return b'"' + old + new + b'"'
+
 
 # appends a string to a list unless it's already there
 def addstring(s, l):
@@ -343,10 +471,9 @@ def convert(lines, end_format):
     re_CopyStyle2 = re.compile(b'(\\s*CopyStyle\\s+)"?([^"]+)"?\\s*$')
     re_Separator = re.compile(b'^(?:(-*)|(\\s*))(Separator|EndOfSlide)(?:(-*)|(\\s*))$', re.IGNORECASE)
     # for categories
-    re_Declaration = re.compile(b'^#\\s*\\Declare\\w+Class.*$')
     re_ExtractCategory = re.compile(b'^(#\\s*\\Declare\\w+Class(?:\\[[^]]*?\\])?){([^(]+?)\\s+\\(([^)]+?)\\)\\s*}\\s*$')
-    ConvDict = {"article": "Articles", "book" : "Books", "letter" : "Letters", "report": "Reports", \
-                "presentation" : "Presentations", "curriculum vitae" : "Curricula Vitae", "handout" : "Handouts"}
+    ConvDict = {b"article": b"Articles", b"book": b"Books", b"letter": b"Letters", b"report": b"Reports",
+                b"presentation": b"Presentations", b"curriculum vitae": b"Curricula Vitae", b"handout": b"Handouts"}
     # Arguments
     re_OptArgs = re.compile(b'^(\\s*)OptionalArgs(\\s+)(\\d+)\\D*$', re.IGNORECASE)
     re_ReqArgs = re.compile(b'^(\\s*)RequiredArgs(\\s+)(\\d+)\\D*$', re.IGNORECASE)
@@ -358,12 +485,13 @@ def convert(lines, end_format):
     re_ChapterStyle = re.compile(b'^\\s*Style\\s+Chapter\\s*$', re.IGNORECASE)
     re_InsetLayout_CaptionLTNN = re.compile(b'^(\\s*InsetLayout\\s+)(Caption:LongTableNonumber)', re.IGNORECASE)
     # for format 64
-    re_trimLabelString = re.compile(b'^(\\s*LabelString\s+)"\\s*(.*?)\\s*"\\s*$')
-    re_trimLabelStringAppendix  = re.compile(b'^(\\s*LabelStringAppendix\s+)"\\s*(.*?)\\s*"\\s*$')
-    re_trimEndLabelString = re.compile(b'^(\\s*EndLabelString\s+)"\\s*(.*?)\\s*"\\s*$')
-    re_trimLabelCounter = re.compile(b'^(\\s*LabelCounter\s+)"\\s*(.*?)\\s*"\\s*$')
-
-
+    re_trimLabelString = re.compile(b'^(\\s*LabelString\\s+)"\\s*(.*?)\\s*"\\s*$')
+    re_trimLabelStringAppendix  = re.compile(b'^(\\s*LabelStringAppendix\\s+)"\\s*(.*?)\\s*"\\s*$')
+    re_trimEndLabelString = re.compile(b'^(\\s*EndLabelString\\s+)"\\s*(.*?)\\s*"\\s*$')
+    re_trimLabelCounter = re.compile(b'^(\\s*LabelCounter\\s+)"\\s*(.*?)\\s*"\\s*$')
+    # for format 100
+    re_InsetLayout100 = re.compile(b'^\\s*InsetLayout\\s+\\"?(Box|Float|Foot|Marginal|Listings|Note:Comment|Note:Greyedout|Tabular)(:\\S*)?\\"?\\s*$', re.IGNORECASE)
+    re_InheritFont = re.compile(b'^(\\s*)InheritFont(\\s+)(\\S+)$', re.IGNORECASE)
     # counters for sectioning styles (hardcoded in 1.3)
     counters = {b"part"          : b"\\Roman{part}",
                 b"chapter"       : b"\\arabic{chapter}",
@@ -396,7 +524,6 @@ def convert(lines, end_format):
     toclevel = b""
     label = b""
     labelstring = b""
-    labelstringappendix = b""
     space1 = b""
     labelstring_line = -1
     labelstringappendix_line = -1
@@ -412,38 +539,36 @@ def convert(lines, end_format):
     opts = 0
     reqs = 0
     inchapter = False
-    isflexlayout = False         # only used for 48 -> 49
     # Whether a style is inherited (works only for CopyStyle currently,
     # not for true inherited styles, see bug 8920
     inherited = False        # only used for 48 -> 49
-    resetsfont_found = False # only used for 48 -> 49
 
     while i < len(lines):
         # Skip comments and empty lines
         if (re_Comment.match(lines[i]) or re_Empty.match(lines[i])):
-          # We need to deal with this conversion here, because it happens
-          # inside the initial comment block.
-          if only_comment and format == 39:
-              match = re_ExtractCategory.match(lines[i])
-              if match:
-                  lpre = match.group(1)
-                  lcat = match.group(2)
-                  lnam = match.group(3)
-                  if lcat in ConvDict:
-                      lcat = ConvDict[lcat]
-                  lines[i] = lpre + b"{" + lnam + b"}"
-                  lines.insert(i+1, b"#  \\DeclareCategory{" + lcat + b"}")
-                  i += 1
-          i += 1
-          continue
+            # We need to deal with this conversion here, because it happens
+            # inside the initial comment block.
+            if only_comment and format == 39:
+                match = re_ExtractCategory.match(lines[i])
+                if match:
+                    lpre = match.group(1)
+                    lcat = match.group(2)
+                    lnam = match.group(3)
+                    if lcat in ConvDict:
+                        lcat = ConvDict[lcat]
+                    lines[i] = lpre + b"{" + lnam + b"}"
+                    lines.insert(i+1, b"#  \\DeclareCategory{" + lcat + b"}")
+                    i += 1
+            i += 1
+            continue
 
         # insert file format if not already there
-        if (only_comment):
+        if only_comment:
             match = re_Format.match(lines[i])
             if match:
                 formatline = i
                 format = int(match.group(4))
-                if format > 1 and format < end_format:
+                if 1 < format < end_format:
                     lines[i] = b"Format %d" % (format + 1)
                     only_comment = 0
                 elif format == end_format:
@@ -473,7 +598,72 @@ def convert(lines, end_format):
                 i += 1
             continue
 
-        if format == 65:
+        if 101 <= format <= 103:
+            # nothing to do.
+            i += 1
+            continue
+
+        if format == 100:
+            # InheritFont has been introduced and defaults to true. Some insets had
+            # an hardcoded inheritFont') method returning true. We removed them, so
+            # we want to introduce the correct tag if it is not already there.
+            match = re_InsetLayout100.match(lines[i])
+            if not match:
+                i += 1
+                continue
+
+            inheritfont_found = False
+            inherited = False
+            while i < len(lines):
+                match = re_InheritFont.match(lines[i])
+                if match:
+                    inheritfont_found = True
+                else:
+                    match = re_CopyStyle.match(lines[i])
+                    if match:
+                        inherited = True
+                    else:
+                        match = re_End.match(lines[i])
+                        if match:
+                            break
+                i += 1
+            if not inheritfont_found and not inherited:
+                lines.insert(i, b"\tInheritFont false")
+
+            continue
+
+        if 87 <= format <= 99:
+            # nothing to do.
+            i += 1
+            continue
+
+        if format == 86:
+            if lines[i].lstrip().lower().startswith(b"stepmastercounter"):
+                pattern = re.compile(b"stepmastercounter", re.IGNORECASE)
+                lines[i] = pattern.sub(b"StepParentCounter", lines[i])
+            i += 1
+            continue
+
+        if 82 <= format <= 85:
+            # nothing to do.
+            i += 1
+            continue
+
+        if format == 81:
+            match = re.compile(b'^(\\s*Header\\s+)("?\\w+"?)', re.IGNORECASE).match(lines[i])
+            if match:
+                del lines[i]
+                continue
+
+            match = re.compile(b'(\\s*LyXType\\s+)(\\w+)(\\s*Element\\s+)', re.IGNORECASE).match(lines[i])
+            if match:
+                del lines[i]
+                continue
+
+            i += 1
+            continue
+
+        if 65 <= format <= 80:
             # nothing to do.
             i += 1
             continue
@@ -485,7 +675,7 @@ def convert(lines, end_format):
                 continue
             col  = match.group(2)
             if col == "collapsable":
-                lines[i] = match.group(1) + "collapsible"
+                lines[i] = match.group(1) + b"collapsible"
             i += 1
             continue
 
@@ -498,7 +688,7 @@ def convert(lines, end_format):
             i += 1
             continue
 
-        if format >= 60 and format <= 62:
+        if 60 <= format <= 62:
             # nothing to do.
             i += 1
             continue
@@ -531,7 +721,7 @@ def convert(lines, end_format):
             i += 1
             continue
 
-        if format >= 50 and format <= 56:
+        if 50 <= format <= 56:
             # nothing to do.
             i += 1
             continue
@@ -596,8 +786,8 @@ def convert(lines, end_format):
         if format == 48:
             # The default of ResetsFont in LyX changed from true to false,
             # because it is now used for all InsetLayouts, not only flex ones.
-            # Therefore we need to set it to true for all flex insets which do
-            # do not already have a ResetsFont.
+            # Therefore, we need to set it to true for all flex insets which do
+            # not already have a ResetsFont.
             match = re_InsetLayout2.match(lines[i])
             if not match:
                 i += 1
@@ -610,63 +800,62 @@ def convert(lines, end_format):
 
             resetsfont_found = False
             inherited = False
-            notdone = True
             while i < len(lines):
-              match = re_ResetsFont.match(lines[i])
-              if match:
-                  resetsfont_found = True
-              else:
-                match = re_CopyStyle.match(lines[i])
+                match = re_ResetsFont.match(lines[i])
                 if match:
-                  inherited = True
+                    resetsfont_found = True
                 else:
-                  match = re_End.match(lines[i])
-                  if match:
-                    break
-              i += 1
+                    match = re_CopyStyle.match(lines[i])
+                    if match:
+                        inherited = True
+                    else:
+                        match = re_End.match(lines[i])
+                        if match:
+                            break
+                i += 1
             if not resetsfont_found and not inherited:
-              lines.insert(i, b"\tResetsFont true")
+                lines.insert(i, b"\tResetsFont true")
 
             continue
 
-        if format >= 44 and format <= 47:
+        if 44 <= format <= 47:
             # nothing to do.
             i += 1
             continue
 
         if format == 43:
-          match = re_LabelTypeIsCounter.match(lines[i])
-          if match:
+            match = re_LabelTypeIsCounter.match(lines[i])
+            if match:
+                if inchapter:
+                   lines[i] = match.group(1) + b"LabelType" + match.group(2) + b"Above"
+                else:
+                   lines[i] = match.group(1) + b"LabelType" + match.group(2) + b"Static"
+
+            match = re_TopEnvironment.match(lines[i])
+            if match:
+                lines[i] = match.group(1) + b"LabelType" + match.group(2) + b"Above"
+
+            match = re_CenteredEnvironment.match(lines[i])
+            if match:
+                lines[i] = match.group(1) + b"LabelType" + match.group(2) + b"Centered"
+
             if inchapter:
-             lines[i] = match.group(1) + b"LabelType" + match.group(2) + b"Above"
+                match = re_Style.match(lines[i])
+                if match:
+                    inchapter = False
             else:
-              lines[i] = match.group(1) + b"LabelType" + match.group(2) + b"Static"
+                match = re_ChapterStyle.match(lines[i])
+                if match:
+                    inchapter = True
 
-          match = re_TopEnvironment.match(lines[i])
-          if match:
-            lines[i] = match.group(1) + b"LabelType" + match.group(2) + b"Above"
-
-          match = re_CenteredEnvironment.match(lines[i])
-          if match:
-            lines[i] = match.group(1) + b"LabelType" + match.group(2) + b"Centered"
-
-          if inchapter:
-            match = re_Style.match(lines[i])
-            if match:
-              inchapter = False
-          else:
-            match = re_ChapterStyle.match(lines[i])
-            if match:
-              inchapter = True
-
-          i += 1
-          continue
+            i += 1
+            continue
 
         if format == 42:
-          if lines[i] == b"InsetLayout Caption":
-            lines[i] = b"InsetLayout Caption:Standard"
-          i += 1
-          continue
+            if lines[i] == b"InsetLayout Caption":
+                lines[i] = b"InsetLayout Caption:Standard"
+            i += 1
+            continue
 
         if format == 41:
             # nothing to do.
@@ -703,7 +892,7 @@ def convert(lines, end_format):
             # Insert the required number of arguments at the end of the style definition
             match = re_End.match(lines[i])
             if match:
-                newarg = ['']
+                newarg = [b'']
                 # First the optionals (this is the required order pre 2.1)
                 if opts > 0:
                     if opts == 1:
@@ -720,7 +909,7 @@ def convert(lines, end_format):
                 # Now the mandatories
                 if reqs > 0:
                     actopt = opts + 1
-                    while actopt < (opts +  reqs + 1):
+                    while actopt < opts + reqs + 1:
                         newarg += [ b'%sArgument %d' % (space1, actopt),
                            b'%s\tLabelString\t"Required Layout Argument %d"' % (space1, actopt - opts),
                            b'%s\tMandatory\t1' % (space1),
@@ -748,148 +937,148 @@ def convert(lines, end_format):
             continue
 
         if format == 36:
-            match = re_CiteFormat.match(lines[i]);
+            match = re_CiteFormat.match(lines[i])
             if match and match.group(4) == b"":
                 lines[i] = match.group(0) + b" default"
             i += 1
             continue
 
         if format == 35:
-          i += 1
-          continue
+            i += 1
+            continue
 
         if format == 34:
-          match = re_QInsetLayout2.match(lines[i])
-          if not match:
-            match = re_InsetLayout2.match(lines[i])
-          if not match:
-            match = re_CopyStyle2.match(lines[i])
+            match = re_QInsetLayout2.match(lines[i])
             if not match:
-              i += 1
-              continue
-            style = match.group(2)
+                match = re_InsetLayout2.match(lines[i])
+            if not match:
+                match = re_CopyStyle2.match(lines[i])
+                if not match:
+                    i += 1
+                    continue
+                style = match.group(2)
 
-            if flexstyles.count(style):
-              lines[i] = match.group(1) + b"\"Flex:" + style + b"\""
+                if flexstyles.count(style):
+                    lines[i] = match.group(1) + b"\"Flex:" + style + b"\""
+                i += 1
+                continue
+
+            name = match.group(1)
+            names = name.split(b":", 1)
+            if len(names) > 1 and names[0] == b"Flex":
+                i += 1
+                continue
+
+            isflex = False
+            for j in range(i + 1, len(lines)):
+                if re_IsFlex.match(lines[j]):
+                    isflex = True
+                    break
+                if re_End.match(lines[j]):
+                    break
+
+            if isflex:
+                flexstyles.append(name)
+                lines[i] = b"InsetLayout \"Flex:" + name + b"\""
+
             i += 1
             continue
-
-          name = match.group(1)
-          names = name.split(b":", 1)
-          if len(names) > 1 and names[0] == b"Flex":
-            i += 1
-            continue
-
-          isflex = False
-          for j in range(i + 1, len(lines)):
-            if re_IsFlex.match(lines[j]):
-              isflex = True
-              break
-            if re_End.match(lines[j]):
-              break
-
-          if isflex:
-            flexstyles.append(name)
-            lines[i] = b"InsetLayout \"Flex:" + name + b"\""
-
-          i += 1
-          continue
 
         if format == 33:
-          m = re_Fill.match(lines[i])
-          if m:
-            lines[i] = b""
-          i += 1
-          continue
+            m = re_Fill.match(lines[i])
+            if m:
+                lines[i] = b""
+            i += 1
+            continue
 
         if format == 32:
-          match = re_NeedsFloatPkg.match(lines[i])
-          if match:
-            space = match.group(1)
-            val = match.group(2)
-            lines[i] = space + b"UsesFloatPkg " + val
-            newval = b'true'
-            if val == b'1' or val.lower() == b'true':
-              newval = b'false'
-            lines.insert(i, space + b"IsPredefined " + newval)
+            match = re_NeedsFloatPkg.match(lines[i])
+            if match:
+                space = match.group(1)
+                val = match.group(2)
+                lines[i] = space + b"UsesFloatPkg " + val
+                newval = b'true'
+                if val == b'1' or val.lower() == b'true':
+                    newval = b'false'
+                lines.insert(i, space + b"IsPredefined " + newval)
+                i += 1
             i += 1
-          i += 1
-          continue
+            continue
 
         # Only new features
-        if format >= 29 and format <= 31:
-          i += 1
-          continue
+        if 29 <= format <= 31:
+            i += 1
+            continue
 
         if format == 28:
-          match = re_InsetLayout.match(lines[i])
-          if match:
-            lines[i] = b"InsetLayout Flex:" + match.group(1)
-          else:
-            match = re_QInsetLayout.match(lines[i])
+            match = re_InsetLayout.match(lines[i])
             if match:
-              lines[i] = b"InsetLayout \"Flex:" + match.group(1) + b"\""
+                lines[i] = b"InsetLayout Flex:" + match.group(1)
             else:
-              match = re_InsetLayout_CopyStyle.match(lines[i])
-              if match:
-                lines[i] = b"\tCopyStyle Flex:" + match.group(1)
-              else:
-                match = re_QInsetLayout_CopyStyle.match(lines[i])
+                match = re_QInsetLayout.match(lines[i])
                 if match:
-                  lines[i] = b"\tCopyStyle \"Flex:" + match.group(1) + b"\""
-          i += 1
-          continue
+                    lines[i] = b"InsetLayout \"Flex:" + match.group(1) + b"\""
+                else:
+                    match = re_InsetLayout_CopyStyle.match(lines[i])
+                    if match:
+                        lines[i] = b"\tCopyStyle Flex:" + match.group(1)
+                    else:
+                        match = re_QInsetLayout_CopyStyle.match(lines[i])
+                        if match:
+                            lines[i] = b"\tCopyStyle \"Flex:" + match.group(1) + b"\""
+            i += 1
+            continue
 
         # Only new features
-        if format >= 24 and format <= 27:
-          i += 1
-          continue
+        if 24 <= format <= 27:
+            i += 1
+            continue
 
         if format == 23:
-          match = re_Float.match(lines[i])
-          i += 1
-          if not match:
-            continue
-          # we need to do two things:
-          # (i)  Convert Builtin to NeedsFloatPkg
-          # (ii) Write ListCommand lines for the builtin floats table and figure
-          builtin = False
-          cmd = b""
-          while True and i < len(lines):
-            m1 = re_End.match(lines[i])
-            if m1:
-              if builtin and cmd:
-                line = b"    ListCommand " + cmd
-                lines.insert(i, line)
-                i += 1
-              break
-            m2 = re_Builtin.match(lines[i])
-            if m2:
-              builtin = True
-              ws1 = m2.group(1)
-              arg = m2.group(2)
-              newarg = b""
-              if re_True.match(arg):
-                newarg = b"false"
-              else:
-                newarg = b"true"
-              lines[i] = ws1 + b"NeedsFloatPkg " + newarg
-            m3 = re_Type.match(lines[i])
-            if m3:
-              fltype = m3.group(1)
-              fltype = fltype.lower()
-              if fltype == b"table":
-                cmd = b"listoftables"
-              elif fltype == b"figure":
-                cmd = b"listoffigures"
-              # else unknown, which is why we're doing this
+            match = re_Float.match(lines[i])
             i += 1
-          continue
+            if not match:
+                continue
+            # we need to do two things:
+            # (i)  Convert Builtin to NeedsFloatPkg
+            # (ii) Write ListCommand lines for the builtin floats table and figure
+            builtin = False
+            cmd = b""
+            while True and i < len(lines):
+                m1 = re_End.match(lines[i])
+                if m1:
+                    if builtin and cmd:
+                        line = b"    ListCommand " + cmd
+                        lines.insert(i, line)
+                        i += 1
+                    break
+                m2 = re_Builtin.match(lines[i])
+                if m2:
+                    builtin = True
+                    ws1 = m2.group(1)
+                    arg = m2.group(2)
+                    newarg = b""
+                    if re_True.match(arg):
+                        newarg = b"false"
+                    else:
+                        newarg = b"true"
+                    lines[i] = ws1 + b"NeedsFloatPkg " + newarg
+                m3 = re_Type.match(lines[i])
+                if m3:
+                    fltype = m3.group(1)
+                    fltype = fltype.lower()
+                    if fltype == b"table":
+                        cmd = b"listoftables"
+                    elif fltype == b"figure":
+                        cmd = b"listoffigures"
+                    # else unknown, which is why we're doing this
+                i += 1
+            continue
 
         # This just involved new features, not any changes to old ones
-        if format >= 14 and format <= 22:
-          i += 1
-          continue
+        if 14 <= format <= 22:
+            i += 1
+            continue
 
         # Rename I18NPreamble to BabelPreamble
         if format == 13:
@@ -907,8 +1096,8 @@ def convert(lines, end_format):
 
         # These just involved new features, not any changes to old ones
         if format == 11 or format == 12:
-          i += 1
-          continue
+            i += 1
+            continue
 
         if format == 10:
             match = re_UseMod.match(lines[i])
@@ -964,7 +1153,7 @@ def convert(lines, end_format):
             continue
 
         # These just involved new features, not any changes to old ones
-        if format >= 5 and format <= 7:
+        if 5 <= format <= 7:
           i += 1
           continue
 
@@ -1104,7 +1293,6 @@ def convert(lines, end_format):
         # Remember the LabelStringAppendix line
         match = re_LabelStringAppendix.match(lines[i])
         if match:
-            labelstringappendix = match.group(4)
             labelstringappendix_line = i
 
         # Remember the LatexType line
@@ -1127,7 +1315,6 @@ def convert(lines, end_format):
             label = b""
             space1 = b""
             labelstring = b""
-            labelstringappendix = b""
             labelstring_line = -1
             labelstringappendix_line = -1
             labeltype_line = -1
@@ -1153,7 +1340,7 @@ def convert(lines, end_format):
             if latextype == b"item_environment" and label.lower() == b"counter_enumi":
                 lines[labeltype_line] = re_LabelType.sub(b'\\1\\2\\3Enumerate', lines[labeltype_line])
                 # Don't add the LabelCounter line later
-                counter = ""
+                counter = b""
 
             # Replace
             #
@@ -1209,9 +1396,7 @@ def convert(lines, end_format):
 
 
 def main(argv):
-    args = {}
-    args["description"] = "Convert layout file <inputfile> to a newer format."
-
+    args = {"description": "Convert layout file <inputfile> to a newer format."}
     parser = argparse.ArgumentParser(**args)
 
     parser.add_argument("-t", "--to", type=int, dest="format", default= currentFormat,
@@ -1226,21 +1411,25 @@ def main(argv):
     # Open files
     if options.input_file:
         source = open(options.input_file, 'rb')
-    else:
+    elif PY2:
         source = sys.stdin
+    else:
+        source = sys.stdin.buffer
 
     if options.output_file:
         output = open(options.output_file, 'wb')
-    else:
+    elif PY2:
         output = sys.stdout
+    else:
+        output = sys.stdout.buffer
 
     if options.format > currentFormat:
-        error("Format %i does not exist" % options.format);
+        error("Format %i does not exist" % options.format)
 
     # Do the real work
     lines = read(source)
     format = 1
-    while (format < options.format):
+    while format < options.format:
         format = convert(lines, options.format)
     write(output, lines)
 

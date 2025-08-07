@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>LanguageUi</class>
+ <widget class="QWidget" name="LanguageUi">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>472</width>
+    <height>316</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string/>
+  </property>
+  <layout class="QGridLayout" name="gridLayout_4">
+   <item row="0" column="0">
+    <layout class="QGridLayout" name="gridLayout_2">
+     <item row="0" column="0">
+      <widget class="QLabel" name="languageL">
+       <property name="text">
+        <string>&amp;Language:</string>
+       </property>
+       <property name="buddy">
+        <cstring>languageCO</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="languageCO">
+       <property name="maxVisibleItems">
+        <number>20</number>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="typeL">
+       <property name="text">
+        <string>&amp;Quote style:</string>
+       </property>
+       <property name="buddy">
+        <cstring>quoteStyleCO</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="quoteStyleCO">
+       <property name="toolTip">
+        <string>Select the default quotation marks style</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <layout class="QHBoxLayout" name="horizontalLayout"/>
+     </item>
+     <item row="2" column="1">
+      <widget class="QCheckBox" name="dynamicQuotesCB">
+       <property name="toolTip">
+        <string>Output quotation marks that automatically adapt to the style selected above. If this is not selected, the quotation marks will stick with the style they have been inserted with.</string>
+       </property>
+       <property name="text">
+        <string>Use d&amp;ynamic quotation marks</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="0" column="1">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::MinimumExpanding</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>0</width>
+       <height>23</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="1" column="0">
+    <widget class="QGroupBox" name="encodingGB">
+     <property name="title">
+      <string>Encoding</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_3">
+      <item row="0" column="0">
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="0" column="0">
+         <widget class="QLabel" name="encodingLA">
+          <property name="text">
+           <string>&amp;Type:</string>
+          </property>
+          <property name="buddy">
+           <cstring>encodingCO</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QComboBox" name="encodingCO">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="toolTip">
+           <string>Select encoding of the generated LaTeX source (LaTeX input encoding).</string>
+          </property>
+          <property name="duplicatesEnabled">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="unicodeEncodingCO">
+          <property name="visible">
+           <bool>true</bool>
+          </property>
+          <property name="toolTip">
+           <string>Select Unicode encoding variant.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="autoEncodingCO">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string>Specify whether to load the 'inputenc' package.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="customEncodingCO">
+          <property name="visible">
+           <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string>Select custom encoding.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="encodingVariantLA">
+          <property name="text">
+           <string>&amp;Variant:</string>
+          </property>
+          <property name="buddy">
+           <cstring>autoEncodingCO</cstring>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <spacer name="horizontalSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>0</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item row="2" column="0" colspan="2">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="languagePackageLA">
+       <property name="text">
+        <string>Language pa&amp;ckage:</string>
+       </property>
+       <property name="buddy">
+        <cstring>languagePackageCO</cstring>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="languagePackageCO">
+       <property name="toolTip">
+        <string>Select which language package LyX should use</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="languagePackageLE">
+       <property name="toolTip">
+        <string>Enter the command to load the language package (default: \usepackage{babel})</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item row="3" column="0">
+    <spacer>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::Expanding</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>71</width>
+       <height>171</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>languageCO</tabstop>
+  <tabstop>quoteStyleCO</tabstop>
+ </tabstops>
+ <includes>
+  <include location="local">qt_i18n.h</include>
+ </includes>
+ <resources/>
+ <connections/>
+</ui>

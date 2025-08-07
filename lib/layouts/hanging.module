@@ -1,17 +1,18 @@
-#\DeclareLyXModule{Hanging}
+#\DeclareLyXModule{Hanging Paragraphs}
+#\DeclareCategory{Paragraph Styles}
 #DescriptionBegin
 #Adds an environment for hanging paragraphs. 
 #Hanging paragraph is a paragraph in which the first line is set to the left margin, but all subsequent lines are indented.
 #DescriptionEnd
 
-#Author: Richard Heck
+#Author: Richard Kimberly Heck
 
 #Hanging paragraph code adapted from hanging.sty, available at:
 # http://www.ctan.org/tex-archive/macros/latex/contrib/hanging/
 #Copyright Peter R. Wilson.
 #Released under the LaTeX Project Public License.
 
-Format 66
+Format 104
 
 Style Hanging
   LatexType Environment
@@ -24,6 +25,17 @@ Style Hanging
   Preamble
     \newlength{\lyxhang}
     \IfFileExists{hanging.sty}{
+      % Disable all character activation, as this interferes
+      % with other packages and some languages
+      \PassOptionsToPackage{%
+          notcomma,
+          notperiod,
+          notquote,
+          notquery,
+          notexcl,
+          notcolon,
+          notscolon
+      }{hanging}
       \usepackage{hanging}
       \newenvironment{hangparagraphs}
         {%
@@ -47,4 +59,6 @@ Style Hanging
       \everypar={\hangpara}}{\par}
     }
   EndPreamble
+  DocBookTag             para
+  DocBookAttr            role='hanging'
 End

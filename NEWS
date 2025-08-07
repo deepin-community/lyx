@@ -1,3 +1,87 @@
+What's new in version 2.4.3?
+----------------------------
+
+This is mostly a bug-fixing release. Most of the bugs are minor, but
+there was one significant one (13118) concerning the loading order of
+the fancyhdr package that was causing errors in page layout. In terms of
+updates, the most significant are that it is not possible to insert
+cross-references from the outliner, even to sections that have not yet
+been given a label. In that case, the label is automatically created.
+There has also been a major update to the Swedish localization.
+
+
+What's new in version 2.4.2?
+----------------------------
+
+This is almost entirely a bug-fixing release, with no significant new
+features. However, some crashes have been fixed, and we have made some
+significant improvements to display speed, which will be especially
+noticeable on older or slower systems.
+
+There has been a change (as of 2.4.0) in how the option to use vertical
+space between paragraphs is handled. Previously, LyX simply modified
+\parskip and \parindent, but this caused various problems (see bug
+#4796). Now, we use the parskip package. As a result, however, and
+to ensure there are no changes to old documents, when LyX files from
+2.3.x and earlier are converted to the new format, if they were set to
+use vertical space between paragraphs, the lyx2lyx conversion routine
+adds
+  % Added by lyx2lyx
+  \setlength{\parskip}{\smallskipamount}
+  \setlength{\parindent}{0pt}
+to the preamble and, within LyX itself, resets the text layout to use
+indentation (so we do not issue the new code for vertical spacing). The
+net effect is that PDFs generated with LaTeX (etc) look right, but in
+LyX itself indentation is used.
+
+This will happen with any document created with 2.3.x or older. It can
+also happen with documents created from templates created with 2.3.x
+or older, and even with new documents, if you had previously set them to
+use, by default, vertical space. Templates are just LyX files saved in
+the templates/ folder, and the 'defaults' are simply saved in a
+template file, defaults.lyx. Hence, if you want the new behavior, or
+just want the LyX document to look `right', then you will need to make
+two changes to the document or template: Remove what lyx2lyx added, and
+then set Paragraph Separation to Vertical Space.
+
+
+What's new in version 2.4.1?
+----------------------------
+
+We have fixed a number of bugs in this version. Most of these are minor, 
+but there was one crash when deleting rows or columns from a table that has
+been fixed. There have also been some improvements to tab management. See 
+the complete list of updates and improvements below for more.
+
+
+
+What's new in version 2.4.0?
+----------------------------
+
+The new features in LyX 2.4 are detailed in
+https://wiki.lyx.org/LyX/NewInLyX24
+
+* DocBook 5 / ePub / XHTML 5  support
+* Default Unicode for new documents
+* Table improvements (styles and other)
+* Redesign of Find/Replace dialog
+* Flexible text fields
+* Counters
+* Global float settings
+* Insets external editing
+* Dark theme
+* Qt 5 default, Qt 6 supported, Qt 4 dropped
+
+
+
+What's new in version 2.3.7?
+----------------------------
+
+LyX 2.3.7 is the  result of on-going efforts to make our stable version
+more reliable and more stable. Since it has been quite a long time (for
+unsurprising reasons) since the last update, this one contains more fixes
+than usual. We have fixed a number of crashes.
+
 What's new in version 2.3.6?
 ----------------------------
 
@@ -83,6 +167,7 @@ Alt-i, on Windows and Linux, and Control-Option-i on OSX (assuming you are
 using the default keybindings).
 
 
+
 What's new in version 2.3.0?
 ----------------------------
 
@@ -98,11 +183,6 @@ http://wiki.lyx.org/LyX/NewInLyX23
 * Fonts
 * New supported languages
 * New supported LaTeX commands
-* New template for Inkscape drawings
-* Handling of environments (e.g. beamer frames)
-* Footnotes in tables
-* Localization of nomenclature
-* New translations of the LyX user interface
 * Improvements to on-screen display of math equations
 * Automatic detection of file changes
 * Citation & reference dialogs
@@ -112,6 +192,7 @@ http://wiki.lyx.org/LyX/NewInLyX23
 * Forward/Reverse search and error reporting
 * Change tracking
 * Code preview & highlighting
+
 
 
 What's new in version 2.2.3?

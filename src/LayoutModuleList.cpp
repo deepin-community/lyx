@@ -1,10 +1,10 @@
 // -*- C++ -*-
 /**
- * \file ModuleList.cpp
+ * \file LayoutModuleList.cpp
  * This file is part of LyX, the document processor.
  * Licence details can be found in the file COPYING.
  *
- * \author Richard Heck
+ * \author Richard Kimberly Heck
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -50,6 +50,18 @@ bool LayoutModuleList::adaptToBaseClass(LayoutFile const * const lay,
 	// with the loading of the default modules.
 	retval = (checkModuleConsistency(lay) || retval);
 	return retval;
+}
+
+
+string LayoutModuleList::asString() const
+{
+	string mods;
+	for (auto const & mod : lml_)
+		mods += mod + ',';
+	// remove trailing comma
+	if (!mods.empty())
+		mods.pop_back();
+	return mods;
 }
 
 

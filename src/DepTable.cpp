@@ -15,7 +15,7 @@
 #include "DepTable.h"
 
 #include "support/debug.h"
-#include "support/filetools.h"
+#include "support/FileName.h"
 #include "support/lstrings.h"
 #include "support/lyxtime.h"
 
@@ -228,7 +228,7 @@ bool DepTable::read(FileName const & f)
 
 		deplist[FileName(nome)] = di;
 	}
-	return deplist.size();
+	return !deplist.empty();
 }
 
 

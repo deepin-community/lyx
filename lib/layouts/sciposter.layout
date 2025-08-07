@@ -7,7 +7,7 @@
 #
 # Input general definitions
 
-Format 66
+Format 104
 
 Input stdclass.inc
 
@@ -54,7 +54,7 @@ Style LeftLogo
   LabelSep        xx
   LabelFont
     Series        Bold
-    Color         Blue
+    Color         textlabel1
   EndFont
   Argument 1
     LabelString   "Logo Size"
@@ -97,6 +97,7 @@ Float
 	IsPredefined          true
 	UsesFloatPkg          false
 	RefPrefix             alg
+	PrettyFormat          "Algorithm ##"
 End
 
 Float
@@ -111,6 +112,7 @@ Float
 	UsesFloatPkg          false
 	ListCommand           listoffigures
 	RefPrefix             fig
+	PrettyFormat          "Figure ##"
 End
 
 Float
@@ -125,6 +127,7 @@ Float
 	UsesFloatPkg          false
 	ListCommand           listoftables
 	RefPrefix             tab
+	PrettyFormat          "Table ##"
 End
 
 InsetLayout "Flex:Giant"
@@ -181,3 +184,11 @@ InsetLayout Flex:Most_Giant_Snippet
 	LabelString           "Most Giant"
 	LeftDelim             {\VERYHuge{}
 End
+
+# InsetLayout Flex:Multiple_Columns
+#   DocBookWrapperTag NONE
+#   DocBookTag        NONE
+#   DocBookItemWrapperTag  NONE
+#   DocBookItemTag    NONE
+#   DocBookNotInPara  true
+# End

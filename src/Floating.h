@@ -36,11 +36,16 @@ public:
 		 std::string const & style, std::string const & name,
 		 std::string const & listName, std::string const & listCmd,
 		 std::string const & refPrefix, std::string const & allowedplacement,
-		 std::string const & htmlType, std::string const & htmlClass,
-		 docstring const & htmlStyle, bool usesfloat, bool isprefined,
+		 std::string const & htmlTag, std::string const & htmlAttrib,
+		 docstring const & htmlStyle, std::string const & docbookTag,
+		 std::string const & docbookAttr, std::string const & docbookTagType,
+		 std::string const & docbookFloatType, std::string const & docbookCaption,
+		 std::string const & required, bool usesfloat, bool ispredefined,
 		 bool allowswide, bool allowssideways);
 	///
 	std::string const & floattype() const { return floattype_; }
+	///
+	std::string docbookFloatType() const;
 	///
 	std::string const & placement() const { return placement_; }
 	///
@@ -64,6 +69,8 @@ public:
 	std::string const & allowedPlacement() const { return allowedplacement_; }
 	///
 	bool usesFloatPkg() const { return usesfloatpkg_; }
+	/// allowed placement options
+	std::string const & required() const { return required_; }
 	///
 	bool isPredefined() const { return ispredefined_; }
 	///
@@ -76,6 +83,14 @@ public:
 	std::string const & htmlAttrib() const;
 	/// tag type, defaults to "div"
 	std::string const & htmlTag() const;
+	///
+	std::string docbookTag(bool hasTitle = false) const;
+	///
+	std::string docbookAttr() const;
+	///
+	std::string const & docbookTagType() const;
+	///
+	std::string const & docbookCaption() const;
 private:
 	///
 	std::string defaultCSSClass() const;
@@ -100,13 +115,15 @@ private:
 	///
 	std::string allowedplacement_;
 	///
+	std::string required_;
+	///
 	bool usesfloatpkg_;
 	///
 	bool ispredefined_;
 	///
-	bool  allowswide_;
+	bool allowswide_;
 	///
-	bool  allowssideways_;
+	bool allowssideways_;
 	///
 	mutable std::string html_tag_;
 	///
@@ -115,6 +132,18 @@ private:
 	mutable std::string defaultcssclass_;
 	///
 	docstring html_style_;
+	// There is no way to override the DocBook tag based on the layouts: half of it is determined by whether the float
+	// has a title or not, an information that is not available in the layouts.
+	/// attribute (mostly, role)
+	mutable std::string docbook_caption_;
+	/// float tag
+	std::string docbook_tag_;
+	/// attributes for the float tag
+	std::string docbook_attr_;
+	/// DocBook tag type (block, paragraph, inline)
+	mutable std::string docbook_tag_type_;
+	/// DocBook float type, to override float_type_ (figure, table, algorithm, video)
+	std::string docbook_float_type_;
 };
 
 

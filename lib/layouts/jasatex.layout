@@ -4,7 +4,7 @@
 # JASATeX textclass definition file.
 # Author: Uwe Stöhr (uwestoehr@web.de)
 
-Format 66
+Format 104
 
 Columns			1
 Sides			1
@@ -43,6 +43,7 @@ Style Standard
 	Align		Block
 	AlignPossible	Block, Left, Right, Center
 	LabelType	No_Label
+	DocBookTag  para
 End
 
 
@@ -80,6 +81,9 @@ Style Title
 	  Size		Largest
 	EndFont
 	HTMLTitle	true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -100,6 +104,11 @@ Style Author
 	Font
 	  Size		Large
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -116,6 +125,12 @@ Style Affiliation
 	Font
 	  Shape		Italic
 	EndFont
+	DocBookTag                        affiliation
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 
@@ -127,6 +142,13 @@ Style "Alternative Affiliation"
 	  LabelString	"Affiliation Prefix"
 	  Tooltip	"A prefix like 'Also at '"
 	EndArgument
+	DocBookTag                        affiliation
+	DocBookAttr                       role='alternate'
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 
@@ -136,12 +158,24 @@ Style Homepage
 	Font
 	  Shape		Up
 	EndFont
+	DocBookTag                        uri
+	DocBookTagType                    paragraph
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    NONE
+	DocBookInInfo                     always
 End
 
 
 Style Email
 	CopyStyle	Homepage
 	LatexName	email
+	DocBookTag                        email
+	DocBookTagType                    paragraph
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    NONE
+	DocBookInInfo                     always
 End
 
 
@@ -161,6 +195,10 @@ Style Date
 	Font
 	  Size		Large
 	EndFont
+	DocBookTag            date
+	DocBookTagType        paragraph
+	DocBookInInfo         always
+    DocBookNoFontInside   true
 End
 
 
@@ -190,6 +228,8 @@ Style Abstract
 	  Series	Bold
 	  Size		Large
 	EndFont
+	DocBookTag       para
+	DocBookAbstract  true
 End
 
 
@@ -208,9 +248,13 @@ Style Keywords
 	LabelType	Static
 	LabelString	"Keywords:"
 	LabelFont
-	  Color		Green
+	  Color		textlabel2
 	  Series	Bold
-	EndFont		
+	EndFont
+	DocBookTag            keyword
+	DocBookTagType        paragraph
+	DocBookWrapperTag     keywordset
+	DocBookInInfo         always
 End
 
 
@@ -218,6 +262,16 @@ Style PACS
 	CopyStyle	Keywords
 	LatexName	pacs
 	LabelString	"PACS numbers:"
+	DocBookTag          subjectset
+	DocBookAttr         role='pacs'
+	DocBookTagType      block
+	DocBookItemWrapperTag      subject
+	DocBookItemWrapperTagType  paragraph
+	DocBookItemTag      subjectterm
+	DocBookItemTagType  inline
+	DocBookWrapperTag   NONE
+	DocBookWrapperAttr  ""
+	DocBookInInfo       always
 End
 
 Style "Preprint number"
@@ -241,6 +295,10 @@ Style Acknowledgments
 	  Series	Bold
 	  Size		Normal
 	EndFont
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
+	DocBookSection        true
+	DocBookAbstract       false
 End
 
 
@@ -260,7 +318,7 @@ InsetLayout "Flex:Online citation"
 	  Misc		No_Bar
 	EndFont
 	LabelFont
-	  Color		green
+	  Color		textlabel2
 	  Size		Small
 	EndFont
 End
@@ -290,5 +348,15 @@ Style Bibliography
 	EndFont
 	TocLevel        1
 	IsTocCaption    0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
 End
 

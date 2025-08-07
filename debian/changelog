@@ -1,8 +1,143 @@
-lyx (2.3.6.1-deepin1) unstable; urgency=medium
+lyx (2.4.3-1) unstable; urgency=medium
 
-  * Fix build failure on deepin RISC-V
+  * New upstream version 2.4.3
+  * Update d/coypright
 
- -- Gui-Yue <yuemeng.gui@gmail.com>  Tue, 22 Nov 2022 14:32:09 +0000
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Thu, 16 Jan 2025 17:59:56 +0100
+
+lyx (2.4.2.1-1) unstable; urgency=medium
+
+  * New upstream version 2.4.2.1
+    - Refresh patches
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Fri, 04 Oct 2024 17:53:13 +0200
+
+lyx (2.4.1-2) unstable; urgency=medium
+
+  [ Sven Hoexter ]
+  * Drop mailcap mimetype file.
+    While re-reading Debian Policy section 9.7 I understood that if you
+    ship a .desktop file you can drop the mailcap mimetype definition.
+    The system /etc/mailcap file will be updated automagically based
+    on the information shipped in the .desktop file.
+  * Provide a lyx mimetype icon for the hicolor default theme.
+    At least file manager which use the hicolor theme will be
+    able to find the LyX icon associated with the application/x-lyx
+    mime type via the .desktop file.
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Fri, 12 Jul 2024 21:32:07 +0200
+
+lyx (2.4.1-1) unstable; urgency=medium
+
+  [ Pavel Sanda ]
+  * Fix bug #1074129: docbook-xsl ->  docbook-xsl-ns.
+    LyX produces docbook XML v5. Closes: #1074129
+
+  [ Dr. Tobias Quathamer ]
+  * New upstream version 2.4.1
+  * Update Build-Depends from pkg-config to pkgconf
+  * Use correct field name in patches for tagging
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Fri, 05 Jul 2024 14:33:29 +0200
+
+lyx (2.4.0-1) unstable; urgency=medium
+
+  * New upstream version 2.4.0
+    - Refresh patches
+  * Update Standards-Version to 4.7.0, no changes needed
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Sat, 01 Jun 2024 01:39:49 +0200
+
+lyx (2.4.0~RC4-1) unstable; urgency=medium
+
+  * New upstream version 2.4.0~RC4
+    - Refresh patches
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Mon, 01 Apr 2024 15:17:48 +0200
+
+lyx (2.4.0~RC3-1) unstable; urgency=medium
+
+  * New upstream version 2.4.0~RC3
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Sun, 11 Feb 2024 23:41:17 +0100
+
+lyx (2.4.0~RC2-1) unstable; urgency=medium
+
+  [ Pavel Sanda ]
+  * Reword package description
+
+  [ Dr. Tobias Quathamer ]
+  * New upstream version 2.4.0~RC2
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Thu, 08 Feb 2024 22:22:05 +0100
+
+lyx (2.4.0~RC1-2) unstable; urgency=medium
+
+  [ Pavel Sanda ]
+  * libtiff-tools -> Recommends.
+    2.4 knows workarounds for the (debian default)
+    bans on postscript conversion (see e.g. #975678).
+    But libtiff-tools & poppler-utils are needed.
+  * New DocBook 5 dependencies.
+    - sgml 4 was dropped
+    - DocBook 5 (XML) is supported
+    - conversion to ePub is supported
+
+  [ Dr. Tobias Quathamer ]
+  * Add 'Forwarded:' information to d/patches
+  * Reformat with wrap-and-sort -at
+  * Upgrade xsltproc and docbook-xsl from Suggests to Recommends.
+    This is based on a suggestion by Pavel Sanda to support
+    export to ePub format.
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Sat, 20 Jan 2024 21:45:28 +0100
+
+lyx (2.4.0~RC1-1) unstable; urgency=medium
+
+  * New upstream version 2.4.0~RC1
+    - Refresh patches
+    - Handle renaming of README file for BaKoMa Fonts
+    - Add license for lib/org.lyx.LyX.metainfo.xml to d/copyright
+    - Add two lintian overrides for false positive errors
+  * Update d/copyright
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Wed, 17 Jan 2024 18:40:41 +0100
+
+lyx (2.3.7-1) unstable; urgency=medium
+
+  [ Debian Janitor ]
+  * Fix field name typo in debian/copyright (Comments ⇒ Comment).
+    Changes-By: lintian-brush
+    Fixes: lintian: field-name-typo-in-dep5-copyright
+    See-also: https://lintian.debian.org/tags/field-name-typo-in-dep5-copyright.html
+
+  [ Dr. Tobias Quathamer ]
+  * New upstream version 2.3.7
+    - Refresh patches
+    - Add newer metainfo and remove appdata.xml. (Closes: #1026039)
+  * Update d/copyright
+  * Update Standards-Version to 4.6.2, no changes needed
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Mon, 02 Jan 2023 21:34:13 +0100
+
+lyx (2.3.6.1-1) unstable; urgency=medium
+
+  [ Pavel Sanda ]
+  * d/copyright: Mythes was actually moved, not removed.
+
+  [ Dr. Tobias Quathamer ]
+  * New upstream version 2.3.6.1
+    - Remove patch for Wayland, has been applied upstream
+    - Add patch to fix bash completion script. (Closes: #1008257)
+    - Add patch to fix FTBFS with GCC 12. (Closes: #1012994)
+    - Add patch to fix String/Bytes Problem in layout2layout.py.
+      (Closes: #1002821)
+  * Update upstream's GPG key and remove unneeded signatures
+  * gbp.conf: Use DEP-14 branch names in git repository
+  * Update to Standards-Version 4.6.1, no changes needed
+  * Convert tabs in d/copyright to spaces
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Sat, 18 Jun 2022 17:45:40 +0200
 
 lyx (2.3.6-1) unstable; urgency=medium
 

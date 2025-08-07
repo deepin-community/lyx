@@ -81,24 +81,25 @@ Context::Context(bool need_layout_,
 		 TeXFont const & font_)
 	: need_layout(need_layout_),
 	  need_end_layout(false), need_end_deeper(false),
-	  has_item(false), deeper_paragraph(false),
+	  has_item(false), in_list_preamble(false), deeper_paragraph(false),
 	  new_layout_allowed(true), merging_hyphens_allowed(true),
 	  textclass(textclass_),
 	  layout(layout_), parent_layout(parent_layout_),
-	  font(font_)
+	  font(font_), tablerotation(0), in_table_cell(false), cell_align('c')
 {
 	if (!layout)
 		layout = &textclass.defaultLayout();
 	if (!parent_layout)
 		parent_layout = &textclass.defaultLayout();
+	pass_thru_cmds.clear();
 }
 
 
 Context::~Context()
 {
 	if (!par_extra_stuff.empty())
-		cerr << "Bug: Ignoring par-level extra stuff '"
-		     << par_extra_stuff << '\'' << endl;
+		warning_message("Bug: Ignoring par-level extra stuff '"
+		     + par_extra_stuff + '\'');
 }
 
 
@@ -115,7 +116,7 @@ void Context::begin_layout(ostream & os, Layout const * const & l)
 	// FIXME: This is not enough for things like
 	// \\Huge par1 \\par par2
 	// FIXME: If the document language is not english this outputs a
-	// superflous language change. Fortunately this is only file format
+	// superfluous language change. Fortunately this is only file format
 	// bloat and does not change the TeX export of LyX.
 	output_font_change(os, normalfont, font);
 }
@@ -140,9 +141,9 @@ void Context::check_layout(ostream & os)
 				begin_layout(os, layout);
 				has_item = false;
 			} else {
-				// a standard paragraph in an
-				// enumeration. We have to recognize
-				// that this may require a begin_deeper.
+				// A standard paragraph in a list.
+				// We have to recognize that this
+				// may require a begin_deeper.
 				if (!deeper_paragraph)
 					begin_deeper(os);
 				begin_layout(os, &textclass.defaultLayout());

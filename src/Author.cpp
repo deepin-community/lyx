@@ -31,20 +31,20 @@ static int computeHash(docstring const & name,
 	string const full_author_string = to_utf8(name + email);
 	// Bernstein's hash function
 	unsigned int hash = 5381;
-	for (unsigned int i = 0; i < full_author_string.length(); ++i)
-		hash = ((hash << 5) + hash) + (unsigned int)(full_author_string[i]);
+	for (char c : full_author_string)
+		hash = ((hash << 5) + hash) + (unsigned int)c;
 	return int(hash);
 }
 
 
-Author::Author(docstring const & name, docstring const & email)
-	: name_(name), email_(email), used_(true),
+Author::Author(docstring const & name, docstring const & email, docstring const & initials)
+	: name_(name), email_(email), initials_(initials), used_(true),
 	  buffer_id_(computeHash(name, email))
 {}
 
 
 Author::Author(int buffer_id)
-	: name_(convert<docstring>(buffer_id)), email_(docstring()), used_(false),
+	: name_(convert<docstring>(buffer_id)), email_(docstring()), initials_(docstring()), used_(false),
 	  buffer_id_(buffer_id)
 {}
 
@@ -53,8 +53,7 @@ docstring Author::nameAndEmail() const
 {
 	if (email().empty())
 		return name();
-	else
-		return bformat(_("%1$s[[name]] (%2$s[[email]])"), name(), email());
+	return bformat(_("%1$s[[name]] (%2$s[[email]])"), name(), email());
 }
 
 
@@ -67,7 +66,7 @@ bool Author::valid() const
 
 bool operator==(Author const & l, Author const & r)
 {
-	return l.name() == r.name() && l.email() == r.email();
+	return l.name() == r.name() && l.email() == r.email() && l.initials() == r.initials();
 }
 
 
@@ -120,12 +119,13 @@ int AuthorList::record(Author const & a)
 		if (valid && *it == a)
 			return it - beg;
 		if (it->bufferId() == a.bufferId()) {
-			int id = it - beg;
-			if (!it->valid())
-				// we need to handle the case of a valid author being registred
+			int const id = it - beg;
+			if (!it->valid()) {
+				// we need to handle the case of a valid author being registered
 				// after an invalid one. For instance, because "buffer-reload"
 				// does not clear the buffer's author list.
 				record(id, a);
+			}
 			return id;
 		}
 	}
@@ -178,13 +178,9 @@ ostream & operator<<(ostream & os, AuthorList const & a)
 	// Copy the authorlist, because we don't want to sort the original
 	AuthorList sorted = a;
 	sorted.sort();
-
-	AuthorList::Authors::const_iterator a_it = sorted.begin();
-	AuthorList::Authors::const_iterator const a_end = sorted.end();
-
-	for (; a_it != a_end; ++a_it) {
-		if (a_it->used() && a_it->valid())
-			os << "\\author " << *a_it << "\n";
+	for (auto const & aut : sorted) {
+		if (aut.used() && aut.valid())
+			os << "\\author " << aut << "\n";
 	}
 	return os;
 }

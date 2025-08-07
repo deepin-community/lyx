@@ -7,6 +7,7 @@
 # Font <name>
 #	GuiName            "<Gui Name>"
 #	Family             <rm|sf|tt|math>
+#	FontEncoding       <font encoding>
 #	SwitchDefault      <0|1>
 #	Package            <LaTeX package to be loaded>
 #	Requires           <LaTeX package to test for>
@@ -18,9 +19,12 @@
 #	OsfOption          <option for oldstyle figure support>
 #	OsfFont            <extra font for oldstyle figures>
 #	OsfDefault         <0|1>
+#	OsfFontOnly        <0|1>
 #	ScOption           <option for true smallcaps support>
 #	OsfScOption        <option for combined osf and true smallcaps support>
 #	ScaleOption        <option for font scaling>
+#	ScaleCommand       <command sequence to set scale value of the font>
+#       MoreOptions        <0|1>
 #	Provides           <features provided by the font packages (comma-separated)>
 #	Preamble
 #	  <some arbitrary LaTeX code to be issued in the preamble>
@@ -33,6 +37,7 @@
 # * Adding a new font results in a FILE FORMAT CHANGE. So if a new font
 #   is added for the LyX distribution, the according changes need to be
 #   done.
+# * If FontEncoding is not specified, T1 is assumed.
 # * "SwitchDefault 1" makes the font to be loaded by switching the default
 #   family to <name> (e.g., \renewcommand{\rmdefault}{cmr}), whereas
 #   Package <package> loads it via \usepackage{package}. Only one of these
@@ -62,12 +67,19 @@
 #   tags.
 # * OsfFont is a font that is loaded additionally in and that provides
 #   Old Style Figures for a given font (e.g. eco).
+# * If OsfFontOnly is true, then the OsfFont will replace the non-OsF
+#   one (only OsfFont is loaded if osf is true). Otherwise it will
+#   complement the non-osf font.
 # * OsfScOption overrides any OsfOption and ScOption if both features
 #   are selected.
+# * ScOption and OsfScOption are currently only supported for rm fonts.
 # * Set OsfDefault to true for fonts which have Old Style Figures by
 #   default and provide an option for lining figures. Pass this option
 #   to OsfOption.
-# * ScaleOption supports the placeholder $$val for the scale value.
+# * ScaleOption and ScaleCommand support the placeholder $$val for the
+#   scale value.
+# * If MoreOptions is true, then the user can insert additional options to
+#   the font package via the Document Settings.
 # * The Preamble code is output immediately after the respective font
 #   loading command.
 #
@@ -110,6 +122,7 @@ Font ccfonts
 	GuiName          "Concrete Roman"
 	Family           rm
 	Package          ccfonts
+	MoreOptions      1
 EndFont
 
 Font chancery
@@ -130,6 +143,7 @@ Font cochineal
 	OsfOption        "proportional,osf"
 	Package          cochineal
 	AltFonts         crimson
+	MoreOptions      1
 EndFont
 
 AltFont crimson
@@ -141,13 +155,109 @@ EndFont
 Font cmr
 	GuiName          "Computer Modern Roman"
 	Family           rm
+	FontEncoding     OT1
 	SwitchDefault    1
 	OsfFont          eco
+EndFont
+
+Font CrimsonPro
+	GuiName          "Crimson Pro"
+	Family           rm
+	OsfOption        lf
+	OsfDefault       1
+	Package          CrimsonPro
+	AltFonts         crimson
+	MoreOptions      1
+	FontEncoding     OT1,T1,LY1,TS1
+EndFont
+
+Font CrimsonProMedium
+	GuiName          "Crimson Pro (Medium)"
+	Family           rm
+	OsfOption        lf
+	OsfDefault       1
+	Package          CrimsonPro
+	PackageOptions   medium
+	MoreOptions      1
+	FontEncoding     OT1,T1,LY1,TS1
+EndFont
+
+Font CrimsonProLight
+	GuiName          "Crimson Pro (Light)"
+	Family           rm
+	OsfOption        lf
+	OsfDefault       1
+	Package          CrimsonPro
+	PackageOptions   light
+	MoreOptions      1
+	FontEncoding     OT1,T1,LY1,TS1
+EndFont
+
+Font CrimsonProExtraLight
+	GuiName          "Crimson Pro (Extralight)"
+	Family           rm
+	OsfOption        lf
+	OsfDefault       1
+	Package          CrimsonPro
+	PackageOptions   extralight
+	MoreOptions      1
+	FontEncoding     OT1,T1,LY1,TS1
+EndFont
+
+Font DejaVuSerif
+	GuiName          "DejaVu Serif"
+	Family           rm
+	Package          DejaVuSerif
+EndFont
+
+Font DejaVuSerifCondensed
+	GuiName          "DejaVu Serif (Condensed)"
+	Family           rm
+	Package          DejaVuSerifCondensed
 EndFont
 
 AltFont eco
 	Family           rm
 	Package          eco
+EndFont
+
+Font IBMPlexSerif
+	GuiName          "IBM Plex Serif"
+	Family           rm
+	Package          plex-serif
+	MoreOptions      1
+EndFont
+
+Font IBMPlexSerifThin
+	GuiName          "IBM Plex Serif (Thin)"
+	Family           rm
+	Package          plex-serif
+	PackageOptions   thin
+	MoreOptions      1
+EndFont
+
+Font IBMPlexSerifExtraLight
+	GuiName          "IBM Plex Serif (Extra Light)"
+	Family           rm
+	Package          plex-serif
+	PackageOptions   extralight
+	MoreOptions      1
+EndFont
+
+Font IBMPlexSerifLight
+	GuiName          "IBM Plex Serif (Light)"
+	Family           rm
+	Package          plex-serif
+	PackageOptions   light
+	MoreOptions      1
+EndFont
+
+Font ADOBESourceSerifPro
+	GuiName		 "Source Serif Pro"
+	Family		 rm
+	Package		 sourceserifpro
+	OsfOption        osf
+	MoreOptions      1
 EndFont
 
 Font garamondx
@@ -157,6 +267,7 @@ Font garamondx
 	Package          garamondx
 	Requires         garamondx-fonts
 	AltFonts         ugm
+	MoreOptions      1
 EndFont
 
 AltFont ugm
@@ -173,6 +284,7 @@ Font libertine
 	Package          libertineRoman
 	CompleteFont     libertine-full
 	AltFonts         libertine-type1,libertine-2012,libertine-legacy
+	MoreOptions      1
 EndFont
 
 AltFont libertine-full
@@ -180,6 +292,7 @@ AltFont libertine-full
 	Family           rm
 	Package          libertine
 	Requires         libertineRoman
+	MoreOptions      1
 EndFont
 
 AltFont libertine-type1
@@ -205,11 +318,31 @@ AltFont libertine-legacy
 	Package          libertine
 EndFont
 
+Font libertinus
+	GuiName          "Libertinus"
+	Family           rm
+	OsfOption        osf
+	Package          libertinus
+	PackageOptions   serif
+	CompleteFont     libertinus-full
+	MoreOptions      1
+
+EndFont
+
+AltFont libertinus-full
+	GuiName          "Libertinus"
+	Family           rm
+	OsfOption        osf
+	Package          libertinus
+	MoreOptions      1
+EndFont
+
 Font lmodern
 	GuiName          "Latin Modern Roman"
 	Family           rm
 	Package          lmodern
 	NoMathFont       lmr
+	MoreOptions      1
 EndFont
 
 AltFont lmr
@@ -226,7 +359,7 @@ Font md-charter
 	ScOption         expert
 	OsfScOption      expert
 	Package          mathdesign
-	PackageOption    charter
+	PackageOptions   charter
 	Requires         mdbch
 	Provides         amssymb,amsfonts
 	NoMathFont       mdbch
@@ -246,7 +379,7 @@ Font md-utopia
 	ScOption         expert
 	OsfScOption      expert
 	Package          mathdesign
-	PackageOption    utopia
+	PackageOptions   utopia
 	Requires         mdput
 	Provides         amssymb,amsfonts
 	NoMathFont       mdput
@@ -266,7 +399,7 @@ Font md-garamond
 	ScOption         expert
 	OsfScOption      expert
 	Package          mathdesign
-	PackageOption    garamond
+	PackageOptions   garamond
 	Requires         mdugm
 	Provides         amssymb,amsfonts
 	NoMathFont       mdugm
@@ -287,6 +420,7 @@ Font minionpro
 	Package          MinionPro
 	Provides         amssymb,amsfonts
 	NoMathFont       minionpro-nomath
+	MoreOptions      1
 EndFont
 
 AltFont minionpro-nomath
@@ -295,7 +429,7 @@ AltFont minionpro-nomath
 	OsfOption        lf
 	OsfDefault       1
 	Package          MinionPro
-	PackageOption    onlytext
+	PackageOptions   onlytext
 EndFont
 
 Font newcent
@@ -304,11 +438,12 @@ Font newcent
 	Package          newcent
 EndFont
 
-Font NotoSerif-TLF
+Font NotoSerifRegular
 	GuiName          "Noto Serif"
 	Family           rm
-	SwitchDefault    1
-	Requires         noto
+	Package          noto-serif
+	OsfOption	 osf
+	MoreOptions      1
 	CompleteFont     noto
 EndFont
 
@@ -316,6 +451,48 @@ AltFont noto
 	GuiName          "Noto Serif"
 	Family           rm
 	Package          noto
+	OsfOption	 osf
+	MoreOptions      1
+EndFont
+
+Font NotoSerifMedium
+	GuiName          "Noto Serif (Medium)"
+	Family           rm
+	Package          noto-serif
+	PackageOptions   medium
+	OsfDefault	 0
+	OsfOption	 osf
+	MoreOptions      1
+EndFont
+
+Font NotoSerifThin
+	GuiName          "Noto Serif (Thin)"
+	Family           rm
+	Package          noto-serif
+	PackageOptions   thin
+	OsfDefault	 0
+	OsfOption	 osf
+	MoreOptions      1
+EndFont
+
+Font NotoSerifLight
+	GuiName          "Noto Serif (Light)"
+	Family           rm
+	Package          noto-serif
+	PackageOptions   light
+	OsfDefault	 0
+	OsfOption	 osf
+	MoreOptions      1
+EndFont
+
+Font NotoSerifExtralight
+	GuiName          "Noto Serif (Extralight)"
+	Family           rm
+	Package          noto-serif
+	PackageOptions   extralight
+	OsfDefault	 0
+	OsfOption	 osf
+	MoreOptions      1
 EndFont
 
 Font palatino
@@ -328,6 +505,7 @@ Font palatino
 	AltFonts         mathpple,palatino-sty
 	NoMathFont       ppl
 	Requires         psnfss
+	MoreOptions      1
 EndFont
 
 AltFont mathpple
@@ -347,6 +525,7 @@ AltFont ppl
 	GuiName          "Palatino"
 	Family           rm
 	OsfFont          pplj
+	OsfFontOnly      1
 	SwitchDefault    1
 EndFont
 
@@ -356,6 +535,13 @@ AltFont pplj
 	SwitchDefault    1
 EndFont
 
+Font PTSerif-TLF
+	GuiName         "PT Serif"
+	Family          rm
+	Requires        paratype
+	Package         PTSerif
+EndFont
+
 Font times
 	GuiName          "Times Roman"
 	Family           rm
@@ -363,6 +549,7 @@ Font times
 	AltFonts         mathptm,times-sty
 	NoMathFont       ptm
 	Requires         psnfss
+	MoreOptions      1
 EndFont
 
 AltFont mathptm
@@ -425,6 +612,7 @@ Font utopia
 	AltFonts         utopia-sty
 	OT1Font          utopia-sty
 	NoMathFont       futs
+	MoreOptions      1
 EndFont
 
 AltFont utopia-sty
@@ -438,6 +626,7 @@ AltFont futs
 	Family           rm
 	SwitchDefault    1
 	OsfFont          futj
+	OsfFontOnly      1
 EndFont
 
 AltFont futj
@@ -446,6 +635,13 @@ AltFont futj
 	SwitchDefault    1
 EndFont
 
+Font xcharter
+	GuiName         "Bitstream Charter (XCharter)"
+	Family          rm
+	Package         XCharter
+	OsfOption       osf
+	MoreOptions      1
+EndFont
 
 #
 # SANS SERIF FONTS
@@ -472,6 +668,7 @@ Font biolinum
 	ScaleOption      scaled=$$val
 	Package          biolinum
 	AltFonts         biolinum-type1,biolinum-2012
+	MoreOptions      1
 EndFont
 
 AltFont biolinum-type1
@@ -481,6 +678,7 @@ AltFont biolinum-type1
 	ScaleOption      scaled=$$val
 	Package          biolinum-type1
 	Requires         libertineMono-type1
+	MoreOptions      1
 EndFont
 
 AltFont biolinum-2012
@@ -489,6 +687,61 @@ AltFont biolinum-2012
 	OsfOption        lining
 	OsfDefault       1
 	Package          biolinum-type1
+	MoreOptions      1
+EndFont
+
+Font cantarell
+	GuiName		"Cantarell"
+	Family		sf
+	OsfOption	oldstyle
+	Package		cantarell
+	PackageOptions	"defaultsans"
+	MoreOptions      1
+	FontEncoding	T2A,T1,OT1
+	ScaleOption	scale=$$val
+EndFont
+
+Font ChivoThin
+	GuiName          "Chivo (Thin)"
+	Family           sf
+	OsfOption       oldstyle
+	Package          Chivo
+	PackageOptions   "thin"
+	MoreOptions      1
+	FontEncoding     OT1,LY1,T1,TS1
+	ScaleOption      scale=$$val
+EndFont
+
+Font ChivoLight
+	GuiName          "Chivo (Light)"
+	Family           sf
+	OsfOption       oldstyle
+	Package          Chivo
+	PackageOptions   "light"
+	MoreOptions      1
+	FontEncoding     OT1,LY1,T1,TS1
+	ScaleOption      scale=$$val
+EndFont
+
+Font Chivo
+	GuiName          "Chivo"
+	Family           sf
+	OsfOption       oldstyle
+	Package          Chivo
+	MoreOptions      1
+	FontEncoding     OT1,LY1,T1,TS1
+	ScaleOption      scale=$$val
+EndFont
+
+Font ChivoMedium
+	GuiName          "Chivo (Medium)"
+	Family           sf
+	OsfOption       oldstyle
+	Package          Chivo
+	PackageOptions   "medium"
+	MoreOptions      1
+	FontEncoding     OT1,LY1,T1,TS1
+	ScaleOption      scale=$$val
 EndFont
 
 Font cmbr
@@ -501,7 +754,146 @@ EndFont
 Font cmss
 	GuiName          "Computer Modern Sans"
 	Family           sf
+	FontEncoding     OT1
 	SwitchDefault    1
+EndFont
+
+Font DejaVuSans
+	GuiName          "DejaVu Sans"
+	Family           sf
+	Package          DejaVuSans
+	ScaleOption      scaled=$$val
+EndFont
+
+Font DejaVuSansCondensed
+	GuiName          "DejaVu Sans (Condensed)"
+	Family           sf
+	Package          DejaVuSansCondensed
+	ScaleOption      scaled=$$val
+EndFont
+
+Font FiraSans
+	GuiName         "Fira Sans"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         FiraSans
+	OsfDefault	1
+	OsfOption	lf
+	MoreOptions     1
+	FontEncoding    OT1,T1,TS1,LY1,LGR
+EndFont
+
+Font FiraSansBook
+	GuiName         "Fira Sans (Book)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         FiraSans
+        PackageOptions  book
+	OsfDefault	1
+	OsfOption	lf
+	MoreOptions     1
+	FontEncoding    OT1,T1,TS1,LY1,LGR
+EndFont
+
+Font FiraSansLight
+	GuiName         "Fira Sans (Light)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         FiraSans
+	PackageOptions  light
+	OsfDefault	1
+	OsfOption	lf
+	MoreOptions     1
+	FontEncoding    OT1,T1,TS1,LY1,LGR
+EndFont
+
+Font FiraSansExtralight
+	GuiName         "Fira Sans (Extralight)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         FiraSans
+	PackageOptions  extralight
+	OsfDefault	1
+	OsfOption	lf
+	MoreOptions     1
+	FontEncoding    OT1,T1,TS1,LY1,LGR
+EndFont
+
+Font FiraSansUltralight
+	GuiName         "Fira Sans (Ultralight)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         FiraSans
+	PackageOptions  ultralight
+	OsfDefault	1
+	OsfOption	lf
+	MoreOptions     1
+	FontEncoding    OT1,T1,TS1,LY1,LGR
+EndFont
+
+Font FiraSansThin
+	GuiName         "Fira Sans (Thin)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         FiraSans
+	PackageOptions  thin
+	OsfDefault	1
+	OsfOption	lf
+	MoreOptions     1
+	FontEncoding    OT1,T1,TS1,LY1,LGR
+EndFont
+
+Font IBMPlexSans
+	GuiName          "IBM Plex Sans"
+	Family           sf
+	Package          plex-sans
+	ScaleOption      scale=$$val
+	MoreOptions      1
+EndFont
+
+Font IBMPlexSansCondensed
+	GuiName          "IBM Plex Sans (Condensed)"
+	Family           sf
+	Package          plex-sans
+	PackageOptions   condensed
+	ScaleOption      scale=$$val
+	MoreOptions      1
+EndFont
+
+Font IBMPlexSansThin
+	GuiName          "IBM Plex Sans (Thin)"
+	Family           sf
+	Package          plex-sans
+	PackageOptions   thin
+	ScaleOption      scale=$$val
+	MoreOptions      1
+EndFont
+
+Font IBMPlexSansExtraLight
+	GuiName          "IBM Plex Sans (Extra Light)"
+	Family           sf
+	Package          plex-sans
+	PackageOptions   extralight
+	ScaleOption      scale=$$val
+	MoreOptions      1
+EndFont
+
+Font IBMPlexSansLight
+	GuiName          "IBM Plex Sans (Light)"
+	Family           sf
+	Package          plex-sans
+	PackageOptions   light
+	ScaleOption      scale=$$val
+	MoreOptions      1
+EndFont
+
+Font ADOBESourceSansPro
+	GuiName		 "Source Sans Pro"
+	Family		 sf
+	Package		 sourcesanspro
+	ScaleOption	 scaled=$$val
+	OsfOption        osf
+	MoreOptions      1
 EndFont
 
 Font helvet
@@ -568,6 +960,24 @@ Font kurierlc
 	SwitchDefault   1
 EndFont
 
+Font LibertinusSans-LF
+	GuiName          "Libertinus Sans"
+	Family           sf
+	Requires         libertinus
+	SwitchDefault    1
+	OsfFont          LibertinusSans-OsF
+	OsfFontOnly      1
+	ScaleCommand     \renewcommand*{\LibertinusSans@scale}{$$val}
+EndFont
+
+AltFont LibertinusSans-OsF
+	GuiName          "Libertinus Sans"
+	Family           sf
+	Requires         libertinus
+	SwitchDefault    1
+	ScaleCommand     \renewcommand*{\LibertinusSans@scale}{$$val}
+EndFont
+
 Font lmss
 	GuiName          "Latin Modern Sans"
 	Family           sf
@@ -575,11 +985,66 @@ Font lmss
 	Requires         lmodern
 EndFont
 
-Font NotoSans-TLF
-	GuiName          "Noto Sans"
-	Family           sf
-	SwitchDefault    1
-	Requires         noto
+Font NotoSansRegular
+	GuiName         "Noto Sans"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         noto-sans
+	OsfDefault	0
+	OsfOption	osf
+	MoreOptions	1
+EndFont
+
+Font NotoSansMedium
+	GuiName         "Noto Sans (Medium)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         noto-sans
+        PackageOptions  medium
+	OsfDefault	0
+	OsfOption	osf
+	MoreOptions	1
+EndFont
+
+Font NotoSansThin
+	GuiName         "Noto Sans (Thin)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         noto-sans
+	PackageOptions  thin
+	OsfDefault	0
+	OsfOption	osf
+	MoreOptions	1
+EndFont
+
+Font NotoSansLight
+	GuiName         "Noto Sans (Light)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         noto-sans
+	PackageOptions  light
+	OsfDefault	0
+	OsfOption	osf
+	MoreOptions	1
+EndFont
+
+Font NotoSansExtralight
+	GuiName         "Noto Sans (Extralight)"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Package         noto-sans
+	PackageOptions  extralight
+	OsfDefault	0
+	OsfOption	osf
+	MoreOptions	1
+EndFont
+
+Font PTSans-TLF
+	GuiName         "PT Sans"
+	Family          sf
+	ScaleOption     scaled=$$val
+	Requires        paratype
+	Package         PTSans
 EndFont
 
 Font tgadventor
@@ -599,8 +1064,14 @@ Font uop
 	Family           sf
 	SwitchDefault    1
 	Requires         urwclassico
+	AltFonts         classico
 EndFont
 
+AltFont classico
+	GuiName          "URW Classico (Optima)"
+	Family           sf
+	Package          classico
+EndFont
 
 #
 # MONOSPACED FONTS
@@ -624,6 +1095,7 @@ EndFont
 Font cmtt
 	GuiName          "Computer Modern Typewriter"
 	Family           tt
+	FontEncoding     OT1
 	SwitchDefault    1
 EndFont
 
@@ -632,6 +1104,68 @@ Font courier
 	Family           tt
 	Package          courier
 	Requires         psnfss
+EndFont
+
+Font DejaVuSansMono
+	GuiName          "DejaVu Sans Mono"
+	Family           tt
+	Package          DejaVuSansMono
+	ScaleOption      scaled=$$val
+EndFont
+
+Font FiraMono
+	GuiName         "Fira Mono"
+	Family          tt
+	ScaleOption     scaled=$$val
+	Package         FiraMono
+	OsfDefault	1
+	OsfOption	lf
+	MoreOptions     1
+	FontEncoding    OT1,T1,TS1,LY1,LGR
+EndFont
+
+Font IBMPlexMono
+	GuiName          "IBM Plex Mono"
+	Family           tt
+	Package          plex-mono
+	ScaleOption      scale=$$val
+	MoreOptions      1
+EndFont
+
+Font IBMPlexMonoThin
+	GuiName          "IBM Plex Mono (Thin)"
+	Family           tt
+	Package          plex-mono
+	ScaleOption      scale=$$val
+	PackageOptions   thin
+	MoreOptions      1
+EndFont
+
+Font IBMPlexMonoExtraLight
+	GuiName          "IBM Plex Mono (Extra Light)"
+	Family           tt
+	Package          plex-mono
+	ScaleOption      scale=$$val
+	PackageOptions   extralight
+	MoreOptions      1
+EndFont
+
+Font IBMPlexMonoLight
+	GuiName          "IBM Plex Mono (Light)"
+	Family           tt
+	Package          plex-mono
+	ScaleOption      scale=$$val
+	PackageOptions   light
+	MoreOptions      1
+EndFont
+
+Font ADOBESourceCodePro
+	GuiName		 "Source Code Pro"
+	Family		 tt
+	Package		 sourcecodepro
+	ScaleOption	 scaled=$$val
+	OsfOption        osf
+	MoreOptions      1
 EndFont
 
 Font libertine-mono
@@ -649,6 +1183,14 @@ AltFont libertine-mono-type1
 	Package          libertineMono-type1
 EndFont
 
+Font LibertinusMono-TLF
+	GuiName          "Libertinus Mono"
+	Family           tt
+	Requires         libertinus
+	SwitchDefault    1
+	ScaleCommand     \renewcommand*{\LibertinusMono@scale}{$$val}
+EndFont
+
 Font lmtt
 	GuiName          "Latin Modern Typewriter"
 	Family           tt
@@ -663,11 +1205,21 @@ Font luximono
 	Package          luximono
 EndFont
 
-Font NotoMono-TLF
-	GuiName          "Noto Mono"
-	Family           tt
-	SwitchDefault    1
-	Requires         noto
+Font NotoMonoRegular
+	GuiName         "Noto Mono"
+	Family          tt
+	ScaleOption     scaled=$$val
+	Package         noto-mono
+	OsfOption       osf
+	MoreOptions     1
+EndFont
+
+Font PTMono-TLF
+	GuiName         "PT Mono"
+	Family          tt
+	ScaleOption     scaled=$$val
+	Requires        paratype
+	Package         PTMono
 EndFont
 
 Font tgcursor
@@ -692,7 +1244,7 @@ Font cochineal-ntxm
 	GuiName          "Crimson (New TX)"
 	Family           math
 	Package          newtxmath
-	PackageOption    cochineal
+	PackageOptions   cochineal
 	Provides         amssymb,amsfonts
 EndFont
 
@@ -706,7 +1258,7 @@ Font garamondx-ntxm
 	GuiName          "URW Garamond (New TX)"
 	Family           math
 	Package          newtxmath
-	PackageOption    garamondx
+	PackageOptions   garamondx
 	Provides         amssymb,amsfonts
 EndFont
 
@@ -740,7 +1292,14 @@ Font libertine-ntxm
 	GuiName          "Libertine (New TX)"
 	Family           math
 	Package          newtxmath
-	PackageOption    libertine
+	PackageOptions   libertine
+	Provides         amssymb,amsfonts
+EndFont
+
+Font libertinusmath
+	GuiName          "Libertinus Math"
+	Family           math
+	Package          libertinust1math
 	Provides         amssymb,amsfonts
 EndFont
 
@@ -748,7 +1307,7 @@ Font minion-ntxm
 	GuiName          "Minion Pro (New TX)"
 	Family           math
 	Package          newtxmath
-	PackageOption    minion
+	PackageOptions   minion
 	Requires         minion2newtx
 	Provides         amssymb,amsfonts
 EndFont

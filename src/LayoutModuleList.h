@@ -1,10 +1,10 @@
 // -*- C++ -*-
 /**
- * \file ModuleList.h
+ * \file LayoutModuleList.h
  * This file is part of LyX, the document processor.
  * Licence details can be found in the file COPYING.
  *
- * \author Richard Heck
+ * \author Richard Kimberly Heck
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -55,6 +55,8 @@ public:
 	/// This is needed in GuiDocument. It seems better than an
 	/// implicit conversion.
 	std::list<std::string> const & list() const { return lml_; }
+	/// List of modules as a comma-separated string
+	std::string asString() const;
 	/// Checks to make sure module's requriements are satisfied, that it does
 	/// not conflict with already-present modules, isn't already loaded, etc.
 	bool moduleCanBeAdded(std::string const & modName,

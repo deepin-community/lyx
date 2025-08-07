@@ -5,7 +5,7 @@
 # Author: Peter Sütterlin <pit@uni-sw.gwdg.de>
 
 
-Format 66
+Format 104
 Style Subtitle
 	Margin                Static
 	LatexType             Command
@@ -23,6 +23,8 @@ Style Subtitle
 	  Size                Normal
 	  Series              Bold
 	EndFont
+	DocBookTag            subtitle
+	DocBookInInfo         maybe
 End
 
 
@@ -77,7 +79,7 @@ Style Offprint
 End
 
 
-Style Acknowledgement
+Style Acknowledgments
 	Margin                Static
 	LatexType             Environment
 	LatexName             acknowledgements
@@ -88,7 +90,7 @@ Style Acknowledgement
 	ParSep                0
 	Align                 Block
 	LabelType             Above
-	LabelString           "Acknowledgements"
+	LabelString           "Acknowledgments"
 	LabelSep              M
 	Font
 	  Size                Small
@@ -97,6 +99,8 @@ Style Acknowledgement
 	  Size                Small
 	  Shape               Italic
 	EndFont
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
 End
 
 
@@ -116,6 +120,6 @@ Style Thesaurus
 	  Size                Small
 	EndFont
 	LabelFont
-	  Color               Red
+	  Color               textlabel3
 	EndFont
 End

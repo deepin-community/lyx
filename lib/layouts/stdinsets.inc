@@ -4,7 +4,7 @@
 #
 # Detailed format description is available in the customization manual
 
-Format 66
+Format 104
 
 Provides stdinsets 1
 
@@ -16,9 +16,10 @@ OutlinerName index        "Index Entries" #no AddToToc (built-in)
 OutlinerName listing      "Listings" #no AddToToc (built-in)
 
 InsetLayout Marginal
-	LabelString           margin
+	LabelString           Margin
 	LatexType             command
 	LatexName             marginpar
+	InheritFont 	      false
 	Font
 	  Size                Small
 	EndFont
@@ -36,7 +37,7 @@ InsetLayout Marginal
 			background-color: #F0F0F0;
 			float:right;
 			font-size: small;
-			font-weight: medium;
+			font-weight: normal;
 			font-family: serif;
 			font-variant: normal;
 			font-style: normal;
@@ -44,15 +45,17 @@ InsetLayout Marginal
 	EndHTMLStyle
 	AddToToc              marginalnote
 	IsTocCaption          true
+	DocBookTag            para
 End
 
 InsetLayout Foot
-	LabelString           foot
+	LabelString           Foot
 	LatexType             Command
 	LatexName             footnote
 	Counter               footnote
+	InheritFont 	      false
 	Font
-	  Size                Small
+	  Size                FootnoteSize
 	EndFont
 	LabelFont
 	  Color               footlabel
@@ -72,7 +75,7 @@ InsetLayout Foot
 		div.foot {
 			display: inline;
 			font-size: small;
-			font-weight: medium;
+			font-weight: normal;
 			font-family: serif;
 			font-variant: normal;
 			font-style: normal;
@@ -87,6 +90,8 @@ InsetLayout Foot
 	EndHTMLStyle
 	AddToToc              footnote
 	IsTocCaption          true
+	DocBookTag            footnote
+	DocBookTagType        inline
 End
 
 InsetLayout Foot:InTitle
@@ -107,7 +112,7 @@ InsetLayout Foot:InTitle
 		span.foot_intitle {
 			display: inline;
 			font-size: small;
-			font-weight: medium;
+			font-weight: normal;
 			font-family: serif;
 			font-variant: normal;
 			font-style: normal;
@@ -135,6 +140,7 @@ InsetLayout Note:Comment
 	LatexName             comment
 	Requires	      verbatim
 	BgColor               commentbg
+	InheritFont 	      false
 	LabelFont
 	  Color               comment
 	  Size                Small
@@ -150,6 +156,7 @@ InsetLayout Note:Comment
 	EndHTMLStyle
 	AddToToc              note
 	IsTocCaption          true
+	NeedCProtect          true
 End
 
 
@@ -175,7 +182,9 @@ InsetLayout Note:Greyedout
 	LatexName             lyxgreyedout
 	Requires	      color,lyxgreyedout
 	BgColor               greyedoutbg
+	InheritFont	      false
 	Font
+	  Size                Normal
 	  Color               greyedouttext
 	EndFont
 	LabelFont
@@ -196,6 +205,7 @@ InsetLayout Note:Greyedout
 	HTMLIsBlock           false
 	AddToToc              note
 	IsTocCaption          true
+	NeedCProtect          true
 End
 
 InsetLayout ERT
@@ -218,6 +228,7 @@ InsetLayout ERT
 	KeepEmpty             true
 	FreeSpacing           true
 	ForceLTR              true
+	EditExternal          true
 End
 
 InsetLayout Phantom
@@ -261,11 +272,11 @@ InsetLayout TOC
       font-weight: bold;
     }
     div.lyxtoc-2 {
-      margin: 0em 0.1em 0em 1em;
+      margin: 0.5em 0.1em 0em 1em;
       font-size: large;
       font-weight: normal;
     }
-    div.lyxtoc-3 { margin: 0em 0.1em 0em 0.5em; font-size: medium; }
+    div.lyxtoc-3 { margin: 0.2em 0.1em 0em 0.5em; font-size: medium; }
     div.lyxtoc-4 { margin: 0em 0.1em 0em 0.5em; }
     div.lyxtoc-5 { margin: 0em 0.1em 0em 0.5em; }
     div.lyxtoc-6 { margin: 0em 0.1em 0em 0.5em; }
@@ -344,12 +355,13 @@ InsetLayout Listings
 	LabelString           Listings[[inset]]
 	LatexType             none
 	Decoration            minimalistic
+	InheritFont	      false
 	Font
 	  Color               foreground
 	  Family              typewriter
 	EndFont
 	LabelFont
-	  Color               foreground
+	  Color               black
 	  Size                Small
 	EndFont
 	BgColor               listingsbg
@@ -360,21 +372,11 @@ InsetLayout Listings
 	FreeSpacing           true
 	ForceLTR              true
 	ForcePlain            true
+	NeedCProtect          true
 	RefPrefix             lst
-	HTMLTag               pre
-	HTMLStyle
-		div.float-listings {
-			border: 2px solid black;
-			padding: 1ex;
-			margin: 1ex;
-		}
-		div.listings-caption {
-			text-align: center;
-			border: 2px solid black;
-			padding: 1ex;
-			margin: 1ex;
-	}
-	EndHTMLStyle
+	EditExternal          true
+	HTMLTag               code
+	DocBookTag            programlisting
 End
 
 InsetLayout MintedListings
@@ -421,12 +423,45 @@ InsetLayout Index
 	PassThruChars         @|!
 End
 
-InsetLayout Box
+InsetLayout IndexMacro:see
+	LabelString           See
+	Decoration            classic
+	Font
+	  Size                Small
+	EndFont
 	LabelFont
-	  Color               foreground
+	  Color               indexlabel
+	  Size                Small
+	EndFont
+	MultiPar              false
+	CustomPars            false
+	ForcePlain            true
+End
+
+InsetLayout IndexMacro:seealso
+	CopyStyle             IndexMacro:see
+	LabelString           "See also"
+End
+
+InsetLayout IndexMacro:sortkey
+	CopyStyle             IndexMacro:see
+	LabelString           "Sort as"
+End
+
+InsetLayout IndexMacro:subentry
+	CopyStyle             IndexMacro:see
+	LabelString           "Subentry"
+End
+
+InsetLayout Box
+	InheritFont           false
+	LabelFont
+	  Color               black
 	  Size                Small
 	EndFont
 	MultiPar              true
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
 End
 
 InsetLayout Box:Frameless
@@ -434,6 +469,9 @@ InsetLayout Box:Frameless
 	HTMLStyle
 		div.Frameless { margin: 1em; }
 	EndHTMLStyle
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
+	DocBookWrapperAttr    role='frameless'
 End
 
 InsetLayout Box:Shaded
@@ -445,6 +483,9 @@ InsetLayout Box:Shaded
 			padding: 0.5ex;
 		}
 	EndHTMLStyle
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
+	DocBookWrapperAttr    role='shaded'
 End
 
 InsetLayout Box:Boxed
@@ -455,6 +496,9 @@ InsetLayout Box:Boxed
 			padding: 0.5ex;
 		}
 	EndHTMLStyle
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
+	DocBookWrapperAttr    role='boxed'
 End
 
 InsetLayout Box:Framed
@@ -465,6 +509,9 @@ InsetLayout Box:Framed
 			padding: 0.5ex;
 		}
 	EndHTMLStyle
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
+	DocBookWrapperAttr    role='framed'
 End
 
 InsetLayout Box:ovalbox
@@ -475,6 +522,9 @@ InsetLayout Box:ovalbox
 			padding: 0.5ex;
 		}
 	EndHTMLStyle
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
+	DocBookWrapperAttr    role='ovalbox'
 End
 
 InsetLayout Box:Ovalbox
@@ -485,6 +535,9 @@ InsetLayout Box:Ovalbox
 			padding: 0.5ex;
 		}
 	EndHTMLStyle
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
+	DocBookWrapperAttr    role='ovalbox-var'
 End
 
 InsetLayout Box:Shadowbox
@@ -492,6 +545,9 @@ InsetLayout Box:Shadowbox
 	HTMLStyle
 		div.Shadowbox { border: solid gray medium; border-bottom: solid black 1ex; border-right: solid black 1ex; padding: 0.5ex; }
 	EndHTMLStyle
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
+	DocBookWrapperAttr    role='shadowbox'
 End
 
 InsetLayout Box:Doublebox
@@ -502,9 +558,14 @@ InsetLayout Box:Doublebox
 			padding: 0.5ex;
 		}
 	EndHTMLStyle
+	DocBookWrapperTag     sidebar
+	DocBookTag            para
+	DocBookWrapperAttr    role='doublebox'
 End
 
 InsetLayout Float
+	LaTeXType             environment
+	InheritFont 	      false
 	LabelFont
 	  Color               collapsible
 	  Size                Small
@@ -553,6 +614,7 @@ InsetLayout "Flex:URL"
 	PassThru              true
 	FreeSpacing           true
 	ForceLTR              true
+	NeedCProtect          true
 	Font
 	  Family              Typewriter
 	  Color               urltext
@@ -563,6 +625,8 @@ InsetLayout "Flex:URL"
 	  Size                Small
 	EndFont
 	HTMLIsBlock           false
+	DocBookTag            link
+	DocBookTagType        inline
 End
 
 InsetLayout Argument
@@ -582,6 +646,7 @@ InsetLayout Info
 	EndHTMLStyle
 	HTMLTag               span
 	MultiPar              false
+	SpellCheck	      false
 End
 
 InsetLayout Info:menu
@@ -595,10 +660,12 @@ InsetLayout Info:menu
 	Font
 	  Family              sans
 	EndFont
-	HTMLAttr              "class='info menu'"
+	HTMLClass             "info menu"
 	HTMLStyle
 		span.menu { font-family: sans-serif; }
 	EndHTMLStyle
+	DocBookTag            guimenu
+	DocBookTagType        inline
 End
 
 InsetLayout Info:shortcut
@@ -612,10 +679,14 @@ InsetLayout Info:shortcut
 	Font
 	  Family              sans
 	EndFont
-	HTMLAttr              "class='info shortcut'"
+	HTMLClass             "info shortcut"
 	HTMLStyle
 		span.shortcut { font-family: sans-serif; }
 	EndHTMLStyle
+	DocBookWrapperTag     keycombo
+	DocBookWrapperTagType inline
+	DocBookTag            keycap
+	DocBookTagType        inline
 End
 
 InsetLayout Info:shortcuts
@@ -629,10 +700,14 @@ InsetLayout Info:shortcuts
 	Font
 	  Family              sans
 	EndFont
-	HTMLAttr              "class='info shortcut'"
+	HTMLClass             "info shortcut"
 	HTMLStyle
 		span.shortcuts { font-family: sans-serif; }
 	EndHTMLStyle
+	DocBookWrapperTag     keycombo
+	DocBookWrapperTagType inline
+	DocBookTag            keycap
+	DocBookTagType        inline
 End
 
 InsetLayout Caption:Standard
@@ -645,6 +720,8 @@ InsetLayout Caption:Standard
 		LabelString   "Short Title|S"
 		Tooltip       "The caption as it appears in the list of figures/tables"
 		InsertCotext  1
+        DocBookTag    titleabbrev
+        DocBookArgumentAfterMainTag  true
 	EndArgument
 	HTMLStyle
 		div.float-caption {
@@ -654,7 +731,7 @@ InsetLayout Caption:Standard
 			margin: 1ex;
 		}
 	EndHTMLStyle
-	HTMLAttr "class='float-caption float-caption-standard'"
+	HTMLClass             "float-caption float-caption-standard"
 End
 
 
@@ -717,13 +794,13 @@ InsetLayout PrintNomencl
 End
 
 InsetLayout Tabular
+	InheritFont false
 	HTMLStyle
 		table {
 			border-collapse: collapse;
 			display: inline-block;
 		}
 		td {
-			border: 1px solid black;
 			padding: 0.5ex;
 		}
 	EndHTMLStyle

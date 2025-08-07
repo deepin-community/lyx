@@ -18,7 +18,7 @@
 #include "FuncStatus.h"
 #include "Lexer.h"
 #include "MetricsInfo.h"
-#include "OutputParams.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
 #include "texstream.h"
 
@@ -35,12 +35,12 @@ using namespace lyx::frontend;
 
 namespace lyx {
 
-InsetSeparator::InsetSeparator() : Inset(0)
+InsetSeparator::InsetSeparator() : Inset(nullptr)
 {}
 
 
 InsetSeparator::InsetSeparator(InsetSeparatorParams const & params)
-	: Inset(0), params_(params)
+	: Inset(nullptr), params_(params)
 {}
 
 
@@ -167,16 +167,15 @@ int InsetSeparator::plaintext(odocstringstream & os,
 }
 
 
-int InsetSeparator::docbook(odocstream & os, OutputParams const &) const
+void InsetSeparator::docbook(XMLStream & xs, OutputParams const &) const
 {
-	os << '\n';
-	return 0;
+	xs << xml::CR();
 }
 
 
-docstring InsetSeparator::xhtml(XHTMLStream & xs, OutputParams const &) const
+docstring InsetSeparator::xhtml(XMLStream & xs, OutputParams const &) const
 {
-	xs << html::CR() << html::CompTag("br") << html::CR();
+	xs << xml::CR() << xml::CompTag("br") << xml::CR();
 	return docstring();
 }
 

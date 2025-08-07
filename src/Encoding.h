@@ -28,8 +28,8 @@ namespace support { class FileName; }
 class EncodingException : public std::exception {
 public:
 	EncodingException(char_type c);
-	virtual ~EncodingException() throw() {}
-	virtual const char * what() const throw();
+	virtual ~EncodingException() noexcept {}
+	virtual const char * what() const noexcept override;
 
 	char_type failed_char;
 	int par_id;
@@ -62,52 +62,67 @@ class CharInfo {
 public:
 	CharInfo() : flags_(0) {}
 	CharInfo(
-		docstring const & textcommand, docstring const & mathcommand,
-		std::string const & textpreamble, std::string const & mathpreamble,
-		std::string const & tipashortcut, unsigned int flags);
+		docstring const & text_command, docstring const & math_command,
+		std::string const & text_preamble, std::string const & math_preamble,
+		std::string const & tipa_shortcut, unsigned int flags);
+	CharInfo(
+		std::vector<docstring> const & text_commands, std::vector<docstring> const & math_commands,
+		std::string const & text_preamble, std::string const & math_preamble,
+		std::string const & tipa_shortcut, unsigned int flags);
+	// Add a new text command for this symbol.
+	void addTextCommand(const docstring& newTextCommand) { text_commands_.emplace_back(newTextCommand); }
+	// Add a new math command for this symbol.
+	void addMathCommand(const docstring& newMathCommand) { math_commands_.emplace_back(newMathCommand); }
+
 	// we assume that at least one command is nonempty when using unicodesymbols
-	bool isUnicodeSymbol() const { return !textcommand_.empty() || !mathcommand_.empty(); }
+	bool isUnicodeSymbol() const { return !text_commands_.empty() || !math_commands_.empty(); }
 	/// LaTeX command (text mode) for this character
-	docstring const textcommand() const { return textcommand_; }
+	docstring textCommand() const { return text_commands_[0]; }
+	/// All known LaTeX commands (text mode) for this character
+	const std::vector<docstring>& textCommands() const { return text_commands_; }
 	/// LaTeX command (math mode) for this character
-	docstring mathcommand() const { return mathcommand_; }
+	docstring mathCommand() const { return math_commands_[0]; }
+	/// All known LaTeX commands (math mode) for this character
+	const std::vector<docstring>& mathCommands() const { return math_commands_; }
 	/// Needed LaTeX preamble (or feature) for text mode
-	std::string textpreamble() const { return textpreamble_; }
+	std::string textPreamble() const { return text_preamble_; }
 	/// Needed LaTeX preamble (or feature) for math mode
-	std::string mathpreamble() const { return mathpreamble_; }
+	std::string mathPreamble() const { return math_preamble_; }
 	/// Is this a combining character?
-	bool combining() const { return flags_ & CharInfoCombining ? true : false; }
-	/// Is \c textpreamble a feature known by LaTeXFeatures, or a raw LaTeX
+	bool combining() const { return flags_ & CharInfoCombining; }
+	/// Is \c textPreamble a feature known by LaTeXFeatures, or a raw LaTeX
 	/// command?
-	bool textfeature() const { return flags_ & CharInfoTextFeature ? true : false; }
-	/// Is \c mathpreamble a feature known by LaTeXFeatures, or a raw LaTeX
+	bool textFeature() const { return flags_ & CharInfoTextFeature; }
+	/// Is \c mathPreamble a feature known by LaTeXFeatures, or a raw LaTeX
 	/// command?
-	bool mathfeature() const { return flags_ & CharInfoMathFeature ? true : false; }
+	bool mathFeature() const { return flags_ & CharInfoMathFeature; }
 	/// Always force the LaTeX command, even if the encoding contains
 	/// this character?
-	bool force() const { return flags_ & CharInfoForce ? true : false; }
+	bool force() const { return flags_ & CharInfoForce; }
 	/// Force the LaTeX command for some encodings?
-	bool forceselected() const { return flags_ & CharInfoForceSelected ? true : false; }
+	bool forceSelected() const { return flags_ & CharInfoForceSelected; }
 	/// Disable LaTeX command => char_type conversion for this deprecated symbol?
-	bool deprecated() const { return flags_ & CharInfoDeprecated ? true : false; }
+	bool deprecated() const { return flags_ & CharInfoDeprecated; }
 	/// TIPA shortcut
-	std::string const tipashortcut() const { return tipashortcut_; }
-	/// \c textcommand needs no termination (such as {} or space).
-	bool textnotermination() const { return flags_ & CharInfoTextNoTermination ? true : false; }
-	/// \c mathcommand needs no termination (such as {} or space).
-	bool mathnotermination() const { return flags_ & CharInfoMathNoTermination ? true : false; }
+	std::string const tipaShortcut() const { return tipa_shortcut_; }
+	/// \c textCommand needs no termination (such as {} or space).
+	bool textNoTermination() const { return flags_ & CharInfoTextNoTermination; }
+	/// \c mathCommand needs no termination (such as {} or space).
+	bool mathNoTermination() const { return flags_ & CharInfoMathNoTermination; }
 	///
 private:
-	/// LaTeX command (text mode) for this character
-	trivdocstring textcommand_;
-	/// LaTeX command (math mode) for this character
-	trivdocstring mathcommand_;
+	/// LaTeX commands (text mode) for this character. The first one is the default, the others
+	/// are only present for compatibility other ways users may encode the character
+	std::vector<docstring> text_commands_;
+	/// LaTeX command (math mode) for this character. The first one is the default, the others
+	//	/// are only present for compatibility other ways users may encode the character
+	std::vector<docstring> math_commands_;
 	/// Needed LaTeX preamble (or feature) for text mode
-	trivstring textpreamble_;
+	trivstring text_preamble_;
 	/// Needed LaTeX preamble (or feature) for math mode
-	trivstring mathpreamble_;
+	trivstring math_preamble_;
 	/// TIPA shortcut
-	trivstring tipashortcut_;
+	trivstring tipa_shortcut_;
 	/// feature flags
 	unsigned int flags_;
 };
@@ -130,7 +145,7 @@ public:
 	/// Represent any of the above packages
 	static int const any;
 	///
-	Encoding() : fixedwidth_(true), unsafe_(false), forced_(0),
+	Encoding() : fixedwidth_(true), unsafe_(false), forced_(nullptr),
 	             start_encodable_(0), package_(none), complete_(false) {}
 	///
 	Encoding(std::string const & n, std::string const & l,
@@ -255,10 +270,10 @@ public:
 	fromLyXName(std::string const & name, bool allowUnsafe = false) const;
 	/// Get encoding from LaTeX name \p name and package \p package
 	Encoding const * fromLaTeXName(std::string const & name,
-		int const & package = Encoding::any, bool allowUnsafe = false) const;
+		int package = Encoding::any, bool allowUnsafe = false) const;
 	/// Get encoding from iconv name \p name and package \p package
 	Encoding const * fromIconvName(std::string const & name,
-		int const & package = Encoding::any, bool allowUnsafe = false) const;
+		int package = Encoding::any, bool allowUnsafe = false) const;
 
 	///
 	const_iterator begin() const { return encodinglist.begin(); }
@@ -272,14 +287,13 @@ public:
 	/// Return the TIPA shortcut
 	static std::string const TIPAShortcut(char_type c);
 	/**
-	 * Is this a known char from some language?
-	 * If \p preamble is empty and code point \p c is known to belong
-	 * to a supported script, true is returned and \p preamble is set
-	 * to the corresponding entry in the unicodesymbols file.
-	 * If \p preamble is not empty, a check is made whether code point
-	 * \p c is a known character matching the preamble entry.
+	 * Test, if \p c is a supported Greek or Cyrillic letter.
+	 * Return script macro name or empty string.
 	 */
-	static bool isKnownScriptChar(char_type const c, std::string & preamble);
+	static std::string const isKnownScriptChar(char_type const c);
+	/// Does \p fontenc support characters in \p script?
+	static bool fontencSupportsScript(std::string const & fontenc,
+									  std::string const & script);
 	/**
 	 * Do we have to display in italics this character when in mathmode?
 	 * This is true if the "mathalpha" flag is set. We use this for
@@ -289,7 +303,7 @@ public:
 	/**
 	 * Do we have to wrap in \text this character when in mathmode?
 	 * This is true if \p c is not ascii and the "mathalpha" flag is not
-	 * set and a mathcommand is not defined in the unicodesymbols file.
+	 * set and a mathCommand is not defined in the unicodesymbols file.
 	 */
 	static bool isUnicodeTextOnly(char_type c);
 	/**
@@ -334,7 +348,7 @@ public:
 	 */
 	static char_type fromLaTeXCommand(docstring const & cmd, int cmdtype,
 			bool & combining, bool & needsTermination,
-			std::set<std::string> * req = 0);
+			std::set<std::string> * req = nullptr);
 	///
 	enum LatexCmd {
 		///
@@ -354,7 +368,7 @@ public:
 	 */
 	static docstring fromLaTeXCommand(docstring const & cmd, int cmdtype,
 			bool & needsTermination, docstring & rem,
-			std::set<std::string> * req = 0);
+			std::set<std::string> * req = nullptr);
 
 protected:
 	///

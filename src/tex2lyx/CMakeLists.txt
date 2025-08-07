@@ -7,14 +7,13 @@
 
 project(${_tex2lyx})
 
-# There is no header file lengthcommon.h
-set(LINKED_sources ${TOP_SRC_DIR}/src/lengthcommon.cpp)
+set(LINKED_sources)
 set(LINKED_headers)
 
 foreach(_src graphics/GraphicsParams insets/ExternalTemplate
 	insets/ExternalTransforms insets/InsetLayout Author CiteEnginesList Color Counters
 	Encoding FloatList Floating FontInfo LaTeXPackages Layout
-	LayoutFile LayoutModuleList Length Lexer ModuleList TextClass
+	LayoutFile LayoutModuleList Lexer ModuleList TextClass
 	Spacing version)
 	list(APPEND LINKED_sources ${TOP_SRC_DIR}/src/${_src}.cpp)
 	list(APPEND LINKED_headers ${TOP_SRC_DIR}/src/${_src}.h)
@@ -29,7 +28,7 @@ include_directories((BEFORE
 	${ZLIB_INCLUDE_DIR})
 
 if(WIN32 AND NOT MINGW)
-	set(FILE_RC ${TOP_CMAKE_PATH}/lyx.rc)
+	set(FILE_RC ${TOP_SRC_DIR}/src/lyxwinres.rc)
 	message(STATUS "Using icon defined in resource file: ${FILE_RC}")
 endif()
 
@@ -40,7 +39,10 @@ else()
 	lyx_const_touched_files(_allinone_linked  LINKED_sources)
 	add_executable(${_tex2lyx} ${_allinone_files} ${_allinone_linked_files} ${FILE_RC})
 endif()
-set_target_properties(${_tex2lyx} PROPERTIES FOLDER "applications/TeX2LyX")
+set_target_properties(${_tex2lyx} PROPERTIES
+	FOLDER "applications/TeX2LyX"
+  QT_NO_UNICODE_DEFINES TRUE
+	INTERPROCEDURAL_OPTIMIZATION ${LYX_IPO_SUPPORTED})
 
 target_link_libraries(${_tex2lyx}
 	support
@@ -49,6 +51,7 @@ target_link_libraries(${_tex2lyx}
 	${QT_QTGUI_LIBRARY}
 	${ICONV_LIBRARY})
 
+qt_use_modules(${_tex2lyx} ${QtCore5CompatModule})
 lyx_target_link_libraries(${_tex2lyx} Magic)
 
 add_dependencies(${_tex2lyx} lyx_version)

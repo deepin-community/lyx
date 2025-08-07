@@ -1,18 +1,19 @@
-#\DeclareLyXModule{Minimalistic}
+#\DeclareLyXModule{Minimalistic Insets}
+#\DeclareCategory{Fixes & Hacks}
 #DescriptionBegin
 # Redefines several insets (Index, Branch, URL) as being Minimalistic. 
 #DescriptionEnd
 
-Format 66
+Format 104
 
 InsetLayout Index
 		Decoration   minimalistic
 		Font
-			Color               Green
+			Color               textlabel2
 			Size                Small
 		EndFont
 		LabelFont
-			Color               Green
+			Color               textlabel2
 			Size                Small
 		EndFont
 End

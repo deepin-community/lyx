@@ -14,9 +14,11 @@
 #define INSET_CITATION_H
 
 #include "InsetCommand.h"
-#include "Citation.h"
 
 namespace lyx {
+
+class BufferParams;
+class CitationStyle;
 
 /////////////////////////////////////////////////////////////////////////
 //
@@ -39,39 +41,41 @@ public:
 	/// \name Public functions inherited from Inset class
 	//@{
 	///
-	bool isLabeled() const { return true; }
+	bool isLabeled() const override { return true; }
 	///
-	bool hasSettings() const { return true; }
+	bool hasSettings() const override { return true; }
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const;
+	bool getStatus(Cursor & cur, FuncRequest const & cmd, FuncStatus &) const override;
 	///
-	InsetCode lyxCode() const { return CITE_CODE; }
+	InsetCode lyxCode() const override { return CITE_CODE; }
 	///
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream &, OutputParams const &) const;
+	docstring xhtml(XMLStream &, OutputParams const &) const override;
 	///
-	void toString(odocstream &) const;
+	bool findUsesToString() const override { return true; }
 	///
-	void forOutliner(docstring &, size_t const, bool const) const;
+	void toString(odocstream &) const override;
 	///
-	void updateBuffer(ParIterator const & it, UpdateType);
+	void forOutliner(docstring &, size_t const, bool const) const override;
+	///
+	void updateBuffer(ParIterator const & it, UpdateType, bool const deleted = false) override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	std::string contextMenuName() const;
+	std::string contextMenuName() const override;
 	///
-	bool forceLTR(OutputParams const &) const;
+	bool forceLTR(OutputParams const &) const override;
 	//@}
 
 	/// \name Static public methods obligated for InsetCommand derived classes
@@ -84,14 +88,23 @@ public:
 	static bool isCompatibleCommand(std::string const &);
 	//@}
 	///
+	typedef std::vector<std::pair<docstring, docstring>> QualifiedList;
+	///
 	void redoLabel() { cache.recalculate = true; }
 	///
 	CitationStyle getCitationStyle(BufferParams const & bp, std::string const & input,
 				       std::vector<CitationStyle> const & valid_styles) const;
 	///
-	std::map<docstring, docstring> getQualifiedLists(docstring const p) const;
+	QualifiedList getQualifiedLists(docstring const & p) const;
 	///
 	static bool last_literal;
+	/// Check whether citation contains necessary url/file entries
+	/// or external search script is available
+	bool openCitationPossible() const;
+	/// search and open citation source
+	void openCitation();
+	///
+	std::pair<int, int> isWords() const override;
 
 private:
 	/// tries to make a pretty label and makes a basic one if not
@@ -100,17 +113,19 @@ private:
 	docstring complexLabel(bool for_xhtml = false) const;
 	/// makes a very basic label, in case we can't make a pretty one
 	docstring basicLabel(bool for_xhtml = false) const;
+	/// trims the keys
+	void cleanKeys();
 
 	/// \name Private functions inherited from Inset class
 	//@{
 	///
-	Inset * clone() const { return new InsetCitation(*this); }
+	Inset * clone() const override { return new InsetCitation(*this); }
 	//@}
 
 	/// \name Private functions inherited from InsetCommand class
 	//@{
 	///
-	docstring screenLabel() const;
+	docstring screenLabel() const override;
 	//@}
 
 	///

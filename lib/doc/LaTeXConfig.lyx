@@ -1,24 +1,26 @@
-#LyX 2.3 created this file. For more info see http://www.lyx.org/
-\lyxformat 544
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
 \begin_document
 \begin_header
 \save_transient_properties true
 \origin /systemlyxdir/doc/
 \textclass article
 \use_default_options false
-\maintain_unincluded_children false
+\maintain_unincluded_children no
 \language english
 \language_package none
-\inputencoding iso8859-15
-\fontencoding global
-\font_roman "default" "default"
+\inputencoding utf8
+\fontencoding auto
+\font_roman "lmodern" "default"
 \font_sans "default" "default"
 \font_typewriter "default" "default"
 \font_math "auto" "auto"
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
-\font_osf false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
 \font_sf_scale 100 100
 \font_tt_scale 100 100
 \use_microtype false
@@ -52,7 +54,9 @@
 \suppress_date false
 \justification true
 \use_refstyle 0
+\use_formatted_ref 0
 \use_minted 0
+\use_lineno 0
 \index Index
 \shortcut idx
 \color #008000
@@ -68,11 +72,16 @@
 \papercolumns 1
 \papersides 1
 \paperpagestyle plain
+\tablestyle default
 \tracking_changes false
 \output_changes false
+\change_bars false
+\postpone_fragile_content false
 \html_math_output 0
 \html_css_as_file 0
 \html_be_strict true
+\docbook_table_output 0
+\docbook_mathml_prefix 1
 \html_latex_start <span class='latex'>
 \html_latex_end </span>
 \end_header
@@ -99,7 +108,8 @@ This file describes the different \SpecialChar LaTeX
 \begin_layout Enumerate
 Some basic details about your \SpecialChar LaTeX
  installation.
- In particular, you should make sure that your version of \SpecialChar LaTeX
+ In particular,
+ you should make sure that your version of \SpecialChar LaTeX
  is recent enough.
 \end_layout
 
@@ -126,8 +136,8 @@ Found
 \begin_inset Quotes erd
 \end_inset
 
- item is no) and you need its functionality, you can grab it at your nearest
- CTAN ftp site
+ item is no) and you need its functionality,
+ you can grab it at your nearest CTAN ftp site
 \begin_inset Foot
 status collapsed
 
@@ -153,8 +163,7 @@ ftp://ftp.tex.ac.uk/tex-archive
 \end_layout
 
 \begin_layout Plain Layout
-There are also a zillion mirror sites which are listed at the three primary
- sites.
+There are also a zillion mirror sites which are listed at the three primary sites.
 \end_layout
 
 \end_inset
@@ -168,8 +177,7 @@ CTAN
 \end_inset
 
  item.
- Note that only detected document classes can be selected as document layouts
- in \SpecialChar LyX
+ Note that only detected document classes can be selected as document layouts in \SpecialChar LyX
 .
 \end_layout
 
@@ -184,40 +192,38 @@ required
 
  by the \SpecialChar LaTeX
  maintainers.
- These ones should definitely be present, but you may not have some of them
- if your \SpecialChar LaTeX
+ These ones should definitely be present,
+ but you may not have some of them if your \SpecialChar LaTeX
  distribution is a bit old.
 \end_layout
 
 \begin_layout Enumerate
 Some packages that \SpecialChar LyX
  uses when you try to change the margins of your document.
- The detection of these items does not yet affect the options available
- inside \SpecialChar LyX
+ The detection of these items does not yet affect the options available inside \SpecialChar LyX
 .
 \end_layout
 
 \begin_layout Enumerate
 Some common \SpecialChar LaTeX
  packages that you might need with \SpecialChar LyX
-, and you might also want
- to add to your \SpecialChar LaTeX
+,
+ and you might also want to add to your \SpecialChar LaTeX
  installation.
- The detection of these items does not yet affect the options available
- inside \SpecialChar LyX
+ The detection of these items does not yet affect the options available inside \SpecialChar LyX
 .
 \end_layout
 
 \begin_layout Standard
 Note that most of these packages will be available if you use a modern \SpecialChar TeX
-
  distribution such as \SpecialChar TeX
 Live and MiK\SpecialChar TeX
 .
- If you decide to install one of the missing items, you should tell \SpecialChar LyX
- about
- it.
- After the installation, please use the menu entry 
+ If you decide to install one of the missing items,
+ you should tell \SpecialChar LyX
+ about it.
+ After the installation,
+ please use the menu entry 
 \family sans
 Tools\SpecialChar menuseparator
 Reconfigure
@@ -239,12 +245,12 @@ no
 \begin_inset Quotes erd
 \end_inset
 
-, it means that \SpecialChar LyX
+,
+ it means that \SpecialChar LyX
  could not do the inventory of your \SpecialChar LaTeX
- configuration for some
- reason.
- In most cases, you only have forgotten to update the file name database
- (texhash).
+ configuration for some reason.
+ In most cases,
+ you only have forgotten to update the file name database (texhash).
  Check the documentation of your \SpecialChar LaTeX
  distribution for how this is done properly.
 \end_layout
@@ -258,7 +264,8 @@ Almost European (AE)
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "ae"
@@ -268,13 +275,15 @@ arg   "ae"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/ae/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 AE
 \family default
@@ -284,7 +293,8 @@ AE
 Computer Modern
 \emph default
 ).
- Unless you rely on special characters, we recommend to use 
+ Unless you rely on special characters,
+ we recommend to use 
 \family sans
 Latin Modern
 \family default
@@ -297,7 +307,8 @@ Bera
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "bera"
@@ -307,21 +318,25 @@ arg   "bera"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/bera
 \end_layout
 
 \begin_layout Description
-Notes: The bera fonts are a clone of 
+Notes:
+ The bera fonts are a clone of 
 \emph on
 Bitstream Vera
 \emph default
-, including 
+,
+ including 
 \emph on
 Bera Serif
 \emph default
- (a slab-serif Roman), 
+ (a slab-serif Roman),
+ 
 \emph on
 Bera Sans
 \emph default
@@ -329,7 +344,8 @@ Bera Sans
 \emph on
 Frutiger
 \emph default
- descendant), and 
+ descendant),
+ and 
 \emph on
 Bera Mono
 \emph default
@@ -342,7 +358,8 @@ Biolinum
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "biolinum-type1"
@@ -352,13 +369,15 @@ arg   "biolinum-type1"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/libertine/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 biolinum-type1
 \family default
@@ -366,8 +385,8 @@ biolinum-type1
 \emph on
 Biolinum
 \emph default
- sans serif family of fonts, which has been designed as a companion to the
- 
+ sans serif family of fonts,
+ which has been designed as a companion to the 
 \emph on
 Libertine
 \emph default
@@ -376,21 +395,23 @@ Libertine
 \emph on
 Biolinum
 \emph default
- supports Old Style Figures, which will be automatically activated if those
- figures are available and requested for the roman font, and in newer versions
- also scaling.
+ supports Old Style Figures,
+ which will be automatically activated if those figures are available and requested for the roman font,
+ and in newer versions also scaling.
  An older version of the font is provided by the package 
 \family sans
 libertine-legacy
 \family default
- (found: 
+ (found:
+ 
 \begin_inset Info
 type  "package"
 arg   "libertine"
 \end_inset
 
 ).
- If you only have this package, you will need to set the roman font to 
+ If you only have this package,
+ you will need to set the roman font to 
 \emph on
 Libertine
 \emph default
@@ -402,11 +423,68 @@ Standard
 \end_layout
 
 \begin_layout Subsection
+cantarell
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "cantarell"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family sans
+fonts/cantarell
+\end_layout
+
+\begin_layout Description
+Notes:
+ Cantarell is a contemporary humanist sans serif,
+ and is used by the GNOME project for its user interface.
+\end_layout
+
+\begin_layout Subsection
+Chivo
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "Chivo"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ fonts/Chivo
+\end_layout
+
+\begin_layout Description
+Notes:
+ Chivo is a set of fourteen fonts provided by Héctor Gatti & [Omnibus-Type](http://www.omnibus-type.com/fonts/chivo.php) Team under the Open Font License [(OFL)](http://scripts.sil.org/OFL),
+ version 1.1.
+ The fonts are copyright (c) 2011-2019,
+ Omnibus-Type.
+\end_layout
+
+\begin_layout Subsection
 CM bright
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "cmbright"
@@ -416,14 +494,50 @@ arg   "cmbright"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/cmbright
 \end_layout
 
 \begin_layout Description
-Notes: CM bright is a sans serif font that also provides nice sans serif
- math fonts.
+Notes:
+ CM bright is a sans serif font that also provides nice sans serif math fonts.
+\end_layout
+
+\begin_layout Subsection
+Cochineal
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "cochineal"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family sans
+fonts/cochineal
+\end_layout
+
+\begin_layout Description
+Notes:
+ The 
+\family sans
+cochineal
+\family default
+ package provides support for the 
+\emph on
+Crimson
+\emph default
+ serif font.
 \end_layout
 
 \begin_layout Subsection
@@ -431,7 +545,8 @@ Concrete
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "ccfonts"
@@ -441,22 +556,24 @@ arg   "ccfonts"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 macros/latex/contrib/ccfonts/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 ccfonts
 \family default
- package provides support for the font that has been designed by Donald
- Knuth for his 
+ package provides support for the font that has been designed by Donald Knuth for his 
 \emph on
 Concrete Mathematics
 \emph default
- book, hence called 
+ book,
+ hence called 
 \emph on
 concrete 
 \emph default
@@ -464,11 +581,48 @@ fonts.
 \end_layout
 
 \begin_layout Subsection
+CrimsonPro
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "CrimsonPro"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family sans
+fonts/crimsonpro
+\end_layout
+
+\begin_layout Description
+Notes:
+ The 
+\family sans
+CrimsonPro
+\family default
+ package provides support for the 
+\emph on
+CrimsonPro
+\emph default
+ serif font,
+ an enhanced redesign of Crimson (Cochineal).
+\end_layout
+
+\begin_layout Subsection
 Doublestroke
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "dsfont"
@@ -478,14 +632,19 @@ arg   "dsfont"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/doublestroke
 \end_layout
 
 \begin_layout Description
-Notes: The package doublestroke provides a font based on Computer Modern
- Roman useful for typesetting (through the command 
+Notes:
+ The package 
+\family sans
+doublestroke
+\family default
+ provides a font based on Computer Modern Roman useful for typesetting (through the command 
 \family typewriter
 
 \backslash
@@ -495,15 +654,18 @@ mathds
 \begin_inset Formula $\mathds{N}$
 \end_inset
 
-), whole numbers (
+),
+ whole numbers (
 \begin_inset Formula $\mathds{Z}$
 \end_inset
 
-), rational numbers (
+),
+ rational numbers (
 \begin_inset Formula $\mathds{Q}$
 \end_inset
 
-), real numbers (
+),
+ real numbers (
 \begin_inset Formula $\mathds{R}$
 \end_inset
 
@@ -511,11 +673,14 @@ mathds
 \begin_inset Formula $\mathds{C}$
 \end_inset
 
-); coverage includes all Roman capital letters, ‘
+);
+ coverage includes all Roman capital letters,
+ ‘
 \begin_inset Formula $\mathds{1}$
 \end_inset
 
-’, ‘
+’,
+ ‘
 \begin_inset Formula $\mathds{h}$
 \end_inset
 
@@ -531,7 +696,8 @@ EC fonts
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "ec"
@@ -541,13 +707,15 @@ arg   "ec"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/ec
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \emph on
 EC
 \emph default
@@ -565,20 +733,21 @@ Computer Modern
 \emph on
 EC
 \emph default
- fonts are available in a more natural range of sizes, cover more glyphs
- and allow for better hyphenation and kerning than traditional 
+ fonts are available in a more natural range of sizes,
+ cover more glyphs and allow for better hyphenation and kerning than traditional 
 \emph on
 Computer Modern
 \emph default
 .
  With modern \SpecialChar LaTeX
- distributions, the EC fonts are used automatically as a default
- (or if you select 
+ distributions,
+ the EC fonts are used automatically as a default (or if you select 
 \emph on
 Computer Modern
 \emph default
 ) if you have them installed and if you use the T1 font encoding.
- For math and OT1 encoding, traditional 
+ For math and OT1 encoding,
+ traditional 
 \emph on
 Computer Modern
 \emph default
@@ -590,7 +759,8 @@ Eco
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "eco"
@@ -600,13 +770,15 @@ arg   "eco"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/eco/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 eco
 \family default
@@ -624,7 +796,8 @@ Euler Virtual Math
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "eulervm"
@@ -634,13 +807,15 @@ arg   "eulervm"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/eulervm/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 eulervm
 \family default
@@ -657,7 +832,8 @@ feyn
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "feyn"
@@ -667,13 +843,15 @@ arg   "feyn"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/feyn/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 feyn
 \family default
@@ -690,11 +868,82 @@ Diagram
 \end_layout
 
 \begin_layout Subsection
+FiraMono
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "FiraMono"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family sans
+fonts/fira/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+FiraMono
+\family default
+ provides support for the monospaced 
+\emph on
+FiraMono
+\emph default
+ font.
+\end_layout
+
+\begin_layout Subsection
+FiraSans
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "FiraSans"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family sans
+fonts/fira/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+FiraSans
+\family default
+ provides support for the 
+\emph on
+FiraSans
+\emph default
+ family of fonts.
+\end_layout
+
+\begin_layout Subsection
 fontspec
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "fontspec"
@@ -704,18 +953,20 @@ arg   "fontspec"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/fontspec
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 fontspec
 \family default
- provides access to your Operating System's OpenType, TrueType and PostScript
- fonts.
+ provides access to your Operating System's OpenType,
+ TrueType and PostScript fonts.
  The package needs either the Xe\SpecialChar TeX
  or the Lua\SpecialChar TeX
  engine for this.
@@ -728,7 +979,8 @@ fourier-GUTenberg
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "fourier"
@@ -738,13 +990,15 @@ arg   "fourier"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/fourier-GUT
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 fourier
 \family default
@@ -761,8 +1015,10 @@ utopia
 \family sans
 PSNFSS
 \family default
- bundle, it also provides suitable math fonts.
- If this package is installed, it will be used instead of 
+ bundle,
+ it also provides suitable math fonts.
+ If this package is installed,
+ it will be used instead of 
 \family sans
 utopia
 \family default
@@ -778,7 +1034,8 @@ Latin Modern
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "lmodern"
@@ -788,13 +1045,15 @@ arg   "lmodern"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/lm/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 Latin Modern
 \family default
@@ -804,8 +1063,7 @@ Latin Modern
 Computer Modern
 \emph default
 ).
- We recommend to use them instead of other PostScript versions of Computer
- Modern (such as 
+ We recommend to use them instead of other PostScript versions of Computer Modern (such as 
 \emph on
 AE
 \emph default
@@ -818,7 +1076,8 @@ LuxiMono
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "luximono"
@@ -828,13 +1087,15 @@ arg   "luximono"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/LuxiMono/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 luximono
 \family default
@@ -850,7 +1111,8 @@ Libertine
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "libertine-type1"
@@ -860,13 +1122,15 @@ arg   "libertine-type1"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/libertine/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 libertine-type1
 \family default
@@ -875,17 +1139,20 @@ libertine-type1
 Libertine
 \emph default
  roman family of fonts.
- An older version of the package, 
+ An older version of the package,
+ 
 \family sans
 libertine-legacy
 \family default
- (found: 
+ (found:
+ 
 \begin_inset Info
 type  "package"
 arg   "libertine"
 \end_inset
 
-), is also supported and used as a fallback.
+),
+ is also supported and used as a fallback.
 \end_layout
 
 \begin_layout Subsection
@@ -893,7 +1160,8 @@ Libertine Mono
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "libertineMono-type1"
@@ -903,13 +1171,15 @@ arg   "libertineMono-type1"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/libertine/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 libertineMono-type1
 \family default
@@ -922,11 +1192,91 @@ Libertine Mono
 \end_layout
 
 \begin_layout Subsection
+Libertinus
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "libertinus"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+fonts/libertinus/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The 
+\family sans
+libertinus
+\family default
+ package provides support for the 
+\emph on
+Libertinus
+\emph default
+ family of fonts,
+ a derivate of the 
+\emph on
+Libertine
+\emph default
+ and 
+\emph on
+Biolinum
+\emph default
+ family of fonts with dome extra features.
+\end_layout
+
+\begin_layout Subsection
+LibertinusT1Math
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "libertinust1math"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+fonts/libertinust1math/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The 
+\family sans
+libertinust1math
+\family default
+ package provides support for the 
+\emph on
+Libertinus Math
+\emph default
+ font.
+\end_layout
+
+\begin_layout Subsection
 Mathdesign
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "mathdesign"
@@ -936,18 +1286,19 @@ arg   "mathdesign"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/mathdesign/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 mathdesign
 \family default
- package provides access to three popular roman fonts and extends them with
- matching math fonts.
+ package provides access to three popular roman fonts and extends them with matching math fonts.
  If you select one of the following roman fonts in \SpecialChar LyX
  via 
 \family sans
@@ -957,7 +1308,8 @@ Document\SpecialChar menuseparator
 Fonts
 \family default
 \size default
-, the 
+,
+ the 
 \family sans
 mathdesign
 \family default
@@ -973,6 +1325,7 @@ URW Garamond (Mathdesign)
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -992,6 +1345,7 @@ Bitstream Charter (Mathdesign)
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1011,6 +1365,7 @@ Utopia (Mathdesign)
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1023,8 +1378,8 @@ arg   "mdput"
 
 \begin_layout Standard
 If you only want the text fonts and retain \SpecialChar LaTeX
-'s default math font, select
- a non-mathdesign variant of the respective font instead or select 
+'s default math font,
+ select a non-mathdesign variant of the respective font instead or select 
 \emph on
 Class Default
 \emph default
@@ -1043,7 +1398,8 @@ MinionPro
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "MinionPro"
@@ -1053,13 +1409,15 @@ arg   "MinionPro"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/minionpro
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 MinionPro
 \family default
@@ -1068,8 +1426,7 @@ MinionPro
 Minion Pro
 \emph default
  font.
- Note that the font itself is not part of the package and must be installed
- separately (please consult the MinionPro package manual for details).
+ Note that the font itself is not part of the package and must be installed separately (please consult the MinionPro package manual for details).
 \end_layout
 
 \begin_layout Subsection
@@ -1077,7 +1434,8 @@ Noto
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "noto"
@@ -1087,14 +1445,15 @@ arg   "noto"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/noto
 \end_layout
 
 \begin_layout Description
-Notes: The noto fonts are designed to cover all the scripts encoded in the
- Unicode standard.
+Notes:
+ The noto fonts are designed to cover all the scripts encoded in the Unicode standard.
  They are therefore the choice for documents with mixed scripts like e.
 \begin_inset space \thinspace{}
 \end_inset
@@ -1111,7 +1470,8 @@ NewTX Math
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "newtxmath"
@@ -1121,25 +1481,29 @@ arg   "newtxmath"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/newtx
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 newtxmath
 \family default
  package provides support for matching math fonts for 
 \emph on
-URW Garamond, Times Roman
+URW Garamond,
+ Times Roman
 \emph default
  (or 
 \emph on
 NewTX
 \emph default
-), 
+),
+ 
 \emph on
 Libertine
 \emph default
@@ -1156,7 +1520,8 @@ MinionPro
 \family sans
 minion2newtx
 \family default
- package (found: 
+ package (found:
+ 
 \begin_inset Info
 type  "package"
 arg   "minion2newtx"
@@ -1174,7 +1539,8 @@ PSNFSS
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "psnfss"
@@ -1184,19 +1550,20 @@ arg   "psnfss"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/psnfss/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 psnfss
 \family default
  bundle allows you to change the fonts used by \SpecialChar LyX
- to some of the 35 classical
- fonts available on PostScript printers.
+ to some of the 35 classical fonts available on PostScript printers.
  
 \end_layout
 
@@ -1209,9 +1576,8 @@ psnfss
  provide different font packages.
  Some packages are declared obsolete and were replaced by newer ones.
  Even if \SpecialChar LyX
- supports the deprecated packages as well, we strongly recommend
- that you take care to have the newest ones installed (which are then preferred
- by \SpecialChar LyX
+ supports the deprecated packages as well,
+ we strongly recommend that you take care to have the newest ones installed (which are then preferred by \SpecialChar LyX
 ).
  A recent 
 \family sans
@@ -1233,6 +1599,7 @@ Avant Garde
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1256,6 +1623,7 @@ Bookman
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1279,6 +1647,7 @@ Zapf Chancery
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1302,6 +1671,7 @@ Charter
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1325,6 +1695,7 @@ Courier
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1348,6 +1719,7 @@ Helvetica
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1371,6 +1743,7 @@ Palatino
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1390,7 +1763,8 @@ mathpple
 \emph on
 Palatino
 \emph default
- support; 
+ support;
+ 
 \family sans
 mathpazo
 \family default
@@ -1398,6 +1772,7 @@ mathpazo
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1417,7 +1792,8 @@ mathptm
 \emph on
 Times
 \emph default
- support; 
+ support;
+ 
 \family sans
 mathptmx
 \family default
@@ -1425,6 +1801,7 @@ mathptmx
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1448,6 +1825,7 @@ Times
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1471,6 +1849,7 @@ New Century Gothic
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1490,7 +1869,8 @@ palatino
 \emph on
 Palatino
 \emph default
- support; 
+ support;
+ 
 \family sans
 mathpazo
 \family default
@@ -1498,6 +1878,7 @@ mathpazo
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1521,6 +1902,7 @@ Zapf Dingbats
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1540,7 +1922,8 @@ times
 \emph on
 Times
 \emph default
- support; 
+ support;
+ 
 \family sans
 mathptmx
 \family default
@@ -1548,6 +1931,7 @@ mathptmx
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1567,7 +1951,8 @@ utopia
 \emph on
 Utopia
 \emph default
- support; 
+ support;
+ 
 \family sans
 fourier
 \family default
@@ -1579,6 +1964,7 @@ mathdesign
  
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1592,8 +1978,8 @@ arg   "utopia"
 \begin_layout Standard
 Note that some of these fonts automatically select a matching math font.
  If you only want the text fonts and retain \SpecialChar LaTeX
-'s default math font, select
- 
+'s default math font,
+ select 
 \emph on
 Class Default
 \emph default
@@ -1614,18 +2000,19 @@ The \SpecialChar TeX
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/tex-gyre
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 tex-gyre
 \family default
- collection provides extensive remakes and extensions of the freely available
- 35 base PostScript fonts that can be used as an alternative to the 
+ collection provides extensive remakes and extensions of the freely available 35 base PostScript fonts that can be used as an alternative to the 
 \family sans
 psnfss
 \family default
@@ -1646,7 +2033,8 @@ tgadventor
 \SpecialChar TeX
  Gyre Adventor
 \emph default
-): A sans serif font based on 
+):
+ A sans serif font based on 
 \emph on
 URW Gothic L
 \emph default
@@ -1661,6 +2049,7 @@ Avant Garde
 
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1681,7 +2070,8 @@ tgbonum
 \SpecialChar TeX
  Gyre Bonum
 \emph default
-): A roman font based on 
+):
+ A roman font based on 
 \emph on
 URW Bookman L
 \emph default
@@ -1696,6 +2086,7 @@ ITC Bookman
 
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1716,7 +2107,8 @@ tgchorus
 \SpecialChar TeX
  Gyre Chorus
 \emph default
-): A roman (script) font based on 
+):
+ A roman (script) font based on 
 \emph on
 URW Chancery L
 \emph default
@@ -1731,6 +2123,7 @@ Zapf Chancery
 
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1751,7 +2144,8 @@ tgcursor
 \SpecialChar TeX
  Gyre Cursor
 \emph default
-): A monospaced font based on 
+):
+ A monospaced font based on 
 \emph on
 URW Nimbus Mono L
 \emph default
@@ -1766,6 +2160,7 @@ Courier
 
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1786,7 +2181,8 @@ tgheros
 \SpecialChar TeX
  Gyre Heros
 \emph default
-): A sans serif font based on 
+):
+ A sans serif font based on 
 \emph on
 URW Nimbus Sans L
 \emph default
@@ -1801,6 +2197,7 @@ Helvetica
 
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1821,7 +2218,8 @@ tgpagella
 \SpecialChar TeX
  Gyre Pagella
 \emph default
-): A roman font based on 
+):
+ A roman font based on 
 \emph on
 URW Palladio L
 \emph default
@@ -1836,6 +2234,7 @@ Palatino
 
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1856,7 +2255,8 @@ tgschola
 \SpecialChar TeX
  Gyre Schola
 \emph default
-): A roman font based on 
+):
+ A roman font based on 
 \emph on
 URW Century Schoolbook L
 \emph default
@@ -1867,6 +2267,7 @@ URW Century Schoolbook L
 
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1887,7 +2288,8 @@ tgtermes
 \SpecialChar TeX
  Gyre Termes
 \emph default
-): A roman font based on 
+):
+ A roman font based on 
 \emph on
 URW Nimbus Roman No9 L
 \emph default
@@ -1902,6 +2304,7 @@ Times New Roman
 
 \series bold
 Found:
+
 \series default
  
 \begin_inset Info
@@ -1917,7 +2320,8 @@ tipa/tipx
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "tipa"
@@ -1927,13 +2331,15 @@ arg   "tipa"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/tipa/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 tipa
 \family default
@@ -1941,8 +2347,8 @@ tipa
 \family sans
 tipx
 \family default
- packages provide comprehensive support and fonts for typesetting phonetic
- symbols, as defined in the 
+ packages provide comprehensive support and fonts for typesetting phonetic symbols,
+ as defined in the 
 \emph on
 International Phonetic Alphabet
 \emph default
@@ -1953,7 +2359,8 @@ Insert\SpecialChar menuseparator
 Special Character\SpecialChar menuseparator
 Phonetic Symbols
 \family default
-, by \SpecialChar LyX
+,
+ by \SpecialChar LyX
 's math editor and via the 
 \family sans
 Insert\SpecialChar menuseparator
@@ -1968,7 +2375,8 @@ TX Fonts
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "txfonts"
@@ -1978,13 +2386,15 @@ arg   "txfonts"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 fonts/txfonts/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 txfonts
 \family default
@@ -1994,7 +2404,8 @@ Times Roman
 \emph default
  with math support.
  In \SpecialChar LyX
-, only the monospaced shape (
+,
+ only the monospaced shape (
 \emph on
 TXTT
 \emph default
@@ -2006,7 +2417,8 @@ URW Classico (Optima)
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "urwclassico"
@@ -2016,27 +2428,46 @@ arg   "urwclassico"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 /fonts/urw/classico/
 \end_layout
 
 \begin_layout Description
-Notes: URW Classico is a clone of the Optima typeface, a very well-known
- sans serif face designed by Hermann Zapf.
- The fonts are available for non-commercial use under the Aladdin Free Public
- License.
+Notes:
+ URW Classico is a clone of the Optima typeface,
+ a very well-known sans serif face designed by Hermann Zapf.
+ The fonts are available for non-commercial use under the Aladdin Free Public License.
  Under \SpecialChar TeX
- Live the font needs to be installed via the 'getnonfreefonts-sys'
- utility.
+ Live the font needs to be installed via the 'getnonfreefonts-sys' utility.
 \end_layout
 
+\begin_deeper
+\begin_layout Standard
+Alternatively,
+ you can also use the 
+\family sans
+classico
+\family default
+ package (installed:
+ 
+\begin_inset Info
+type  "package"
+arg   "classico"
+\end_inset
+
+).
+\end_layout
+
+\end_deeper
 \begin_layout Subsection
 URW Garamond
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "garamondx"
@@ -2046,22 +2477,25 @@ arg   "garamondx"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family sans
 /fonts/garamondx/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 garamondx
 \family default
  package provides access to the URW Garamond fonts.
- These fonts are available for non-commercial use under the Aladdin Free
- Public License.
+ These fonts are available for non-commercial use under the Aladdin Free Public License.
  Under \SpecialChar TeX
- Live the fonts needs to be installed, separately from the package
- itself, via the 'getnonfreefonts-sys' utility (installed: 
+ Live the fonts needs to be installed,
+ separately from the package itself,
+ via the 'getnonfreefonts-sys' utility (installed:
+ 
 \begin_inset Info
 type  "package"
 arg   "garamondx-fonts"
@@ -2078,17 +2512,20 @@ garamondx
 URW Garamond (NewTX)
 \emph default
 .
- As a fallback, the package 
+ As a fallback,
+ the package 
 \family sans
 ugm
 \family default
- (installed: 
+ (installed:
+ 
 \begin_inset Info
 type  "package"
 arg   "ugm"
 \end_inset
 
-) is used, which however does not include old style figures.
+) is used,
+ which however does not include old style figures.
 \end_layout
 
 \begin_layout Section
@@ -2097,13 +2534,13 @@ Standard \SpecialChar LaTeX
 \end_layout
 
 \begin_layout Standard
-The document classes presented in this section are the basic document classes
- provided by \SpecialChar LaTeX
+The document classes presented in this section are the basic document classes provided by \SpecialChar LaTeX
 .
- In particular, they are all present on your system as long as \SpecialChar LaTeX2e
+ In particular,
+ they are all present on your system as long as \SpecialChar LaTeX2e
  is installed.
- When the text indicates that a particular class has not been found, this
- means the layout file supporting this particular class has not been found.
+ When the text indicates that a particular class has not been found,
+ this means the layout file supporting this particular class has not been found.
 \end_layout
 
 \begin_layout Subsection
@@ -2111,7 +2548,8 @@ article
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "article"
@@ -2121,11 +2559,13 @@ arg   "article"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The standard document class 
+Notes:
+ The standard document class 
 \family sans
 article
 \family default
@@ -2139,7 +2579,8 @@ report
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "report"
@@ -2149,11 +2590,13 @@ arg   "report"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The standard document class 
+Notes:
+ The standard document class 
 \family sans
 report
 \family default
@@ -2169,7 +2612,8 @@ book
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "book"
@@ -2179,15 +2623,19 @@ arg   "book"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The standard document class 
+Notes:
+ The standard document class 
 \family sans
 book
 \family default
- is, as its name suggests, intended to produce books.
+ is,
+ as its name suggests,
+ intended to produce books.
  It supports in particular sectioning by chapters.
 \end_layout
 
@@ -2196,7 +2644,8 @@ letter
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "letter"
@@ -2206,15 +2655,18 @@ arg   "letter"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The standard document class 
+Notes:
+ The standard document class 
 \family sans
 letter
 \family default
- is the basic class for writing letters, mostly in English.
+ is the basic class for writing letters,
+ mostly in English.
 \end_layout
 
 \begin_layout Subsection
@@ -2222,7 +2674,8 @@ slides
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "slides"
@@ -2232,11 +2685,13 @@ arg   "slides"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The standard document class 
+Notes:
+ The standard document class 
 \family sans
 slides
 \family default
@@ -2255,6 +2710,7 @@ foils
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "ssec:foils"
+nolink "false"
 
 \end_inset
 
@@ -2266,7 +2722,8 @@ amsart
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "amsart"
@@ -2276,13 +2733,15 @@ arg   "amsart"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/amslatex/classes/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 amsart
 \family default
@@ -2292,14 +2751,11 @@ article
 \family default
 .
  It is part of the AMS-\SpecialChar LaTeX
- package and is used for typesetting of mathematics
- with a look the American Mathematical Society has developed.
- They recommend it for the preparation of manuscripts intended for publication
- both in the Society's books and journals, and also in other mathematical
- literature.
+ package and is used for typesetting of mathematics with a look the American Mathematical Society has developed.
+ They recommend it for the preparation of manuscripts intended for publication both in the Society's books and journals,
+ and also in other mathematical literature.
  The Society requests that published documents prepared with AMS-\SpecialChar LaTeX
- include
- an acknowledgment of its use.
+ include an acknowledgment of its use.
  \SpecialChar LyX
  support is still limited.
 \end_layout
@@ -2313,7 +2769,8 @@ a0poster
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "a0poster"
@@ -2323,13 +2780,15 @@ arg   "a0poster"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 /macros/latex/contrib/a0poster
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 a0poster
 \family default
@@ -2341,7 +2800,8 @@ aa
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "aa"
@@ -2351,7 +2811,8 @@ arg   "aa"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A (available from ftp site 
+CTAN:
+ N/A (available from ftp site 
 \family typewriter
 ftp.edpsciences.org
 \family default
@@ -2363,12 +2824,12 @@ ftp.edpsciences.org
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 aa
 \family default
- (Version 5.01) can be used to write articles for submission to the scientific
- journal 
+ (Version 5.01) can be used to write articles for submission to the scientific journal 
 \emph on
 Astronomy and Astrophysics
 \emph default
@@ -2380,7 +2841,8 @@ aastex
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "aastex"
@@ -2390,11 +2852,13 @@ arg   "aastex"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A 
+CTAN:
+ N/A 
 \end_layout
 
 \begin_layout Description
-Notes: Obsoleted by aastex6.
+Notes:
+ Obsoleted by aastex6.
 \end_layout
 
 \begin_layout Subsection
@@ -2402,7 +2866,8 @@ aastex6
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "aastex"
@@ -2412,7 +2877,8 @@ arg   "aastex"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 /macros/latex/contrib/aastex
 \family default
@@ -2420,27 +2886,28 @@ CTAN:
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 aastex6
 \family default
  can be used to write articles for submission to the American journals 
 \emph on
-Astrophysical Journal, Astronomical Journal
+Astrophysical Journal,
+ Astronomical Journal
 \emph default
  and 
 \emph on
 Publications of the Astronomical Society of the Pacific
 \emph default
 .
- Package and documentation are also available from the American Astronomical
- Society 
+ Package and documentation are also available from the American Astronomical Society 
 \begin_inset Flex URL
 status open
 
 \begin_layout Plain Layout
 
-http://journals.aas.org/authors/aastex/aastex.html
+https://journals.aas.org/authors/aastex/aastex.html
 \end_layout
 
 \end_inset
@@ -2453,7 +2920,8 @@ acmart
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "acmart"
@@ -2463,7 +2931,8 @@ arg   "acmart"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 /macros/latex/contrib/acmart
 \family default
@@ -2471,8 +2940,8 @@ CTAN:
 \end_layout
 
 \begin_layout Description
-Notes: This package provides a class for typesetting publications of the
- Association for Computing Machinery.
+Notes:
+ This package provides a class for typesetting publications of the Association for Computing Machinery.
  
 \end_layout
 
@@ -2481,7 +2950,8 @@ AEA (American Economic Association) Journals
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "AEA"
@@ -2491,17 +2961,19 @@ arg   "AEA"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://www.aeaweb.org/templates/latex_templates.zip
+https://www.aeaweb.org/templates/latex_templates.zip
 \end_layout
 
 \end_inset
@@ -2510,24 +2982,28 @@ http://www.aeaweb.org/templates/latex_templates.zip
 \end_layout
 
 \begin_layout Description
-Notes: The document class
+Notes:
+ The document class
 \family sans
  AEA
 \family default
- can be used to write articles for submission to the following journals
- published by the American Economic Association: 
+ can be used to write articles for submission to the following journals published by the American Economic Association:
+ 
 \emph on
 American Economic Review
 \emph default
-, 
+,
+ 
 \emph on
 Papers and Proceedings
 \emph default
-, 
+,
+ 
 \emph on
 Journal of Economic Literature
 \emph default
-, 
+,
+ 
 \emph on
 Journal of Economic Perspectives
 \emph default
@@ -2536,16 +3012,18 @@ Journal of Economic Perspectives
 American Economics Journal
 \emph default
 .
- The use of packages should be limited to those packages which provide core
- functionality, such as 
+ The use of packages should be limited to those packages which provide core functionality,
+ such as 
 \family sans
 amsmath
 \family default
-, 
+,
+ 
 \family sans
 graphicx
 \family default
-, and 
+,
+ and 
 \family sans
 harvard
 \family default
@@ -2579,13 +3057,15 @@ AGU Journals
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "jgrga"
 \end_inset
 
-, 
+,
+ 
 \begin_inset Info
 type  "textclass"
 arg   "agums"
@@ -2595,13 +3075,15 @@ arg   "agums"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/aguplus
 \end_layout
 
 \begin_layout Description
-Notes: The document style 
+Notes:
+ The document style 
 \family sans
 jgrga
 \family default
@@ -2613,7 +3095,8 @@ aguplus
 \emph on
 Journal of Geophysical Research
 \emph default
-, published by the American Geophysical Union.
+,
+ published by the American Geophysical Union.
 \end_layout
 
 \begin_deeper
@@ -2631,12 +3114,14 @@ The document style
 \family sans
 agums
 \family default
-, which could be used to write articles for first-time submission to AGU
- editors (e.
+,
+ which could be used to write articles for first-time submission to AGU editors (e.
 \begin_inset space \thinspace{}
 \end_inset
 
-g., for review and copy editing), is obsolete as well.
+g.,
+ for review and copy editing),
+ is obsolete as well.
 \end_layout
 
 \end_deeper
@@ -2645,7 +3130,8 @@ beamer
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "beamer"
@@ -2655,13 +3141,15 @@ arg   "beamer"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/beamer
 \end_layout
 
 \begin_layout Description
-Notes: A \SpecialChar LaTeX
+Notes:
+ A \SpecialChar LaTeX
  class for producing presentations and slides.
 \end_layout
 
@@ -2670,7 +3158,8 @@ beamerposter
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "beamerposter"
@@ -2680,18 +3169,20 @@ arg   "beamerposter"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 /macros/latex/contrib/beamerposter
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 beamerposter
 \family default
- provides support for conference posters on large paper, thereby using the
- boxes and design features provided by the 
+ provides support for conference posters on large paper,
+ thereby using the boxes and design features provided by the 
 \family sans
 beamer
 \family default
@@ -2703,7 +3194,8 @@ broadway
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "broadway"
@@ -2713,7 +3205,8 @@ arg   "broadway"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A (must be installed from the 
+CTAN:
+ N/A (must be installed from the 
 \family typewriter
 tex/
 \family default
@@ -2722,56 +3215,16 @@ tex/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 broadway
 \family default
  is for writing plays.
  It is not an existing \SpecialChar LaTeX
- document class, but a new one which is distributed
- with \SpecialChar LyX
+ document class,
+ but a new one which is distributed with \SpecialChar LyX
 .
-\end_layout
-
-\begin_layout Subsection
-cl2emult
-\end_layout
-
-\begin_layout Description
-Found: 
-\begin_inset Info
-type  "textclass"
-arg   "cl2emult"
-\end_inset
-
-
-\end_layout
-
-\begin_layout Description
-CTAN: N/A
-\end_layout
-
-\begin_layout Description
-FTP: 
-\begin_inset Flex URL
-status collapsed
-
-\begin_layout Plain Layout
-
-ftp://ftp.springer.de/pub/tex/latex/compsc/proc/author
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Description
-Notes: The document class 
-\family sans
-cl2emult
-\family default
- is for writing multi authored Springer books.
 \end_layout
 
 \begin_layout Subsection
@@ -2779,7 +3232,8 @@ dinbrief
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "dinbrief"
@@ -2789,13 +3243,15 @@ arg   "dinbrief"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/dinbrief/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 dinbrief
 \family default
@@ -2807,7 +3263,8 @@ docbook
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "docbook"
@@ -2817,17 +3274,19 @@ arg   "docbook"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://sgmltools-lite.sourceforge.net/
+https://sgmltools-lite.sourceforge.net
 \end_layout
 
 \end_inset
@@ -2836,14 +3295,20 @@ http://sgmltools-lite.sourceforge.net/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 docbook
 \family default
   is not a \SpecialChar LaTeX
  document class.
- It is designed to produce Docbook SGML documents, which, in turn, can be
- exported as HTML, RTF, text, or dvi (through 
+ It is designed to produce Docbook SGML documents,
+ which,
+ in turn,
+ can be exported as HTML,
+ RTF,
+ text,
+ or dvi (through 
 \family typewriter
 jadetex
 \family default
@@ -2856,7 +3321,8 @@ dtk
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "dtk"
@@ -2866,19 +3332,20 @@ arg   "dtk"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 usergrps/dante/dtk/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 dtk
 \family default
  can be used to write articles for the Journal of the German \SpecialChar TeX
- User Group
- 
+ User Group 
 \begin_inset Quotes eld
 \end_inset
 
@@ -2891,13 +3358,14 @@ nische Komödie
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://www.dante.de
+https://www.dante.de
 \end_layout
 
 \end_inset
@@ -2910,7 +3378,8 @@ egs (European Geophysical Society journals)
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "egs"
@@ -2920,16 +3389,18 @@ arg   "egs"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 egs
 \family default
- could be used to write articles for the European Geophysical Society, which
- became the European Geosciences Union in 2001.
+ could be used to write articles for the European Geophysical Society,
+ which became the European Geosciences Union in 2001.
 \end_layout
 
 \begin_deeper
@@ -2938,7 +3409,8 @@ The class is thus obsolete end replaced by class
 \family sans
 copernicus
 \family default
-, for which a layout and template should be written.
+,
+ for which a layout and template should be written.
 \end_layout
 
 \end_deeper
@@ -2947,7 +3419,8 @@ elsarticle
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "elsarticle"
@@ -2957,13 +3430,15 @@ arg   "elsarticle"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/elsarticle/
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \family typewriter
 
 \begin_inset Flex URL
@@ -2980,8 +3455,8 @@ https://www.elsevier.com/authors/author-schemas/latex-instructions
 \end_layout
 
 \begin_layout Description
-Notes: This package is intended for producing journal articles for publication
- by Elsevier Science.
+Notes:
+ This package is intended for producing journal articles for publication by Elsevier Science.
  
 \end_layout
 
@@ -2990,7 +3465,8 @@ entcs
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "entcs"
@@ -3000,17 +3476,19 @@ arg   "entcs"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://www.entcs.org/generic.zip
+https://www.entcs.org/generic.zip
 \end_layout
 
 \end_inset
@@ -3019,12 +3497,14 @@ http://www.entcs.org/generic.zip
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 entcs
 \family default
- is Elsevier Science's Electronic Notes in Theoretical Computer Science
- article style, used for the ENTCS series, and many conference proceedings.
+ is Elsevier Science's Electronic Notes in Theoretical Computer Science article style,
+ used for the ENTCS series,
+ and many conference proceedings.
 \end_layout
 
 \begin_layout Subsection
@@ -3032,7 +3512,8 @@ europecv
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "europecv"
@@ -3042,21 +3523,21 @@ arg   "europecv"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/europecv
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 europecv
 \family default
- document class is intended to provide curriculum vitaes (resumes) according
- to the official guidelines of the European community (Europass).
+ document class is intended to provide curriculum vitaes (resumes) according to the official guidelines of the European community (Europass).
  It therefore supports the European language self-assessment.
- An example curriculum vitae created using this document class can be found
- in the examples.
+ An example curriculum vitae created using this document class can be found in the examples.
  This class follows the 2002 version of the guidelines (see 
 \family sans
 europasscv
@@ -3070,7 +3551,8 @@ europasscv
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "europasscv"
@@ -3080,26 +3562,29 @@ arg   "europasscv"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/europasscv
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 europasscv
 \family default
  document class is another unofficial \SpecialChar LaTeX
  implementation of the Europass CV,
- the standard model for curriculum vitae as recommended by the European
- Commission.
+ the standard model for curriculum vitae as recommended by the European Commission.
  As opposed to the 
 \family sans
 europecv
 \family default
- document class, it includes the major style updates that came out in 2013,
- featuring a neater, more compact and somewhat fancier layout.
+ document class,
+ it includes the major style updates that came out in 2013,
+ featuring a neater,
+ more compact and somewhat fancier layout.
 \end_layout
 
 \begin_layout Subsection
@@ -3107,41 +3592,49 @@ extsizes
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \family sans
 extarticle
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "extarticle"
 \end_inset
 
-, 
+,
+ 
 \family sans
 extbook
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "extbook"
 \end_inset
 
-, 
+,
+ 
 \family sans
 extreport
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "extreport"
 \end_inset
 
-, 
+,
+ 
 \family sans
 extletter
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "extletter"
@@ -3151,22 +3644,25 @@ arg   "extletter"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/extsizes/
 \end_layout
 
 \begin_layout Description
-Notes: These document classes are equivalent to the corresponding standard
- classes (
+Notes:
+ These document classes are equivalent to the corresponding standard classes (
 \family sans
 article
 \family default
-, 
+,
+ 
 \family sans
 book
 \family default
-, \SpecialChar ldots
+,
+ \SpecialChar ldots
 ) with additional document-wide font sizes.
 \end_layout
 
@@ -3181,7 +3677,8 @@ foils
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "foils"
@@ -3191,13 +3688,15 @@ arg   "foils"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/foiltex/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 foils
 \family default
@@ -3207,8 +3706,9 @@ foils
 slides
 \family default
  class to make transparencies.
- It allows cross references, uses a less ugly font, and is in general much
- better to use than 
+ It allows cross references,
+ uses a less ugly font,
+ and is in general much better to use than 
 \family sans
 slides
 \family default
@@ -3217,10 +3717,12 @@ slides
 \family sans
 seminar
 \family default
- class, which is not currently supported by \SpecialChar LyX
+ class,
+ which is not currently supported by \SpecialChar LyX
 .
- Note that, due to its somewhat restrictive license, it is not included
- in free \SpecialChar TeX
+ Note that,
+ due to its somewhat restrictive license,
+ it is not included in free \SpecialChar TeX
  distributions like te\SpecialChar TeX
 .
 \end_layout
@@ -3230,7 +3732,8 @@ g-brief-en
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "g-brief"
@@ -3240,13 +3743,15 @@ arg   "g-brief"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/g-brief/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 g-brief-en
 \family default
@@ -3258,7 +3763,8 @@ g-brief-de
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "g-brief"
@@ -3268,13 +3774,15 @@ arg   "g-brief"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/g-brief/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 g-brief-de
 \family default
@@ -3290,7 +3798,8 @@ g-brief2
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "g-brief2"
@@ -3300,13 +3809,15 @@ arg   "g-brief2"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/g-brief/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 g-brief2
 \family default
@@ -3315,7 +3826,9 @@ g-brief2
 \family sans
 g-brief
 \family default
-, its better configurable, but not backward compatible to 
+,
+ its better configurable,
+ but not backward compatible to 
 \family sans
 g-brief
 \family default
@@ -3329,7 +3842,8 @@ hollywood
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "hollywood"
@@ -3339,7 +3853,8 @@ arg   "hollywood"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A (must be installed from the 
+CTAN:
+ N/A (must be installed from the 
 \family typewriter
 tex/
 \family default
@@ -3348,15 +3863,16 @@ tex/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 hollywood
 \family default
  can be used to type spec scripts for the U.S.
  film industry.
  It is not an existing \SpecialChar LaTeX
- document class, but a new one which is distributed
- with \SpecialChar LyX
+ document class,
+ but a new one which is distributed with \SpecialChar LyX
 .
 \end_layout
 
@@ -3365,7 +3881,8 @@ IEEEtran
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "IEEEtran"
@@ -3375,13 +3892,15 @@ arg   "IEEEtran"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/IEEEtran/
 \end_layout
 
 \begin_layout Description
-Notes: The class 
+Notes:
+ The class 
 \family sans
 IEEEtran
 \family default
@@ -3392,7 +3911,7 @@ status collapsed
 
 \begin_layout Plain Layout
 
-http://www.ieee.org
+https://www.ieee.org
 \end_layout
 
 \end_inset
@@ -3427,8 +3946,7 @@ must
 ieeetran.cls
 \family default
  is in lowercase like this example \SpecialChar LyX
- will not find it and you should upgrade
- to a newer version which has IEEE in capitals.
+ will not find it and you should upgrade to a newer version which has IEEE in capitals.
 \end_layout
 
 \begin_layout Subsection
@@ -3436,7 +3954,8 @@ ijmpc
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "ijmpc"
@@ -3446,17 +3965,19 @@ arg   "ijmpc"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: available from the site 
+WWW:
+ available from the site 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://www.worldscinet.com/ijmpc/mkt/guidelines.shtml
+https://www.worldscientific.com/page/ijmpc/submission-guidelines
 \end_layout
 
 \end_inset
@@ -3465,13 +3986,13 @@ http://www.worldscinet.com/ijmpc/mkt/guidelines.shtml
 \end_layout
 
 \begin_layout Description
-Notes: The document class
+Notes:
+ The document class
 \family sans
  ijmpc
 \family default
- can be used to write articles for submission to the International Journal
- of Modern Physics C (usually abbreviated as IJMPC), published by World
- Scientific.
+ can be used to write articles for submission to the International Journal of Modern Physics C (usually abbreviated as IJMPC),
+ published by World Scientific.
 \end_layout
 
 \begin_layout Subsection
@@ -3479,7 +4000,8 @@ ijmpd
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "ijmpd"
@@ -3489,17 +4011,19 @@ arg   "ijmpd"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: available from the site 
+WWW:
+ available from the site 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://www.worldscinet.com/ijmpd/mkt/guidelines.shtml
+https://www.worldscientific.com/page/ijmpd/submission-guidelines
 \end_layout
 
 \end_inset
@@ -3508,13 +4032,13 @@ http://www.worldscinet.com/ijmpd/mkt/guidelines.shtml
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 ijmpd
 \family default
- can be used to write articles for submission to the International Journal
- of Modern Physics D (usually abbreviated as IJMPD), published by World
- Scientific.
+ can be used to write articles for submission to the International Journal of Modern Physics D (usually abbreviated as IJMPD),
+ published by World Scientific.
 \end_layout
 
 \begin_layout Subsection
@@ -3522,7 +4046,8 @@ iopart
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "iopart"
@@ -3532,17 +4057,19 @@ arg   "iopart"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: available from the site 
+WWW:
+ available from the site 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-ftp://ftp.iop.org/pub/journals/latex2e
+https://publishingsupport.iopscience.iop.org/questions/latex-template/
 \end_layout
 
 \end_inset
@@ -3551,12 +4078,12 @@ ftp://ftp.iop.org/pub/journals/latex2e
 \end_layout
 
 \begin_layout Description
-Notes: The document class
+Notes:
+ The document class
 \family sans
  iopart
 \family default
- can be used to write articles for the journal published by the Institute
- of Physics (IOP).
+ can be used to write articles for the journal published by the Institute of Physics (IOP).
 \end_layout
 
 \begin_layout Subsection
@@ -3564,51 +4091,61 @@ Japanese standard classes
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \family sans
 jreport
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "jreport"
 \end_inset
 
-, 
+,
+ 
 \family sans
 jbook
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "jbook"
 \end_inset
 
-, 
+,
+ 
 \family sans
 tarticle
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "tarticle"
 \end_inset
 
-, 
+,
+ 
 \family sans
 treport
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "treport"
 \end_inset
 
-, 
+,
+ 
 \family sans
 tbook
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "tbook"
@@ -3618,19 +4155,21 @@ arg   "tbook"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 install/language/japanese/ptex.tds.zip
 \end_layout
 
 \begin_layout Description
-Notes: These document classes provide different versions of the base \SpecialChar LaTeX
- document
- classes 
+Notes:
+ These document classes provide different versions of the base \SpecialChar LaTeX
+ document classes 
 \family sans
 article
 \family default
-, 
+,
+ 
 \family sans
 report
 \family default
@@ -3652,25 +4191,29 @@ t-
 \end_layout
 
 \begin_layout Subsection
-Japanese new standard classes
+Japanese new standard classes (JS Bundle)
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \family sans
 jsarticle
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "jsarticle"
 \end_inset
 
-, 
+,
+ 
 \family sans
 jsbook
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "jsbook"
@@ -3680,19 +4223,21 @@ arg   "jsbook"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/jsclasses/
 \end_layout
 
 \begin_layout Description
-Notes: These document classes provide different versions of the base \SpecialChar LaTeX
- document
- classes 
+Notes:
+ These document classes provide different versions of the base \SpecialChar LaTeX
+ document classes 
 \family sans
 article
 \family default
-, 
+,
+ 
 \family sans
 report
 \family default
@@ -3721,11 +4266,272 @@ report
 \end_layout
 
 \begin_layout Subsection
+Japanese standard classes for LuaTeX
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\family sans
+ltjarticle
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjarticle"
+\end_inset
+
+,
+ 
+\family sans
+ltjreport
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjreport"
+\end_inset
+
+,
+ 
+\family sans
+ltjbook
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjbook"
+\end_inset
+
+
+\family sans
+,
+ ltjsarticle
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjsarticle"
+\end_inset
+
+,
+ 
+\family sans
+ltjsreport
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjsreport"
+\end_inset
+
+,
+ 
+\family sans
+ltjsbook
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjsbook"
+\end_inset
+
+
+\family sans
+,
+ ltjtarticle
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjtarticle"
+\end_inset
+
+,
+ 
+\family sans
+ltjtreport
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjtreport"
+\end_inset
+
+,
+ 
+\family sans
+ltjtbook
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "ltjtbook"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/luatex/generic/luatexja/
+\end_layout
+
+\begin_layout Description
+Notes:
+ These document classes are LuaTeX version of the above original and new (JS bundle) Japanese standard classes.
+\end_layout
+
+\begin_layout Subsection
+Japanese new standard classes (BX bundle)
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\family sans
+bxjsarticle
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "bxjsarticle"
+\end_inset
+
+,
+ 
+\family sans
+bxjsreport
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "bxjsreport"
+\end_inset
+
+,
+ 
+\family sans
+bxjsbook
+\family default
+:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "bxjsbook"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+language/japanese/BX/bxjscls/
+\end_layout
+
+\begin_layout Description
+Notes:
+ This package provides an extended version of Japanese new standard classes.
+ While the original version supports only p\SpecialChar LaTeX
+ and up\SpecialChar LaTeX
+,
+ the extended version also supports pdf\SpecialChar LaTeX
+,
+ Xe\SpecialChar LaTeX
+ and Lua\SpecialChar LaTeX
+,
+ with the aid of suitable packages that provide capability of Japanese typesetting.
+\end_layout
+
+\begin_layout Subsection
+Japanese new standard classes (JLReq class)
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "textclass"
+arg   "jlreq"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/jptex/latex/jlreq/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The 
+\family sans
+jlreq
+\family default
+ class is a document class which faithfully traces the standard of 
+\emph on
+Requirements for Japanese Text Layout
+\emph default
+ set by the World Wide Web Consortium (W3C).
+ It can be used with Lua\SpecialChar LaTeX
+ as well as p\SpecialChar LaTeX
+ and up\SpecialChar LaTeX
+.
+ The default output of this document is via Lua\SpecialChar LaTeX
+.
+ The class includes equivalents of 
+\family sans
+article
+\family default
+,
+ 
+\family sans
+report
+\family default
+ and 
+\family sans
+book
+\family default
+ classes as a subset which is specified as a class option.
+ English documentation is available at 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://mirrors.ctan.org/macros/jptex/latex/jlreq/jlreq.pdf
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
 jss
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "jss"
@@ -3735,17 +4541,19 @@ arg   "jss"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: available from 
+WWW:
+ available from 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://www.jstatsoft.org/public/journals/1/jss-style.zip
+https://www.jstatsoft.org/public/journals/1/jss-style.zip
 \end_layout
 
 \end_inset
@@ -3754,7 +4562,8 @@ http://www.jstatsoft.org/public/journals/1/jss-style.zip
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 jss
 \family default
@@ -3766,7 +4575,8 @@ kluwer
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "kluwer"
@@ -3776,11 +4586,13 @@ arg   "kluwer"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: available from the Kluwer Academic Publishers site 
+WWW:
+ available from the Kluwer Academic Publishers site 
 \begin_inset Flex URL
 status collapsed
 
@@ -3795,14 +4607,16 @@ http://www.wkap.nl/kaphtml.htm/STYLEFILES
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 kluwer
 \family default
- can be used to write articles for submission to the journals published
- by Kluwer Academic Publishers, such as 
+ can be used to write articles for submission to the journals published by Kluwer Academic Publishers,
+ such as 
 \emph on
-Astrophysics and Space Science, Solar Physics
+Astrophysics and Space Science,
+ Solar Physics
 \emph default
  and many others (see a full list at 
 \begin_inset Flex URL
@@ -3834,31 +4648,37 @@ name "subsec:Koma-Script"
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \family sans
 scrartcl
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "scrartcl"
 \end_inset
 
-, 
+,
+ 
 \family sans
 scrreprt
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "scrreprt"
 \end_inset
 
-, 
+,
+ 
 \family sans
 scrbook
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "scrbook"
@@ -3868,19 +4688,21 @@ arg   "scrbook"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/koma-script/
 \end_layout
 
 \begin_layout Description
-Notes: These document classes provide different versions of the base \SpecialChar LaTeX
- document
- classes 
+Notes:
+ These document classes provide different versions of the base \SpecialChar LaTeX
+ document classes 
 \family sans
 article
 \family default
-, 
+,
+ 
 \family sans
 report
 \family default
@@ -3889,8 +4711,7 @@ report
 book
 \family default
 .
- They have been changed to look somewhat better and be more adapted to european
- typesetting standards.
+ They have been changed to look somewhat better and be more adapted to european typesetting standards.
 \end_layout
 
 \begin_layout Subsection
@@ -3898,21 +4719,25 @@ KOMA-Script letter
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \family sans
 scrlettr
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "scrlettr"
 \end_inset
 
-, 
+,
+ 
 \family sans
 scrlttr2
 \family default
-: 
+:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "scrlttr2"
@@ -3922,17 +4747,19 @@ arg   "scrlttr2"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/koma-script/
 \end_layout
 
 \begin_layout Description
-Notes: These letter classes are bundled with the Koma-Script classes (see
- 
+Notes:
+ These letter classes are bundled with the Koma-Script classes (see 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "subsec:Koma-Script"
+nolink "false"
 
 \end_inset
 
@@ -3942,11 +4769,13 @@ reference "subsec:Koma-Script"
 \family sans
 scrlettr
 \family default
- class and the new, much more flexible 
+ class and the new,
+ much more flexible 
 \family sans
 scrlttr2
 \family default
- class, which was introduced with Koma-Script version 2.9 (released 2002-06-21).
+ class,
+ which was introduced with Koma-Script version 2.9 (released 2002-06-21).
 \end_layout
 
 \begin_layout Subsection
@@ -3954,7 +4783,8 @@ latex8
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "latex8"
@@ -3964,11 +4794,13 @@ arg   "latex8"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The class 
+Notes:
+ The class 
 \family sans
 latex8
 \family default
@@ -3981,8 +4813,7 @@ article
  It produces documents suitable for submission to IEEE Conferences.
  The \SpecialChar LaTeX
  files (including Bib\SpecialChar TeX
- style file) are distributed with the Author Kit
- for IEEE sponsored conferences.
+ style file) are distributed with the Author Kit for IEEE sponsored conferences.
 \end_layout
 
 \begin_layout Subsection
@@ -3990,7 +4821,8 @@ linuxdoc
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "linuxdoc"
@@ -4000,18 +4832,24 @@ arg   "linuxdoc"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The class 
+Notes:
+ The class 
 \family sans
 linuxdoc
 \family default
  is not a \SpecialChar LaTeX
  document class.
- It is designed to produce LinuxDoc-SGML documents, which, in turn, can
- be exported as HTML, RTF, text or...
+ It is designed to produce LinuxDoc-SGML documents,
+ which,
+ in turn,
+ can be exported as HTML,
+ RTF,
+ text or...
  \SpecialChar LaTeX
 .
  You need to have the 
@@ -4031,7 +4869,8 @@ llncs
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "llncs"
@@ -4041,11 +4880,13 @@ arg   "llncs"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 llncs
 \family default
@@ -4069,7 +4910,7 @@ status collapsed
 
 \begin_layout Plain Layout
 
-ftp://ftp.springer.de/pub/tex/latex/llncs/latex2e
+https://www.ctan.org/pkg/llncs
 \end_layout
 
 \end_inset
@@ -4090,7 +4931,8 @@ maa-monthly
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "maa-monthly"
@@ -4103,6 +4945,7 @@ arg   "maa-monthly"
 
 \series bold
 Web:
+
 \series default
  
 \begin_inset Flex URL
@@ -4110,7 +4953,7 @@ status open
 
 \begin_layout Plain Layout
 
-https://www.maa.org/press/periodicals/american-mathematical-monthly
+https://maa.org/publication/the-american-mathematical-monthly/
 \end_layout
 
 \end_inset
@@ -4119,7 +4962,8 @@ https://www.maa.org/press/periodicals/american-mathematical-monthly
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 maa-monthly
 \family default
@@ -4135,7 +4979,8 @@ memoir
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "memoir"
@@ -4145,19 +4990,27 @@ arg   "memoir"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/memoir/
 \end_layout
 
 \begin_layout Description
-Notes: 
+Notes:
+ 
 \family sans
 memoir
 \family default
- is a flexible class for typesetting general fiction, non-fiction and mathematic
-al works as books, reports, articles or manuscripts.
- Documents can use 9, 10, 11, 12, 14 or 17pt as the normal font size.
+ is a flexible class for typesetting general fiction,
+ non-fiction and mathematical works as books,
+ reports,
+ articles or manuscripts.
+ Documents can use 9,
+ 10,
+ 11,
+ 12,
+ 14 or 17pt as the normal font size.
  Many methods are provided to let you create your own particular design.
 \end_layout
 
@@ -4166,7 +5019,8 @@ moderncv
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "moderncv"
@@ -4176,28 +5030,32 @@ arg   "moderncv"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/moderncv
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 moderncv
 \family default
  document class is intended to provide nice looking curriculum vitae (resume).
  It provides bibliography support (useful for academics).
- An example curriculum vitae created using this document class can be found
- in the examples.
+ An example curriculum vitae created using this document class can be found in the examples.
 \end_layout
 
 \begin_layout Subsection
-mwcls (mwart, mwbk, mwrep)
+mwcls (mwart,
+ mwbk,
+ mwrep)
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "mwart"
@@ -4207,19 +5065,21 @@ arg   "mwart"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/mwcls/
 \end_layout
 
 \begin_layout Description
-Notes: These document classes provide different versions of the base \SpecialChar LaTeX
- document
- classes 
+Notes:
+ These document classes provide different versions of the base \SpecialChar LaTeX
+ document classes 
 \family sans
 article
 \family default
-, 
+,
+ 
 \family sans
 report
 \family default
@@ -4236,7 +5096,8 @@ paper
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "paper"
@@ -4246,13 +5107,15 @@ arg   "paper"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/paper/
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 paper
 \family default
@@ -4261,8 +5124,10 @@ paper
 article
 \family default
  class.
- It provides similar functionality, but you might prefer this layout with
- sans serif sections, headings, and more.
+ It provides similar functionality,
+ but you might prefer this layout with sans serif sections,
+ headings,
+ and more.
 \end_layout
 
 \begin_layout Subsection
@@ -4270,7 +5135,8 @@ powerdot
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "powerdot"
@@ -4280,13 +5146,15 @@ arg   "powerdot"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/powerdot
 \end_layout
 
 \begin_layout Description
-Notes: A \SpecialChar LaTeX
+Notes:
+ A \SpecialChar LaTeX
  class for producing presentations and slides.
 \end_layout
 
@@ -4295,7 +5163,8 @@ sciposter
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "sciposter"
@@ -4305,13 +5174,15 @@ arg   "sciposter"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 /macros/latex/contrib/sciposter
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 sciposter
 \family default
@@ -4323,7 +5194,8 @@ SPIE
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "spie"
@@ -4333,17 +5205,19 @@ arg   "spie"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://public.lanl.gov/kmh/spie/
+https://kmh-lanl.hansonhub.com/spie/
 \end_layout
 
 \end_inset
@@ -4352,14 +5226,13 @@ http://public.lanl.gov/kmh/spie/
 \end_layout
 
 \begin_layout Description
-Notes: 
+Notes:
+ 
 \family sans
 spie.cls
 \family default
  is a \SpecialChar LaTeX
- class for submissions to the Proceedings of  SPIE–The International
- Society for Optical Engineering.More info on submitting a manuscript can
- be found at the SPIE website under
+ class for submissions to the Proceedings of  SPIE–The International Society for Optical Engineering.More info on submitting a manuscript can be found at the SPIE website under
 \begin_inset Flex URL
 status collapsed
 
@@ -4379,7 +5252,8 @@ REV\SpecialChar TeX
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "revtex"
@@ -4389,25 +5263,29 @@ arg   "revtex"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex209/contrib/revtex/
 \end_layout
 
 \begin_layout Description
-Notes: This class, which used the REV\SpecialChar TeX
- 3 class, has been superseded by the
- 
+Notes:
+ This class,
+ which used the REV\SpecialChar TeX
+ 3 class,
+ has been superseded by the 
 \family sans
 revtex4
 \family default
- class, so you should use that instead.
+ class,
+ so you should use that instead.
  (Old 
 \family sans
 revtex
 \family default
- class documents should be pretty easy to change to the new class.) If you
- have to use this class for some reason, you should use the file 
+ class documents should be pretty easy to change to the new class.) If you have to use this class for some reason,
+ you should use the file 
 \family typewriter
 revtex.cls
 \family default
@@ -4425,7 +5303,8 @@ REV\SpecialChar TeX
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "revtex4"
@@ -4435,24 +5314,29 @@ arg   "revtex4"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/revtex/
 \end_layout
 
 \begin_layout Description
-Notes: REV\SpecialChar TeX
- 4 is a class used for submitting manuscripts to journals including
- APS (Physical Review A-E and Letters, Reviews in Modern Physics, Special
- Topics—Accelerators and Beams), the American Institute of Physics, the
- Optical Society of America, and the Society for Exploration Geophysicists.
+Notes:
+ REV\SpecialChar TeX
+ 4 is a class used for submitting manuscripts to journals including APS (Physical Review A-E and Letters,
+ Reviews in Modern Physics,
+ Special Topics—
+Accelerators and Beams),
+ the American Institute of Physics,
+ the Optical Society of America,
+ and the Society for Exploration Geophysicists.
  Also see 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://publish.aps.org/revtex4/
+https://journals.aps.org/revtex
 \end_layout
 
 \end_inset
@@ -4466,7 +5350,8 @@ SIAML\SpecialChar TeX
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "siamltex"
@@ -4476,15 +5361,18 @@ arg   "siamltex"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/siam/siamltex.tar
 \end_layout
 
 \begin_layout Description
-Notes: The Society for Industrial and Applied Mathematics, Philadelphia,
- Pennsylvania, wants to ensure quality typesetting according to SIAM style
- standards by providing this \SpecialChar LaTeX
+Notes:
+ The Society for Industrial and Applied Mathematics,
+ Philadelphia,
+ Pennsylvania,
+ wants to ensure quality typesetting according to SIAM style standards by providing this \SpecialChar LaTeX
  style.
 \end_layout
 
@@ -4493,7 +5381,8 @@ simplecv
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "simplecv"
@@ -4503,34 +5392,33 @@ arg   "simplecv"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/simplecv
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 simplecv
 \family default
- document class is intended to provide a simple yet elegant way to write
- your curriculum vitae (resume).
- It is rather minimalist, but has nice features like bibliography support
- (useful for academics).
+ document class is intended to provide a simple yet elegant way to write your curriculum vitae (resume).
+ It is rather minimalist,
+ but has nice features like bibliography support (useful for academics).
  This is a repackaging of the 
 \family sans
 cv
 \family default
  class that has been available with \SpecialChar LyX
  for a long time.
- The change of name has been made necessary by the existence of another
- 
+ The change of name has been made necessary by the existence of another 
 \family sans
 cv
 \family default
  class on CTAN.
- An example curriculum vitae created using this document class can be found
- in the examples.
+ An example curriculum vitae created using this document class can be found in the examples.
 \end_layout
 
 \begin_layout Subsection
@@ -4544,7 +5432,8 @@ Springer Unspecific Journal
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "svglobal"
@@ -4554,13 +5443,15 @@ arg   "svglobal"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/springer/svjour/global
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
@@ -4575,24 +5466,25 @@ http://www.springeronline.com
 \end_layout
 
 \begin_layout Description
-Notes: 
+Notes:
+ 
 \family sans
 Svglobal
 \family default
- is a format suitable for publication in a Springer journal for which a
- specific style is not provided; i.
+ is a format suitable for publication in a Springer journal for which a specific style is not provided;
+ i.
 \begin_inset space \thinspace{}
 \end_inset
 
-g., if the journal author guidelines at the above Springer site suggest using
- the 
+g.,
+ if the journal author guidelines at the above Springer site suggest using the 
 \family sans
 svglobal
 \family default
  style.
-  The corresponding documentclass files and associated material can be found
- on the Springer site.
- The layout consists of two parts: 
+  The corresponding documentclass files and associated material can be found on the Springer site.
+ The layout consists of two parts:
+ 
 \family typewriter
 svjour.inc
 \family default
@@ -4600,17 +5492,18 @@ svjour.inc
 \family typewriter
 svglobal.layout
 \family default
-, which includes 
+,
+ which includes 
 \family typewriter
 svjour.inc
 \family default
- and is the default style for any Springer Journal without any specific
- style.
+ and is the default style for any Springer Journal without any specific style.
  You can write your own 
 \family typewriter
 sv<journal>.layout
 \family default
- to support any other Springer journals (hint, hint!).
+ to support any other Springer journals (hint,
+ hint!).
  Note that you need to specify the 
 \family typewriter
 global
@@ -4623,7 +5516,8 @@ Springer Journal of Geodesy
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "svjog"
@@ -4633,13 +5527,15 @@ arg   "svjog"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/springer/svjour/jog
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
@@ -4654,17 +5550,20 @@ http://www.springeronline.com
 \end_layout
 
 \begin_layout Description
-Notes: 
+Notes:
+ 
 \family sans
 svjog
 \family default
- is for the journal formats used by Springer Verlag, in particular that
- of Journal of Geodesy.
+ is for the journal formats used by Springer Verlag,
+ in particular that of Journal of Geodesy.
  It is not very well tested yet.
- For more information, see section 
+ For more information,
+ see section 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "svglobal"
+nolink "false"
 
 \end_inset
 
@@ -4676,7 +5575,8 @@ Springer Probability Theory and Related Fields
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "svprobth"
@@ -4686,13 +5586,15 @@ arg   "svprobth"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/springer/svjour/prothe
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
@@ -4707,16 +5609,18 @@ http://www.springeronline.com
 \end_layout
 
 \begin_layout Description
-Notes: 
+Notes:
+ 
 \family sans
 svprobth
 \family default
- is a format suitable for publication in the journal Probability Theory
- and Related Fields.
- For more information, see section 
+ is a format suitable for publication in the journal Probability Theory and Related Fields.
+ For more information,
+ see section 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "svglobal"
+nolink "false"
 
 \end_inset
 
@@ -4728,7 +5632,8 @@ Springer Monographs
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "svmono"
@@ -4738,13 +5643,15 @@ arg   "svmono"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 ftp://ftp.springer.de/pub/tex/latex/svmonogl/
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
@@ -4759,7 +5666,8 @@ http://www.springeronline.com
 \end_layout
 
 \begin_layout Description
-Notes: 
+Notes:
+ 
 \family sans
 svmono
 \family default
@@ -4772,7 +5680,8 @@ Springer Contributed Books
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "svmult"
@@ -4782,13 +5691,15 @@ arg   "svmult"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 ftp://ftp.springer.de/pub/tex/latex/svmultgl/
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
@@ -4803,7 +5714,8 @@ http://www.springeronline.com
 \end_layout
 
 \begin_layout Description
-Notes: 
+Notes:
+ 
 \family sans
 svmult
 \family default
@@ -4816,7 +5728,8 @@ TUGboat
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "textclass"
 arg   "ltugboat"
@@ -4826,13 +5739,15 @@ arg   "ltugboat"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 plain/contrib/tugboat.tar
 \end_layout
 
 \begin_layout Description
-Notes: The document class 
+Notes:
+ The document class 
 \family sans
 ltugboat
 \family default
@@ -4849,13 +5764,14 @@ TUGboat
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://www.tug.org
+https://www.tug.org
 \end_layout
 
 \end_inset
@@ -4878,11 +5794,13 @@ arg   "isprs"
 \end_layout
 
 \begin_layout Description
-CTAN: N/A
+CTAN:
+ N/A
 \end_layout
 
 \begin_layout Description
-Notes: 
+Notes:
+ 
 \family sans
 isprs
 \family default
@@ -4890,13 +5808,14 @@ isprs
 \end_layout
 
 \begin_layout Description
-WWW: 
+WWW:
+ 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-http://www.isprs.org/documents/orangebook/LATEX/ISPRSguidelines_authors_latex.zip
+https://www.isprs.org/documents/orangebook/LATEX/ISPRSguidelines_authors_fullpaper_latex_2024_01_17.zip
 \end_layout
 
 \end_inset
@@ -4920,8 +5839,7 @@ required
  by the \SpecialChar LaTeX
  maintainers.
  You should really consider upgrading your \SpecialChar LaTeX
- setup if one of them is not
- detected.
+ setup if one of them is not detected.
 \end_layout
 
 \begin_layout Subsection
@@ -4929,7 +5847,8 @@ amstext
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "amstext"
@@ -4939,19 +5858,20 @@ arg   "amstext"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/amslatex/math/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 amstext
 \family default
  is needed by \SpecialChar LyX
- to correctly size unicode symbols used as super or subscripts
- in math.
+ to correctly size unicode symbols used as super or subscripts in math.
 \end_layout
 
 \begin_layout Subsection
@@ -4959,7 +5879,8 @@ array
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "array"
@@ -4969,19 +5890,20 @@ arg   "array"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/tools/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 array
 \family default
  is needed by \SpecialChar LyX
- to be able to output vertical alignment other then ''top''
- for tabulars.
+ to be able to output vertical alignment other then ''top'' for tabulars.
 \end_layout
 
 \begin_layout Subsection
@@ -4989,7 +5911,8 @@ babel
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "babel"
@@ -4999,26 +5922,27 @@ arg   "babel"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/babel/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 babel
 \family default
- allows you to customize your document for your favorite language (see the
- 
+ allows you to customize your document for your favorite language (see the 
 \family sans
 Document\SpecialChar menuseparator
 Settings\SpecialChar menuseparator
 Language
 \family default
  popup).
- In particular, it handles hyphenation and automatic translation of all
- labels like 
+ In particular,
+ it handles hyphenation and automatic translation of all labels like 
 \begin_inset Quotes eld
 \end_inset
 
@@ -5035,33 +5959,35 @@ Table of contents
 \end_inset
 
 .
- This package is not needed if you only plan to write in English, except
- if you want to use non-English quotes.
+ This package is not needed if you only plan to write in English,
+ except if you want to use non-English quotes.
 \end_layout
 
 \begin_deeper
 \begin_layout Standard
-Your \SpecialChar LaTeX
- installation has hyphenation patterns for the following languages:
+As of version 3.15 (2017/11/03),
+ 
+\family sans
+babel
+\family default
+ also provides specific commands to select OpenType,
+ TrueType and PostScript fonts from the Operating System (with Xe\SpecialChar TeX
+ or Lua\SpecialChar TeX
+).
+ If this version (or a newer one) is installed (on your system:
  
 \begin_inset Info
 type  "package"
-arg   "languages"
+arg   "babel 20171103"
 \end_inset
 
-.
-\end_layout
-
-\begin_layout Standard
-If a language you use is not on this list, you should reconfigure your \SpecialChar LaTeX
-
- installation to include it.
- For te\SpecialChar TeX
-, this means running 
-\family typewriter
-texconfig
+),
+ \SpecialChar LyX
+ will use this rather than 
+\family sans
+fontspec
 \family default
-.
+'s commands.
 \end_layout
 
 \end_deeper
@@ -5070,7 +5996,8 @@ bm
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "bm"
@@ -5080,13 +6007,15 @@ arg   "bm"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/tools/
 \end_layout
 
 \begin_layout Description
-Notes: The 
+Notes:
+ The 
 \family sans
 bm
 \family default
@@ -5099,7 +6028,8 @@ bm
 \family default
  which makes its argument bold.
  The argument may be any math object from a single symbol to an expression.
- If available, ultra bold fonts can be accesed through the 
+ If available,
+ ultra bold fonts can be accesed through the 
 \family typewriter
 
 \backslash
@@ -5126,15 +6056,18 @@ amsmath
 \backslash
 boldsymbol
 \family default
- command, but the 
+ command,
+ but the 
 \family sans
 bm
 \family default
  version is rather more careful in the way it does things.
- Be aware that this package allocates symbol fonts for bold fonts into the
- normal math version, such that, when using other packages that allocate
- many symbol fonts, they can be exhausted.
- In this case, one can make do with the 
+ Be aware that this package allocates symbol fonts for bold fonts into the normal math version,
+ such that,
+ when using other packages that allocate many symbol fonts,
+ they can be exhausted.
+ In this case,
+ one can make do with the 
 \family typewriter
 
 \backslash
@@ -5148,7 +6081,8 @@ booktabs
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "booktabs"
@@ -5158,13 +6092,15 @@ arg   "booktabs"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/booktabs/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 booktabs
 \family default
@@ -5177,7 +6113,8 @@ calc
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "calc"
@@ -5187,13 +6124,15 @@ arg   "calc"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/tools/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 calc
 \family default
@@ -5206,7 +6145,8 @@ color
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "color"
@@ -5216,20 +6156,22 @@ arg   "color"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/graphics/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 color
 \family default
  is needed by \SpecialChar LyX
  to handle colored text.
- These colors will not show in the DVI preview window, but will be correct
- on the printed output or with a PostScript previewer.
+ These colors will not show in the DVI preview window,
+ but will be correct on the printed output or with a PostScript previewer.
  This package is bundled with the 
 \family sans
 graphics
@@ -5242,7 +6184,8 @@ float
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "float"
@@ -5252,23 +6195,27 @@ arg   "float"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/float/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 float
 \family default
  is needed by \SpecialChar LyX
  to create non-standard floating objects.
- Also, it provides the 
+ Also,
+ it provides the 
 \begin_inset Quotes eld
 \end_inset
 
-here, definitely!
+here,
+ definitely!
 \begin_inset Quotes erd
 \end_inset
 
@@ -5281,7 +6228,8 @@ footnote
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "footnote"
@@ -5291,19 +6239,21 @@ arg   "footnote"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/footnote/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 footnote
 \family default
  is needed by \SpecialChar LyX
- to allow footnotes in description items, non-floating tables
- and multi-page table headers and footers.
+ to allow footnotes in description items,
+ non-floating tables and multi-page table headers and footers.
  
 \end_layout
 
@@ -5312,7 +6262,8 @@ graphicx
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "graphicx"
@@ -5322,13 +6273,15 @@ arg   "graphicx"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/graphics/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 graphicx
 \family default
@@ -5348,7 +6301,8 @@ hhline
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "hhline"
@@ -5358,13 +6312,15 @@ arg   "hhline"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/tools/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 hhline
 \family default
@@ -5377,7 +6333,8 @@ hyperref
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "hyperref"
@@ -5387,19 +6344,20 @@ arg   "hyperref"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/hyperref/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 hyperref
 \family default
  is needed by \SpecialChar LyX
- to be able to set PDF properties for your document and to
- create hyperlinks.
+ to be able to set PDF properties for your document and to create hyperlinks.
 \end_layout
 
 \begin_layout Subsection
@@ -5407,7 +6365,8 @@ longtable
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "longtable"
@@ -5417,18 +6376,52 @@ arg   "longtable"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/tools/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 longtable
 \family default
  is needed by \SpecialChar LyX
- to be able to output correctly multipage tables.
+ to output multi-page tables.
+\end_layout
+
+\begin_layout Subsection
+parskip
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "parskip"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/contrib/parskip/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+parskip
+\family default
+ is needed by \SpecialChar LyX
+ to separate paragraphs by vertical space.
 \end_layout
 
 \begin_layout Subsection
@@ -5436,7 +6429,8 @@ tablefootnote
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "tablefootnote"
@@ -5446,13 +6440,15 @@ arg   "tablefootnote"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/tablefootnote/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 tablefootnote
 \family default
@@ -5461,11 +6457,44 @@ tablefootnote
 \end_layout
 
 \begin_layout Subsection
+tabularx
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "tabularx"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/required/tools/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+tabularx
+\family default
+ is needed by \SpecialChar LyX
+ to output variable width columns for single-page tables.
+\end_layout
+
+\begin_layout Subsection
 textcomp
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "textcomp"
@@ -5475,21 +6504,22 @@ arg   "textcomp"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/unpacked/textcomp.sty
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 textcomp
 \family default
  is needed by \SpecialChar LyX
  to output some special symbols like the EURO currency sign.
  The package is part of the \SpecialChar LaTeX
- base distribution and should already be installed
- on your system.
+ base distribution and should already be installed on your system.
 \end_layout
 
 \begin_layout Subsection
@@ -5497,7 +6527,8 @@ varioref
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "varioref"
@@ -5507,18 +6538,83 @@ arg   "varioref"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/required/tools/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 varioref
 \family default
- introduces some commands to generate references with an information about
- the page of the referred label.
+ introduces some commands to generate references with an information about the page of the referred label.
+\end_layout
+
+\begin_layout Subsection
+varwidth
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "varwidth"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/contrib/varwidth/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+varwidth
+\family default
+\color none
+ is needed to allow for line and paragraph breaks in standard tabular columns.
+\end_layout
+
+\begin_layout Subsection
+xltabular
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "xltabular"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/contrib/xltabular/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+xltabular
+\family default
+ is needed by \SpecialChar LyX
+ to output variable width columns for multi-page tables.
 \end_layout
 
 \begin_layout Section
@@ -5528,15 +6624,15 @@ Paper layout packages
 \begin_layout Standard
 Changing the margins of a document is one thing people like to do.
  While \SpecialChar LaTeX
- offers built-in options to set the margins of the documents, some
- people feel that these margins are too large and want to set them up differentl
-y.
+ offers built-in options to set the margins of the documents,
+ some people feel that these margins are too large and want to set them up differently.
  You can use the package 
 \family sans
 geometry
 \family default
- for this purpose, but note that for the sake of readability, your lines
- should not contain more than 60-70 characters.
+ for this purpose,
+ but note that for the sake of readability,
+ your lines should not contain more than 60-70 characters.
 \end_layout
 
 \begin_layout Subsection
@@ -5544,7 +6640,8 @@ geometry
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "geometry"
@@ -5554,23 +6651,25 @@ arg   "geometry"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/geometry/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 geometry
 \family default
- allows to change the paper size and margins of your document in an arbitrary
- way.
+ allows to change the paper size and margins of your document in an arbitrary way.
  It does not provide a typographically correct page layout like 
 \family sans
 a4
 \family default
- or the standard options, though.
+ or the standard options,
+ though.
 \end_layout
 
 \begin_layout Section
@@ -5582,7 +6681,8 @@ achicago
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "achicago"
@@ -5593,6 +6693,7 @@ arg   "achicago"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -5601,7 +6702,8 @@ macros/latex/contrib/frankenstein/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 achicago
 \family default
@@ -5615,7 +6717,8 @@ Chicago Manual of Style
 \family sans
 natbib
 \family default
-, although it does not support full author lists.
+,
+ although it does not support full author lists.
 \end_layout
 
 \begin_layout Subsection
@@ -5623,7 +6726,8 @@ apacite
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "apacite"
@@ -5634,6 +6738,7 @@ arg   "apacite"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -5642,21 +6747,20 @@ CTAN:
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 apacite
 \family default
- provides citation styles closely following the recommendations of the American
- Psychological Association.
+ provides citation styles closely following the recommendations of the American Psychological Association.
  It can be used with basic \SpecialChar LaTeX
  or together with 
 \family sans
 natbib
 \family default
 .
- It supports full author lists on the first citation, and automatically
- shortens citations to the first author in second and subsequent citations
- (equivalent to 
+ It supports full author lists on the first citation,
+ and automatically shortens citations to the first author in second and subsequent citations (equivalent to 
 \family sans
 natbib
 \family default
@@ -5672,7 +6776,8 @@ apalike
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "apalike"
@@ -5683,6 +6788,7 @@ arg   "apalike"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -5691,18 +6797,19 @@ biblio/bibtex/base/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 apalike
 \family default
- provides a citation style loosely following the recommendations of the
- American Psychological Association.
+ provides a citation style loosely following the recommendations of the American Psychological Association.
  It can be used with basic \SpecialChar LaTeX
  or with 
 \family sans
 natbib
 \family default
- as a replacement, although it does not support full author lists.
+ as a replacement,
+ although it does not support full author lists.
 \end_layout
 
 \begin_layout Subsection
@@ -5710,7 +6817,8 @@ astron
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "astron"
@@ -5721,6 +6829,7 @@ arg   "astron"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -5729,18 +6838,19 @@ biblio/bibtex/contrib/astron/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 astron
 \family default
- provides citation styles following the guidelines of the journal Astronomy
- and Astrophysics.
+ provides citation styles following the guidelines of the journal Astronomy and Astrophysics.
  It can be used with basic \SpecialChar LaTeX
  or with 
 \family sans
 natbib
 \family default
- as a replacement, although it does not support full author lists.
+ as a replacement,
+ although it does not support full author lists.
 \end_layout
 
 \begin_layout Subsection
@@ -5748,7 +6858,8 @@ authordate1-4
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "authordate1-4"
@@ -5759,6 +6870,7 @@ arg   "authordate1-4"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -5767,7 +6879,8 @@ biblio/bibtex/contrib/authordate/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 authordate1-4
 \family default
@@ -5775,11 +6888,13 @@ authordate1-4
 \emph on
 British Standard
 \emph default
-, Butcher's 
+,
+ Butcher's 
 \emph on
 Copy-editing
 \emph default
-, and the 
+,
+ and the 
 \emph on
 Chicago Manual of Style
 \emph default
@@ -5789,7 +6904,8 @@ Chicago Manual of Style
 \family sans
 natbib
 \family default
- as a replacement, although it does not support full author lists.
+ as a replacement,
+ although it does not support full author lists.
 \end_layout
 
 \begin_layout Subsection
@@ -5797,7 +6913,8 @@ biblatex
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "biblatex"
@@ -5807,19 +6924,20 @@ arg   "biblatex"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/biblatex/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 biblatex
 \family default
  is needed by \SpecialChar LyX
- to produce a flexible interface to most of the available
- bibliographic styles (you can also use 
+ to produce a flexible interface to most of the available bibliographic styles (you can also use 
 \family sans
 natbib
 \family default
@@ -5835,7 +6953,8 @@ bibtopic
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "bibtopic"
@@ -5845,13 +6964,15 @@ arg   "bibtopic"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/bibtopic/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 bibtopic
 \family default
@@ -5864,7 +6985,8 @@ chapterbib
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "chapterbib"
@@ -5874,13 +6996,15 @@ arg   "chapterbib"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/chapterbib/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 chapterbib
 \family default
@@ -5893,7 +7017,8 @@ chicago
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "chicago"
@@ -5904,6 +7029,7 @@ arg   "chicago"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -5912,7 +7038,8 @@ biblio/bibtex/contrib/chicago/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 chicago
 \family default
@@ -5934,7 +7061,8 @@ harvard
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "harvard"
@@ -5945,6 +7073,7 @@ arg   "harvard"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -5953,15 +7082,16 @@ macros/latex/contrib/harvard/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 harvard
 \family default
- provides citation styles following various recommendations, but mostly
- those of Pitson's 
+ provides citation styles following various recommendations,
+ but mostly those of Pitson's 
 \emph on
-Style Manual for Authors, Editors and Printers of Australian Government
- Publications
+Style Manual for Authors,
+ Editors and Printers of Australian Government Publications
 \emph default
 .
  It can be used with basic \SpecialChar LaTeX
@@ -5970,9 +7100,8 @@ Style Manual for Authors, Editors and Printers of Australian Government
 natbib
 \family default
  as a replacement.
- It supports full author lists on the first citation, and automatically
- shortens citations to the first author in second and subsequent citations
- (equivalent to 
+ It supports full author lists on the first citation,
+ and automatically shortens citations to the first author in second and subsequent citations (equivalent to 
 \family sans
 natbib
 \family default
@@ -5988,7 +7117,8 @@ jurabib
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "jurabib"
@@ -5998,13 +7128,15 @@ arg   "jurabib"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/jurabib/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 jurabib
 \family default
@@ -6015,7 +7147,7 @@ status collapsed
 
 \begin_layout Plain Layout
 
-http://sourceforge.net/projects/jurabib/
+https://sourceforge.net/projects/jurabib/
 \end_layout
 
 \end_inset
@@ -6033,7 +7165,9 @@ natbib
  to get flexible bibliographic styles with \SpecialChar LyX
 .
  It supports cite styles which are common in human sciences and law studies,
- footcites, ibidems, and more.
+ footcites,
+ ibidems,
+ and more.
  You'll need to have jurabib version 0.6 at least.
 \end_layout
 
@@ -6042,7 +7176,8 @@ lscape
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "lscape"
@@ -6053,6 +7188,7 @@ arg   "lscape"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -6061,12 +7197,12 @@ macros/latex/contrib/graphics/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 lscape
 \family default
- is used to turn specific contents (longtables particularly) to landscape
- mode with DVI/PS output.
+ is used to turn specific contents (longtables particularly) to landscape mode with DVI/PS output.
 \end_layout
 
 \begin_layout Subsection
@@ -6074,7 +7210,8 @@ mslapa
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "mslapa"
@@ -6085,6 +7222,7 @@ arg   "mslapa"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -6093,12 +7231,12 @@ macros/latex/contrib/mslapa/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 mslapa
 \family default
- provides a citation style approximately following the recommendations of
- the American Psychological Association.
+ provides a citation style approximately following the recommendations of the American Psychological Association.
  It can be used with basic \SpecialChar LaTeX
  or with 
 \family sans
@@ -6112,7 +7250,8 @@ named
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "named"
@@ -6123,6 +7262,7 @@ arg   "named"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -6131,7 +7271,8 @@ biblio/bibtex/contrib/named/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 named
 \family default
@@ -6141,7 +7282,8 @@ named
 \family sans
 natbib
 \family default
- as a replacement, although it does not support full author lists.
+ as a replacement,
+ although it does not support full author lists.
 \end_layout
 
 \begin_layout Subsection
@@ -6149,7 +7291,8 @@ natbib
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "natbib"
@@ -6159,19 +7302,20 @@ arg   "natbib"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/natbib/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 natbib
 \family default
  is needed by \SpecialChar LyX
- to produce a flexible interface to most of the available
- bibliographic styles (you can also use 
+ to produce a flexible interface to most of the available bibliographic styles (you can also use 
 \family sans
 biblatex
 \family default
@@ -6187,7 +7331,8 @@ pdflscape
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "pdflscape"
@@ -6198,6 +7343,7 @@ arg   "pdflscape"
 
 \begin_layout Description
 CTAN:
+
 \series medium
  
 \family typewriter
@@ -6206,45 +7352,16 @@ macros/latex/contrib/oberdiek/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 pdflscape
 \family default
- is used to turn specific contents (longtables particularly) to landscape
- mode with PDF output.
+ is used to turn specific contents (longtables particularly) to landscape mode with PDF output.
 \end_layout
 
 \begin_layout Section
 Packages required by modules
-\end_layout
-
-\begin_layout Subsection
-endnotes
-\end_layout
-
-\begin_layout Description
-Found: 
-\begin_inset Info
-type  "package"
-arg   "endnotes"
-\end_inset
-
-
-\end_layout
-
-\begin_layout Description
-CTAN: 
-\family typewriter
-macros/latex/contrib/misc/endnotes.sty
-\end_layout
-
-\begin_layout Description
-Notes: The package 
-\family sans
-endnotes 
-\family default
-is needed by several modules to place footnotes at the end of sections,
- that are then so called endnotes.
 \end_layout
 
 \begin_layout Subsection
@@ -6256,7 +7373,8 @@ braille
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "braille"
@@ -6266,17 +7384,153 @@ arg   "braille"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/braille/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 braille 
 \family default
-makes it possible to typeset Braille, a character system for blind people.
+makes it possible to typeset Braille,
+ a character system for blind people.
+\end_layout
+
+\begin_layout Subsection
+Endnotes (Basic) module
+\end_layout
+
+\begin_layout Subsubsection
+endnotes
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "endnotes"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/contrib/endnotes/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+endnotes 
+\family default
+is needed by the 
+\emph on
+Endnotes (Basic)
+\emph default
+ and 
+\emph on
+Footnotes as Endnotes (Basic)
+\emph default
+ modules to place footnotes at the end of sections,
+ that are then so called endnotes.
+ It is more limited,
+ but also more established,
+ than 
+\family sans
+enotez
+\family default
+ [cf.
+ Endnotes (Extended) module].
+\end_layout
+
+\begin_layout Subsection
+Endnotes (Extended) module
+\end_layout
+
+\begin_layout Subsubsection
+enotez
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "enotez"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/contrib/enotez/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+enotez 
+\family default
+is needed by the 
+\emph on
+Endnotes (Extended)
+\emph default
+ and 
+\emph on
+Footnotes as Endnotes (Extended)
+\emph default
+ modules to produce endnotes;
+ 
+\family sans
+enotez
+\family default
+ is a new implementation of endnotes for \SpecialChar LaTeX2e
+ since the 
+\family sans
+endnotes
+\family default
+ package (used by the 
+\emph on
+Basic
+\emph default
+ endnotes modules) has some deficiencies.
+ As opposed to the latter,
+ 
+\family sans
+enotez
+\family default
+ supports nested endnotes,
+ hyper- and backlinks (
+\family sans
+hyperref
+\family default
+) and a split list of endnotes in which the notes are automatically separated by the sections or chapters they were set in.
+ Several languages are supported,
+ and the output is easier customizable than that of the 
+\family sans
+endnotes
+\family default
+ package.
+ However,
+ 
+\family sans
+enotez
+\family default
+ requires a fairly modern \SpecialChar LaTeX
+ distribution.
 \end_layout
 
 \begin_layout Subsection
@@ -6288,7 +7542,8 @@ fixme
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "fixme"
@@ -6298,13 +7553,15 @@ arg   "fixme"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/fixme/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 fixme
 \family default
@@ -6321,6 +7578,30 @@ FIXME
 \end_layout
 
 \begin_layout Subsection
+Footnotes as Endnotes (Basic)
+\end_layout
+
+\begin_layout Standard
+See 
+\emph on
+Endnotes (Basic)
+\emph default
+.
+\end_layout
+
+\begin_layout Subsection
+Footnotes as Endnotes (Extended)
+\end_layout
+
+\begin_layout Standard
+See 
+\emph on
+Endnotes (Extended)
+\emph default
+.
+\end_layout
+
+\begin_layout Subsection
 Hazard and Precautionary Statements module
 \end_layout
 
@@ -6329,7 +7610,8 @@ hpstatement
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "rsphrase"
@@ -6339,13 +7621,15 @@ arg   "rsphrase"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/mhchem/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 hpstatement
 \family default
@@ -6366,7 +7650,8 @@ lettrine
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "lettrine"
@@ -6376,13 +7661,15 @@ arg   "lettrine"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/lettrine/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 lettrine
 \family default
@@ -6400,6 +7687,41 @@ literal "false"
 \end_layout
 
 \begin_layout Subsection
+Landscape module
+\end_layout
+
+\begin_layout Subsubsection
+afterpage
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "afterpage"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/required/tools/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+afterpage
+\family default
+ provides a command to shift content after the next page break (used for floating landscape).
+\end_layout
+
+\begin_layout Subsection
 Linguistics module
 \end_layout
 
@@ -6408,7 +7730,8 @@ covington
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "covington"
@@ -6418,18 +7741,20 @@ arg   "covington"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/covington/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 covington
 \family default
- provides some environments and commands useful for linguistics, such as
- numbered examples and glosses.
+ provides some environments and commands useful for linguistics,
+ such as numbered examples and glosses.
 \end_layout
 
 \begin_layout Subsubsection
@@ -6437,7 +7762,8 @@ csquotes
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "csquotes"
@@ -6447,19 +7773,55 @@ arg   "csquotes"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/csquotes/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 csquotes
 \family default
- provides context-sensitive quotation marks that adapt to the conventions
- of the actual document language.
+ provides context-sensitive quotation marks that adapt to the conventions of the actual document language.
  It is used by the Linguistics module for the character style Meaning.
+\end_layout
+
+\begin_layout Subsubsection
+drs
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "drs"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/contrib/drs/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+drs
+\family default
+ provides some commands for 
+\emph on
+Discourse Representation Structures
+\emph default
+.
 \end_layout
 
 \begin_layout Subsubsection
@@ -6467,7 +7829,8 @@ enumitem
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "enumitem"
@@ -6477,22 +7840,23 @@ arg   "enumitem"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/enumitem/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 enumitem
 \family default
- provides many possibilities to tweak the appaerance of lists (enumerate,
- itemize, description).
- It is used by the Linguistics module to fine tune the appearance of numbered
- subexamples.
- The customization options are also supported directly by the Customisable
- Lists (enumitem) module.
+ provides many possibilities to tweak the appearance of lists (enumerate,
+ itemize,
+ description).
+ It is used by the Linguistics module to fine tune the appearance of numbered subexamples.
+ The customization options are also supported directly by the Customisable Lists (enumitem) module.
 \end_layout
 
 \begin_layout Subsubsection
@@ -6500,7 +7864,8 @@ forest
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "forest"
@@ -6510,17 +7875,58 @@ arg   "forest"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/forest/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 forest
 \family default
  provides support for generating linguistic structure trees.
+\end_layout
+
+\begin_layout Subsubsection
+pict2e
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "pict2e"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
+\family typewriter
+macros/latex/contrib/
+\family default
+pict2e
+\family typewriter
+/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+pict2e
+\family default
+ is used for 
+\emph on
+Duplex Condition DRS
+\emph default
+es.
 \end_layout
 
 \begin_layout Subsection
@@ -6532,7 +7938,8 @@ bicaption
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "bicaption"
@@ -6542,18 +7949,20 @@ arg   "bicaption"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/caption/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 bicaption
 \family default
- enables pairs of captions (in different languages), with control of other
- options similar to that provided by the caption package.
+ enables pairs of captions (in different languages),
+ with control of other options similar to that provided by the caption package.
  Languages to be used are selected using 
 \family sans
 babel
@@ -6575,7 +7984,8 @@ paralist
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "paralist"
@@ -6585,18 +7995,20 @@ arg   "paralist"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/paralist/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 paralist
 \family default
- extends the standard list environments by versions that are typeset as
- paragraphs, in paragraphs and as a more compact version.
+ extends the standard list environments by versions that are typeset as paragraphs,
+ in paragraphs and as a more compact version.
 \end_layout
 
 \begin_layout Subsection
@@ -6608,7 +8020,8 @@ pdfcomment
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "pdfcomment"
@@ -6618,13 +8031,15 @@ arg   "pdfcomment"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/pdfcomment/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 pdfcomment
 \family default
@@ -6641,7 +8056,8 @@ sectionbox
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "sectionbox"
@@ -6651,27 +8067,33 @@ arg   "sectionbox"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/sectionbox/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 sectionbox
 \family default
 \color none
  is a \SpecialChar LaTeX
- package for putting fancy colored boxes around sections, subsections,
- and subsubsections, especially for use in posters, etc.
+ package for putting fancy colored boxes around sections,
+ subsections,
+ and subsubsections,
+ especially for use in posters,
+ etc.
  It was designed with the 
 \family sans
 \color inherit
 sciposter
 \family default
 \color none
- class in mind, and certainly works with that class and with derived classes.
+ class in mind,
+ and certainly works with that class and with derived classes.
 \end_layout
 
 \begin_layout Subsection
@@ -6683,7 +8105,8 @@ tcolorbox
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "tcolorbox"
@@ -6693,13 +8116,15 @@ arg   "tcolorbox"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/tcolorbox/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 tcolorbox
 \family default
@@ -6716,7 +8141,8 @@ todonotes
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "todonotes"
@@ -6726,13 +8152,15 @@ arg   "todonotes"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/todonotes/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 todonotes
 \family default
@@ -6757,7 +8185,8 @@ varwidth
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "varwidth"
@@ -6767,22 +8196,25 @@ arg   "varwidth"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/varwidth/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 varwidth
 \family default
 \color none
- is used to produce minipages variable (i.
+ is used to produce minipages of variable (i.
 \begin_inset space \thinspace{}
 \end_inset
 
-e., content-dependent) width.
+e.,
+ content-dependent) width.
 \end_layout
 
 \begin_layout Section
@@ -6794,7 +8226,8 @@ arabi
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "arabi"
@@ -6804,13 +8237,15 @@ arg   "arabi"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 language/arabic/arabi/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 arabi
 \family default
@@ -6823,7 +8258,8 @@ bidi
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "bidi"
@@ -6833,19 +8269,24 @@ arg   "bidi"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/bidi/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 bidi
 \family default
  is needed by \SpecialChar LyX
- to output documents in languages written right-to-left such
- as Arabic, Divehi, Farsi, Hebrew, Syriac or Urdu.
+ to output documents in languages written right-to-left such as Arabic,
+ Divehi,
+ Farsi,
+ Hebrew,
+ Syriac or Urdu.
 \end_layout
 
 \begin_layout Subsection
@@ -6853,7 +8294,8 @@ japanese
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "japanese"
@@ -6863,19 +8305,20 @@ arg   "japanese"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 language/japanese/japanese/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 japanese
 \family default
  is needed by \SpecialChar LyX
- to be able to output section headings and dates in Japanese
- when the document language is 
+ to be able to output section headings and dates in Japanese when the document language is 
 \begin_inset Quotes eld
 \end_inset
 
@@ -6884,9 +8327,11 @@ Japanese
 \end_inset
 
 .
- To use this option, the Japanese \SpecialChar TeX
+ To use this option,
+ the Japanese \SpecialChar TeX
  system p\SpecialChar TeX
- (CTAN: 
+ (CTAN:
+ 
 \family typewriter
 language/japanese/ptex/
 \family default
@@ -6898,7 +8343,8 @@ lithuanian
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "lithuanian"
@@ -6908,19 +8354,20 @@ arg   "lithuanian"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 language/lithuanian/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 lithuanian
 \family default
  is needed by \SpecialChar LyX
- to be able to output documents with the document language
- Lithuanian.
+ to be able to output documents with the document language Lithuanian.
 \end_layout
 
 \begin_layout Subsection
@@ -6928,7 +8375,8 @@ mongolian-babel
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "mongolian"
@@ -6938,19 +8386,20 @@ arg   "mongolian"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 language/mongolian/babel/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 mongolian-babel
 \family default
  is needed by \SpecialChar LyX
- to be able to output documents with the document language
- Mongolian.
+ to be able to output documents with the document language Mongolian.
 \end_layout
 
 \begin_layout Subsection
@@ -6958,7 +8407,8 @@ polyglossia
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "polyglossia"
@@ -6968,13 +8418,15 @@ arg   "polyglossia"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/xetex/latex/polyglossia/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 polyglossia
 \family default
@@ -6988,7 +8440,8 @@ babel
  package by using Xe\SpecialChar TeX
 's and Lua\SpecialChar TeX
 's mutlilingual and multiscript facilities.
- If installed, 
+ If installed,
+ 
 \family sans
 polyglossia
 \family default
@@ -7006,7 +8459,8 @@ turkmen
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "turkmen"
@@ -7016,19 +8470,20 @@ arg   "turkmen"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 language/turkmen/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 turkmen
 \family default
  is needed by \SpecialChar LyX
- to be able to output documents with the document language
- Turkmen.
+ to be able to output documents with the document language Turkmen.
 \end_layout
 
 \begin_layout Section
@@ -7043,7 +8498,8 @@ accents
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "accents"
@@ -7053,19 +8509,20 @@ arg   "accents"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/bezos/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 accents
 \family default
  is needed by \SpecialChar LyX
- to correctly typeset unicode symbols with under accents in
- math.
+ to correctly typeset unicode symbols with under accents in math.
 \end_layout
 
 \begin_layout Subsection
@@ -7073,7 +8530,8 @@ algorithm
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "algorithm"
@@ -7083,13 +8541,15 @@ arg   "algorithm"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/algorithms/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 algorithm
 \family default
@@ -7103,8 +8563,7 @@ algorithm
 \end_inset
 
  floats.
- These are useful in placing short algorithms across pagebreaks and support
- an 
+ These are useful in placing short algorithms across pagebreaks and support an 
 \begin_inset Quotes eld
 \end_inset
 
@@ -7120,7 +8579,8 @@ algorithm2e
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "algorithm2e"
@@ -7130,17 +8590,20 @@ arg   "algorithm2e"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 /macros/latex/contrib/algorithm2e/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 algorithm2e
 \family default
- is an alternative, somewhat more powerful way to output 
+ is an alternative,
+ somewhat more powerful way to output 
 \begin_inset Quotes eld
 \end_inset
 
@@ -7153,7 +8616,8 @@ algorithm
 \family sans
 algorithm
 \family default
- package, select the module 
+ package,
+ select the module 
 \begin_inset Quotes eld
 \end_inset
 
@@ -7175,7 +8639,8 @@ breakurl
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "breakurl"
@@ -7185,18 +8650,19 @@ arg   "breakurl"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/breakurl/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 breakurl
 \family default
- assures that url's are correctly broken at the end of lines with DVI output
- when hyperref is used.
+ assures that url's are correctly broken at the end of lines with DVI output when hyperref is used.
 \end_layout
 
 \begin_layout Subsection
@@ -7204,7 +8670,8 @@ cancel
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "esint"
@@ -7214,13 +8681,15 @@ arg   "esint"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/cancel/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 cancel
 \family default
@@ -7231,13 +8700,15 @@ cancel
 \backslash
 cancel
 \family default
-, 
+,
+ 
 \family sans
 
 \backslash
 bcancel
 \family default
-, 
+,
+ 
 \family sans
 
 \backslash
@@ -7253,77 +8724,65 @@ cancelto
 \end_layout
 
 \begin_layout Subsection
-CJKutf8
+cprotect
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
-arg   "CJKutf8"
+arg   "cprotect"
 \end_inset
 
 
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
+\family typewriter
+macros/latex/contrib/cprotect/
+\end_layout
+
+\begin_layout Description
+Notes:
+ The package 
+\family sans
+cprotect
+\family default
+ is used to allow (some) verbatim stuff in macros.
+\end_layout
+
+\begin_layout Subsection
+CJK
+\end_layout
+
+\begin_layout Description
+Found:
+ 
+\begin_inset Info
+type  "package"
+arg   "CJK"
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+CTAN:
+ 
 \family typewriter
 language/chinese/CJK/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
-\family sans
-CJKutf8
-\family default
- (part of the
+Notes:
+ The
 \family sans
  CJK
 \family default
- bundle) merges base \SpecialChar LaTeX
-'s and CJK's UTF-8 support.
- It is needed to produce proper output with the combination of CJK, utf-8
- encoding, and hyperref.
-\end_layout
-
-\begin_layout Subsection
-dvipost
-\end_layout
-
-\begin_layout Description
-Found: 
-\begin_inset Info
-type  "package"
-arg   "dvipost"
-\end_inset
-
-
-\end_layout
-
-\begin_layout Description
-URL: 
-\family typewriter
-http://freshmeat.net/projects/dvipost/
-\end_layout
-
-\begin_layout Description
-Notes: 
-\family sans
-dvipost
-\family default
- is a post-processor for DVI files created by \SpecialChar LaTeX
- and \SpecialChar TeX
-.
- It is needed by \SpecialChar LyX
- to generate DVI or Postscript output of change tracking
- marks.
- To work properly, 
-\family sans
-dvipost
-\family default
- needs te\SpecialChar TeX
- version 2 or newer.
+ bundle provides simultaneous support for various Asian scripts in many encodings (including Unicode).
 \end_layout
 
 \begin_layout Subsection
@@ -7331,7 +8790,8 @@ esint
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "esint"
@@ -7341,26 +8801,28 @@ arg   "esint"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/esint/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 esint
 \family default
  is used to typeset mathematical integral signs.
  The most commonly used integral signs can be typeset without this package,
- but they do not always look consistent, since they come from different
- fonts.
+ but they do not always look consistent,
+ since they come from different fonts.
  The 
 \family sans
 esint
 \family default
- package offers a consistent look of all integral symbols, and more advanced
- integrals such as the triple integral 
+ package offers a consistent look of all integral symbols,
+ and more advanced integrals such as the triple integral 
 \family typewriter
 
 \backslash
@@ -7374,7 +8836,8 @@ fancybox
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "fancybox"
@@ -7384,13 +8847,15 @@ arg   "fancybox"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/fancybox/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 fancybox
 \family default
@@ -7403,7 +8868,8 @@ fancyhdr
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "fancyhdr"
@@ -7413,13 +8879,15 @@ arg   "fancyhdr"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/fancyhdr/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 fancyhdr
 \family default
@@ -7444,7 +8912,8 @@ fix-cm
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "fix-cm"
@@ -7454,23 +8923,25 @@ arg   "fix-cm"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/unpacked/fix-cm.sty
 \end_layout
 
 \begin_layout Description
-Notes: Changes the font definitions of the Computer Modern fonts, in order
- to achieve the following effects: The appearance of the T1 and TS1 encoded
- CM fonts (aka `EC') is made as similar as possible to the traditional (OT1
- encoded) ones.
- Particularly, number of broken or ugly design sizes are no longer used,
- the look of the bold sans serif typeface at large sizes is considerably
- improved, and mismatches between the text fonts and the corresponding math
- fonts are avoided.
+Notes:
+ Changes the font definitions of the Computer Modern fonts,
+ in order to achieve the following effects:
+ The appearance of the T1 and TS1 encoded CM fonts (aka `EC') is made as similar as possible to the traditional (OT1 encoded) ones.
+ Particularly,
+ number of broken or ugly design sizes are no longer used,
+ the look of the bold sans serif typeface at large sizes is considerably improved,
+ and mismatches between the text fonts and the corresponding math fonts are avoided.
  The Computer Modern fonts are made available with arbitrary sizes.
- Only those design sizes of the fonts will be used, that are normally available
- in Type1 format, too.
+ Only those design sizes of the fonts will be used,
+ that are normally available in Type1 format,
+ too.
   It can be used by including the 
 \family sans
 fix-cm
@@ -7483,7 +8954,8 @@ fixltx2e
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "fixltx2e"
@@ -7493,13 +8965,15 @@ arg   "fixltx2e"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/unpacked/fixltx2e.sty
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 fixltx2e
 \family default
@@ -7517,7 +8991,8 @@ footmisc
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "footmisc"
@@ -7527,13 +9002,15 @@ arg   "footmisc"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/supported/footmisc/footmisc.sty
 \end_layout
 
 \begin_layout Description
-Notes: Currently unused.
+Notes:
+ Currently unused.
 \end_layout
 
 \begin_layout Subsection
@@ -7541,7 +9018,8 @@ hyphenat
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "hyphenat"
@@ -7551,18 +9029,19 @@ arg   "hyphenat"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/hyphenat/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 hyphenat
 \family default
- is needed by some document classes and document languages to disable hyphenatio
-n.
+ is needed by some document classes and document languages to disable hyphenation.
 \end_layout
 
 \begin_layout Subsection
@@ -7570,7 +9049,8 @@ ifthen
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "ifthen"
@@ -7580,13 +9060,15 @@ arg   "ifthen"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/base/ifthen/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 ifthen
 \family default
@@ -7615,7 +9097,8 @@ listings
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "listings"
@@ -7625,20 +9108,24 @@ arg   "listings"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/listings/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 listings
 \family default
 \color none
  is used by \SpecialChar LyX
  to display program listings (source code snippets).
- It supports many program languages, syntax highlighting, line numbers,
+ It supports many program languages,
+ syntax highlighting,
+ line numbers,
  etc.
 \end_layout
 
@@ -7647,7 +9134,8 @@ luainputenc
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "luainputenc"
@@ -7657,13 +9145,15 @@ arg   "luainputenc"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/luatex/latex/luainputenc/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 luainputenc
 \family default
@@ -7679,7 +9169,8 @@ mathrsfs
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "mathrsfs"
@@ -7689,13 +9180,15 @@ arg   "mathrsfs"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/jknappen/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 mathrsfs
 \family default
@@ -7716,7 +9209,8 @@ mathdots
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "mathdots"
@@ -7726,13 +9220,15 @@ arg   "mathdots"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/generic/mathdots/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 mathdots
 \family default
@@ -7748,8 +9244,7 @@ iddots
 \family sans
 Math
 \family default
- section of the document settings and will additionally change the appearance
- of all math dots commands in a document.
+ section of the document settings and will additionally change the appearance of all math dots commands in a document.
 \end_layout
 
 \begin_layout Subsection
@@ -7757,7 +9252,8 @@ mathtools
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "mathtools"
@@ -7767,13 +9263,15 @@ arg   "mathtools"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/mh/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 mathtools
 \family default
@@ -7786,7 +9284,8 @@ mhchem
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "mhchem"
@@ -7796,13 +9295,15 @@ arg   "mhchem"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/mhchem/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 mhchem
 \family default
@@ -7815,7 +9316,8 @@ multirow
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "multirow"
@@ -7825,19 +9327,21 @@ arg   "multirow"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/multirow/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 multirow
 \family default
  is needed by \SpecialChar LyX
- to merge table cells over several rows, as well as supporting
- the spreadsheet external inset.
+ to merge table cells over several rows,
+ as well as supporting the spreadsheet external inset.
 \end_layout
 
 \begin_layout Subsection
@@ -7845,7 +9349,8 @@ nicefrac
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "nicefrac"
@@ -7855,13 +9360,15 @@ arg   "nicefrac"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/units/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 nicefrac
 \family default
@@ -7882,7 +9389,8 @@ nomencl
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "nomencl"
@@ -7892,13 +9400,15 @@ arg   "nomencl"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/nomencl/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 nomencl
 \family default
@@ -7911,7 +9421,8 @@ pdfpages
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "pdfpages"
@@ -7921,13 +9432,15 @@ arg   "pdfpages"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/pdfpages
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 pdfpages
 \family default
@@ -7946,7 +9459,8 @@ prettyref
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "prettyref"
@@ -7956,13 +9470,15 @@ arg   "prettyref"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/prettyref
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 prettyref
 \family default
@@ -7988,7 +9504,8 @@ preview
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "preview"
@@ -7998,21 +9515,22 @@ arg   "preview"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/preview
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 preview
 \family default
  is needed by \SpecialChar LyX
  to preview \SpecialChar LaTeX
- constructs; especially for math formulas when
- you use the option ``Instant Preview'' in Tools->Preferences->Look and
- feel->Graphics.
+ constructs;
+ especially for math formulas when you use the option ``Instant Preview'' in Tools->Preferences->Look and feel->Graphics.
 \end_layout
 
 \begin_layout Subsection
@@ -8020,7 +9538,8 @@ rotating
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "rotating"
@@ -8030,13 +9549,15 @@ arg   "rotating"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/rotating
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 rotating
 \family default
@@ -8050,7 +9571,8 @@ rotfloat
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "rotfloat"
@@ -8060,13 +9582,15 @@ arg   "rotfloat"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/rotfloat
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 rotfloat
 \family default
@@ -8080,7 +9604,8 @@ slashed
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "slashed"
@@ -8090,13 +9615,15 @@ arg   "slashed"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/carlisle/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 slashed
 \family default
@@ -8109,7 +9636,8 @@ splitidx
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "splitidx"
@@ -8119,13 +9647,15 @@ arg   "splitidx"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/splitindex/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 splitidx
 \family default
@@ -8143,7 +9673,8 @@ stackrel
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "stackrel"
@@ -8153,13 +9684,15 @@ arg   "stackrel"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/oberdiek
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 stackrel
 \family default
@@ -8174,7 +9707,8 @@ stmaryrd
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "stmaryrd"
@@ -8184,19 +9718,20 @@ arg   "stmaryrd"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 fonts/stmaryrd/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 stmaryrd
 \family default
  is needed by \SpecialChar LyX
- to be able to output additional characters that come from
- the St Mary's Road symbol font.
+ to be able to output additional characters that come from the St Mary's Road symbol font.
 \end_layout
 
 \begin_layout Subsection
@@ -8204,7 +9739,8 @@ subfig
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "subfig"
@@ -8214,13 +9750,15 @@ arg   "subfig"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/subfig
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 subfig
 \family default
@@ -8229,9 +9767,11 @@ subfig
 \begin_inset space \thinspace{}
 \end_inset
 
-e., subfigures, subtables, etc.).
- Subfloats are floats that are embedded inside other floats and that can
- have individual subcaptions.
+e.,
+ subfigures,
+ subtables,
+ etc.).
+ Subfloats are floats that are embedded inside other floats and that can have individual subcaptions.
 \end_layout
 
 \begin_layout Subsection
@@ -8239,7 +9779,8 @@ subscript
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "subscript"
@@ -8249,13 +9790,15 @@ arg   "subscript"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/fragments/subscript.sty
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 subscript
 \family default
@@ -8274,7 +9817,8 @@ setspace
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "setspace"
@@ -8284,13 +9828,15 @@ arg   "setspace"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/setspace/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 setspace
 \family default
@@ -8303,7 +9849,8 @@ ulem
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "ulem"
@@ -8313,21 +9860,22 @@ arg   "ulem"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/misc/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 ulem
 \family default
- provides various types of underlining, striking through and emphasizing
- that can stretch between words and be broken across lines.
+ provides various types of underlining,
+ striking through and emphasizing that can stretch between words and be broken across lines.
  It is needed by \SpecialChar LyX
- to output struck out text in change tracked documents
- to PDF.
+ to output struck out text in change tracked documents to PDF.
 \end_layout
 
 \begin_layout Subsection
@@ -8335,7 +9883,8 @@ undertilde
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "undertilde"
@@ -8345,13 +9894,15 @@ arg   "undertilde"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/undertilde/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 undertilde
 \family default
@@ -8371,7 +9922,8 @@ units
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "units"
@@ -8381,13 +9933,15 @@ arg   "units"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/units/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 units
 \family default
@@ -8400,7 +9954,8 @@ url
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "url"
@@ -8410,13 +9965,15 @@ arg   "url"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/misc/url.sty
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 url
 \family default
@@ -8429,7 +9986,8 @@ wasysym
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "wasysym"
@@ -8439,19 +9997,20 @@ arg   "wasysym"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/wasysym/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 wasysym
 \family default
  is needed by \SpecialChar LyX
- to be able to output additional characters that come from
- the wasy fonts.
+ to be able to output additional characters that come from the wasy fonts.
 \end_layout
 
 \begin_layout Subsection
@@ -8459,7 +10018,8 @@ wrapfig
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "wrapfig"
@@ -8469,13 +10029,15 @@ arg   "wrapfig"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/wrapfig/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 wrapfig
 \family default
@@ -8486,8 +10048,7 @@ Insert\SpecialChar menuseparator
 Float)
 \family default
 .
- It allows you to create a figure float which is narrower than the full
- page and wrap the text around it.
+ It allows you to create a figure float which is narrower than the full page and wrap the text around it.
 \end_layout
 
 \begin_layout Subsection
@@ -8495,7 +10056,8 @@ xargs
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "xargs"
@@ -8505,13 +10067,15 @@ arg   "xargs"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/xargs/
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 xargs
 \family default
@@ -8524,7 +10088,8 @@ xcolor
 \end_layout
 
 \begin_layout Description
-Found: 
+Found:
+ 
 \begin_inset Info
 type  "package"
 arg   "xcolor"
@@ -8534,13 +10099,15 @@ arg   "xcolor"
 \end_layout
 
 \begin_layout Description
-CTAN: 
+CTAN:
+ 
 \family typewriter
 macros/latex/contrib/xcolor
 \end_layout
 
 \begin_layout Description
-Notes: The package 
+Notes:
+ The package 
 \family sans
 xcolor
 \family default

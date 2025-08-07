@@ -1,0 +1,565 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/hu/
+\textclass article
+\begin_preamble
+%\def\magyarOptions{defaults=over-1.4,footnote=huplain}
+\usepackage{indentfirst}
+\frenchspacing
+\end_preamble
+\use_default_options false
+\maintain_unincluded_children no
+\language magyar
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize 12
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_minted 0
+\use_lineno 0
+\index Tárgymutató
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style polish
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle plain
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\end_header
+
+\begin_body
+
+\begin_layout Standard
+EZ A DOKUMENTUM CÍME
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ a címnek jobban CÍMNEK kell látszania
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+készítette egy \SpecialChar LyX
+-es
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ ide kerül a SZERZŐ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+1972.
+ június 12
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ ez lesz a DÁTUM
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Tartalomjegyzék
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ jó lenne nem kellene külön begépelni a tartalomjegyzéket
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+1.
+ Alap filozófia..................1
+\end_layout
+
+\begin_layout Standard
+1.1 Hogyan valósítja meg ezt a \SpecialChar LyX
+...............1
+\end_layout
+
+\begin_layout Standard
+1.2 Miért jobb a \SpecialChar LyX
+ ...............1
+\end_layout
+
+\begin_layout Standard
+2.
+ A \SpecialChar LyX
+ jellemzői
+\end_layout
+
+\begin_layout Standard
+3.
+ Gyenge próbálkozások más \SpecialChar LyX
+-es cuccok használatához
+\end_layout
+
+\begin_layout Standard
+4.
+ Képletes dolgok
+\end_layout
+
+\begin_layout Standard
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+
+\end_layout
+
+\begin_layout Standard
+1.
+ Alap filozófia
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ a szakaszcímnek jobban ki kellene tűnnie
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+A \SpecialChar LyX
+ alapfilozófiája az,
+ hogy csak arra kell koncentrálnia amit le akarni írni,
+ nem arra hogyan fog kinézni.
+\end_layout
+
+\begin_layout Standard
+1.1 Hogyan valósítja meg ezt a \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Standard
+A \SpecialChar LyX
+ a \SpecialChar LaTeX
+-et használja,
+ ami egy dokumentum elkészítő rendszer,
+ amit 1985-ben készített Leslie Lamport.
+ Ezt egy \SpecialChar TeX
+ nevű írásszedő rendszerre építette,
+ amit Donald Knuth készített 1984-ben.
+ A \SpecialChar LaTeX
+-et,
+ a \SpecialChar LyX
+-hez hasonló filozófia miatt készítették.
+ Leslie Lamport egyszer azt mondta (lásd a [2] hivatkozásban):
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ valószínűleg ennek az IDÉZET HIVATKOZÁSNAK nem kellene be betonozva lennie.
+ Mi lenne,
+ ha Lamport könyve a második elem lenne az irodalomjegyzéknek?
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Quotes pld
+\end_inset
+
+A tipográfiai tervezés célja az,
+ hogy segítsen az olvasónak megérteni a szerző mondanivalóját.
+ Ahhoz,
+ hogy egy művet könnyen el lehessen olvasni,
+ a vizuális szerkezetének követnie kell a logikai felépítését.
+ Az idézetek és számítógépprogramok teljesen különálló logikai elemek,
+ ezért meg kell tudni őket egymásól különböztetni...
+ Mivel a \SpecialChar LyX
+ nem érti az írott szöveget,
+ ezért világosan meg kell adnia a logikai struktúrát bizonyos parancsok használatával\SpecialChar ldots
+ Miközben művét készíti,
+ a logikai felépítésével kell törődnie,
+ nem a megjelenésével.
+\begin_inset Quotes prd
+\end_inset
+
+
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ ez egy IDÉZET
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+1.2 Miért jobb a \SpecialChar LyX
+ 
+\end_layout
+
+\begin_layout Standard
+A \SpecialChar LyX
+ sokkal több embernek lehet hasznos,
+ mint a \SpecialChar LaTeX
+.
+ Meglehetősen könnyebb megtanulni,
+ mivel nem kell megtanulni a \SpecialChar LaTeX
+-et (ami gyakorlatilag egy programozási nyelv).
+ A \SpecialChar LyX
+ alapvetően egy másik 
+\begin_inset Quotes pld
+\end_inset
+
+azt kapod amit látsz
+\begin_inset Quotes prd
+\end_inset
+
+ szövegszerkesztő,
+ bár inkább 
+\begin_inset Quotes pld
+\end_inset
+
+amit lát arra gondol
+\begin_inset Quotes prd
+\end_inset
+
+ típusú.
+ Ezáltal a word típusú szövegszerkesztők könnyű használatát kombinálja,
+ a \SpecialChar LaTeX
+ hatékonyságával.
+ Ez egy jó dolog.
+ A fájl formátuma platform független.
+ De legfőképpen,
+ ingyenes!
+\end_layout
+
+\begin_layout Standard
+2.
+ A \SpecialChar LyX
+ jellemzői
+\end_layout
+
+\begin_layout Standard
+A \SpecialChar LyX
+ rengeteg olyan jellemzővel rendelkezik,
+ amelyek megkönnyítik az írást.
+ (Ezek után,
+ miért ne akarná használni?
+ 
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ a zárójelben lévő sokkal jobban mutatna a LÁBJEGYZETben 
+\end_layout
+
+\end_inset
+
+).
+ 
+\shape italic
+\emph on
+NAGYON IZGATOTT
+\shape default
+\emph default
+ 
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ KIEMELÉS!
+\end_layout
+
+\end_inset
+
+ vagyok,
+ hogy beszélhessek róluk.
+ Íme közülük néhány.
+\end_layout
+
+\begin_layout Standard
+*A \SpecialChar LyX
+ gondoskodik a margókról és a lábjegyzetek számozásáról
+\end_layout
+
+\begin_layout Standard
+*A \SpecialChar LyX
+-el könnyen készíthet és szerkeszthet képleteket
+\end_layout
+
+\begin_layout Standard
+A filozófiai értekezést,
+ hogy miért jobb a \SpecialChar LyX
+ a többi szövegszerkesztőnél,
+ megtalálja a 1.2 szakaszban,
+ amit az 1.
+ oldalon talál.
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ ennek a KERESZT-HIVATKOZÁSNAK nem kellene fixnek lennie.
+ Mi történik,
+ ha megváltoztatjuk a szakaszszámozást?
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+3.
+ Gyenge próbálkozások más \SpecialChar LyX
+-es cuccok használatához
+\end_layout
+
+\begin_layout Standard
+Egy nap írtam egy programot.
+ Így nézett ki.
+\end_layout
+
+\begin_layout Standard
+5 REMARK A FELEMETES PROGRAMOM
+\end_layout
+
+\begin_layout Standard
+10 PRINT 
+\begin_inset Quotes eld
+\end_inset
+
+FELEMETES VAGYOK!
+\begin_inset Quotes erd
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+20 GOTO 10
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ ez egy PROGRAM-KÓD
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+A tudományos gondolkodás után,
+ teljesen művészien éreztem magam,
+ és írtam egy haiku-t
+\end_layout
+
+\begin_layout Standard
+A \SpecialChar LyX
+ egy nagyon szuper
+\begin_inset Newline newline
+\end_inset
+
+Szövegszedő szövegszerkesztő
+\begin_inset Newline newline
+\end_inset
+
+Sok időt takarít meg
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ ez így nem túl jó mivel egy költemény,
+ azaz egy VERS
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+4.
+ Képletes dolgok
+\begin_inset Note Note
+status collapsed
+
+\begin_layout Plain Layout
+Tanács:
+ ezek a képletek normális módon kellene hogy megjelenjenek.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+A kedvenc egyenletem a másodfokú egyenlet megoldóképlete.
+ Ha ax^2+bx+c=0 (1.
+ képlet),
+ akkor x= -b plusz vagy mínusz a b^2-4ac négyzetgyöke,
+ majd mindez osztva 2a-val (2.
+ képlet).
+\end_layout
+
+\begin_layout Standard
+A másik kedvenc képletem egy elemi kalkulus:
+ f'(x) határérték,
+ amikor [f(x+deltax)- f(x)]-ben deltax tart a nullához és az egész osztva deltax-el (3.
+ képlet).
+\end_layout
+
+\begin_layout Standard
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+—
+
+\end_layout
+
+\begin_layout Standard
+HIVATKOZÁSOK
+\end_layout
+
+\begin_layout Standard
+[1] Lamport,
+ Leslie.
+ 
+\emph on
+\SpecialChar LaTeX
+:
+ A Document Preparation System.
+
+\emph default
+ Addison-Wesley,
+ Reading,
+ Massachusetts,
+ második kiadás,
+ 1994.
+\end_layout
+
+\end_body
+\end_document

@@ -10,20 +10,18 @@
 
 #include <config.h>
 
-#include "BufferView.h"
-#include "ColorSet.h"
-#include "LyXRC.h"
 #include "MetricsInfo.h"
+
+#include "LyXRC.h"
 
 #include "insets/Inset.h"
 
 #include "mathed/MathSupport.h"
 
+#include "frontends/FontMetrics.h"
 #include "frontends/Painter.h"
 
-#include "support/docstring.h"
-#include "support/lassert.h"
-#include "support/RefChanger.h"
+#include <map>
 
 using namespace std;
 
@@ -37,7 +35,7 @@ namespace lyx {
 /////////////////////////////////////////////////////////////////////////
 
 MetricsBase::MetricsBase(BufferView * b, FontInfo f, int w)
-	: bv(b), font(move(f)), fontname("mathnormal"),
+	: bv(b), font(std::move(f)), fontname("mathnormal"),
 	  textwidth(w), macro_nesting(0),
 	  solid_line_thickness_(1), solid_line_offset_(1), dotted_line_thickness_(1)
 {
@@ -65,19 +63,54 @@ Changer MetricsBase::changeFontSet(string const & name)
 	string const oldname = fontname;
 	fontname = name;
 	if (isMathFont(name) || isMathFont(oldname))
-		font = sane_font;
+		font = isTextFont(name) ? outer_font : sane_font;
 	augmentFont(font, name);
-	font.setSize(rc->old.font.size());
+	if (isTextFont(name) && isMathFont(oldname))
+		font.setSize(rc->old.outer_font.size());
+	else
+		font.setSize(rc->old.font.size());
 	font.setStyle(rc->old.font.style());
-	if (name != "lyxtex"
+	if (name == "emph") {
+		font.setColor(oldcolor);
+		if (rc->old.font.shape() != UP_SHAPE)
+			font.setShape(UP_SHAPE);
+		else
+			font.setShape(ITALIC_SHAPE);
+	} else if (name != "lyxtex"
 	    && ((isTextFont(oldname) && oldcolor != Color_foreground)
 	        || (isMathFont(oldname) && oldcolor != Color_math)))
 		font.setColor(oldcolor);
 #if __cplusplus >= 201402L
 	return rc;
 #else
-	return move(rc);
+	/** In theory, this is not needed with C++11, and modern compilers
+	 * will complain in C++11 mode, but gcc 4.9 requires this. */
+	return std::move(rc);
 #endif
+}
+
+
+Changer MetricsBase::changeFontSize(string const & size, bool mathmode)
+{
+	map<string, FontSize> sizes = {
+		{"tiny", TINY_SIZE},
+		{"scriptsize", SCRIPT_SIZE},
+		{"footnotesize", FOOTNOTE_SIZE},
+		{"small", SMALL_SIZE},
+		{"normalsize", NORMAL_SIZE},
+		{"large", LARGE_SIZE},
+		{"Large", LARGER_SIZE},
+		{"LARGE", LARGEST_SIZE},
+		{"huge", HUGE_SIZE},
+		{"Huge", HUGER_SIZE}
+	};
+	RefChanger<MetricsBase> rc = make_save(*this);
+	// In math mode we only record the size in outer_font
+	if (mathmode)
+		outer_font.setSize(sizes[size]);
+	else
+		font.setSize(sizes[size]);
+	return rc;
 }
 
 
@@ -85,16 +118,29 @@ Changer MetricsBase::changeEnsureMath(Inset::mode_type mode)
 {
 	switch (mode) {
 	case Inset::UNDECIDED_MODE:
-		return Changer();
+		return noChange();
 	case Inset::TEXT_MODE:
-		return isMathFont(fontname) ? changeFontSet("textnormal") : Changer();
+		return isMathFont(fontname) ? changeFontSet("textnormal") : noChange();
 	case Inset::MATH_MODE:
 		// FIXME:
 		//   \textit{\ensuremath{\text{a}}}
 		// should appear in italics
-		return isTextFont(fontname) ? changeFontSet("mathnormal"): Changer();
+		return isTextFont(fontname) ? changeFontSet("mathnormal"): noChange();
 	}
-	return Changer();
+	return noChange();
+}
+
+
+int MetricsBase::inPixels(Length const & len) const
+{
+	FontInfo fi = font;
+	if (len.unit() == Length::MU)
+		// mu is 1/18th of an em in the math symbol font
+		fi.setFamily(SYMBOL_FAMILY);
+	else
+		// Math style is only taken into account in the case of mu
+		fi.setStyle(TEXT_STYLE);
+	return len.inPixels(textwidth, theFontMetrics(fi).em());
 }
 
 
@@ -105,8 +151,9 @@ Changer MetricsBase::changeEnsureMath(Inset::mode_type mode)
 /////////////////////////////////////////////////////////////////////////
 
 MetricsInfo::MetricsInfo(BufferView * bv, FontInfo font, int textwidth,
-                         MacroContext const & mc)
-	: base(bv, font, textwidth), macrocontext(mc)
+                         MacroContext const & mc, bool vm, bool tight)
+	: base(bv, font, textwidth), macrocontext(mc), vmode(vm), tight_insets(tight),
+	  extrawidth(0)
 {}
 
 
@@ -117,8 +164,10 @@ MetricsInfo::MetricsInfo(BufferView * bv, FontInfo font, int textwidth,
 /////////////////////////////////////////////////////////////////////////
 
 PainterInfo::PainterInfo(BufferView * bv, lyx::frontend::Painter & painter)
-	: pain(painter), ltr_pos(false), change_(), selected(false),
-	do_spellcheck(true), full_repaint(true), background_color(Color_background)
+	: pain(painter), ltr_pos(false), change(),
+	  selected(false), selected_left(false), selected_right(false),
+	  do_spellcheck(true), full_repaint(true), background_color(Color_background),
+	  leftx(0), rightx(0)
 {
 	base.bv = bv;
 }
@@ -144,6 +193,10 @@ ColorCode PainterInfo::backgroundColor(Inset const * inset, bool sel) const
 
 	// special handling for inset background
 	if (inset != nullptr) {
+		if (pain.develMode() && !inset->isBufferValid())
+			// This inset is in error
+			return Color_error;
+
 		ColorCode const color_bg = inset->backgroundColor(*this);
 		if (color_bg != Color_none)
 			// This inset has its own color
@@ -161,8 +214,8 @@ ColorCode PainterInfo::backgroundColor(Inset const * inset, bool sel) const
 
 Color PainterInfo::textColor(Color const & color) const
 {
-	if (change_.changed())
-		return change_.color();
+	if (change.changed())
+		return change.color();
 	if (selected)
 		return Color_selectiontext;
 	return color;
@@ -172,38 +225,46 @@ Color PainterInfo::textColor(Color const & color) const
 Changer MetricsBase::changeScript()
 {
 	switch (font.style()) {
-	case LM_ST_DISPLAY:
-	case LM_ST_TEXT:
-		return font.changeStyle(LM_ST_SCRIPT);
-	case LM_ST_SCRIPT:
-	case LM_ST_SCRIPTSCRIPT:
-		return font.changeStyle(LM_ST_SCRIPTSCRIPT);
+	case DISPLAY_STYLE:
+	case TEXT_STYLE:
+		return font.changeStyle(SCRIPT_STYLE);
+	case SCRIPT_STYLE:
+	case SCRIPTSCRIPT_STYLE:
+		return font.changeStyle(SCRIPTSCRIPT_STYLE);
+	case INHERIT_STYLE:
+	case IGNORE_STYLE:
+		return noChange();
 	}
 	//remove Warning
-	return Changer();
+	return noChange();
 }
 
 
 Changer MetricsBase::changeFrac()
 {
 	switch (font.style()) {
-	case LM_ST_DISPLAY:
-		return font.changeStyle(LM_ST_TEXT);
-	case LM_ST_TEXT:
-		return font.changeStyle(LM_ST_SCRIPT);
-	case LM_ST_SCRIPT:
-	case LM_ST_SCRIPTSCRIPT:
-		return font.changeStyle(LM_ST_SCRIPTSCRIPT);
+	case DISPLAY_STYLE:
+		return font.changeStyle(TEXT_STYLE);
+	case TEXT_STYLE:
+		return font.changeStyle(SCRIPT_STYLE);
+	case SCRIPT_STYLE:
+	case SCRIPTSCRIPT_STYLE:
+		return font.changeStyle(SCRIPTSCRIPT_STYLE);
+	case INHERIT_STYLE:
+	case IGNORE_STYLE:
+		return noChange();
 	}
 	//remove Warning
-	return Changer();
+	return noChange();
 }
 
 
-Changer MetricsBase::changeArray()
+Changer MetricsBase::changeArray(bool small)
 {
-	return (font.style() == LM_ST_DISPLAY) ? font.changeStyle(LM_ST_TEXT)
-		: Changer();
+	if (small)
+		return font.changeStyle(SCRIPT_STYLE);
+	return (font.style() == DISPLAY_STYLE) ? font.changeStyle(TEXT_STYLE)
+		: noChange();
 }
 
 

@@ -21,31 +21,21 @@ namespace lyx {
 
 class Buffer;
 class Inset;
-class Text;
+class Paragraph;
 class ParagraphList;
 
 
-class ParIterator : public std::iterator<std::forward_iterator_tag, Paragraph>,
-		    public DocIterator
+class ParIterator : public DocIterator
 {
 public:
-	typedef std::iterator<std::forward_iterator_tag, Paragraph> StdIt;
-
-	typedef StdIt::value_type value_type;
-	typedef StdIt::difference_type difference_type;
-	typedef StdIt::pointer pointer;
-	typedef StdIt::reference reference;
-
-	///
 	///
 	ParIterator(Buffer * buf) : DocIterator(buf) {}
-
 	///
-	ParIterator(Buffer * buf, Inset &, pit_type pit);
+	ParIterator(ParIterator const & pi) :
+		DocIterator(DocIterator(pi)) {}
 	///
-	ParIterator(ParIterator const &);
-	///
-	explicit ParIterator(DocIterator const &);
+	explicit ParIterator(DocIterator const & dit) :
+		DocIterator(dit) {}
 
 	/// This really should be implemented...
 	//ParIterator & operator=(ParIterator const &);
@@ -88,17 +78,18 @@ ParIterator par_iterator_end(Inset & inset);
 //bool operator!=(ParIterator const & it1, ParIterator const & it2);
 
 
-class ParConstIterator : public std::iterator<std::forward_iterator_tag,
-			 Paragraph>,
-			 public DocIterator
+class ParConstIterator : public DocIterator
 {
 public:
 	///
-	ParConstIterator(Buffer const * buf);
+	ParConstIterator(Buffer const * buf)
+		: DocIterator(const_cast<Buffer *>(buf)) {}
 	///
-	ParConstIterator(ParConstIterator const &);
+	ParConstIterator(ParConstIterator const & pi)
+		: DocIterator(DocIterator(pi)) {}
 	///
-	explicit ParConstIterator(DocIterator const &);
+	explicit ParConstIterator(DocIterator const & dit)
+		: DocIterator(dit) {}
 	///
 	void push_back(Inset const &);
 

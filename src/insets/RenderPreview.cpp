@@ -88,7 +88,7 @@ RenderBase * RenderPreview::clone(Inset const * inset) const
 
 namespace {
 
-docstring const statusMessage(BufferView const * bv, string const & snippet)
+docstring const statusMessage(BufferView const * bv, docstring const & snippet)
 {
 	LASSERT(bv, return docstring());
 
@@ -123,7 +123,7 @@ graphics::PreviewImage const *
 RenderPreview::getPreviewImage(Buffer const & buffer) const
 {
 	graphics::PreviewLoader const * loader = buffer.loader();
-	LASSERT(loader, return 0);
+	LASSERT(loader, return nullptr);
 	return loader->preview(snippet_);
 }
 
@@ -140,21 +140,23 @@ void RenderPreview::metrics(MetricsInfo & mi, Dimension & dim) const
 		pimage->image();
 		dim = pimage->dim();
 	} else {
-		dim.asc = 50;
-		dim.des = 0;
-
 		FontInfo font(mi.base.font);
 		font.setFamily(SANS_FAMILY);
-		font.setSize(FONT_SIZE_FOOTNOTE);
+		font.setSize(FOOTNOTE_SIZE);
+
+		frontend::FontMetrics const & fm = theFontMetrics(font);
+		dim.asc = 2 * (Inset::textOffset(mi.base.bv) + 6) + fm.maxHeight();
+		dim.des = 0;
+
 		docstring const stat = statusMessage(mi.base.bv, snippet_);
-		dim.wid = 15 + theFontMetrics(font).width(stat);
+		dim.wid = 2 * (Inset::textOffset(mi.base.bv) + 6) + fm.width(stat);
 	}
 
 	dim_ = dim;
 }
 
 
-void RenderPreview::draw(PainterInfo & pi, int x, int y) const
+void RenderPreview::draw(PainterInfo & pi, int x, int y, bool const) const
 {
 	LBUFERR(pi.base.bv);
 
@@ -166,25 +168,23 @@ void RenderPreview::draw(PainterInfo & pi, int x, int y) const
 		pi.pain.image(x, y - dim_.asc, dim_.wid, dim_.height(),
 			      *image);
 	} else {
-		int const offset = Inset::TEXT_TO_INSET_OFFSET;
+		int const offset = Inset::textOffset(pi.base.bv);
 
-		pi.pain.rectangle(x + offset,
-				  y - dim_.asc,
-				  dim_.wid - 2 * offset,
-				  dim_.asc + dim_.des,
-				  Color_foreground);
+		pi.pain.rectangle(x + offset, y - dim_.asc,
+		                  dim_.wid - 2 * offset, dim_.asc + dim_.des,
+		                  Color_foreground);
 
 		FontInfo font(pi.base.font);
 		font.setFamily(SANS_FAMILY);
-		font.setSize(FONT_SIZE_FOOTNOTE);
+		font.setSize(FOOTNOTE_SIZE);
 
 		docstring const stat = statusMessage(pi.base.bv, snippet_);
 		pi.pain.text(x + offset + 6,
-			     y - theFontMetrics(font).maxAscent() - 4,
-			     stat, font);
+		             y - offset - 6 - theFontMetrics(pi.base.font).maxDescent(),
+		             stat, font);
 	}
-	pi.change_.paintCue(pi, x, y - dim_.asc,
-	                    x + dim_.width(), y - dim_.asc + dim_.height());
+	pi.change.paintCue(pi, x, y - dim_.asc,
+	                   x + dim_.width(), y - dim_.asc + dim_.height());
 }
 
 
@@ -221,7 +221,7 @@ void RenderPreview::addPreview(docstring const & latex_snippet,
 
 	// FIXME UNICODE
 	// We have to make sure that we call latex with the right encoding
-	snippet_ = support::trim(to_utf8(latex_snippet));
+	snippet_ = support::trim(latex_snippet);
 	if (snippet_.empty())
 		return;
 
@@ -280,7 +280,7 @@ void RenderMonitoredPreview::setAbsFile(FileName const & file)
 }
 
 
-void RenderMonitoredPreview::draw(PainterInfo & pi, int x, int y) const
+void RenderMonitoredPreview::draw(PainterInfo & pi, int x, int y, bool const) const
 {
 	RenderPreview::draw(pi, x, y);
 	startMonitoring();
@@ -288,7 +288,7 @@ void RenderMonitoredPreview::draw(PainterInfo & pi, int x, int y) const
 }
 
 
-signals2::connection RenderMonitoredPreview::connect(slot const & slot)
+connection RenderMonitoredPreview::connect(slot const & slot)
 {
 	return changed_.connect(slot);
 }

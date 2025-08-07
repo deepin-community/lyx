@@ -1,17 +1,21 @@
 # Author : André Pönitz
 # This include file contains label definitions for a report-like numbering.
 
-Format 66
+Format 104
 
 Counter chapter
+	GuiName Chapter
 	Within                ""
 	LabelString	      "\arabic{chapter}"
 	LabelStringAppendix   "\Alph{chapter}"
+	PrettyFormat "Chapter ##"
 End
 
 Counter section
+	GuiName Section
 	Within                chapter
 	LabelString	      ""
+	PrettyFormat "Section ##"
 End
 
 Float
@@ -32,10 +36,12 @@ Float
 End
 
 Counter listing
+	GuiName Listing
 	Within		      chapter
 End
 
 Counter footnote
+	GuiName Footnote
 	Within		      chapter
-	LabelString	      "\arabic{footnote}"
+	PrettyFormat 	"footnote \arabic{footnote}"
 End

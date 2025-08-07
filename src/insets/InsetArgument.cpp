@@ -18,15 +18,16 @@
 #include "Cursor.h"
 #include "FuncStatus.h"
 #include "FuncRequest.h"
+#include "InsetLayout.h"
 #include "InsetList.h"
 #include "Language.h"
 #include "Layout.h"
 #include "Lexer.h"
-#include "OutputParams.h"
 #include "ParIterator.h"
 #include "TexRow.h"
 #include "texstream.h"
 #include "TocBackend.h"
+#include "xml.h"
 
 #include "support/convert.h"
 #include "support/debug.h"
@@ -43,7 +44,8 @@ InsetArgument::InsetArgument(Buffer * buf, string const & name)
     : InsetCollapsible(buf), name_(name), labelstring_(docstring()),
       font_(inherit_font), labelfont_(inherit_font), decoration_(string()),
       pass_thru_context_(false), pass_thru_local_(false), pass_thru_(false),
-      pass_thru_chars_(docstring()), is_toc_caption_(false)
+      free_spacing_(false), pass_thru_chars_(docstring()), is_toc_caption_(false),
+      newline_cmd_(string())
 {}
 
 
@@ -61,35 +63,35 @@ void InsetArgument::read(Lexer & lex)
 }
 
 
-void InsetArgument::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetArgument::init(Paragraph const & par)
 {
-	bool const insetlayout = !it.paragraph().layout().hasArgs();
+	Inset const & ininset = par.inInset();
+	bool const insetlayout = !par.layout().hasArgs();
 	Layout::LaTeXArgMap const args = insetlayout ?
-		it.inset().getLayout().args() : it.paragraph().layout().args();
+		ininset.getLayout().args() : par.layout().args();
 	pass_thru_context_ = insetlayout ?
-		it.inset().getLayout().isPassThru() : it.paragraph().layout().pass_thru;
+		ininset.getLayout().isPassThru() : par.layout().pass_thru;
 	// Record PassThru status in order to act on changes.
 	bool const former_pass_thru = pass_thru_;
 
 	// Handle pre 2.1 ArgInsets (lyx2lyx cannot classify them)
+	// "999" is the conventional name given to those by lyx2lyx
 	if (name_ == "999") {
-		unsigned int const req = insetlayout ? it.inset().getLayout().requiredArgs()
-				      : it.paragraph().layout().requiredArgs();
-		unsigned int const opts = insetlayout ? it.inset().getLayout().optArgs()
-				      : it.paragraph().layout().optArgs();
-		unsigned int nr = 0;
-		unsigned int ours = 0;
-		InsetList::const_iterator parit = it.paragraph().insetList().begin();
-		InsetList::const_iterator parend = it.paragraph().insetList().end();
-		for (; parit != parend; ++parit) {
-			if (parit->inset->lyxCode() == ARG_CODE) {
+		int const req = insetlayout ? ininset.getLayout().requiredArgs()
+				      : par.layout().requiredArgs();
+		int const opts = insetlayout ? ininset.getLayout().optArgs()
+				      : par.layout().optArgs();
+		int nr = 0;
+		int ours = 0;
+		for (InsetList::Element const & elt : par.insetList()) {
+			if (elt.inset->lyxCode() == ARG_CODE) {
 				++nr;
-				if (parit->inset == this)
+				if (elt.inset == this)
 					ours = nr;
 			}
 		}
 		bool done = false;
-		unsigned int realopts = 0;
+		int realopts = 0;
 		if (nr > req) {
 			// We have optional arguments
 			realopts = nr - req;
@@ -118,13 +120,20 @@ void InsetArgument::updateBuffer(ParIterator const & it, UpdateType utype)
 		labelfont_ = (*lait).second.labelfont;
 		decoration_ = (*lait).second.decoration;
 		pass_thru_chars_ = (*lait).second.pass_thru_chars;
+		newline_cmd_ = (*lait).second.newlinecmd;
+		free_spacing_ = (*lait).second.free_spacing;
+		docbooktag_ = (*lait).second.docbooktag;
+		docbooktagtype_ = (*lait).second.docbooktagtype;
+		docbookattr_ = (*lait).second.docbookattr;
+		docbookargumentbeforemaintag_ = (*lait).second.docbookargumentbeforemaintag;
+		docbookargumentaftermaintag_ = (*lait).second.docbookargumentaftermaintag;
 		pass_thru_local_ = false;
 		if (lait->second.is_toc_caption) {
 			is_toc_caption_ = true;
 			// empty if AddToToc is not set
 			caption_of_toc_ = insetlayout
-				? it.inset().getLayout().tocType()
-				: it.paragraph().layout().tocType();
+				? ininset.getLayout().tocType()
+				: par.layout().tocType();
 		}
 
 		switch ((*lait).second.passthru) {
@@ -147,14 +156,20 @@ void InsetArgument::updateBuffer(ParIterator const & it, UpdateType utype)
 	if (former_pass_thru != pass_thru_) {
 		// PassThru status changed. We might need to update
 		// the language of the contents
-		Language const * l  = insetlayout
-			? it.inset().buffer().language()
-			: it.buffer()->language();
+		// Language const * l  = insetlayout
+		// 	? it.inset().buffer().language()
+		// 	: it.buffer()->language();
+		Language const * l  = ininset.buffer().language();
 		fixParagraphLanguage(l);
 	}
 
 	setButtonLabel();
-	InsetCollapsible::updateBuffer(it, utype);
+}
+
+void InsetArgument::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
+{
+	init(it.paragraph());
+	InsetCollapsible::updateBuffer(it, utype, deleted);
 }
 
 
@@ -264,7 +279,7 @@ bool InsetArgument::getStatus(Cursor & cur, FuncRequest const & cmd,
 
 string InsetArgument::contextMenuName() const
 {
-	if (decoration() == InsetLayout::CONGLOMERATE)
+	if (decoration() == InsetDecoration::CONGLOMERATE)
 		return "context-argument-conglomerate";
 	else
 		return "context-argument";
@@ -294,12 +309,29 @@ ColorCode InsetArgument::labelColor() const {
 }
 
 
-InsetLayout::InsetDecoration InsetArgument::decoration() const
+InsetDecoration InsetArgument::decoration() const
 {
-	InsetLayout::InsetDecoration dec = getLayout().decoration();
+	InsetDecoration dec = getLayout().decoration();
 	if (!decoration_.empty())
 		dec = translateDecoration(decoration_);
-	return dec == InsetLayout::DEFAULT ? InsetLayout::CLASSIC : dec;
+	return dec == InsetDecoration::DEFAULT ? InsetDecoration::CLASSIC : dec;
+}
+
+
+void InsetArgument::docbook(XMLStream & xs, OutputParams const & rp) const {
+	// Ignore arguments that have already been output or are planned to be output elsewhere.
+	if (rp.docbook_prepended_arguments.find(this) != rp.docbook_prepended_arguments.end())
+		return;
+	if (rp.docbook_appended_arguments.find(this) != rp.docbook_appended_arguments.end())
+		return;
+
+	if (docbooktag_ != from_ascii("NONE") && docbooktag_ != from_ascii("IGNORE")) {
+		// TODO: implement docbooktagtype_.
+		xs << xml::StartTag(docbooktag_, docbookattr_);
+		InsetText::docbook(xs, rp);
+		xs << xml::EndTag(docbooktag_);
+		xs << xml::CR();
+	}
 }
 
 
@@ -311,17 +343,20 @@ void InsetArgument::latexArgument(otexstream & os,
 	OutputParams runparams = runparams_in;
 	if (!pass_thru_chars_.empty())
 		runparams.pass_thru_chars += pass_thru_chars_;
+	if (!newline_cmd_.empty())
+		runparams.newlinecmd = newline_cmd_;
 	runparams.pass_thru = isPassThru();
 	InsetText::latex(ots, runparams);
 	TexString ts = ots.release();
-	bool const add_braces = ldelim != "{" && support::contains(ts.str, rdelim);
+	bool const add_braces = !ldelim.empty() && ldelim != "{"
+			&& support::contains(ts.str, rdelim);
 	os << ldelim;
 	if (add_braces)
 		os << '{';
 	os << presetarg;
 	if (!presetarg.empty() && !ts.str.empty())
 		os << ", ";
-	os << move(ts);
+	os << std::move(ts);
 	if (add_braces)
 		os << '}';
 	os << rdelim;

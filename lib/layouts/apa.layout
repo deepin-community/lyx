@@ -3,7 +3,7 @@
 #  \DeclareCategory{Articles}
 # Author: Randy Gobbel <gobbel@andrew.cmu.edu>
 
-Format 66
+Format 104
 Columns                 1
 Sides                   1
 PageStyle               Headers
@@ -35,6 +35,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -48,6 +49,9 @@ Style Title
 	EndFont
 	Align                 Center
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -67,6 +71,10 @@ Style RightHeader
 	  Size                Small
 	EndFont
 	Align                 Right
+	DocBookTag            titleabbrev
+	DocBookAttr           role='right-header'
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -90,6 +98,11 @@ Style Abstract
 	  Series              Bold
 	  Size                Small
 	EndFont
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 
@@ -113,6 +126,13 @@ Style ShortTitle
 	  Size                Small
 	  Shape               Up
 	EndFont
+	DocBookTag            titleabbrev
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
+	DocBookTag            titleabbrev
+	DocBookAttr           role='short-title'
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -129,6 +149,11 @@ Style Author
 	  Shape               Italic
 	  Size                Small
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -175,6 +200,12 @@ Style Affiliation
 	  Series              Bold
 	  Size                Small
 	EndFont
+	DocBookTag                        affiliation
+	DocBookWrapperTag                 author
+	DocBookWrapperMergeWithPrevious   true
+	DocBookItemTag                    orgname
+	DocBookItemTagType                paragraph
+	DocBookInInfo                     always
 End
 
 
@@ -209,7 +240,7 @@ Style Copyright
 End
 
 
-Style Acknowledgements
+Style Acknowledgments
 	Category              BackMatter
 	LatexName             acknowledgements
 	LatexType             Command
@@ -222,17 +253,15 @@ Style Acknowledgements
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	Labeltype             Static
-	LabelString           "Acknowledgements:"
+	LabelString           "Acknowledgments:"
 	Labelsep              M
 	LabelFont
 	  Series              Bold
 	  Size                Small
 	EndFont
-End
-
-
-Style Acknowledgments
-	ObsoletedBy           Acknowledgements
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
+	DocBookSection        true
 End
 
 
@@ -266,7 +295,7 @@ InsetLayout Caption:Centered
 			margin: 1ex;
 		}
 	EndHTMLStyle
-	HTMLAttr "class='float-caption float-caption-centered'"
+	HTMLClass   "float-caption float-caption-centered"
 End
 
 
@@ -374,6 +403,19 @@ Style Itemize
 		LabelString   "Custom Item|s"
 		Tooltip       "A customized item string"
 	EndArgument
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            itemizedlist
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
 End
 
 
@@ -399,6 +441,25 @@ Style Enumerate
 		LabelString   "Custom Item|s"
 		Tooltip       "A customized item string"
 	EndArgument
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
+	DocBookTag            orderedlist
+	DocBookItemTag        listitem
+	DocBookItemInnerTag   para
+	HTMLStyle
+		ol.enumi   { list-style-type: decimal; }
+		ol.enumii  { list-style-type: lower-latin; }
+		ol.enumiii { list-style-type: lower-roman; }
+		ol.enumiv  { list-style-type: upper-latin; }
+	EndHTMLStyle
 End
 
 
@@ -417,10 +478,20 @@ Style Seriate
 	ParSep                0.0
 	Align                 Block
 	AlignPossible         Block, Left
-	LabelType             Static
+	LabelType             Itemize
 	LabelCounter          enumii
 	LabelString           "(\alph{enumii})"
 	LabelStringAppendix   "(\alph{enumii})"
 	RefPrefix             ser
+	Argument listpreamble:1
+		LabelString    "List preamble"
+		MenuString     "List Preamble"
+		Tooltip        "LaTeX code to be inserted before the first item"
+		PassThru       1
+		Font
+			Family typewriter
+			Color latex
+		EndFont
+	EndArgument
 End
 

@@ -24,6 +24,7 @@
 #include "ParIterator.h"
 #include "TextClass.h"
 
+#include "support/debug.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
 
@@ -58,10 +59,10 @@ InsetLayout const & InsetFlex::getLayout() const
 }
 
 
-InsetLayout::InsetDecoration InsetFlex::decoration() const
+InsetDecoration InsetFlex::decoration() const
 {
-	InsetLayout::InsetDecoration const dec = getLayout().decoration();
-	return dec == InsetLayout::DEFAULT ? InsetLayout::CONGLOMERATE : dec;
+	InsetDecoration const dec = getLayout().decoration();
+	return dec == InsetDecoration::DEFAULT ? InsetDecoration::CONGLOMERATE : dec;
 }
 
 
@@ -94,15 +95,16 @@ bool InsetFlex::getStatus(Cursor & cur, FuncRequest const & cmd,
 		FuncStatus & flag) const
 {
 	switch (cmd.action()) {
+	case LFUN_INSET_SPLIT:
 	case LFUN_INSET_DISSOLVE:
 		if (!cmd.argument().empty()) {
 			InsetLayout const & il = getLayout();
-			InsetLayout::InsetLyXType const type =
+			InsetLyXType const type =
 				translateLyXType(to_utf8(cmd.argument()));
 			if (il.lyxtype() == type
 			    || (il.name() == DocumentClass::plainInsetLayout().name()
-				    && type == InsetLayout::CHARSTYLE)) {
-				FuncRequest temp_cmd(LFUN_INSET_DISSOLVE);
+				    && type == InsetLyXType::CHARSTYLE)) {
+				FuncRequest temp_cmd(cmd.action());
 				return InsetCollapsible::getStatus(cur, temp_cmd, flag);
 			} else
 				return false;
@@ -117,16 +119,17 @@ bool InsetFlex::getStatus(Cursor & cur, FuncRequest const & cmd,
 void InsetFlex::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
 	switch (cmd.action()) {
+	case LFUN_INSET_SPLIT:
 	case LFUN_INSET_DISSOLVE:
 		if (!cmd.argument().empty()) {
 			InsetLayout const & il = getLayout();
-			InsetLayout::InsetLyXType const type =
+			InsetLyXType const type =
 				translateLyXType(to_utf8(cmd.argument()));
 
 			if (il.lyxtype() == type
 			    || (il.name() == DocumentClass::plainInsetLayout().name()
-				    && type == InsetLayout::CHARSTYLE)) {
-				FuncRequest temp_cmd(LFUN_INSET_DISSOLVE);
+				    && type == InsetLyXType::CHARSTYLE)) {
+				FuncRequest temp_cmd(cmd.action());
 				InsetCollapsible::doDispatch(cur, temp_cmd);
 			} else
 				cur.undispatched();
@@ -140,18 +143,42 @@ void InsetFlex::doDispatch(Cursor & cur, FuncRequest & cmd)
 }
 
 
-void InsetFlex::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetFlex::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
 	BufferParams const & bp = buffer().masterBuffer()->params();
 	InsetLayout const & il = getLayout();
 	docstring custom_label = translateIfPossible(il.labelstring());
 
 	Counters & cnts = bp.documentClass().counters();
+
+	// Special case for `subequations' module.
+	if (il.latextype() == InsetLaTeXType::ENVIRONMENT &&
+	    il.latexname() == "subequations") {
+		docstring equation(from_ascii("equation"));
+		docstring parentequation(from_ascii("parentequation"));
+		if (!deleted)
+			cnts.step(equation, utype);
+		// save a copy of the equation counter definition
+		cnts.copy(equation, parentequation);
+		// redefine the equation counter definition
+		docstring const eqlabel = deleted ? from_ascii("#")
+			: cnts.theCounter(equation, it->getParLanguage(bp)->code());
+		cnts.newCounter(equation, parentequation,
+		                eqlabel + from_ascii("\\alph{equation}"),
+		                eqlabel + from_ascii("\\alph{equation}"),
+		                eqlabel + from_ascii("\\alph{equation}"),
+		                cnts.guiName(parentequation));
+		InsetCollapsible::updateBuffer(it, utype, deleted);
+		// reset equation counter as it was.
+		cnts.copy(parentequation, equation);
+		cnts.remove(parentequation);
+		return;
+	}
+
 	docstring const & count = il.counter();
 	bool const have_counter = cnts.hasCounter(count);
 	if (have_counter) {
-		Paragraph const & par = it.paragraph();
-		if (!par.isDeleted(it.pos())) {
+		if (!deleted) {
 			cnts.step(count, utype);
 			custom_label += ' ' +
 				cnts.theCounter(count, it.paragraph().getParLanguage(bp)->code());
@@ -167,7 +194,7 @@ void InsetFlex::updateBuffer(ParIterator const & it, UpdateType utype)
 		// need a layout flag
 		cnts.saveLastCounter();
 	}
-	InsetCollapsible::updateBuffer(it, utype);
+	InsetCollapsible::updateBuffer(it, utype, deleted);
 	if (save_counter)
 		cnts.restoreLastCounter();
 }

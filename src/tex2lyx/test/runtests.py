@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # file src/tex2lyx/test/runtests.py
@@ -78,6 +78,8 @@ def main(argv):
                  'box-color-size-space-align.tex', \
                  'CJK.tex', \
                  'CJKutf8.tex', \
+                 'listpreamble.tex', \
+                 'tabular-x-test.tex', \
                  'test-insets.tex', \
                  'test-insets-basic.tex', \
                  'test-memoir.tex', \
@@ -106,8 +108,8 @@ def main(argv):
         proc.wait()
         err = proc.returncode
         errorstring = proc.stderr.read()
-        if not errorstring is None:
-            print(errorstring)
+        if errorstring:
+            print(errorstring.decode(sys.getfilesystemencoding()))
         if err != 0:
             errors.append(f)
         elif not overwrite:
@@ -125,8 +127,8 @@ def main(argv):
                 else:
                     t1 = time.ctime(os.path.getmtime(lyxfile1))
                     t2 = time.ctime(os.path.getmtime(lyxfile2))
-                    f1 = open(lyxfile1, 'r')
-                    f2 = open(lyxfile2, 'r')
+                    f1 = open(lyxfile1, 'r', encoding="utf8")
+                    f2 = open(lyxfile2, 'r', encoding="utf8")
                     lines1 = f1.readlines()
                     i1 = 0
                     for linex in lines1:
@@ -160,4 +162,3 @@ def getlyxinput(lyx, lyxfx, lyxf, uselyx2lyx):
 
 if __name__ == "__main__":
     main(sys.argv)
-

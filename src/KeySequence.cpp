@@ -17,8 +17,6 @@
 
 #include "support/gettext.h"
 
-#include "frontends/KeySymbol.h"
-
 using namespace std;
 
 namespace lyx {
@@ -133,7 +131,7 @@ size_t KeySequence::parse(string const & s)
 }
 
 
-docstring const KeySequence::print(outputFormat format) const
+docstring const KeySequence::print(outputFormat format, bool const untranslated) const
 {
 	docstring buf;
 
@@ -142,23 +140,34 @@ docstring const KeySequence::print(outputFormat format) const
 	for (size_t i = 0; i != length; ++i) {
 		switch (format) {
 		case Portable:
-			buf += sequence[i].print(modifiers[i].first, false);
+			buf += sequence[i].print(modifiers[i].first, false, untranslated);
 			break;
 		case ForGui:
-			buf += sequence[i].print(modifiers[i].first, true);
+			buf += sequence[i].print(modifiers[i].first, true, untranslated);
 			break;
 		case BindFile:
 			KeyModifier mod = modifiers[i].first;
+			KeyModifier nmod = modifiers[i].second;
 			if (mod & ControlModifier)
 				buf += "C-";
+			else if (nmod & ControlModifier)
+				buf += "~C-";
 			if (mod & AltModifier)
 #if defined(USE_MACOSX_PACKAGING) || defined(USE_META_KEYBINDING)
 				buf += "A-";
+			else if (nmod & AltModifier)
+				buf += "~A-";
 			if (mod & MetaModifier)
 #endif
 				buf += "M-";
+#if defined(USE_MACOSX_PACKAGING) || defined(USE_META_KEYBINDING)
+			else if (nmod & MetaModifier)
+				buf += "~M-";
+#endif
 			if (mod & ShiftModifier)
 				buf += "S-";
+			else if (nmod & ShiftModifier)
+				buf += "~S-";
 
 			buf += from_utf8(sequence[i].getSymbolName());
 			break;

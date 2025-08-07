@@ -1,13 +1,21 @@
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5.0)
+
+set(LYX_IPO_SUPPORTED FALSE)
+if (POLICY CMP0069)
+  cmake_policy(SET CMP0069 NEW)
+  if (LYX_USE_IPO MATCHES "ON")
+    set(LYX_IPO_SUPPORTED YES)
+  endif()
+endif()
 
 project(hunspell)
 
-set(HUNSPELL_VERSION 1.6.2)
+set(HUNSPELL_VERSION 1.7.0)
 
 set(SRCDIR ${CMAKE_CURRENT_SOURCE_DIR}/${HUNSPELL_VERSION}/src)
 
-include_directories(./ ${SRCDIR}/hunspell ${SRCDIR}/parsers ${SRCDIR}/tools)
+include_directories(./ ${SRCDIR}/hunspell)
 
 if(WIN32)
     include_directories(${SRCDIR}/win_api)
@@ -50,7 +58,9 @@ add_definitions(-DHUNSPELL_STATIC)
 add_library(hunspell STATIC ${HEADERS} ${SRCS} ${HUNCONFIG})
 
 set(HUNSPELL_LIBRARY hunspell CACHE STRING "Hunspell library" FORCE)
-set(HUNSPELL_INCLUDE_DIR ${SRCDIR} CACHE STRING "Hunspell include dir" FORCE)
+set(HUNSPELL_INCLUDE_DIR "${SRCDIR}/hunspell;${SRCDIR}" CACHE STRING "Hunspell include dirs" FORCE)
 set(HUNSPELL_FOUND CACHE STRING "Hunspell found" FORCE)
 
-set_target_properties(hunspell PROPERTIES FOLDER "3rd_party")
+set_target_properties(hunspell PROPERTIES
+	FOLDER "3rd_party"
+	INTERPROCEDURAL_OPTIMIZATION ${LYX_IPO_SUPPORTED})

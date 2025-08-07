@@ -130,6 +130,8 @@ public:
 	std::string par_extra_stuff;
 	/// We may need to add something at the beginning of a list.
 	std::string list_extra_stuff;
+	/// Stuff between list begin and first item
+	std::string list_preamble;
 	/// A LaTeXParam to be ignored in parsing.
 	std::string latexparam;
 	/// If there has been an \\begin_deeper, we'll need a matching
@@ -139,6 +141,13 @@ public:
 	/// for each paragraph, otherwise this has to be a deeper
 	/// paragraph.
 	bool has_item;
+	/// If we are in an itemize-like environment, this marks
+	/// the text before the first \item. Typically, list
+	/// parameters (such as lengths) are adjusted here.
+	bool in_list_preamble;
+	/// Store commands that should not be converted
+	/// (stored without \\)
+	std::set<std::string> pass_thru_cmds;
 	/// we are handling a standard paragraph in an itemize-like
 	/// environment
 	bool deeper_paragraph;
@@ -165,6 +174,12 @@ public:
 	TeXFont font;
 	/// font attributes of normal text
 	static TeXFont normalfont;
+	/// Table rotation angle
+	int tablerotation;
+	///
+	bool in_table_cell;
+	///
+	char cell_align;
 
 private:
 	void begin_layout(std::ostream & os, Layout const * const & l);

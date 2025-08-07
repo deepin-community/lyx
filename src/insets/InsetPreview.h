@@ -14,13 +14,13 @@
 
 #include "InsetText.h"
 
-#include "Dimension.h"
-
 #include "support/unique_ptr.h"
 
 
 namespace lyx {
 
+class Dimension;
+class MacroNameSet;
 class RenderPreview;
 
 namespace graphics {
@@ -32,7 +32,7 @@ class InsetPreview : public InsetText {
 
 public:
 	///
-	InsetPreview(Buffer *);
+	explicit InsetPreview(Buffer *);
 	///
 	~InsetPreview();
 	///
@@ -42,42 +42,40 @@ public:
 
 	/// \name Methods inherited from Inset class
 	//@{
-	Inset * clone() const { return new InsetPreview(*this); }
+	Inset * clone() const override { return new InsetPreview(*this); }
 
-	bool neverIndent() const { return true; }
+	bool neverIndent() const override { return true; }
 
-	bool inheritFont() const { return false; }
+	InsetCode lyxCode() const override { return PREVIEW_CODE; }
 
-	InsetCode lyxCode() const { return PREVIEW_CODE; }
+	docstring layoutName() const override { return from_ascii("Preview"); }
 
-	docstring layoutName() const { return from_ascii("Preview"); }
+	bool descendable(BufferView const & /*bv*/) const override { return true; }
 
-	bool descendable(BufferView const & /*bv*/) const { return true; }
-
-	std::string contextMenuName() const
+	std::string contextMenuName() const override
 		{ return "context-preview"; }
 
-	void metrics(MetricsInfo & mi, Dimension & dim) const;
+	void metrics(MetricsInfo & mi, Dimension & dim) const override;
 
-	Inset * editXY(Cursor & cur, int x, int y);
+	Inset * editXY(Cursor & cur, int x, int y) override;
 
-	void draw(PainterInfo & pi, int x, int y) const;
+	void draw(PainterInfo & pi, int x, int y) const override;
 
 	void addPreview(DocIterator const & inset_pos,
-		graphics::PreviewLoader & ploader) const;
+		graphics::PreviewLoader & ploader) const override;
 
-	bool notifyCursorLeaves(Cursor const & old, Cursor & cur);
+	bool notifyCursorLeaves(Cursor const & old, Cursor & cur) override;
 
-	void write(std::ostream & os) const;
+	void write(std::ostream & os) const override;
 
-	void edit(Cursor & cur, bool front, EntryDirection entry_from);
+	void edit(Cursor & cur, bool front, EntryDirection entry_from) override;
 
-	bool canPaintChange(BufferView const &) const { return true; };
+	bool canPaintChange(BufferView const &) const override { return true; }
 	//@}
 
 protected:
 	/// Retrieves the preview state. Returns true if preview
-	/// is enabled and the preview image is availabled.
+	/// is enabled and the preview image is available.
 	bool previewState(BufferView * bv) const;
 	/// Recreates the preview if preview is enabled.
 	void reloadPreview(DocIterator const & pos) const;
@@ -88,6 +86,12 @@ protected:
 	unique_ptr<RenderPreview> preview_;
 
 };
+
+
+/// gathers the list of macro definitions used in the given inset
+MacroNameSet gatherMacroDefinitions(const Buffer* buffer, const Inset * inset);
+/// returns the LaTeX snippet to compute the preview of the given inset
+docstring insetToLaTeXSnippet(const Buffer* buffer, const Inset * inset);
 
 
 } // namespace lyx

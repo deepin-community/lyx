@@ -18,19 +18,13 @@ SUBDIRS = autotests config development po 3rdparty src sourcedoc lib \
 
 EXTRA_DIST = ANNOUNCE INSTALL.autoconf RELEASE-NOTES UPGRADING \
 	INSTALL.Win32 INSTALL.MacOSX INSTALL.cmake \
-	README.Win32 README.Cygwin README.localization lyx.1in \
+	INSTALL.Cygwin README.localization lyx.1in \
 	autogen.sh CMakeLists.txt po/CMakeLists.txt
 
 man_MANS = lyx.1
 
-#Wait some time for bumping automake 1.11, which can use dist-xz
-#directly without this code, which is to be removed.
-#xz has low compression by default, but can be affected via
-#export XZ_OPT=-9ev put somewhere in the makefile.
-lyxdist: dist
-	bunzip2 $(PACKAGE)-$(VERSION).tar.bz2
-	xz -9 $(PACKAGE)-$(VERSION).tar
-	ls -hl $(PACKAGE)-$(VERSION).tar.*
+# Set high compression level for xz distribution
+export XZ_OPT=-9ev
 
 rpmdist: dist
 	$(LN_S) $(srcdir)/lib/images/lyx.png . ; \

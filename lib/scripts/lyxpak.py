@@ -5,7 +5,7 @@
 # Licence details can be found in the file COPYING.
 
 # author Enrico Forestieri
-# author Richard Heck
+# author Richard Kimberly Heck
 
 # Full author contact details are available in file CREDITS
 
@@ -17,7 +17,6 @@
 
 from __future__ import print_function
 import gzip, os, re, sys
-from getopt import getopt
 from io import BytesIO
 import subprocess
 
@@ -35,9 +34,12 @@ running_on_windows = (os.name == 'nt')
 if running_on_windows:
     from shutil import copyfile
     from tempfile import NamedTemporaryFile
+    from lyxwin_getopt import getopt
+else:
+    from getopt import getopt
 
 # Pre-compiled regular expressions.
-re_lyxfile = re.compile(b"\.lyx$")
+re_lyxfile = re.compile(br"\.lyx$")
 re_input = re.compile(b'^(.*)\\\\(input|include){(\\s*)(.+)(\\s*)}.*$')
 re_ertinput = re.compile(b'^(input|include)({)(\\s*)(.+)(\\s*)}.*$')
 re_package = re.compile(b'^(.*)\\\\(usepackage){(\\s*)(.+)(\\s*)}.*$')
@@ -128,7 +130,7 @@ def gather_files(curfile, incfiles, lyx2lyx):
         elif running_on_windows:
             # For some unknown reason, there can be a spurious '\r' in the line
             # separators, causing spurious empty lines when calling splitlines.
-            l2l_stdout = l2l_stdout.replace('\r\r\n', '\r\n')
+            l2l_stdout = l2l_stdout.replace(b'\r\r\n', b'\r\n')
         lines = l2l_stdout.splitlines()
     else:
         input = gzopen(curfile)
@@ -189,8 +191,11 @@ def gather_files(curfile, incfiles, lyx2lyx):
             file = match.group(3).strip(b'"')
             if file.startswith(b"bibtotoc,"):
                 file = file[9:]
+            ext = os.path.splitext(file)[-1]
+            if ext != b'.bst':
+                file = file + b'.bst'
             if not os.path.isabs(file):
-                file = os.path.join(curdir, file + b'.bst')
+                file = os.path.join(curdir, file)
             if os.path.exists(unicode(file, 'utf-8')):
                 incfiles.append(abspath(file))
             i += 1
@@ -202,10 +207,12 @@ def gather_files(curfile, incfiles, lyx2lyx):
             bibfiles = match.group(3).strip(b'"').split(b',')
             j = 0
             while j < len(bibfiles):
-                if os.path.isabs(bibfiles[j]):
-                    file = bibfiles[j] + b'.bib'
-                else:
-                    file = os.path.join(curdir, bibfiles[j] + b'.bib')
+                file = bibfiles[j]
+                ext = os.path.splitext(file)[-1]
+                if ext != b'.bib':
+                    file = file + b'.bib'
+                if not os.path.isabs(file):
+                    file = os.path.join(curdir, file)
                 if os.path.exists(unicode(file, 'utf-8')):
                     incfiles.append(abspath(file))
                 j += 1
@@ -224,7 +231,10 @@ def find_lyx2lyx(progloc, path):
     # for $SOMEDIR/lyx2lyx/lyx2lyx.
     ourpath = os.path.dirname(abspath(progloc))
     (upone, discard) = os.path.split(ourpath)
-    tryit = os.path.join(upone, "lyx2lyx", "lyx2lyx")
+    if running_on_windows:
+        tryit = os.path.join(upone, b"lyx2lyx", b"lyx2lyx")
+    else:
+        tryit = os.path.join(upone, "lyx2lyx", "lyx2lyx")
     if os.access(tryit, os.X_OK):
         return tryit
 
@@ -233,7 +243,7 @@ def find_lyx2lyx(progloc, path):
     if "PATHEXT" in os.environ:
         extlist = extlist + os.environ["PATHEXT"].split(os.pathsep)
     lyx_exe, full_path = find_exe(["lyxc", "lyx"], extlist, path)
-    if lyx_exe == None:
+    if lyx_exe is None:
         error('Cannot find the LyX executable in the path.')
     try:
         cmd_stdout = subprocess.check_output([lyx_exe, '-version'], stderr=subprocess.STDOUT)
@@ -265,9 +275,12 @@ def main(args):
     ourprog = args[0]
 
     try:
-      (options, argv) = getopt(args[1:], "htzl:o:")
+        if running_on_windows:
+            (options, argv) = getopt(args[1:], b"htzl:o:")
+        else:
+            (options, argv) = getopt(args[1:], "htzl:o:")
     except:
-      error(usage(ourprog))
+        error(usage(ourprog))
 
     # we expect the filename to be left
     if len(argv) != 1:
@@ -278,19 +291,19 @@ def main(args):
     lyx2lyx = None
 
     for (opt, param) in options:
-      if opt == "-h":
-        print(usage(ourprog))
-        sys.exit(0)
-      elif opt == "-t":
-        makezip = False
-      elif opt == "-z":
-        makezip = True
-      elif opt == "-l":
-        lyx2lyx = param
-      elif opt == "-o":
-        outdir = param
-        if not os.path.isdir(unicode(outdir, 'utf-8')):
-          error('Error: "%s" is not a directory.' % outdir)
+        if opt == "-h":
+            print(usage(ourprog))
+            sys.exit(0)
+        elif opt == "-t":
+            makezip = False
+        elif opt == "-z":
+            makezip = True
+        elif opt == "-l":
+            lyx2lyx = param
+        elif opt == "-o":
+            outdir = param
+            if not os.path.isdir(unicode(outdir, 'utf-8')):
+                error('Error: "%s" is not a directory.' % outdir)
 
     lyxfile = argv[0]
     if not running_on_windows:
@@ -320,7 +333,7 @@ def main(args):
 
     path = os.environ["PATH"].split(os.pathsep)
 
-    if lyx2lyx == None:
+    if lyx2lyx is None:
         lyx2lyx = find_lyx2lyx(ourprog, path)
 
     # Initialize the list with the specified LyX file and recursively
@@ -390,10 +403,10 @@ if __name__ == "__main__":
         argc = c_int(0)
         argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
         # unicode_argv[0] is the Python interpreter, so skip that.
-        argv = [argv_unicode[i].encode('utf-8') for i in xrange(1, argc.value)]
+        argv = [argv_unicode[i].encode('utf-8') for i in range(1, argc.value)]
         # Also skip option arguments to the Python interpreter.
         while len(argv) > 0:
-            if not argv[0].startswith("-"):
+            if not argv[0].startswith(b"-"):
                 break
             argv = argv[1:]
         sys.argv = argv

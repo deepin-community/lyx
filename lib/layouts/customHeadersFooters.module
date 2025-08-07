@@ -1,12 +1,15 @@
-#\DeclareLyXModule[fancyhdr.sty]{Custom Header/Footerlines}
+#\DeclareLyXModule[fancyhdr.sty]{Custom Header/Footer Text}
+#\DeclareCategory{Page Layout}
 #DescriptionBegin
 #Adds environments to define header and footer lines.
+#See the Additional manual, section Modules > Page Layout >
+#Custom Header/Footer Text, for a detailed description.
 #NOTE: To use this module you must set the 'Page style' in 
 #      the menu Document Settings -> Page Layout to 'fancy'!
 #DescriptionEnd
 #Author: Uwe Stöhr
 
-Format 66
+Format 104
 
 Style "Left Header"
   Category		Header/Footer
@@ -26,7 +29,7 @@ Style "Left Header"
   BottomSep		0
   ParSep		0
   LabelFont
-    Color		Green
+    Color		textlabel2
   EndFont
 End
 

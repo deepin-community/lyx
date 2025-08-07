@@ -1,0 +1,366 @@
+#LyX 2.4 created this file. For more info see https://www.lyx.org/
+\lyxformat 620
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin /systemlyxdir/examples/es/
+\textclass article
+\use_default_options false
+\maintain_unincluded_children no
+\language spanish
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "palatino" "default"
+\font_sans "helvet" "default"
+\font_typewriter "courier" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 95 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures false
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 0
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\index Índice
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style french
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tablestyle default
+\tracking_changes true
+\output_changes false
+\change_bars false
+\postpone_fragile_content false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\author -1463541724 "Daniel" d3vf4n@tutanota.com
+\end_header
+
+\begin_body
+
+\begin_layout Title
+¡Bienvenido a \SpecialChar LyX
+!
+\end_layout
+
+\begin_layout Section*
+Lo más importante que hay que saber para usar \SpecialChar LyX
+
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ viene con una excelente documentación,
+ por favor ¡ús
+\change_inserted -1463541724 1693500073
+a
+\change_deleted -1463541724 1693500073
+e
+\change_unchanged
+la!
+ Puede
+\change_inserted -1463541724 1693500078
+s
+\change_unchanged
+ comenzar con el menú 
+\family sans
+Ayuda\SpecialChar menuseparator
+Introducción
+\family default
+,
+ que da una introducción muy breve a la documentación.
+ Después puede
+\change_inserted -1463541724 1693500087
+s
+\change_unchanged
+ aprender a usar \SpecialChar LyX
+ con 
+\family sans
+Ayuda\SpecialChar menuseparator
+Tutorial
+\family default
+.
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ es lo que llamamos un 
+\emph on
+procesador de documentos
+\emph default
+.
+ Por su diseño,
+ es distinto a los procesadores de texto convencionales,
+ haciendo que resulte más sencilla la tarea de escribir documentos;
+ pero solo un poco distinto,
+ no 
+\change_deleted -1463541724 1693500103
+s
+\change_inserted -1463541724 1693500103
+t
+\change_unchanged
+e asuste
+\change_inserted -1463541724 1693500107
+s
+\change_unchanged
+.
+ La documentación 
+\change_deleted -1463541724 1693500115
+le
+\change_unchanged
+ dejará todo claro.
+\end_layout
+
+\begin_layout Enumerate
+Los documentos producidos con \SpecialChar LyX
+ tienen un aspecto impecable.
+ Seleccion
+\change_deleted -1463541724 1693500121
+e
+\change_inserted -1463541724 1693500121
+a
+\change_unchanged
+ el menú 
+\family sans
+Documento\SpecialChar menuseparator
+Ver
+\begin_inset space ~
+\end_inset
+
+[PDF
+\begin_inset space ~
+\end_inset
+
+(pdflatex)]
+\family default
+ o puls
+\change_deleted -1463541724 1693500126
+e
+\change_inserted -1463541724 1693500126
+a
+\change_unchanged
+ en la barra de herramientas el botón 
+\begin_inset Info
+type  "icon"
+arg   "buffer-view"
+\end_inset
+
+ para comprobarlo.
+ (Véase punto 7).
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ puede imitar (casi) toda la funcionalidad de \SpecialChar LaTeX
+ y también puede importar ficheros \SpecialChar LaTeX
+.
+ Los usuarios experimentados de \SpecialChar LaTeX
+ deberían leer la sección 
+\emph on
+\SpecialChar LyX
+ para usuarios de \SpecialChar LaTeX
+
+\emph default
+ y hojear el resto del 
+\emph on
+Tutorial
+\emph default
+.
+ (Al resto de lectores:
+ no 
+\change_deleted -1463541724 1693500199
+se
+\change_inserted -1463541724 1693500200
+os
+\change_unchanged
+ preocup
+\change_inserted -1463541724 1693500211
+éis
+\change_deleted -1463541724 1693500209
+e
+\change_unchanged
+,
+ no 
+\change_inserted -1463541724 1693500216
+se 
+\change_unchanged
+necesita saber \SpecialChar LaTeX
+ para usar \SpecialChar LyX
+).
+\end_layout
+
+\begin_layout Enumerate
+\SpecialChar LyX
+ tiene muchas características para aquellos que leen o escriben en un idioma distinto del inglés.
+ Además,
+ las asociaciones de teclas,
+ las barras de herramientas y muchas otras características son altamente configurables.
+ Véase 
+\family sans
+Ayuda\SpecialChar menuseparator
+Personalización
+\family default
+ para más detalles.
+\end_layout
+
+\begin_layout Enumerate
+El sitio web de \SpecialChar LyX
+ en Internet está en
+\change_inserted -1463541724 1693500782
+ 
+\change_unchanged
+
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org/WebEs.Home
+\end_layout
+
+\end_inset
+
+.
+ Allí podrá
+\change_inserted -1463541724 1693500242
+s
+\change_unchanged
+ encontrar información sobre el programa,
+ suscribir
+\change_deleted -1463541724 1693500248
+s
+\change_inserted -1463541724 1693500248
+t
+\change_unchanged
+e a la(s) lista(s) de correo,
+ ver la introducción a \SpecialChar LyX
+ en imágenes (
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://www.lyx.org/WebEs.Walkthrough
+\end_layout
+
+\end_inset
+
+) y muchas más cosas.
+\end_layout
+
+\begin_layout Enumerate
+
+\series bold
+Nota para usuarios de GNU/Linux:
+
+\series default
+ comprueb
+\change_deleted -1463541724 1693500261
+e
+\change_inserted -1463541724 1693500261
+a
+\change_unchanged
+ que los paquetes de idioma de la distribución \SpecialChar LaTeX
+ 
+\family sans
+\SpecialChar TeX
+
+\begin_inset space ~
+\end_inset
+
+Live
+\family default
+ están instalados,
+ sino \SpecialChar LaTeX
+ 
+\change_deleted -1463541724 1693500272
+le
+\change_unchanged
+ dará errores.
+\begin_inset Newline newline
+\end_inset
+
+Por ejemplo,
+ en las distribuciones 
+\family sans
+Kubuntu,
+ Xubuntu
+\family default
+ y 
+\family sans
+Debian
+\family default
+ el nombre del paquete para el idioma español es 
+\family typewriter
+texlive-lang-spanish
+\family default
+.
+\begin_inset Newline newline
+\end_inset
+
+Después de la instalación de paquetes de idioma hay que usar en \SpecialChar LyX
+ el menú 
+\family sans
+Herramientas
+\family default
+\SpecialChar menuseparator
+
+\family sans
+Reconfigurar
+\family default
+.
+\end_layout
+
+\end_body
+\end_document

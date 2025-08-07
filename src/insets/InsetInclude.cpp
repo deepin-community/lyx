@@ -4,7 +4,7 @@
  * Licence details can be found in the file COPYING.
  *
  * \author Lars Gullik Bjønnes
- * \author Richard Heck (conversion to InsetCommand)
+ * \author Richard Kimberly Heck (conversion to InsetCommand)
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -20,7 +20,6 @@
 #include "BufferView.h"
 #include "Converter.h"
 #include "Cursor.h"
-#include "DispatchResult.h"
 #include "Encoding.h"
 #include "ErrorList.h"
 #include "Exporter.h"
@@ -28,14 +27,11 @@
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "LaTeXFeatures.h"
-#include "LayoutFile.h"
 #include "LayoutModuleList.h"
 #include "LyX.h"
-#include "Lexer.h"
 #include "MetricsInfo.h"
 #include "output_plaintext.h"
 #include "output_xhtml.h"
-#include "OutputParams.h"
 #include "texstream.h"
 #include "TextClass.h"
 #include "TocBackend.h"
@@ -55,16 +51,14 @@
 #include "support/convert.h"
 #include "support/debug.h"
 #include "support/docstream.h"
+#include "support/FileName.h"
 #include "support/FileNameList.h"
 #include "support/filetools.h"
 #include "support/gettext.h"
 #include "support/lassert.h"
 #include "support/lstrings.h" // contains
-#include "support/lyxalgo.h"
 #include "support/mutex.h"
 #include "support/ExceptionMessage.h"
-
-#include "support/bind.h"
 
 using namespace std;
 using namespace lyx::support;
@@ -151,7 +145,7 @@ string const parentFileName(Buffer const & buffer)
 FileName const includedFileName(Buffer const & buffer,
 			      InsetCommandParams const & params)
 {
-	return makeAbsPath(to_utf8(params["filename"]),
+	return makeAbsPath(ltrim(to_utf8(params["filename"])),
 			onlyPath(parentFileName(buffer)));
 }
 
@@ -159,7 +153,7 @@ FileName const includedFileName(Buffer const & buffer,
 InsetLabel * createLabel(Buffer * buf, docstring const & label_str)
 {
 	if (label_str.empty())
-		return 0;
+		return nullptr;
 	InsetCommandParams icp(LABEL_CODE);
 	icp["name"] = label_str;
 	return new InsetLabel(buf, icp);
@@ -182,15 +176,26 @@ char_type replaceCommaInBraces(docstring & params)
 	return private_char;
 }
 
+docstring stripOuterBraces(docstring & str)
+{
+	// trim only first and last occurrence of { and }
+	if (prefixIs(str, from_ascii("{")))
+		str = str.substr(1, docstring::npos);
+	if (suffixIs(str, from_ascii("}")))
+		str = str.substr(0, str.size() - 1);
+	return str;
+}
+
 } // namespace
 
 
 InsetInclude::InsetInclude(Buffer * buf, InsetCommandParams const & p)
 	: InsetCommand(buf, p), include_label(uniqueID()),
 	  preview_(make_unique<RenderMonitoredPreview>(this)), failedtoload_(false),
-	  set_label_(false), label_(0), child_buffer_(0)
+	  label_(nullptr), child_buffer_(nullptr), file_exist_(false),
+	  recursion_error_(false)
 {
-	preview_->connect([=](){ fileChanged(); });
+	preview_->connect([this](){ fileChanged(); });
 
 	if (isListings(params())) {
 		InsetListingsParams listing_params(to_utf8(p["lstparams"]));
@@ -203,9 +208,10 @@ InsetInclude::InsetInclude(Buffer * buf, InsetCommandParams const & p)
 InsetInclude::InsetInclude(InsetInclude const & other)
 	: InsetCommand(other), include_label(other.include_label),
 	  preview_(make_unique<RenderMonitoredPreview>(this)), failedtoload_(false),
-	  set_label_(false), label_(0), child_buffer_(0)
+	  label_(nullptr), child_buffer_(nullptr),
+	  file_exist_(other.file_exist_),recursion_error_(other.recursion_error_)
 {
-	preview_->connect([=](){ fileChanged(); });
+	preview_->connect([this](){ fileChanged(); });
 
 	if (other.label_)
 		label_ = new InsetLabel(*other.label_);
@@ -241,6 +247,7 @@ ParamInfo const & InsetInclude::findInfo(string const & /* cmdName */)
 	if (param_info_.empty()) {
 		param_info_.add("filename", ParamInfo::LATEX_REQUIRED);
 		param_info_.add("lstparams", ParamInfo::LATEX_OPTIONAL);
+		param_info_.add("literal", ParamInfo::LYX_INTERNAL);
 	}
 	return param_info_;
 }
@@ -252,12 +259,19 @@ bool InsetInclude::isCompatibleCommand(string const & s)
 }
 
 
+bool InsetInclude::needsCProtection(bool const /*maintext*/, bool const fragile) const
+{
+	// We need to \cprotect all types in fragile context
+	return fragile;
+}
+
+
 void InsetInclude::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
 	switch (cmd.action()) {
 
 	case LFUN_INSET_EDIT: {
-		editIncluded(to_utf8(params()["filename"]));
+		editIncluded(ltrim(to_utf8(params()["filename"])));
 		break;
 	}
 
@@ -280,7 +294,7 @@ void InsetInclude::doDispatch(Cursor & cur, FuncRequest & cmd)
 
 				if (new_label.empty()) {
 					delete label_;
-					label_ = 0;
+					label_ = nullptr;
 				} else {
 					docstring old_label;
 					if (label_)
@@ -309,6 +323,16 @@ void InsetInclude::doDispatch(Cursor & cur, FuncRequest & cmd)
 		break;
 	}
 
+	case LFUN_MOUSE_RELEASE: {
+		if (cmd.modifier() == ControlModifier) {
+			FileName const incfile = includedFileName(buffer(), params());
+			string const & incname = incfile.absFileName();
+			editIncluded(incname);
+			break;
+		}
+	}
+	// fall through
+
 	//pass everything else up the chain
 	default:
 		InsetCommand::doDispatch(cur, cmd);
@@ -317,16 +341,15 @@ void InsetInclude::doDispatch(Cursor & cur, FuncRequest & cmd)
 }
 
 
-void InsetInclude::editIncluded(string const & file)
+void InsetInclude::editIncluded(string const & f)
 {
-	string const ext = support::getExtension(file);
-	if (ext == "lyx") {
-		FuncRequest fr(LFUN_BUFFER_CHILD_OPEN, file);
+	if (isLyXFileName(f)) {
+		FuncRequest fr(LFUN_BUFFER_CHILD_OPEN, f);
 		lyx::dispatch(fr);
 	} else
 		// tex file or other text file in verbatim mode
 		theFormats().edit(buffer(),
-			support::makeAbsPath(file, support::onlyPath(buffer().absFileName())),
+			support::makeAbsPath(f, support::onlyPath(buffer().absFileName())),
 			"text");
 }
 
@@ -356,13 +379,13 @@ bool InsetInclude::getStatus(Cursor & cur, FuncRequest const & cmd,
 void InsetInclude::setParams(InsetCommandParams const & p)
 {
 	// invalidate the cache
-	child_buffer_ = 0;
+	child_buffer_ = nullptr;
 
 	// reset in order to allow loading new file
 	failedtoload_ = false;
+	recursion_error_ = false;
 
 	InsetCommand::setParams(p);
-	set_label_ = false;
 
 	if (preview_->monitoring())
 		preview_->stopMonitoring();
@@ -380,12 +403,14 @@ bool InsetInclude::isChildIncluded() const
 		return true;
 	return (std::find(includeonlys.begin(),
 			  includeonlys.end(),
-			  to_utf8(params()["filename"])) != includeonlys.end());
+			  ltrim(to_utf8(params()["filename"]))) != includeonlys.end());
 }
 
 
 docstring InsetInclude::screenLabel() const
 {
+	docstring pre = file_exist_ ? docstring() : _("MISSING:");
+
 	docstring temp;
 
 	switch (type(params())) {
@@ -393,10 +418,10 @@ docstring InsetInclude::screenLabel() const
 			temp = buffer().B_("Input");
 			break;
 		case VERB:
-			temp = buffer().B_("Verbatim Input");
+			temp = buffer().B_("Verbatim");
 			break;
 		case VERBAST:
-			temp = buffer().B_("Verbatim Input*");
+			temp = buffer().B_("Verbatim*");
 			break;
 		case INCLUDE:
 			if (isChildIncluded())
@@ -414,23 +439,12 @@ docstring InsetInclude::screenLabel() const
 
 	temp += ": ";
 
-	if (params()["filename"].empty())
+	if (ltrim(params()["filename"]).empty())
 		temp += "???";
 	else
-		temp += from_utf8(onlyFileName(to_utf8(params()["filename"])));
+		temp += from_utf8(onlyFileName(ltrim(to_utf8(params()["filename"]))));
 
-	return temp;
-}
-
-
-Buffer * InsetInclude::getChildBuffer() const
-{
-	Buffer * childBuffer = loadIfNeeded();
-
-	// FIXME RECURSIVE INCLUDE
-	// This isn't sufficient, as the inclusion could be downstream.
-	// But it'll have to do for now.
-	return (childBuffer == &buffer()) ? 0 : childBuffer;
+	return pre.empty() ? temp : pre + from_ascii(" ") + temp;
 }
 
 
@@ -443,47 +457,53 @@ Buffer * InsetInclude::loadIfNeeded() const
 
 	// Don't try to load it again if we failed before.
 	if (failedtoload_ || isVerbatim(params()) || isListings(params()))
-		return 0;
+		return nullptr;
 
 	FileName const included_file = includedFileName(buffer(), params());
 	// Use cached Buffer if possible.
-	if (child_buffer_ != 0) {
+	if (child_buffer_ != nullptr) {
 		if (theBufferList().isLoaded(child_buffer_)
 		    // additional sanity check: make sure the Buffer really is
 		    // associated with the file we want.
 		    && child_buffer_ == theBufferList().getBuffer(included_file))
 			return child_buffer_;
 		// Buffer vanished, so invalidate cache and try to reload.
-		child_buffer_ = 0;
+		child_buffer_ = nullptr;
 	}
 
 	if (!isLyXFileName(included_file.absFileName()))
-		return 0;
+		return nullptr;
 
 	Buffer * child = theBufferList().getBuffer(included_file);
+	if (checkForRecursiveInclude(child))
+		return child;
+
 	if (!child) {
 		// the readonly flag can/will be wrong, not anymore I think.
 		if (!included_file.exists()) {
 			failedtoload_ = true;
-			return 0;
+			return nullptr;
 		}
 
 		child = theBufferList().newBuffer(included_file.absFileName());
 		if (!child)
 			// Buffer creation is not possible.
-			return 0;
+			return nullptr;
 
+		buffer().pushIncludedBuffer(child);
 		// Set parent before loading, such that macros can be tracked
 		child->setParent(&buffer());
 
 		if (child->loadLyXFile() != Buffer::ReadSuccess) {
 			failedtoload_ = true;
-			child->setParent(0);
+			child->setParent(nullptr);
 			//close the buffer we just opened
 			theBufferList().release(child);
-			return 0;
+			buffer().popIncludedBuffer();
+			return nullptr;
 		}
 
+		buffer().popIncludedBuffer();
 		if (!child->errorList("Parse").empty()) {
 			// FIXME: Do something.
 		}
@@ -506,30 +526,61 @@ Buffer * InsetInclude::loadIfNeeded() const
 }
 
 
+bool InsetInclude::checkForRecursiveInclude(
+	Buffer const * cbuf, bool silent) const
+{
+	if (recursion_error_)
+		return true;
+
+	if (!buffer().isBufferIncluded(cbuf))
+		return false;
+
+	if (!silent) {
+		docstring const msg = _("The file\n%1$s\n has attempted to include itself.\n"
+			"The document set will not work properly until this is fixed!");
+		frontend::Alert::warning(_("Recursive Include"),
+			bformat(msg, from_utf8(cbuf->fileName().absFileName())));
+	}
+	recursion_error_ = true;
+	return true;
+}
+
+
 void InsetInclude::latex(otexstream & os, OutputParams const & runparams) const
 {
-	string incfile = to_utf8(params()["filename"]);
+	string incfile = ltrim(to_utf8(params()["filename"]));
 
-	// Do nothing if no file name has been specified
-	if (incfile.empty())
-		return;
-
-	FileName const included_file = includedFileName(buffer(), params());
-
-	// Check we're not trying to include ourselves.
-	// FIXME RECURSIVE INCLUDE
-	// This isn't sufficient, as the inclusion could be downstream.
-	// But it'll have to do for now.
-	if (isInputOrInclude(params()) &&
-		buffer().absFileName() == included_file.absFileName())
-	{
-		Alert::error(_("Recursive input"),
-			       bformat(_("Attempted to include file %1$s in itself! "
-			       "Ignoring inclusion."), from_utf8(incfile)));
+	// Warn if no file name has been specified
+	if (incfile.empty()) {
+		frontend::Alert::warning(_("No file name specified"),
+			_("An included file name is empty.\n"
+			   "Ignoring Inclusion"),
+			true);
 		return;
 	}
+	// Warn if file doesn't exist
+	if (!includedFileExist()) {
+		frontend::Alert::warning(_("Included file not found"),
+			bformat(_("The included file\n"
+				  "'%1$s'\n"
+				  "has not been found. LyX will ignore the inclusion."),
+				from_utf8(incfile)),
+			true);
+		 return;
+	}
 
+	FileName const included_file = includedFileName(buffer(), params());
 	Buffer const * const masterBuffer = buffer().masterBuffer();
+
+	if (runparams.inDeletedInset) {
+		// We cannot strike-out whole children,
+		// so we just output a note.
+		os << "\\textbf{"
+		   << bformat(buffer().B_("[INCLUDED FILE %1$s DELETED!]"),
+			      from_utf8(included_file.onlyFileName()))
+		   << "}";
+		return;
+	}
 
 	// if incfile is relative, make it relative to the master
 	// buffer directory.
@@ -577,9 +628,9 @@ void InsetInclude::latex(otexstream & os, OutputParams const & runparams) const
 	FileName const writefile(makeAbsPath(mangled, runparams.for_preview ?
 						 buffer().temppath() : masterBuffer->temppath()));
 
-	LYXERR(Debug::LATEX, "incfile:" << incfile);
-	LYXERR(Debug::LATEX, "exportfile:" << exportfile);
-	LYXERR(Debug::LATEX, "writefile:" << writefile);
+	LYXERR(Debug::OUTFILE, "incfile:" << incfile);
+	LYXERR(Debug::OUTFILE, "exportfile:" << exportfile);
+	LYXERR(Debug::OUTFILE, "writefile:" << writefile);
 
 	string const tex_format = flavor2format(runparams.flavor);
 
@@ -612,7 +663,7 @@ void InsetInclude::latex(otexstream & os, OutputParams const & runparams) const
 		break;
 	}
 	case LISTINGS: {
-		// Here, listings and minted have sligthly different behaviors.
+		// Here, listings and minted have slightly different behaviors.
 		// Using listings, it is always possible to have a caption,
 		// even for non-floats. Using minted, only floats can have a
 		// caption. So, with minted we use the following strategy.
@@ -658,14 +709,15 @@ void InsetInclude::latex(otexstream & os, OutputParams const & runparams) const
 				language = opts[i].substr(9);
 				opts.erase(opts.begin() + i--);
 			} else if (prefixIs(opts[i], from_ascii("caption="))) {
-				// FIXME We should use HANDLING_LATEXIFY here,
-				// but that's a file format change (see #10455).
 				caption = opts[i].substr(8);
+				caption = params().prepareCommand(runparams, stripOuterBraces(caption),
+								  ParamInfo::HANDLING_LATEXIFY);
 				opts.erase(opts.begin() + i--);
 				if (!use_minted)
-					latexed_opts.push_back(from_ascii("caption=") + caption);
+					latexed_opts.push_back(from_ascii("caption={") + caption + "}");
 			} else if (prefixIs(opts[i], from_ascii("label="))) {
-				label = params().prepareCommand(runparams, trim(opts[i].substr(6), "{}"),
+				label = opts[i].substr(6);
+				label = params().prepareCommand(runparams, stripOuterBraces(label),
 								ParamInfo::HANDLING_ESCAPE);
 				opts.erase(opts.begin() + i--);
 				if (!use_minted)
@@ -673,7 +725,7 @@ void InsetInclude::latex(otexstream & os, OutputParams const & runparams) const
 			}
 			if (use_minted && !label.empty()) {
 				if (isfloat || !caption.empty())
-					label = trim(label, "{}");
+					label = stripOuterBraces(label);
 				else
 					opts.push_back(from_ascii("label=") + label);
 			}
@@ -731,132 +783,8 @@ void InsetInclude::latex(otexstream & os, OutputParams const & runparams) const
 		// in a comment or doing a dryrun
 		return;
 
-	if (isInputOrInclude(params()) &&
-		 isLyXFileName(included_file.absFileName())) {
-		// if it's a LyX file and we're inputting or including,
-		// try to load it so we can write the associated latex
-
-		Buffer * tmp = loadIfNeeded();
-		if (!tmp) {
-			if (!runparams.silent) {
-				docstring text = bformat(_("Could not load included "
-					"file\n`%1$s'\n"
-					"Please, check whether it actually exists."),
-					included_file.displayName());
-				throw ExceptionMessage(ErrorException, _("Error: "),
-						       text);
-			}
-			return;
-		}
-
-		if (!runparams.silent) {
-			if (tmp->params().baseClass() != masterBuffer->params().baseClass()) {
-				// FIXME UNICODE
-				docstring text = bformat(_("Included file `%1$s'\n"
-					"has textclass `%2$s'\n"
-					"while parent file has textclass `%3$s'."),
-					included_file.displayName(),
-					from_utf8(tmp->params().documentClass().name()),
-					from_utf8(masterBuffer->params().documentClass().name()));
-				Alert::warning(_("Different textclasses"), text, true);
-			}
-
-			string const child_tf = tmp->params().useNonTeXFonts ? "true" : "false";
-			string const master_tf = masterBuffer->params().useNonTeXFonts ? "true" : "false";
-			if (tmp->params().useNonTeXFonts != masterBuffer->params().useNonTeXFonts) {
-				docstring text = bformat(_("Included file `%1$s'\n"
-					"has use-non-TeX-fonts set to `%2$s'\n"
-					"while parent file has use-non-TeX-fonts set to `%3$s'."),
-					included_file.displayName(),
-					from_utf8(child_tf),
-					from_utf8(master_tf));
-				Alert::warning(_("Different use-non-TeX-fonts settings"), text, true);
-			}
-
-			// Make sure modules used in child are all included in master
-			// FIXME It might be worth loading the children's modules into the master
-			// over in BufferParams rather than doing this check.
-			LayoutModuleList const masterModules = masterBuffer->params().getModules();
-			LayoutModuleList const childModules = tmp->params().getModules();
-			LayoutModuleList::const_iterator it = childModules.begin();
-			LayoutModuleList::const_iterator end = childModules.end();
-			for (; it != end; ++it) {
-				string const module = *it;
-				LayoutModuleList::const_iterator found =
-					find(masterModules.begin(), masterModules.end(), module);
-				if (found == masterModules.end()) {
-					docstring text = bformat(_("Included file `%1$s'\n"
-						"uses module `%2$s'\n"
-						"which is not used in parent file."),
-						included_file.displayName(), from_utf8(module));
-					Alert::warning(_("Module not found"), text, true);
-				}
-			}
-		}
-
-		tmp->markDepClean(masterBuffer->temppath());
-
-		// Don't assume the child's format is latex
-		string const inc_format = tmp->params().bufferFormat();
-		FileName const tmpwritefile(changeExtension(writefile.absFileName(),
-			theFormats().extension(inc_format)));
-
-		// FIXME: handle non existing files
-		// The included file might be written in a different encoding
-		// and language.
-		Encoding const * const oldEnc = runparams.encoding;
-		Language const * const oldLang = runparams.master_language;
-		// If the master uses non-TeX fonts (XeTeX, LuaTeX),
-		// the children must be encoded in plain utf8!
-		runparams.encoding = masterBuffer->params().useNonTeXFonts ?
-			encodings.fromLyXName("utf8-plain")
-			: &tmp->params().encoding();
-		runparams.master_language = buffer().params().language;
-		runparams.par_begin = 0;
-		runparams.par_end = tmp->paragraphs().size();
-		runparams.is_child = true;
-		if (!tmp->makeLaTeXFile(tmpwritefile, masterFileName(buffer()).
-				onlyPath().absFileName(), runparams, Buffer::OnlyBody)) {
-			if (!runparams.silent) {
-				docstring msg = bformat(_("Included file `%1$s' "
-					"was not exported correctly.\n "
-					"LaTeX export is probably incomplete."),
-					included_file.displayName());
-				ErrorList const & el = tmp->errorList("Export");
-				if (!el.empty())
-					msg = bformat(from_ascii("%1$s\n\n%2$s\n\n%3$s"),
-						msg, el.begin()->error,
-						el.begin()->description);
-				throw ExceptionMessage(ErrorException, _("Error: "),
-						       msg);
-			}
-		}
-		runparams.encoding = oldEnc;
-		runparams.master_language = oldLang;
-		runparams.is_child = false;
-
-		// If needed, use converters to produce a latex file from the child
-		if (tmpwritefile != writefile) {
-			ErrorList el;
-			bool const success =
-				theConverters().convert(tmp, tmpwritefile, writefile,
-							included_file,
-							inc_format, tex_format, el);
-
-			if (!success && !runparams.silent) {
-				docstring msg = bformat(_("Included file `%1$s' "
-						"was not exported correctly.\n "
-						"LaTeX export is probably incomplete."),
-						included_file.displayName());
-				if (!el.empty())
-					msg = bformat(from_ascii("%1$s\n\n%2$s\n\n%3$s"),
-							msg, el.begin()->error,
-							el.begin()->description);
-				throw ExceptionMessage(ErrorException, _("Error: "),
-						       msg);
-			}
-		}
-	} else {
+	if (!isInputOrInclude(params()) ||
+		 !isLyXFileName(included_file.absFileName())) {
 		// In this case, it's not a LyX file, so we copy the file
 		// to the temp dir, so that .aux files etc. are not created
 		// in the original dir. Files included by this file will be
@@ -864,22 +792,169 @@ void InsetInclude::latex(otexstream & os, OutputParams const & runparams) const
 		// input@path, see ../Buffer.cpp.
 		unsigned long const checksum_in  = included_file.checksum();
 		unsigned long const checksum_out = writefile.checksum();
-
 		if (checksum_in != checksum_out) {
 			if (!included_file.copyTo(writefile)) {
 				// FIXME UNICODE
-				LYXERR(Debug::LATEX,
+				LYXERR(Debug::OUTFILE,
 					to_utf8(bformat(_("Could not copy the file\n%1$s\n"
 									"into the temporary directory."),
 							 from_utf8(included_file.absFileName()))));
-				return;
 			}
+		}
+		return;
+	}
+
+		
+	// it's a LyX file and we're inputting or including, so
+	// try to load it so we can write the associated latex
+	Buffer * tmp = loadIfNeeded();
+	if (!tmp) {
+		if (!runparams.silent) {
+			docstring text = bformat(_("Could not load included "
+				"file\n`%1$s'\n"
+				"Please, check whether it actually exists."),
+				included_file.displayName());
+			throw ExceptionMessage(ErrorException, _("Error: "),
+						   text);
+		}
+		return;
+	}
+
+	if (recursion_error_)
+		return;
+
+	if (!runparams.silent) {
+		if (tmp->params().baseClass() != masterBuffer->params().baseClass()) {
+			// FIXME UNICODE
+			docstring text = bformat(_("Included file `%1$s'\n"
+				"has textclass `%2$s'\n"
+				"while parent file has textclass `%3$s'."),
+				included_file.displayName(),
+				from_utf8(tmp->params().documentClass().name()),
+				from_utf8(masterBuffer->params().documentClass().name()));
+			Alert::warning(_("Different textclasses"), text, true);
+		}
+
+		string const child_tf = tmp->params().useNonTeXFonts ? "true" : "false";
+		string const master_tf = masterBuffer->params().useNonTeXFonts ? "true" : "false";
+		if (tmp->params().useNonTeXFonts != masterBuffer->params().useNonTeXFonts) {
+			docstring text = bformat(_("Included file `%1$s'\n"
+				"has use-non-TeX-fonts set to `%2$s'\n"
+				"while parent file has use-non-TeX-fonts set to `%3$s'."),
+				included_file.displayName(),
+				from_utf8(child_tf),
+				from_utf8(master_tf));
+			Alert::warning(_("Different use-non-TeX-fonts settings"), text, true);
+		} 
+		else if (!tmp->params().useNonTeXFonts // implies both files do not use non-tex fonts
+			 && tmp->params().inputenc != masterBuffer->params().inputenc) {
+			docstring text = bformat(_("Included file `%1$s'\n"
+				"uses input encoding \"%2$s\" [%3$s]\n"
+				"while parent file uses input encoding \"%4$s\" [%5$s]."),
+				included_file.displayName(),
+				_(tmp->params().inputenc),
+				from_utf8(tmp->params().encoding().guiName()),
+				_(masterBuffer->params().inputenc),
+				from_utf8(masterBuffer->params().encoding().guiName()));
+			Alert::warning(_("Different LaTeX input encodings"), text, true);
+		}
+
+		// Make sure modules used in child are all included in master
+		// FIXME It might be worth loading the children's modules into the master
+		// over in BufferParams rather than doing this check.
+		LayoutModuleList const masterModules = masterBuffer->params().getModules();
+		LayoutModuleList const childModules = tmp->params().getModules();
+		LayoutModuleList::const_iterator it = childModules.begin();
+		LayoutModuleList::const_iterator end = childModules.end();
+		for (; it != end; ++it) {
+			string const module = *it;
+			LayoutModuleList::const_iterator found =
+				find(masterModules.begin(), masterModules.end(), module);
+			if (found == masterModules.end()) {
+				docstring text = bformat(_("Included file `%1$s'\n"
+					"uses module `%2$s'\n"
+					"which is not used in parent file."),
+					included_file.displayName(), from_utf8(module));
+				Alert::warning(_("Module not found"), text, true);
+			}
+		}
+	}
+
+	tmp->markDepClean(masterBuffer->temppath());
+
+	// Don't assume the child's format is latex
+	string const inc_format = tmp->params().bufferFormat();
+	FileName const tmpwritefile(changeExtension(writefile.absFileName(),
+		theFormats().extension(inc_format)));
+
+	// FIXME: handle non existing files
+	// The included file might be written in a different encoding
+	// and language.
+	Encoding const * const oldEnc = runparams.encoding;
+	Language const * const oldLang = runparams.master_language;
+	// If the master uses non-TeX fonts (XeTeX, LuaTeX),
+	// the children must be encoded in plain utf8!
+	if (masterBuffer->params().useNonTeXFonts)
+		runparams.encoding = encodings.fromLyXName("utf8-plain");
+	else if (oldEnc)
+		runparams.encoding = oldEnc;
+	else runparams.encoding = &tmp->params().encoding();
+	runparams.master_language = buffer().params().language;
+	runparams.par_begin = 0;
+	runparams.par_end = tmp->paragraphs().size();
+	runparams.is_child = true;
+	Buffer::ExportStatus retval =
+		tmp->makeLaTeXFile(tmpwritefile, masterFileName(buffer()).
+			onlyPath().absFileName(), runparams, Buffer::OnlyBody);
+	if (retval == Buffer::ExportKilled && buffer().isClone() &&
+		  buffer().isExporting()) {
+	  // We really shouldn't get here, I don't think.
+	  LYXERR0("No conversion exception?");
+		throw ConversionException();
+	}
+	else if (retval != Buffer::ExportSuccess) {
+		if (!runparams.silent) {
+			docstring msg = bformat(_("Included file `%1$s' "
+				"was not exported correctly.\n "
+				"LaTeX export is probably incomplete."),
+				included_file.displayName());
+			ErrorList const & el = tmp->errorList("Export");
+			if (!el.empty())
+				msg = bformat(from_ascii("%1$s\n\n%2$s\n\n%3$s"),
+						msg, el.begin()->error, el.begin()->description);
+			throw ExceptionMessage(ErrorException, _("Error: "), msg);
+		}
+	}
+	runparams.encoding = oldEnc;
+	runparams.master_language = oldLang;
+	runparams.is_child = false;
+
+	// If needed, use converters to produce a latex file from the child
+	if (tmpwritefile != writefile) {
+		ErrorList el;
+		Converters::RetVal const conv_retval =
+			theConverters().convert(tmp, tmpwritefile, writefile,
+				included_file, inc_format, tex_format, el);
+		if (conv_retval == Converters::KILLED && buffer().isClone() &&
+			buffer().isExporting()) {
+			// We really shouldn't get here, I don't think.
+			LYXERR0("No conversion exception?");
+			throw ConversionException();
+		} else if (conv_retval != Converters::SUCCESS && !runparams.silent) {
+			docstring msg = bformat(_("Included file `%1$s' "
+					"was not exported correctly.\n "
+					"LaTeX export is probably incomplete."),
+					included_file.displayName());
+			if (!el.empty())
+				msg = bformat(from_ascii("%1$s\n\n%2$s\n\n%3$s"),
+						msg, el.begin()->error, el.begin()->description);
+			throw ExceptionMessage(ErrorException, _("Error: "), msg);
 		}
 	}
 }
 
 
-docstring InsetInclude::xhtml(XHTMLStream & xs, OutputParams const & rp) const
+docstring InsetInclude::xhtml(XMLStream & xs, OutputParams const & rp) const
 {
 	if (rp.inComment)
 		 return docstring();
@@ -889,11 +964,11 @@ docstring InsetInclude::xhtml(XHTMLStream & xs, OutputParams const & rp) const
 	bool const listing = isListings(params());
 	if (listing || isVerbatim(params())) {
 		if (listing)
-			xs << html::StartTag("pre");
+			xs << xml::StartTag("pre");
 		// FIXME: We don't know the encoding of the file, default to UTF-8.
 		xs << includedFileName(buffer(), params()).fileContents("UTF-8");
 		if (listing)
-			xs << html::EndTag("pre");
+			xs << xml::EndTag("pre");
 		return docstring();
 	}
 
@@ -906,23 +981,17 @@ docstring InsetInclude::xhtml(XHTMLStream & xs, OutputParams const & rp) const
 			frontend::Alert::warning(_("Unsupported Inclusion"),
 					 bformat(_("LyX does not know how to include non-LyX files when "
 					           "generating HTML output. Offending file:\n%1$s"),
-					            params()["filename"]));
+					            ltrim(params()["filename"])));
 		return docstring();
 	}
 
 	// In the other cases, we will generate the HTML and include it.
 
-	// Check we're not trying to include ourselves.
-	// FIXME RECURSIVE INCLUDE
-	if (buffer().absFileName() == included_file.absFileName()) {
-		Alert::error(_("Recursive input"),
-			       bformat(_("Attempted to include file %1$s in itself! "
-			       "Ignoring inclusion."), params()["filename"]));
-		return docstring();
-	}
-
 	Buffer const * const ibuf = loadIfNeeded();
 	if (!ibuf)
+		return docstring();
+
+	if (recursion_error_)
 		return docstring();
 
 	// are we generating only some paragraphs, or all of them?
@@ -935,12 +1004,12 @@ docstring InsetInclude::xhtml(XHTMLStream & xs, OutputParams const & rp) const
 		op.par_begin = 0;
 		op.par_end = 0;
 		ibuf->writeLyXHTMLSource(xs.os(), op, Buffer::IncludedFile);
-	} else
-		xs << XHTMLStream::ESCAPE_NONE
-		   << "<!-- Included file: "
-		   << from_utf8(included_file.absFileName())
-		   << XHTMLStream::ESCAPE_NONE
-			 << " -->";
+	} else {
+		xs << XMLStream::ESCAPE_NONE << "<!-- Included file: ";
+		xs << from_utf8(included_file.absFileName());
+		xs << XMLStream::ESCAPE_NONE << " -->";
+	}
+	
 	return docstring();
 }
 
@@ -950,17 +1019,22 @@ int InsetInclude::plaintext(odocstringstream & os,
 {
 	// just write the filename if we're making a tooltip or toc entry,
 	// or are generating this for advanced search
-	if (op.for_tooltip || op.for_toc || op.for_search) {
+	if (op.for_tooltip || op.for_toc || op.find_effective()) {
 		os << '[' << screenLabel() << '\n'
-		   << getParam("filename") << "\n]";
+		   << ltrim(getParam("filename")) << "\n]";
 		return PLAINTEXT_NEWLINE + 1; // one char on a separate line
 	}
 
 	if (isVerbatim(params()) || isListings(params())) {
-		os << '[' << screenLabel() << '\n'
-		   // FIXME: We don't know the encoding of the file, default to UTF-8.
-		   << includedFileName(buffer(), params()).fileContents("UTF-8")
-		   << "\n]";
+		if (op.find_effective()) {
+			os << '[' << screenLabel() << ']';
+		}
+		else {
+			os << '[' << screenLabel() << '\n'
+			   // FIXME: We don't know the encoding of the file, default to UTF-8.
+			   << includedFileName(buffer(), params()).fileContents("UTF-8")
+			   << "\n]";
+		}
 		return PLAINTEXT_NEWLINE + 1; // one char on a separate line
 	}
 
@@ -970,70 +1044,89 @@ int InsetInclude::plaintext(odocstringstream & os,
 		os << str;
 		return str.size();
 	}
+
+	if (recursion_error_)
+		return 0;
+
 	writePlaintextFile(*ibuf, os, op);
 	return 0;
 }
 
 
-int InsetInclude::docbook(odocstream & os, OutputParams const & runparams) const
+void InsetInclude::docbook(XMLStream & xs, OutputParams const & rp) const
 {
-	string incfile = to_utf8(params()["filename"]);
+	if (rp.inComment)
+		return;
 
-	// Do nothing if no file name has been specified
-	if (incfile.empty())
-		return 0;
+	// For verbatim and listings, we just include the contents of the file as-is.
+	bool const verbatim = isVerbatim(params());
+	bool const listing = isListings(params());
+	if (listing || verbatim) {
+		if (listing)
+			xs << xml::StartTag("programlisting");
+		else if (verbatim)
+			xs << xml::StartTag("literallayout");
 
-	string const included_file = includedFileName(buffer(), params()).absFileName();
+		// FIXME: We don't know the encoding of the file, default to UTF-8.
+		xs << includedFileName(buffer(), params()).fileContents("UTF-8");
 
-	// Check we're not trying to include ourselves.
-	// FIXME RECURSIVE INCLUDE
-	// This isn't sufficient, as the inclusion could be downstream.
-	// But it'll have to do for now.
-	if (buffer().absFileName() == included_file) {
-		Alert::error(_("Recursive input"),
-			       bformat(_("Attempted to include file %1$s in itself! "
-			       "Ignoring inclusion."), from_utf8(incfile)));
-		return 0;
+		if (listing)
+			xs << xml::EndTag("programlisting");
+		else if (verbatim)
+			xs << xml::EndTag("literallayout");
+
+		return;
 	}
 
-	string exppath = incfile;
-	if (!runparams.export_folder.empty()) {
-		exppath = makeAbsPath(exppath, runparams.export_folder).realPath();
-		FileName(exppath).onlyPath().createPath();
+	// We don't know how to input or include non-LyX files. Input it as a comment.
+	FileName const included_file = includedFileName(buffer(), params());
+	if (!isLyXFileName(included_file.absFileName())) {
+		if (!rp.silent)
+			frontend::Alert::warning(_("Unsupported Inclusion"),
+			                         bformat(_("LyX does not know how to process included non-LyX files when "
+			                                   "generating DocBook output. The content of the file will be output as a "
+									           "comment. Offending file:\n%1$s"),
+			                                 ltrim(params()["filename"])));
+
+		// Read the file, output it wrapped into comments.
+		xs << XMLStream::ESCAPE_NONE << "<!-- Included file: ";
+		xs << from_utf8(included_file.absFileName());
+		xs << XMLStream::ESCAPE_NONE << " -->";
+
+		xs << XMLStream::ESCAPE_NONE << "<!-- ";
+		xs << included_file.fileContents("UTF-8");
+		xs << XMLStream::ESCAPE_NONE << " -->";
+
+		xs << XMLStream::ESCAPE_NONE << "<!-- End of included file: ";
+		xs << from_utf8(included_file.absFileName());
+		xs << XMLStream::ESCAPE_NONE << " -->";
 	}
 
-	// write it to a file (so far the complete file)
-	string const exportfile = changeExtension(exppath, ".sgml");
-	DocFileName writefile(changeExtension(included_file, ".sgml"));
+	// In the other cases, we generate the DocBook version and include it.
+	Buffer const * const ibuf = loadIfNeeded();
+	if (!ibuf)
+		return;
 
-	Buffer * tmp = loadIfNeeded();
-	if (tmp) {
-		string const mangled = writefile.mangledFileName();
-		writefile = makeAbsPath(mangled,
-					buffer().masterBuffer()->temppath());
-		if (!runparams.nice)
-			incfile = mangled;
+	if (recursion_error_)
+		return;
 
-		LYXERR(Debug::LATEX, "incfile:" << incfile);
-		LYXERR(Debug::LATEX, "exportfile:" << exportfile);
-		LYXERR(Debug::LATEX, "writefile:" << writefile);
+	// are we generating only some paragraphs, or all of them?
+	bool const all_pars = !rp.dryrun ||
+	                      (rp.par_begin == 0 &&
+	                       rp.par_end == (int) buffer().text().paragraphs().size());
 
-		tmp->makeDocBookFile(writefile, runparams, Buffer::OnlyBody);
+	OutputParams op = rp;
+	if (all_pars) {
+		op.par_begin = 0;
+		op.par_end = 0;
+		op.inInclude = true;
+		op.docbook_in_par = false;
+		ibuf->writeDocBookSource(xs.os(), op, Buffer::IncludedFile);
+	} else {
+		xs << XMLStream::ESCAPE_NONE << "<!-- Included file: ";
+		xs << from_utf8(included_file.absFileName());
+		xs << XMLStream::ESCAPE_NONE << " -->";
 	}
-
-	runparams.exportdata->addExternalFile("docbook", writefile,
-					      exportfile);
-	runparams.exportdata->addExternalFile("docbook-xml", writefile,
-					      exportfile);
-
-	if (isVerbatim(params()) || isListings(params())) {
-		os << "<inlinegraphic fileref=\""
-		   << '&' << include_label << ';'
-		   << "\" format=\"linespecific\">";
-	} else
-		os << '&' << include_label << ';';
-
-	return 0;
 }
 
 
@@ -1041,7 +1134,7 @@ void InsetInclude::validate(LaTeXFeatures & features) const
 {
 	LATTEST(&buffer() == &features.buffer());
 
-	string incfile = to_utf8(params()["filename"]);
+	string incfile = ltrim(to_utf8(params()["filename"]));
 	string const included_file =
 		includedFileName(buffer(), params()).absFileName();
 
@@ -1077,40 +1170,47 @@ void InsetInclude::validate(LaTeXFeatures & features) const
 	// Load the file in the include if it needs
 	// to be loaded:
 	Buffer * const tmp = loadIfNeeded();
-	if (tmp) {
-		// the file is loaded
-		// make sure the buffer isn't us
-		// FIXME RECURSIVE INCLUDES
-		// This is not sufficient, as recursive includes could be
-		// more than a file away. But it will do for now.
-		if (tmp && tmp != &buffer()) {
-			// We must temporarily change features.buffer,
-			// otherwise it would always be the master buffer,
-			// and nested includes would not work.
-			features.setBuffer(*tmp);
-			// Maybe this is already a child
-			bool const is_child =
-				features.runparams().is_child;
-			features.runparams().is_child = true;
-			tmp->validate(features);
-			features.runparams().is_child = is_child;
-			features.setBuffer(buffer());
-		}
-	}
+	if (!tmp) 
+		return;
+
+	// the file is loaded
+	if (checkForRecursiveInclude(tmp))
+		return;
+	buffer().pushIncludedBuffer(tmp);
+
+	// We must temporarily change features.buffer,
+	// otherwise it would always be the master buffer,
+	// and nested includes would not work.
+	features.setBuffer(*tmp);
+	// Maybe this is already a child
+	bool const is_child =
+		features.runparams().is_child;
+	features.runparams().is_child = true;
+	tmp->validate(features);
+	features.runparams().is_child = is_child;
+	features.setBuffer(buffer());
+	
+	buffer().popIncludedBuffer();
 }
 
 
 void InsetInclude::collectBibKeys(InsetIterator const & /*di*/, FileNameList & checkedFiles) const
 {
-	Buffer * child = loadIfNeeded();
-	if (!child)
+	Buffer * ibuf = loadIfNeeded();
+	if (!ibuf)
 		return;
-	// FIXME RECURSIVE INCLUDE
-	// This isn't sufficient, as the inclusion could be downstream.
-	// But it'll have to do for now.
-	if (child == &buffer())
+
+	if (checkForRecursiveInclude(ibuf))
 		return;
-	child->collectBibKeys(checkedFiles);
+	buffer().pushIncludedBuffer(ibuf);
+	ibuf->collectBibKeys(checkedFiles);
+	buffer().popIncludedBuffer();	
+}
+
+
+bool InsetInclude::inheritFont() const
+{
+	return !isVerbatim(params());
 }
 
 
@@ -1128,15 +1228,9 @@ void InsetInclude::metrics(MetricsInfo & mi, Dimension & dim) const
 	if (use_preview) {
 		preview_->metrics(mi, dim);
 	} else {
-		if (!set_label_) {
-			set_label_ = true;
-			button_.update(screenLabel(), true, false);
-		}
-		button_.metrics(mi, dim);
+		setBroken(!file_exist_ || recursion_error_);
+		InsetCommand::metrics(mi, dim);
 	}
-
-	Box b(0, dim.wid, -dim.asc, dim.des);
-	button_.setBox(b);
 }
 
 
@@ -1154,7 +1248,7 @@ void InsetInclude::draw(PainterInfo & pi, int x, int y) const
 	if (use_preview)
 		preview_->draw(pi, x, y);
 	else
-		button_.draw(pi, x, y);
+		InsetCommand::draw(pi, x, y);
 }
 
 
@@ -1170,9 +1264,9 @@ string InsetInclude::contextMenuName() const
 }
 
 
-Inset::DisplayType InsetInclude::display() const
+int InsetInclude::rowFlags() const
 {
-	return type(params()) == INPUT ? Inline : AlignCenter;
+	return type(params()) == INPUT ? Inline : Display;
 }
 
 
@@ -1217,8 +1311,8 @@ docstring latexString(InsetInclude const & inset)
 	otexstream os(ods);
 	// We don't need to set runparams.encoding since this will be done
 	// by latex() anyway.
-	OutputParams runparams(0);
-	runparams.flavor = OutputParams::LATEX;
+	OutputParams runparams(nullptr);
+	runparams.flavor = Flavor::LaTeX;
 	runparams.for_preview = true;
 	inset.latex(os, runparams);
 
@@ -1232,7 +1326,19 @@ void add_preview(RenderMonitoredPreview & renderer, InsetInclude const & inset,
 	InsetCommandParams const & params = inset.params();
 	if (RenderPreview::previewText() && preview_wanted(params, buffer)) {
 		renderer.setAbsFile(includedFileName(buffer, params));
-		docstring const snippet = latexString(inset);
+		docstring snippet;
+		try {
+			// InsetInclude::latex() throws if generation of LaTeX
+			// fails, e.g. if lyx2lyx fails because file is too
+			// new, or knitr fails.
+			snippet = latexString(inset);
+		} catch (...) {
+			// remove current preview because it is likely
+			// associated with the previous included file name
+			renderer.removePreview(buffer);
+			LYXERR0("Preview of include failed.");
+			return;
+		}
 		renderer.addPreview(snippet, buffer);
 	}
 }
@@ -1262,36 +1368,45 @@ void InsetInclude::addToToc(DocIterator const & cpit, bool output_active,
 		b.pushItem(cpit, screenLabel(), output_active);
 		InsetListingsParams p(to_utf8(params()["lstparams"]));
 		b.argumentItem(from_utf8(p.getParamValue("caption")));
-        b.pop();
-    } else if (isVerbatim(params())) {
-        TocBuilder & b = backend.builder("child");
-        b.pushItem(cpit, screenLabel(), output_active);
-        b.pop();
-    } else {
-		Buffer const * const childbuffer = getChildBuffer();
-
-		TocBuilder & b = backend.builder("child");
-		docstring str = childbuffer ? childbuffer->fileName().displayName()
-			: from_ascii("?");
-		b.pushItem(cpit, str, output_active);
 		b.pop();
-
-		if (!childbuffer)
-			return;
-
-		// Update the child's tocBackend. The outliner uses the master's, but
-		// the navigation menu uses the child's.
-		childbuffer->tocBackend().update(output_active, utype);
-		// Include Tocs from children
-		childbuffer->inset().addToToc(DocIterator(), output_active, utype,
-		                              backend);
-		//Copy missing outliner names (though the user has been warned against
-		//having different document class and module selection between master
-		//and child).
-		for (pair<string, docstring> const & name
-			     : childbuffer->params().documentClass().outlinerNames())
-			backend.addName(name.first, translateIfPossible(name.second));
+		return;
 	}
+	if (isVerbatim(params())) {
+		TocBuilder & b = backend.builder("child");
+		b.pushItem(cpit, screenLabel(), output_active);
+		b.pop();
+		return;
+	}
+	// the common case
+	Buffer const * const childbuffer = loadIfNeeded();
+
+	TocBuilder & b = backend.builder("child");
+	string const fname = ltrim(to_utf8(params()["filename"]));
+	// mark non-existent file with MISSING
+	docstring const str = (file_exist_ ? from_ascii("") : _("MISSING: "))
+		+ from_utf8(onlyFileName(fname)) + " (" + from_utf8(fname) + ")";
+	b.pushItem(cpit, str, output_active);
+	b.pop();
+
+	if (!childbuffer)
+		return;
+
+	if (checkForRecursiveInclude(childbuffer))
+		return;
+	buffer().pushIncludedBuffer(childbuffer);
+	// Update the child's tocBackend. The outliner uses the master's, but
+	// the navigation menu uses the child's.
+	childbuffer->tocBackend().update(output_active, utype);
+	// Include Tocs from children
+	childbuffer->inset().addToToc(DocIterator(), output_active, utype,
+								  backend);
+	buffer().popIncludedBuffer();
+	// Copy missing outliner names (though the user has been warned against
+	// having different document class and module selection between master
+	// and child).
+	for (auto const & name
+			 : childbuffer->params().documentClass().outlinerNames())
+		backend.addName(name.first, translateIfPossible(name.second));
 }
 
 
@@ -1317,35 +1432,52 @@ void InsetInclude::updateCommand()
 }
 
 
-void InsetInclude::updateBuffer(ParIterator const & it, UpdateType utype)
+void InsetInclude::updateBuffer(ParIterator const & it, UpdateType utype, bool const deleted)
 {
-	button_.update(screenLabel(), true, false);
-
-	Buffer const * const childbuffer = getChildBuffer();
+	file_exist_ = includedFileExist();
+	Buffer const * const childbuffer = loadIfNeeded();
 	if (childbuffer) {
-		childbuffer->updateBuffer(Buffer::UpdateChildOnly, utype);
+		if (!checkForRecursiveInclude(childbuffer))
+			childbuffer->updateBuffer(Buffer::UpdateChildOnly, utype);
 		return;
 	}
+
 	if (!isListings(params()))
 		return;
 
+	Buffer const & master = *buffer().masterBuffer();
+	listings_label_ = master.B_("Program Listing");
+	Counters & counters = master.params().documentClass().counters();
+	docstring const cnt = from_ascii("listing");
+	bool const hasCounter = counters.hasCounter(cnt);
+	if (hasCounter) {
+		counters.saveLastCounter();
+		counters.step(cnt, utype);
+		listings_label_ += " " + convert<docstring>(counters.value(cnt));
+	}
+
 	if (label_)
-		label_->updateBuffer(it, utype);
+		label_->updateBuffer(it, utype, deleted);
+
+	if (hasCounter)
+		counters.restoreLastCounter();
 
 	InsetListingsParams const par(to_utf8(params()["lstparams"]));
 	if (par.getParamValue("caption").empty()) {
 		listings_label_ = buffer().B_("Program Listing");
 		return;
 	}
-	Buffer const & master = *buffer().masterBuffer();
-	Counters & counters = master.params().documentClass().counters();
-	docstring const cnt = from_ascii("listing");
-	listings_label_ = master.B_("Program Listing");
-	if (counters.hasCounter(cnt)) {
-		counters.step(cnt, utype);
-		listings_label_ += " " + convert<docstring>(counters.value(cnt));
-	}
 }
 
+
+bool InsetInclude::includedFileExist() const
+{
+	// check whether the included file exist
+	string incFileName = ltrim(to_utf8(params()["filename"]));
+	FileName fn =
+		support::makeAbsPath(incFileName,
+				     support::onlyPath(buffer().absFileName()));
+	return fn.exists();
+}
 
 } // namespace lyx

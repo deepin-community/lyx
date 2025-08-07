@@ -1,12 +1,12 @@
 #% Do not delete the line below; configure depends on this
-#  \DeclareLaTeXClass[beamer,amssymb.sty,hyperref.sty,pgf.sty,xcolor.sty,xxcolor.sty]{Beamer}
+#  \DeclareLaTeXClass[beamer]{Beamer}
 #  \DeclareCategory{Presentations}
 # Original Author: Till Tantau <tantau@users.sourceforge.net>
 # Revised and extended by Jürgen Spitzmüller <spitz@lyx.org>, Uwe Stöhr <uwestoehr@lyx.org>,
-#   Richard Heck <rgheck@lyx.org>, Martin Vermeer <martin.vermeer@hut.fi> and probably others.
+#   Richard Kimberly Heck <rikiheck@lyx.org>, Martin Vermeer <martin.vermeer@hut.fi> and probably others.
 
 
-Format 66
+Format 104
 
 #
 # GLOBAL SETTINGS
@@ -18,6 +18,8 @@ Input stdinsets.inc
 
 # Beamer does not work with enumitem.
 # See bug #7047.
+# For upstream (Beamer) feature request:
+#   https://github.com/josephwright/beamer/issues/342
 ExcludesModule enumitem
 
 # General textclass parameters
@@ -71,6 +73,7 @@ Style Standard
   Align            Left
   AlignPossible    Block, Left, Right, Center
   LabelType        No_Label
+  DocBookTag       para
 End
 
 
@@ -102,6 +105,16 @@ Style Itemize
     RightDelim     >
     PassThru       1
   EndArgument
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
   NextNoIndent     1
   ToggleIndent     Never
   LeftMargin       MMN
@@ -112,6 +125,9 @@ Style Itemize
   ParSep           0.3
   Align            Left
   LabelType        Itemize
+  DocBookTag            itemizedlist
+  DocBookItemTag        listitem
+  DocBookItemInnerTag   para
 End
 
 Style Enumerate
@@ -142,6 +158,16 @@ Style Enumerate
     RightDelim     >
     PassThru       1
   EndArgument
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
   NextNoIndent     1
   ToggleIndent     Never
   LeftMargin       MMN
@@ -154,6 +180,15 @@ Style Enumerate
   Align            Left
   LabelType        Enumerate
   RefPrefix        enu
+  DocBookTag            orderedlist
+  DocBookItemTag        listitem
+  DocBookItemInnerTag   para
+  HTMLStyle
+      ol.enumi   { list-style-type: decimal; }
+      ol.enumii  { list-style-type: lower-latin; }
+      ol.enumiii { list-style-type: lower-roman; }
+      ol.enumiv  { list-style-type: upper-latin; }
+  EndHTMLStyle
 End
 
 Style Description
@@ -171,6 +206,16 @@ Style Description
   Argument 2
     LabelString    "Longest label|s"
     Tooltip        "The longest label in this list (to determine the indendation width)"
+  EndArgument
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
   EndArgument
   Argument item:1
     MenuString    "Item Overlay Specifications"
@@ -193,6 +238,12 @@ Style Description
   LabelFont
     Series         Bold
   EndFont
+  DocBookTag            variablelist
+  DocBookItemWrapperTag varlistentry
+  DocBookItemTag        listitem
+  DocBookItemInnerTag   para
+  DocBookItemLabelTag   term
+  DocBookItemLabelTagType   paragraph
 End
 
 
@@ -240,6 +291,7 @@ Style Part
     Color          Latex
   EndFont
   TocLevel         -1
+  HTMLTag          h2
 End
 
 Style Section
@@ -284,6 +336,7 @@ Style Section
   EndFont
   LabelStringAppendix "\Alph{section}"
   TocLevel         1
+  HTMLTag          h3
 End
 
 Style Section*
@@ -302,6 +355,8 @@ Style Section*
     PassThru       1
   EndArgument
   LaTeXParam       *
+  HTMLInToc        0
+  HTMLTag          h3
 End
 
 Style Subsection
@@ -346,6 +401,7 @@ Style Subsection
   EndFont
   LabelStringAppendix "\arabic{section}.\arabic{subsection}"
   TocLevel         2
+  HTMLTag          h4
 End
 
 Style Subsection*
@@ -364,6 +420,7 @@ Style Subsection*
     PassThru       1
   EndArgument
   LaTeXParam       *
+  HTMLInToc        0
 End
 
 Style Subsubsection
@@ -426,6 +483,7 @@ Style Subsubsection*
     PassThru       1
   EndArgument
   LaTeXParam       *
+  HTMLInToc        0
 End
 
 
@@ -450,6 +508,7 @@ Style Frame
   TopSep           1
   BottomSep        1
   ParSep           0
+  HTMLLabel        NONE
   LabelFont
     Size           largest
     Family         Roman
@@ -482,7 +541,7 @@ Style Frame
     RightDelim     }
     Decoration     conglomerate
     Font
-      Color        blue
+      Color        textlabel1
       Size         largest
     EndFont
     AutoInsert     1
@@ -494,6 +553,7 @@ Style Frame
 	ExampleBlock,AlertBlock,Bibliography,Quotation,Quote,Verse,Corollary,Definition,Definitions,
 	Example,Examples,Fact,Lemma,Proof,Theorem,LyX-Code
   EndAutoNests
+  NeedCProtect    -1
 End
 
 Style PlainFrame
@@ -516,6 +576,7 @@ Style FragileFrame
     Tooltip         "Frame options (see beamer manual)"
     PresetArg       "fragile"
   EndArgument
+  NeedCProtect      0
 End
 
 Style AgainFrame
@@ -578,7 +639,7 @@ Style FrameTitle
   Align            Block
   LabelType        No_Label
   Font
-    Color          Blue
+    Color          textlabel1
     Size           Largest
   EndFont
   Argument 1
@@ -609,7 +670,7 @@ Style FrameSubtitle
   Align            Block
   LabelType        No_Label
   Font
-    Color          Blue
+    Color          textlabel1
   EndFont
   Argument 1
     LabelString    "On Slide"
@@ -623,12 +684,12 @@ End
 
 
 #
-# COLUMS
+# COLUMNS
 #
 
 Style Column
   Category         Columns
-  Margin           Static
+  Margin           Dynamic
   LatexType        Command
   LatexName        column
   ParSkip          0.5
@@ -646,7 +707,6 @@ Style Column
     LabelString    "Options"
     Tooltip        "Column options (see beamer manual)"
   EndArgument
-  LeftMargin       "Start column (increase depth!), width:xx"
   LabelFont
     Family         Roman
     Color          latex
@@ -656,16 +716,15 @@ End
 Style Columns
   Category         Columns
   KeepEmpty        1
-  Margin           Static
+  Margin           First_Dynamic
   LatexType        Environment
-  NextNoIndent     0
+  NextNoIndent     1
   ParIndent        MM
   Align            Left
   LabelType        Static
   LabelSep         xx
   LatexName        columns
   LabelString      "Columns"
-  LeftMargin       "Columnsxx"
   Argument 1
     LabelString    "Column Placement Options"
     Tooltip        "Column placement options (t, T, c, b)"
@@ -689,7 +748,6 @@ Style ColumnsCenterAligned
   CopyStyle        Columns
   LatexParam       [c]
   LabelString      "Columns (center aligned)"
-  LeftMargin       "Columns (center aligned)xx"
   ResetArgs        1
 End
 
@@ -697,7 +755,6 @@ Style ColumnsTopAligned
   CopyStyle        Columns
   LatexParam       [t]
   LabelString      "Columns (top aligned)"
-  LeftMargin       "Columns (top aligned)xx"
   ResetArgs        1
 End
 
@@ -745,6 +802,16 @@ Style Overprint
     LabelString    "Width"
     Tooltip        "The width of the overprint area (default: text width)"
   EndArgument
+  Argument listpreamble:1
+    LabelString    "List preamble"
+    MenuString     "List Preamble"
+    Tooltip        "LaTeX code to be inserted before the first item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
   Argument item:1
     MenuString    "Item Overlay Specifications"
     LabelString   "On Slide"
@@ -762,7 +829,7 @@ Style Overprint
   BottomSep        0.7
   ParSep           0.3
   Align            Left
-  LabelType        Static
+  LabelType        Itemize
   LabelString      "Overprint"
   LabelFont
     Family         Roman
@@ -898,7 +965,7 @@ Style Block
     Mandatory      1
     Decoration     conglomerate
     Font
-      Color        blue
+      Color        textlabel1
       Size         large
     EndFont
     AutoInsert     1
@@ -914,7 +981,7 @@ Style ExampleBlock
   LatexName        exampleblock
   LabelString      "Example Block:"
   Font
-    Color          green
+    Color          textlabel2
   EndFont
 End
 
@@ -923,7 +990,7 @@ Style AlertBlock
   LatexName        alertblock
   LabelString      "Alert Block:"
   Font
-    Color          red
+    Color          error
   EndFont
 End
 
@@ -949,12 +1016,16 @@ Style Title
     LabelString   "Short Title|S"
     Tooltip       "Short title which appears in the sidebar/header"
     InsertCotext   1
+	# TODO: In DocBook, output it in a titleabbrev outside this title.
   EndArgument
   Font
     Size           Huge
     Series         Bold
-    Color          Blue
+    Color          textlabel1
   EndFont
+  DocBookTag       title
+  DocBookTagType   paragraph
+  DocBookInInfo    maybe
 End
 
 Style Title_(Plain_Frame)
@@ -986,8 +1057,10 @@ Style Subtitle
   Font
     Size           Large
     Series         Bold
-    Color          Blue
+    Color          textlabel1
   EndFont
+  DocBookTag       subtitle
+  DocBookInInfo    maybe
 End
 
 Style Author
@@ -1009,8 +1082,13 @@ Style Author
   EndArgument
   Font
     Size           Largest
-    Color          Blue
+    Color          textlabel1
   EndFont
+  DocBookTag            personname
+  DocBookTagType        paragraph
+  DocBookWrapperTag     author
+  DocBookWrapperTagType inline
+  DocBookInInfo         always
 End
 
 Style Institute
@@ -1032,7 +1110,7 @@ Style Institute
   EndArgument
   Font
     Size           Large
-    Color          Blue
+    Color          textlabel1
   EndFont
 End
 
@@ -1052,7 +1130,7 @@ InsetLayout "Flex:InstituteMark"
     Misc           No_Bar
   EndFont
   LabelFont
-    Color          blue
+    Color          textlabel1
     Size           Small
   EndFont
 End
@@ -1076,7 +1154,7 @@ Style Date
   EndArgument
   Font
     Size           Largest
-    Color          Blue
+    Color          textlabel1
   EndFont
 End
 
@@ -1096,7 +1174,7 @@ Style TitleGraphic
   Font
     Size           Huge
     Series         Bold
-    Color          Blue
+    Color          textlabel1
   EndFont
 End
 
@@ -1128,6 +1206,16 @@ Style Bibliography
   EndFont
   TocLevel         1
   IsTocCaption     0
+  Argument listpreamble:1
+    LabelString    "Bib preamble"
+    MenuString     "Bibliography Preamble"
+    Tooltip        "LaTeX code to be inserted before the first bibliography item"
+    PassThru       1
+    Font
+      Family typewriter
+      Color latex
+    EndFont
+  EndArgument
 End
 
 
@@ -1237,7 +1325,7 @@ Style Corollary
    KeepEmpty       1
    LabelFont
      Series        Bold
-     Color         Blue
+     Color         textlabel1
      Size          Large
    EndFont
   Argument 1
@@ -1275,7 +1363,7 @@ Style Example
   LabelString      "Example."
   LabelFont
     Series         Bold
-    Color          Green
+    Color          textlabel2
   EndFont
 End
 
@@ -1346,6 +1434,9 @@ Style LyX-Code
   Font
     Family         Typewriter
   EndFont
+  DocBookTag            programlisting
+  DocBookTagType        paragraph
+  DocBookAttr			language='lyx'
 End
  
 Style NoteItem
@@ -1375,6 +1466,9 @@ Style NoteItem
     RightDelim     >
     PassThru       1
   EndArgument
+  IsAutoNestedBy
+    Itemize,Enumerate
+  EndIsAutoNestedBy
 End
  
 
@@ -1429,7 +1523,7 @@ InsetLayout Flex:Alert
   LatexType        command
   LatexName        alert
   Font
-    Color          red
+    Color          error
   EndFont
   Argument 1
     LabelString    "Action"
@@ -1449,7 +1543,7 @@ InsetLayout Flex:Structure
   LatexType        command
   LatexName        structure
   Font
-    Color          blue
+    Color          textlabel1
   EndFont
   Argument 1
     LabelString    "Action"
@@ -1469,7 +1563,7 @@ InsetLayout Flex:Only
   LatexType        command
   LatexName        only
   Font
-    Color          red
+    Color          textlabel3
   EndFont
   Argument 1
     LabelString    "Action"
@@ -1482,6 +1576,7 @@ InsetLayout Flex:Only
   EndArgument
   ResetsFont       true
   CustomPars       false
+  NeedCProtect     -1
 End
 
 InsetLayout Flex:Uncover
@@ -1490,7 +1585,7 @@ InsetLayout Flex:Uncover
   LatexType        command
   LatexName        uncover
   Font
-    Color          red
+    Color          textlabel3
   EndFont
   Argument 1
     LabelString    "Action"
@@ -1503,6 +1598,7 @@ InsetLayout Flex:Uncover
   EndArgument
   ResetsFont       true
   CustomPars       false
+  NeedCProtect     -1
 End
 
 InsetLayout Flex:Visible
@@ -1511,7 +1607,7 @@ InsetLayout Flex:Visible
   LatexType        command
   LatexName        visible
   Font
-    Color          red
+    Color          textlabel3
   EndFont
   Argument 1
     LabelString    "Action"
@@ -1524,6 +1620,7 @@ InsetLayout Flex:Visible
   EndArgument
   ResetsFont       true
   CustomPars       false
+  NeedCProtect     -1
 End
 
 InsetLayout Flex:Invisible
@@ -1532,7 +1629,7 @@ InsetLayout Flex:Invisible
   LatexType        command
   LatexName        invisible
   Font
-    Color          red
+    Color          textlabel3
   EndFont
   Argument 1
     LabelString    "Action"
@@ -1545,6 +1642,7 @@ InsetLayout Flex:Invisible
   EndArgument
   ResetsFont       true
   CustomPars       false
+  NeedCProtect     -1
 End
 
 InsetLayout Flex:Alternative
@@ -1553,7 +1651,7 @@ InsetLayout Flex:Alternative
   LatexType        command
   LatexName        alt
   Font
-    Color          red
+    Color          textlabel3
   EndFont
   Argument 1
     LabelString    "Action"
@@ -1562,14 +1660,17 @@ InsetLayout Flex:Alternative
     LeftDelim      <
     RightDelim     >
     PassThru       1
+    AutoInsert     1
   EndArgument
   Argument 2
     LabelString    "Default Text"
     Tooltip        "Enter the default text here"
     Mandatory      1
+    AutoInsert     1
   EndArgument
   ResetsFont       true
   CustomPars       false
+  NeedCProtect     -1
 End
 
 InsetLayout Flex:Beamer_Note
@@ -1579,7 +1680,7 @@ InsetLayout Flex:Beamer_Note
   LatexName        note
   Decoration       Classic
   Font
-    Color          blue
+    Color          textlabel1
   EndFont
   Argument 1
     LabelString    "Action"
@@ -1605,6 +1706,7 @@ InsetLayout Flex:ArticleMode
    LabelString     Article
    MultiPar        true
    ResetsFont      true
+   NeedCProtect    -1
 End
 
 InsetLayout Flex:PresentationMode
@@ -1616,6 +1718,7 @@ InsetLayout Flex:PresentationMode
    LabelString     Presentation
    MultiPar        true
    ResetsFont      true
+   NeedCProtect    -1
 End
 
 
@@ -1636,6 +1739,7 @@ Float
   IsPredefined     true
   UsesFloatPkg     false
   ListCommand      listoftables
+  PrettyFormat     "Table ##"
 End
 
 Float
@@ -1649,6 +1753,7 @@ Float
   IsPredefined     true
   UsesFloatPkg     false
   ListCommand      listoffigures
+  PrettyFormat     "Figure ##"
 End
 
 

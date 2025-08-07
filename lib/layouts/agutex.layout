@@ -4,7 +4,7 @@
 # AGUTeX textclass definition file.
 # Author: Uwe Stöhr (uwestoehr@web.de)
 
-Format 66
+Format 104
 
 Columns			1
 Sides			1
@@ -68,6 +68,9 @@ Style Title
 	Font
 	  Size		Largest
 	EndFont
+	DocBookTag      title
+	DocBookTagType  paragraph
+	DocBookInInfo   maybe
 End
 
 
@@ -86,6 +89,11 @@ Style Authors
 	Font
 	  Size		Large
 	EndFont
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -129,7 +137,7 @@ Style "Author affiliation"
 	LabelType	Static
 	LabelString	"Author affiliation:"
 	LabelFont
-	  Color		Green
+	  Color		textlabel2
 	  Series	Bold
 	EndFont
 End
@@ -202,6 +210,9 @@ Style Acknowledgments
 	  Series	Bold
 	  Size		Small
 	EndFont
+	DocBookTag            para
+	DocBookWrapperTag     acknowledgements
+	DocBookSection        true
 End
 
 
@@ -229,5 +240,15 @@ Style Bibliography
 	EndFont
 	TocLevel        1
 	IsTocCaption    0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
 End
 

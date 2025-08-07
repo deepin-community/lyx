@@ -10,28 +10,31 @@
  */
 
 #include <config.h>
-
 #include "InsetHyperlink.h"
 
 #include "Buffer.h"
-#include "DispatchResult.h"
-#include "Encoding.h"
 #include "Format.h"
 #include "FuncRequest.h"
 #include "FuncStatus.h"
 #include "LaTeXFeatures.h"
-#include "OutputParams.h"
+#include "LyX.h"
+#include "output_docbook.h"
 #include "output_xhtml.h"
-#include "sgml.h"
+#include "xml.h"
 #include "texstream.h"
 
+#include "support/debug.h"
 #include "support/docstream.h"
 #include "support/FileName.h"
 #include "support/filetools.h"
 #include "support/gettext.h"
 #include "support/lstrings.h"
+#include "support/qstring_helpers.h"
 
 #include "frontends/alert.h"
+
+#include <QtGui/QDesktopServices>
+#include <QUrl>
 
 using namespace std;
 using namespace lyx::support;
@@ -60,19 +63,28 @@ ParamInfo const & InsetHyperlink::findInfo(string const & /* cmdName */)
 
 docstring InsetHyperlink::screenLabel() const
 {
+	// TODO: replace with unicode hyperlink character = U+1F517
 	docstring const temp = _("Hyperlink: ");
 
 	docstring url;
 
 	url += getParam("name");
-	if (url.empty())
+	if (url.empty()) {
 		url += getParam("target");
 
-	// elide if long
-	if (url.length() > 30) {
-		docstring end = url.substr(url.length() - 17, url.length());
-		support::truncateWithEllipsis(url, 13);
-		url += end;
+		// elide if long and no name was provided
+		if (url.length() > 30) {
+			docstring end = url.substr(url.length() - 17, url.length());
+			support::truncateWithEllipsis(url, 13);
+			url += end;
+		}
+	} else {
+		// elide if long (approx number of chars in line of article class)
+		if (url.length() > 80) {
+			docstring end = url.substr(url.length() - 67, url.length());
+			support::truncateWithEllipsis(url, 13);
+			url += end;
+		}
 	}
 	return temp + url;
 }
@@ -80,6 +92,12 @@ docstring InsetHyperlink::screenLabel() const
 
 void InsetHyperlink::doDispatch(Cursor & cur, FuncRequest & cmd)
 {
+	// Ctrl + click: open hyperlink
+	if (cmd.action() == LFUN_MOUSE_RELEASE && cmd.modifier() == ControlModifier) {
+		lyx::dispatch(FuncRequest(LFUN_INSET_EDIT));
+		return;
+	}
+
 	switch (cmd.action()) {
 
 	case LFUN_INSET_EDIT:
@@ -97,9 +115,13 @@ bool InsetHyperlink::getStatus(Cursor & cur, FuncRequest const & cmd,
 		FuncStatus & flag) const
 {
 	switch (cmd.action()) {
-	case LFUN_INSET_EDIT:
-		flag.setEnabled(getParam("type").empty() || getParam("type") == "file:");
+	case LFUN_INSET_EDIT: {
+		docstring const & utype = getParam("type");
+		QUrl url(toqstr(getParam("target")),QUrl::StrictMode);
+		bool url_valid = utype.empty() && url.isValid();
+		flag.setEnabled(url_valid || utype == "file:");
 		return true;
+		}
 
 	default:
 		return InsetCommand::getStatus(cur, cmd, flag);
@@ -109,7 +131,11 @@ bool InsetHyperlink::getStatus(Cursor & cur, FuncRequest const & cmd,
 
 void InsetHyperlink::viewTarget() const
 {
-	if (getParam("type") == "file:") {
+	if (getParam("type").empty()) { //==Web
+		QUrl url(toqstr(getParam("target")),QUrl::StrictMode);
+		if (!QDesktopServices::openUrl(url))
+			LYXERR0("Unable to open URL!");
+	} else if (getParam("type") == "file:") {
 		FileName url = makeAbsPath(to_utf8(getParam("target")), buffer().filePath());
 		string const format = theFormats().getFormatFromFile(url);
 		theFormats().view(buffer(), url, format);
@@ -117,11 +143,20 @@ void InsetHyperlink::viewTarget() const
 }
 
 
+docstring makeURL(docstring const & url, docstring const & type) {
+	if (type == "other" ||
+			(!type.empty() && url.find(type) == 0))
+		return url;
+	return type + url;
+}
+
+
 void InsetHyperlink::latex(otexstream & os,
 			   OutputParams const & runparams) const
 {
-	docstring url = getParam("target");
-	docstring name = getParam("name");
+	docstring url   = getParam("target");
+	docstring name  = getParam("name");
+	docstring const & utype = getParam("type");
 	static char_type const chars_url[2] = {'%', '#'};
 
 	// For the case there is no name given, the target is set as name.
@@ -156,11 +191,9 @@ void InsetHyperlink::latex(otexstream & os,
 				url.replace(pos, 1, from_ascii("\\") + chars_url[k]);
 
 		// add "http://" when the type is web (type = empty)
-		// and no "://" or "run:" is given
-		docstring type = getParam("type");
+		// and no "://" is given
 		if (url.find(from_ascii("://")) == string::npos
-			&& url.find(from_ascii("run:")) == string::npos
-			&& type.empty())
+			&& utype.empty())
 			url = from_ascii("http://") + url;
 
 	} // end if (!url.empty())
@@ -170,7 +203,7 @@ void InsetHyperlink::latex(otexstream & os,
 					ParamInfo::HANDLING_LATEXIFY);
 		// replace the tilde by the \sim character as suggested in the
 		// LaTeX FAQ for URLs
-		if (getParam("literal") != from_ascii("true")) {
+		if (getParam("literal") != "true") {
 			docstring const sim = from_ascii("$\\sim$");
 			for (size_t i = 0, pos;
 				(pos = name.find('~', i)) != string::npos;
@@ -183,7 +216,7 @@ void InsetHyperlink::latex(otexstream & os,
 		os << "\\protect";
 
 	// output the ready \href command
-	os << "\\href{" << getParam("type") << url << "}{" << name << '}';
+	os << "\\href{" << makeURL(url, utype) << "}{" << name << '}';
 }
 
 
@@ -204,25 +237,23 @@ int InsetHyperlink::plaintext(odocstringstream & os,
 }
 
 
-int InsetHyperlink::docbook(odocstream & os, OutputParams const &) const
+void InsetHyperlink::docbook(XMLStream & xs, OutputParams const &) const
 {
-	os << "<ulink url=\""
-	   << subst(getParam("target"), from_ascii("&"), from_ascii("&amp;"))
-	   << "\">"
-	   << sgml::escapeString(getParam("name"))
-	   << "</ulink>";
-	return 0;
+	docstring target = subst(getParam("target"), from_ascii("&"), from_ascii("&amp;")) ;
+	xs << xml::StartTag("link", "xlink:href=\"" + makeURL(target, getParam("type")) + "\"");
+	xs << xml::escapeString(getParam("name"));
+	xs << xml::EndTag("link");
 }
 
 
-docstring InsetHyperlink::xhtml(XHTMLStream & xs, OutputParams const &) const
+docstring InsetHyperlink::xhtml(XMLStream & xs, OutputParams const &) const
 {
 	docstring const & target =
-		html::htmlize(getParam("target"), XHTMLStream::ESCAPE_AND);
-	docstring const & name   = getParam("name");
-	xs << html::StartTag("a", to_utf8("href=\"" + target + "\""));
+		xml::escapeString(getParam("target"), XMLStream::ESCAPE_AND);
+	docstring const & name = getParam("name");
+	xs << xml::StartTag("a", to_utf8("href=\"" + makeURL(target, getParam("type")) + "\""));
 	xs << (name.empty() ? target : name);
-	xs << html::EndTag("a");
+	xs << xml::EndTag("a");
 	return docstring();
 }
 
@@ -248,13 +279,15 @@ void InsetHyperlink::forOutliner(docstring & os, size_t const, bool const) const
 
 docstring InsetHyperlink::toolTip(BufferView const & /*bv*/, int /*x*/, int /*y*/) const
 {
-	docstring url = getParam("target");
-	docstring type = getParam("type");
+	docstring const & url = getParam("target");
+	docstring const & type = getParam("type");
 	docstring guitype = _("www");
 	if (type == "mailto:")
 		guitype = _("email");
 	else if (type == "file:")
 		guitype = _("file");
+	else if (type == "other")
+		guitype = _("other[[Hyperlink Type]]");
 	return bformat(_("Hyperlink (%1$s) to %2$s"), guitype, url);
 }
 
@@ -263,6 +296,13 @@ void InsetHyperlink::validate(LaTeXFeatures & features) const
 {
 	features.require("hyperref");
 	InsetCommand::validate(features);
+}
+
+
+pair<int, int> InsetHyperlink::isWords() const
+{
+	docstring const label = getParam("name");
+	return pair<int, int>(label.size(), wordCount(label));
 }
 
 

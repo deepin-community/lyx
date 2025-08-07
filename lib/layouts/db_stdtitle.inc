@@ -6,37 +6,21 @@
 # It is desirable, as far as possible, to have the same look and feel for
 # related layouts in latex and docbook.
 
-Format 66
+Format 104
 Input stdtitle.inc
-
-
-Style Title
-	LatexType             Command
-	LatexName             articleinfo
-	CommandDepth          2
-	InnerTag              title
-End
-
-
-Style Author
-	LatexType             Environment
-	LatexName             author
-End
 
 
 Style Authorgroup
 	CopyStyle             Author
 	LatexType             Environment
 	LatexName             authorgroup
-	InnerTag              author
-End
-
-
-Style Date
-	LatexType             Paragraph
-	LatexName             date
-	Align                 Center
-	AlignPossible         Left,Center
+	# TODO: missing a DocBookInnerTag to be valid (authorgroup > author > personname). 
+	DocBookTag            author
+	DocBookTagType        paragraph
+	DocBookInnerTag       personname
+	DocBookInnerTagType   inline
+	DocBookWrapperTag     authorgroup
+	DocBookWrapperTagType paragraph
 End
 
 
@@ -57,6 +41,8 @@ Style RevisionHistory
 	LabelType             Centered
 	LabelString           "Revision History"
 	LabelBottomSep        0.5
+	DocBookTag            revhistory
+	DocBookTagType        paragraph
 End
 
 
@@ -72,6 +58,8 @@ Style Revision
 	BottomSep             0.5
 	ParSep                0.5
 	Align                 Block
+	DocBookTag            revision
+	DocBookTagType        paragraph
 End
 
 
@@ -88,11 +76,13 @@ Style RevisionRemark
 	ParSep                1
 	Align                 Block
 	LabelType             No_Label
+	DocBookTag            revremark
+	DocBookTagType        paragraph
 End
 
 
 Style FirstName
-        ObsoletedBy   Standard
+	ObsoletedBy   Standard
 End
 
 Style Surname

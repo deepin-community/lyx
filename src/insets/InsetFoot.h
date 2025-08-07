@@ -25,25 +25,27 @@ class InsetFoot : public InsetFootlike
 {
 public:
 	///
-	InsetFoot(Buffer *);
+	explicit InsetFoot(Buffer *);
 private:
 	///
-	InsetCode lyxCode() const { return FOOT_CODE; }
+	InsetCode lyxCode() const override { return FOOT_CODE; }
 	///
-	docstring layoutName() const;
+	docstring layoutName() const override;
+	///
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	/// Update the counters of this inset and of its contents
-	void updateBuffer(ParIterator const &, UpdateType);
+	void updateBuffer(ParIterator const &, UpdateType, bool const deleted = false) override;
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	///
-	Inset * clone() const { return new InsetFoot(*this); }
+	Inset * clone() const override { return new InsetFoot(*this); }
 	///
 	docstring custom_label_;
 	///

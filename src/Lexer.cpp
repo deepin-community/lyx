@@ -14,7 +14,6 @@
 #include <config.h>
 
 #include "Lexer.h"
-#include "Format.h"
 
 #include "support/convert.h"
 #include "support/debug.h"
@@ -24,9 +23,10 @@
 #include "support/lassert.h"
 #include "support/lstrings.h"
 #include "support/lyxalgo.h"
-#include "support/types.h"
 
+#include <algorithm> // sort, lower_bound
 #include <functional>
+#include <fstream>
 #include <istream>
 #include <stack>
 #include <vector>
@@ -80,9 +80,6 @@ public:
 	bool inputAvailable();
 	///
 	void pushToken(string const &);
-	/// fb_ is only used to open files, the stream is accessed through is.
-	filebuf fb_;
-
 	/// gz_ is only used to open files, the stream is accessed through is.
 	gz::gzstreambuf gz_;
 
@@ -102,10 +99,10 @@ public:
 	int lineno;
 	///
 	string pushTok;
-	///
-	char commentChar;
 	/// used for error messages
 	string context;
+	///
+	char commentChar;
 private:
 	/// non-copyable
 	Pimpl(Pimpl const &);
@@ -118,7 +115,7 @@ private:
 	public:
 		///
 		PushedTable()
-			: table_elem(0), table_siz(0) {}
+			: table_elem(nullptr), table_siz(0) {}
 		///
 		PushedTable(LexerKeyword * ki, int siz)
 			: table_elem(ki), table_siz(siz) {}
@@ -132,27 +129,23 @@ private:
 };
 
 
-
 namespace {
 
-class CompareTags
-	: public binary_function<LexerKeyword, LexerKeyword, bool> {
-public:
-	// used by lower_bound, sort and sorted
-	bool operator()(LexerKeyword const & a, LexerKeyword const & b) const
-	{
-		// we use the ascii version, because in turkish, 'i'
-		// is not the lowercase version of 'I', and thus
-		// turkish locale breaks parsing of tags.
-		return compare_ascii_no_case(a.tag, b.tag) < 0;
-	}
-};
+// used by lower_bound, sort and sorted
+bool compareTags(LexerKeyword const & a, LexerKeyword const & b)
+{
+	// we use the ascii version, because in turkish, 'i'
+	// is not the lowercase version of 'I', and thus
+	// turkish locale breaks parsing of tags.
+	return compare_ascii_no_case(a.tag, b.tag) < 0;
+}
 
 } // namespace
 
 
+
 Lexer::Pimpl::Pimpl(LexerKeyword * tab, int num)
-	: is(&fb_), table(tab), no_items(num),
+	: is(&gz_), table(tab), no_items(num),
 	  status(0), lineno(0), commentChar('#')
 {
 	verifyTable();
@@ -196,14 +189,14 @@ void Lexer::Pimpl::verifyTable()
 {
 	// Check if the table is sorted and if not, sort it.
 	if (table
-	    && !lyx::sorted(table, table + no_items, CompareTags())) {
+	    && !lyx::sorted(table, table + no_items, &compareTags)) {
 		lyxerr << "The table passed to Lexer is not sorted!\n"
 		       << "Tell the developers to fix it!" << endl;
 		// We sort it anyway to avoid problems.
 		lyxerr << "\nUnsorted:" << endl;
 		printTable(lyxerr);
 
-		sort(table, table + no_items, CompareTags());
+		sort(table, table + no_items, &compareTags);
 		lyxerr << "\nSorted:" << endl;
 		printTable(lyxerr);
 	}
@@ -238,38 +231,14 @@ void Lexer::Pimpl::popTable()
 
 bool Lexer::Pimpl::setFile(FileName const & filename)
 {
-	// Check the format of the file.
-	if (theFormats().isZippedFile(filename)) {
-		LYXERR(Debug::LYXLEX, "lyxlex: compressed");
-		// The check only outputs a debug message, because it triggers
-		// a bug in compaq cxx 6.2, where is_open() returns 'true' for
-		// a fresh new filebuf.  (JMarc)
 		if (gz_.is_open() || istream::off_type(is.tellg()) > -1)
-			LYXERR(Debug::LYXLEX, "Error in LyXLex::setFile: "
-				"file or stream already set.");
-		gz_.open(filename.toFilesystemEncoding().c_str(), ios::in);
+			LYXERR0("Error in LyXLex::setFile: file or stream already set.");
+		gz_.open(filename.toSafeFilesystemEncoding().c_str(), ios::in);
 		is.rdbuf(&gz_);
 		name = filename.absFileName();
 		lineno = 0;
 		if (!gz_.is_open() || !is.good())
 			return false;
-	} else {
-		LYXERR(Debug::LYXLEX, "lyxlex: UNcompressed");
-
-		// The check only outputs a debug message, because it triggers
-		// a bug in compaq cxx 6.2, where is_open() returns 'true' for
-		// a fresh new filebuf.  (JMarc)
-		if (fb_.is_open() || istream::off_type(is.tellg()) > 0) {
-			LYXERR(Debug::LYXLEX, "Error in Lexer::setFile: "
-				"file or stream already set.");
-		}
-		fb_.open(filename.toSafeFilesystemEncoding().c_str(), ios::in);
-		is.rdbuf(&fb_);
-		name = filename.absFileName();
-		lineno = 0;
-		if (!fb_.is_open() || !is.good())
-			return false;
-	}
 
 	// Skip byte order mark.
 	if (is.peek() == 0xef) {
@@ -287,10 +256,8 @@ bool Lexer::Pimpl::setFile(FileName const & filename)
 
 void Lexer::Pimpl::setStream(istream & i)
 {
-	if (fb_.is_open() || istream::off_type(is.tellg()) > 0) {
-		LYXERR(Debug::LYXLEX, "Error in Lexer::setStream: "
-			"file or stream already set.");
-	}
+	if (gz_.is_open() || istream::off_type(is.tellg()) > 0)
+		LYXERR0("Error in Lexer::setStream: file or stream already set.");
 	is.rdbuf(i.rdbuf());
 	lineno = 0;
 }
@@ -333,7 +300,7 @@ bool Lexer::Pimpl::next(bool esc /* = false */)
 			string dummy;
 			getline(is, dummy);
 
-			LYXERR(Debug::LYXLEX, "Comment read: `" << c << dummy << '\'');
+			LYXERR(Debug::LYXLEX, "Comment read: `" << string(1, c) << dummy << '\'');
 #else
 			// unfortunately ignore is buggy (Lgb)
 			is.ignore(100, '\n');
@@ -440,7 +407,7 @@ int Lexer::Pimpl::searchKeyword(char const * const tag) const
 	LexerKeyword search_tag = { tag, 0 };
 	LexerKeyword * res =
 		lower_bound(table, table + no_items,
-			    search_tag, CompareTags());
+			    search_tag, &compareTags);
 	// use the compare_ascii_no_case instead of compare_no_case,
 	// because in turkish, 'i' is not the lowercase version of 'I',
 	// and thus turkish locale breaks parsing of tags.
@@ -567,7 +534,7 @@ void Lexer::Pimpl::pushToken(string const & pt)
 //////////////////////////////////////////////////////////////////////
 
 Lexer::Lexer()
-	: pimpl_(new Pimpl(0, 0)), lastReadOk_(false)
+	: pimpl_(new Pimpl(nullptr, 0)), lastReadOk_(false)
 {}
 
 
@@ -723,6 +690,7 @@ docstring Lexer::getLongString(docstring const & endtoken)
 	docstring str;
 	docstring prefix;
 	bool firstline = true;
+	bool foundend = false;
 
 	while (pimpl_->is) { //< eatLine only reads from is, not from pushTok
 		if (!eatLine())
@@ -734,8 +702,10 @@ docstring Lexer::getLongString(docstring const & endtoken)
 		LYXERR(Debug::PARSER, "LongString: `" << tmpstr << '\'');
 
 		// We do a case independent comparison, like searchKeyword does.
-		if (compare_no_case(token, endtoken) == 0)
+		if (compare_no_case(token, endtoken) == 0) {
+			foundend = true;
 			break;
+		}
 
 		if (firstline) {
 			size_t i = tmpstr.find_first_not_of(from_ascii(" \t"));
@@ -753,7 +723,7 @@ docstring Lexer::getLongString(docstring const & endtoken)
 		str += tmpstr + '\n';
 	}
 
-	if (!pimpl_->is)
+	if (!foundend)
 		printError("Long string not ended by `" + to_utf8(endtoken) + '\'');
 
 	return str;
@@ -808,7 +778,7 @@ Lexer::operator void const *() const
 	// use fail() here. However, our implementation of getString() et al.
 	// can cause the eof() and fail() bits to be set, even though we
 	// haven't tried to read 'em.
-	return lastReadOk_? this : 0;
+	return lastReadOk_? this : nullptr;
 }
 
 
@@ -948,9 +918,9 @@ bool Lexer::checkFor(char const * required)
 }
 
 
-void Lexer::setContext(std::string const & str)
+void Lexer::setContext(std::string const & functionName)
 {
-	pimpl_->context = str;
+	pimpl_->context = functionName;
 }
 
 

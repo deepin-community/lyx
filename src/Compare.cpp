@@ -13,6 +13,7 @@
 #include "Compare.h"
 
 #include "Author.h"
+#include "Buffer.h"
 #include "BufferParams.h"
 #include "Changes.h"
 #include "CutAndPaste.h"
@@ -23,7 +24,6 @@
 
 #include "support/docstream.h"
 #include "support/lassert.h"
-#include "support/lyxalgo.h"
 #include "support/qstring_helpers.h"
 
 using namespace std;
@@ -103,11 +103,11 @@ public:
 	DocPair()
 	{}
 
-	DocPair(DocIterator o_, DocIterator n_)
+	DocPair(DocIterator const & o_, DocIterator const & n_)
 		: o(o_), n(n_)
 	{}
 
-	bool operator!=(DocPair const & rhs)
+	bool operator!=(DocPair const & rhs) const
 	{
 		// this might not be intuitive but correct for our purpose
 		return o != rhs.o && n != rhs.n;
@@ -232,9 +232,9 @@ public:
 	///
 	Impl(Compare const & compare)
 		: abort_(false), n_(0), m_(0), offset_reverse_diagonal_(0),
-		  odd_offset_(0), compare_(compare),
-		  old_buf_(0), new_buf_(0), dest_buf_(0), dest_pars_(0),
-		  recursion_level_(0), nested_inset_level_(0), D_(0)
+		  odd_offset_(false), compare_(compare),
+		  old_buf_(nullptr), new_buf_(nullptr), dest_buf_(nullptr),
+		  dest_pars_(nullptr), recursion_level_(0), nested_inset_level_(0), D_(0)
 	{}
 
 	///
@@ -396,7 +396,7 @@ void Compare::run()
 		dest_buffer->params().documentClassPtr();
 	// We do not want to share the DocumentClass with the other Buffer.
 	// See bug #10295.
-	dest_buffer->params().makeDocumentClass();
+	dest_buffer->params().makeDocumentClass(dest_buffer->isClone(), dest_buffer->isInternal());
 
 	doStatusMessage();
 	// Do the real work
@@ -407,13 +407,11 @@ void Compare::run()
 	// new buffer with the document class from wherever they came from.
 	// So we need to reset the document class of all the paragraphs.
 	// See bug #10295.
-	ErrorList el;
 	cap::switchBetweenClasses(
 			olddc, dest_buffer->params().documentClassPtr(),
-			static_cast<InsetText &>(dest_buffer->inset()), el);
+			static_cast<InsetText &>(dest_buffer->inset()));
 
 	finished(pimpl_->abort_);
-	return;
 }
 
 
@@ -439,8 +437,8 @@ static void getParagraphList(DocRange const & range,
 	pit_type startpit = range.from.pit();
 	pit_type endpit = range.to.pit();
 	ParagraphList const & ps_ = range.text()->paragraphs();
-	ParagraphList tmp_pars(lyx::next(ps_.begin(), startpit),
-		lyx::next(ps_.begin(), endpit + 1));
+	ParagraphList tmp_pars(ps_.iterator_at(startpit),
+		ps_.iterator_at(endpit + 1));
 
 	// Remove the end of the last paragraph; afterwards, remove the
 	// beginning of the first paragraph. Keep this order - there may only
@@ -736,7 +734,7 @@ bool Compare::Impl::diff(Buffer const * new_buf, Buffer const * old_buf,
 		diff_i(rp_new);
 
 	for (pit_type p = 0; p < (pit_type)dest_pars_->size(); ++p) {
-		(*dest_pars_)[p].setBuffer(const_cast<Buffer &>(*dest_buf));
+		(*dest_pars_)[p].setInsetBuffers(const_cast<Buffer &>(*dest_buf));
 		(*dest_pars_)[p].setInsetOwner(&dest_buf_->inset());
 	}
 
@@ -868,7 +866,7 @@ void Compare::Impl::writeToDestBuffer(DocRange const & range,
 	// Set the change
 	ParagraphList::iterator it = pars.begin();
 	for (; it != pars.end(); ++it) {
-		it->setChange(Change(type));
+		it->setChange(Change(type, compare_.options_.author));
 		size += it->size();
 	}
 

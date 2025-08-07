@@ -30,6 +30,7 @@ namespace lyx {
 
 namespace frontend { class Painter; }
 class BufferView;
+class Length;
 class MacroContext;
 
 
@@ -46,6 +47,8 @@ public:
 	BufferView * bv;
 	/// current font
 	FontInfo font;
+	/// font of the containing inset
+	FontInfo outer_font;
 	/// name of current font - mathed specific
 	std::string fontname;
 	/// This is the width available in pixels
@@ -54,13 +57,16 @@ public:
 	int macro_nesting;
 
 	/// Temporarily change a full font.
-	Changer changeFontSet(std::string const & font);
+	Changer changeFontSet(std::string const & name);
+	/// Temporarily change font size in text mode, only record it in math mode.
+	Changer changeFontSize(std::string const & fontsize, bool mathmode);
 	/// Temporarily change the font to math if needed.
 	Changer changeEnsureMath(Inset::mode_type mode = Inset::MATH_MODE);
 	// Temporarily change to the style suitable for use in fractions
 	Changer changeFrac();
 	// Temporarily change to the style suitable for use in arrays
-	Changer changeArray();
+	// or to style suitable for smallmatrix when \c small is true.
+	Changer changeArray(bool small = false);
 	// Temporarily change the style to (script)script style
 	Changer changeScript();
 	///
@@ -69,6 +75,13 @@ public:
 	int solidLineOffset() const { return solid_line_offset_; }
 	///
 	int dottedLineThickness() const { return dotted_line_thickness_; }
+	/** return the on-screen size of this length
+	 *
+	 *  This version of the function uses the current inset width as
+	 *  width and the EM value of the current font.
+	 */
+	int inPixels(Length const & len) const;
+
 private:
 	int solid_line_thickness_;
 	int solid_line_offset_;
@@ -86,12 +99,18 @@ public:
 	MetricsInfo();
 	///
 	MetricsInfo(BufferView * bv, FontInfo font, int textwidth,
-	            MacroContext const & mc);
+	            MacroContext const & mc, bool vm, bool tight_insets);
 
 	///
 	MetricsBase base;
 	/// The context to resolve macros
 	MacroContext const & macrocontext;
+	/// Are we at the start of a paragraph (vertical mode)?
+	bool vmode;
+	/// if true, do not expand insets to max width artificially
+	bool tight_insets;
+	/// Extra width required by an inset, in addition to its dimension
+	int extrawidth;
 };
 
 
@@ -125,15 +144,20 @@ public:
 	/// Whether the text at this point is right-to-left (for insets)
 	bool ltr_pos;
 	/// The change the parent is part of (change tracking)
-	Change change_;
+	Change change;
 	/// Whether the parent is selected as a whole
 	bool selected;
+	/// Whether the left/right margins are selected
+	bool selected_left, selected_right;
 	/// Whether the spell checker is enabled for the parent
 	bool do_spellcheck;
 	/// True when it can be assumed that the screen has been cleared
 	bool full_repaint;
 	/// Current background color
 	ColorCode background_color;
+	/// The left and right position of current line (inside margins).
+	/// Useful for drawing display math numbering
+	int leftx, rightx;
 };
 
 class TextMetricsInfo {};

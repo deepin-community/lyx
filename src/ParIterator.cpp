@@ -12,7 +12,7 @@
 
 #include "ParIterator.h"
 
-#include "Paragraph.h"
+#include "CursorSlice.h"
 #include "Text.h"
 
 #include "insets/Inset.h"
@@ -25,15 +25,6 @@ namespace lyx {
 // ParIterator
 //
 //////////////////////////////////////////////////////////////////////////
-
-ParIterator::ParIterator(DocIterator const & dit)
-	: DocIterator(dit)
-{}
-
-
-ParIterator::ParIterator(ParIterator const & pi)
-	: DocIterator(DocIterator(pi))
-{}
 
 
 ParIterator par_iterator_begin(Inset & inset)
@@ -78,7 +69,7 @@ ParIterator & ParIterator::operator--()
 
 Paragraph & ParIterator::operator*() const
 {
-	return const_cast<Paragraph&>(text()->getPar(pit()));
+	return text()->getPar(pit());
 }
 
 
@@ -90,7 +81,7 @@ pit_type ParIterator::pit() const
 
 Paragraph * ParIterator::operator->() const
 {
-	return const_cast<Paragraph*>(&text()->getPar(pit()));
+	return &text()->getPar(pit());
 }
 
 
@@ -102,7 +93,7 @@ pit_type ParIterator::outerPar() const
 
 ParagraphList & ParIterator::plist() const
 {
-	return const_cast<ParagraphList&>(text()->paragraphs());
+	return text()->paragraphs();
 }
 
 
@@ -111,21 +102,6 @@ ParagraphList & ParIterator::plist() const
 // ParConstIterator
 //
 //////////////////////////////////////////////////////////////////////////
-
-
-ParConstIterator::ParConstIterator(Buffer const * buf)
-	: DocIterator(const_cast<Buffer *>(buf))
-{}
-
-
-ParConstIterator::ParConstIterator(DocIterator const & dit)
-	: DocIterator(dit)
-{}
-
-
-ParConstIterator::ParConstIterator(ParConstIterator const & pi)
-	: DocIterator(DocIterator(pi))
-{}
 
 
 void ParConstIterator::push_back(Inset const & inset)
@@ -161,8 +137,7 @@ ParagraphList const & ParConstIterator::plist() const
 #if 0
 bool operator==(ParConstIterator const & iter1, ParConstIterator const & iter2)
 {
-	// FIXME: this makes two full copies!
-	return DocIterator(iter1) == DocIterator(iter2);
+	return static_cast<DocIterator const &>(iter1) == static_cast<DocIterator const &>(iter2);
 }
 
 

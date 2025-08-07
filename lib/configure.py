@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 # -*- coding: utf-8 -*-
 #
 # file configure.py
@@ -9,7 +9,7 @@
 # Full author contact details are available in file CREDITS.
 
 from __future__ import print_function
-import glob, logging, os, re, shutil, subprocess, sys, stat
+import glob, logging, os, errno, re, shutil, subprocess, sys, stat
 
 if sys.version_info[0] < 3:
     import codecs
@@ -64,8 +64,13 @@ def removeFiles(filenames):
         try:
             os.remove(file)
             logger.debug('Removing file %s' % file)
-        except:
-            logger.debug('Failed to remove file %s' % file)
+        except OSError as e:
+            if e.errno == errno.ENOENT: # no such file or directory
+                logger.debug('No need to remove file %s (it does not exists)' % file)
+            elif e.errno == errno.EISDIR: # is a directory
+                logger.debug('Failed to remove file %s (it is a directory)' % file)
+            else:
+                logger.debug('Failed to remove file %s' % file)
             pass
 
 
@@ -152,8 +157,8 @@ def copy_tree(src, dst, preserve_symlinks=False, level=0):
             link_dest = os.readlink(src_name)
             os.symlink(link_dest, dst_name)
             outputs.append(dst_name)
-        elif level == 0 and name == 'cache':
-            logger.info("Skip cache %s", src_name)
+        elif level == 0 and name in [ 'cache', 'configure.log', 'chkconfig.ltx' ]:
+            logger.info("Skip copy of %s", src_name)
         elif os.path.isdir(src_name):
             outputs.extend(
                 copy_tree(src_name, dst_name, preserve_symlinks, level=(level + 1)))
@@ -175,7 +180,7 @@ def checkUpgrade():
         logger.info('Checking for upgrade from previous version.')
         parent = os.path.dirname(cwd)
         appname = basename[:(-len(version_suffix))]
-        for version in ['-2.2', '-2.1', '-2.0', '-1.6' ]:
+        for version in ['-2.3', '-2.2', '-2.1', '-2.0', '-1.6' ]:
             logger.debug('Checking for upgrade from previous version ' + version)
             previous = os.path.join(parent, appname + version)
             logger.debug('previous = ' + previous)
@@ -184,22 +189,6 @@ def checkUpgrade():
                 copy_tree( previous, cwd, True )
                 logger.info('Content copied from directory "%s".', previous)
                 return
-
-
-def checkUpgradeWin():
-    ''' Check for upgrade from previous version '''
-    cwd = os.getcwd()
-    basename = os.path.basename(cwd)
-    if basename != "LyX":
-        return
-    lyxrc = os.path.join(cwd, outfile)
-    if os.path.isfile(lyxrc):
-        return
-    olddir = os.path.join(os.path.dirname(cwd), "LyX2.3")
-    if not os.path.isdir(oldir):
-        return
-    logger.info('Copying ' + olddir + ' into ' + cwd)
-    copy_tree(olddir, cwd, True)
 
 
 def createDirectories():
@@ -235,11 +224,9 @@ def checkTeXPaths():
         inpname = inpname.replace('~', '\\string~')
         os.write(fd, b'\\relax')
         os.close(fd)
-        latex_out = cmdOutput(r'latex "\nonstopmode\input{%s}\makeatletter\@@end"'
-                              % inpname)
+        latex_out = cmdOutput(r'latex "\nonstopmode\input{%s}\makeatletter\@@end"' % inpname)
         if 'Error' in latex_out:
-            latex_out = cmdOutput(r'latex "\nonstopmode\input{\"%s\"}\makeatletter\@@end"'
-                                  % inpname)
+            latex_out = cmdOutput(r'latex "\nonstopmode\input{\"%s\"}\makeatletter\@@end"' % inpname)
         if 'Error' in latex_out:
             logger.warning("configure: TeX engine needs posix-style paths in latex files")
             windows_style_tex_paths = 'false'
@@ -251,7 +238,7 @@ def checkTeXPaths():
 
 
 ## Searching some useful programs
-def checkProg(description, progs, rc_entry = [], path = [], not_found = ''):
+def checkProg(description, progs, rc_entry=None, path=None, not_found =''):
     '''
         This function will search a program in $PATH plus given path
         If found, return directory and program name (not the options).
@@ -277,13 +264,18 @@ def checkProg(description, progs, rc_entry = [], path = [], not_found = ''):
             was found
 
     '''
+    if path is None:
+        path = []
+    if rc_entry is None:
+        rc_entry = []
+
     # one rc entry for each progs plus not_found entry
     if len(rc_entry) > 1 and len(rc_entry) != len(progs) + 1:
         logger.error("rc entry should have one item or item "
                      "for each prog and not_found.")
         sys.exit(2)
     logger.info('checking for ' + description + '...')
-    ## print '(' + ','.join(progs) + ')',
+    logger.debug('(' + ','.join(progs) + ')')
     additional_path = path
     path = os.environ["PATH"].split(os.pathsep) + additional_path
     extlist = ['']
@@ -326,25 +318,76 @@ def checkProg(description, progs, rc_entry = [], path = [], not_found = ''):
                         addToRC(rc_entry[idx].replace('%%', ac_prog))
                     return [ac_dir, ac_word]
         # if not successful
-        logger.info(msg + ' no')
+        logger.info(msg + ' not in path')
     # write rc entries for 'not found'
     if len(rc_entry) > 0:  # the last one.
         addToRC(rc_entry[-1].replace('%%', not_found))
     return ['', not_found]
 
 
-def checkProgAlternatives(description, progs, rc_entry = [],
-                          alt_rc_entry = [], path = [], not_found = ''):
+def check_java():
+    """ Check for Java, don't give up as often as checkProg, using platform-dependent techniques """
+    if os.name == 'nt':
+        # Check in the registry.
+        try:  # Python 3.
+            import winreg
+        except ImportError:  # Python 2.
+            import _winreg as winreg
+
+        potential_keys_64b = ["SOFTWARE\\JavaSoft\\Java Runtime Environment", "SOFTWARE\\JavaSoft\\Java Development Kit",
+                              "SOFTWARE\\JavaSoft\\JDK", "SOFTWARE\\JavaSoft\\JRE"]
+        potential_keys_32b = [k.replace('SOFTWARE', 'SOFTWARE\\WOW6432Node') for k in potential_keys_64b]
+        potential_keys = potential_keys_64b + potential_keys_32b
+
+        reg_hive = winreg.HKEY_LOCAL_MACHINE
+        for key in potential_keys:
+            try:
+                with winreg.OpenKey(reg_hive, key) as reg_key:
+                    version = winreg.QueryValueEx(reg_key, "CurrentVersion")[0]
+                with winreg.OpenKey(reg_hive, key + '\\' + version) as reg_key:
+                    java_bin = winreg.QueryValueEx(reg_key, "JavaHome")[0] + '\\bin\\java.exe'
+                    logger.info('+checking for java: found in Windows registry, ' + str(java_bin))
+                    return java_bin
+            except OSError:
+                pass
+
+        # The test failed, no Java found.
+        return ''
+    else:
+        return ''
+
+
+def checkMacOSappInstalled(prog):
+    '''
+        Use metadata lookup to search for an "installed" macOS application bundle.
+    '''
+    if sys.platform == 'darwin' and len(prog) >= 1:
+        command = r'mdfind "kMDItemContentTypeTree == \"com.apple.application\"c && kMDItemFSName == \"%s\""' % prog
+        result = cmdOutput(command)
+        logger.debug(command + ": " + result)
+        return result != ''
+    return False
+
+
+def checkProgAlternatives(description, progs, rc_entry=None,
+                          alt_rc_entry=None, path=None, not_found=''):
     '''
         The same as checkProg, but additionally, all found programs will be added
         as alt_rc_entries
     '''
+    if path is None:
+        path = []
+    if alt_rc_entry is None:
+        alt_rc_entry = []
+    if rc_entry is None:
+        rc_entry = []
+
     # one rc entry for each progs plus not_found entry
     if len(rc_entry) > 1 and len(rc_entry) != len(progs) + 1:
         logger.error("rc entry should have one item or item for each prog and not_found.")
         sys.exit(2)
     logger.info('checking for ' + description + '...')
-    ## print '(' + ','.join(progs) + ')',
+    logger.debug('(' + ','.join(progs) + ')')
     additional_path = path
     path = os.environ["PATH"].split(os.pathsep) + additional_path
     extlist = ['']
@@ -364,6 +407,10 @@ def checkProgAlternatives(description, progs, rc_entry = [],
             continue
         msg = '+checking for "' + ac_word + '"... '
         found_alt = False
+        if len(alt_rc_entry) >= 1 and ac_word.endswith('.app') and checkMacOSappInstalled(ac_word):
+            logger.info('+add alternative app ' + ac_word)
+            addToRC(alt_rc_entry[0].replace('%%', ac_word))
+            found_alt = True
         for ac_dir in path:
             if hasattr(os, "access") and not os.access(ac_dir, os.F_OK):
                 continue
@@ -414,7 +461,7 @@ def checkProgAlternatives(description, progs, rc_entry = [],
                     break
             if found_alt:
                 break
-        if found_alt == False:
+        if not found_alt:
             # if not successful
             logger.info(msg + ' no')
     if found_prime:
@@ -452,11 +499,14 @@ def addAlternatives(rcs, alt_type):
     return alt
 
 
-def listAlternatives(progs, alt_type, rc_entry = []):
+def listAlternatives(progs, alt_type, rc_entry=None):
     '''
         Returns a list of \\prog_alternatives strings to be used as alternative
         rc entries.  alt_type can be a string or a list of strings.
     '''
+    if rc_entry is None:
+        rc_entry = []
+
     if len(rc_entry) > 1 and len(rc_entry) != len(progs) + 1:
         logger.error("rc entry should have one item or item for each prog and not_found.")
         sys.exit(2)
@@ -473,38 +523,63 @@ def listAlternatives(progs, alt_type, rc_entry = []):
     return alt_rc_entry
 
 
-def checkViewer(description, progs, rc_entry = [], path = []):
+def checkViewer(description, progs, rc_entry=None, path=None):
     ''' The same as checkProgAlternatives, but for viewers '''
+    if path is None:
+        path = []
+    if rc_entry is None:
+        rc_entry = []
+
     alt_rc_entry = listAlternatives(progs, 'viewer', rc_entry)
     return checkProgAlternatives(description, progs, rc_entry,
                                  alt_rc_entry, path, not_found = 'auto')
 
 
-def checkEditor(description, progs, rc_entry = [], path = []):
+def checkEditor(description, progs, rc_entry=None, path=None):
     ''' The same as checkProgAlternatives, but for editors '''
+    if path is None:
+        path = []
+    if rc_entry is None:
+        rc_entry = []
+
     alt_rc_entry = listAlternatives(progs, 'editor', rc_entry)
     return checkProgAlternatives(description, progs, rc_entry,
                                  alt_rc_entry, path, not_found = 'auto')
 
 
-def checkViewerNoRC(description, progs, rc_entry = [], path = []):
+def checkViewerNoRC(description, progs, rc_entry=None, path=None):
     ''' The same as checkViewer, but do not add rc entry '''
+    if path is None:
+        path = []
+    if rc_entry is None:
+        rc_entry = []
+
     alt_rc_entry = listAlternatives(progs, 'viewer', rc_entry)
     rc_entry = []
     return checkProgAlternatives(description, progs, rc_entry,
                                  alt_rc_entry, path, not_found = 'auto')
 
 
-def checkEditorNoRC(description, progs, rc_entry = [], path = []):
-    ''' The same as checkViewer, but do not add rc entry '''
+def checkEditorNoRC(description, progs, rc_entry=None, path=None):
+    ''' The same as checkEditor, but do not add rc entry '''
+    if rc_entry is None:
+        rc_entry = []
+    if path is None:
+        path = []
+
     alt_rc_entry = listAlternatives(progs, 'editor', rc_entry)
     rc_entry = []
     return checkProgAlternatives(description, progs, rc_entry,
                                  alt_rc_entry, path, not_found = 'auto')
 
 
-def checkViewerEditor(description, progs, rc_entry = [], path = []):
+def checkViewerEditor(description, progs, rc_entry=None, path=None):
     ''' The same as checkProgAlternatives, but for viewers and editors '''
+    if rc_entry is None:
+        rc_entry = []
+    if path is None:
+        path = []
+
     alt_rc_entry = listAlternatives(progs, ['editor', 'viewer'], rc_entry)
     return checkProgAlternatives(description, progs, rc_entry,
                                  alt_rc_entry, path, not_found = 'auto')
@@ -527,8 +602,7 @@ def checkInkscape():
     ''' The answer of the real inkscape is validated and a fake binary used if this fails '''
     if sys.platform == 'darwin':
         version_string = cmdOutput("inkscape --version")
-        match = re.match('^Inkscape', version_string)
-        if match:
+        if version_string.startswith('Inkscape'):
             return 'inkscape'
         else:
             return 'inkscape-binary'
@@ -579,7 +653,6 @@ def checkInkscapeStable():
 def checkLatex(dtl_tools):
     ''' Check latex, return lyx_check_config '''
     path, LATEX = checkProg('a Latex2e program', ['latex $$i', 'latex2e $$i'])
-    path, PPLATEX = checkProg('a DVI postprocessing program', ['pplatex $$i'])
     #-----------------------------------------------------------------
     path, PLATEX = checkProg('pLaTeX, the Japanese LaTeX', ['platex $$i'])
     if PLATEX:
@@ -593,15 +666,12 @@ def checkLatex(dtl_tools):
             PLATEX = ''
             removeFiles(['chklatex.ltx', 'chklatex.log'])
     #-----------------------------------------------------------------
-    # use LATEX to convert from latex to dvi if PPLATEX is not available
-    if PPLATEX == '':
-        PPLATEX = LATEX
     if dtl_tools:
         # Windows only: DraftDVI
         addToRC(r'''\converter latex      dvi2       "%s"	"latex,hyperref-driver=dvips"
-\converter dvi2       dvi        "python -tt $$s/scripts/clean_dvi.py $$i $$o"	""''' % PPLATEX)
+\converter dvi2       dvi        "$${python} $$s/scripts/clean_dvi.py $$i $$o"	""''' % LATEX)
     else:
-        addToRC(r'\converter latex      dvi        "%s"	"latex,hyperref-driver=dvips"' % PPLATEX)
+        addToRC(r'\converter latex      dvi        "%s"	"latex,hyperref-driver=dvips"' % LATEX)
     # no latex
     if LATEX:
         # Check if latex is usable
@@ -646,8 +716,12 @@ def checkModule(module):
       return False
 
 
+texteditors = ['xemacs', 'gvim', 'kedit', 'kwrite', 'kate',
+               'nedit', 'gedit', 'geany', 'leafpad', 'mousepad',
+               'xed', 'notepad', 'WinEdt', 'WinShell', 'PSPad']
+
 def checkFormatEntries(dtl_tools):
-    ''' Check all formats (\Format entries) '''
+    r''' Check all formats (\Format entries) '''
     checkViewerEditor('a Tgif viewer and editor', ['tgif'],
         rc_entry = [r'\Format tgif      "obj, tgo" Tgif                 "" "%%"	"%%"	"vector"	"application/x-tgif"'])
     #
@@ -690,14 +764,12 @@ def checkFormatEntries(dtl_tools):
         ['gimp-remote', 'gimp'], rc_entry = [imageformats])
     addToRC(imageformats % ((iv, ie)*10))
     #
-    checkViewerEditor('a text editor',
-        ['xemacs', 'gvim', 'kedit', 'kwrite', 'kate',
-         'nedit', 'gedit', 'geany', 'leafpad', 'mousepad', 'xed', 'notepad'],
+    checkViewerEditor('a text editor', texteditors,
         rc_entry = [r'''\Format asciichess asc    "Plain text (chess output)"  "" ""	"%%"	""	""
-\Format docbook    sgml    DocBook                B  ""	"%%"	"document,menu=export"	""
-\Format docbook-xml xml   "DocBook (XML)"         "" ""	"%%"	"document,menu=export"	"application/docbook+xml"
+\Format docbook5   xml    "DocBook 5"             "" ""	"%%"	"document,menu=export"	"application/docbook+xml"
 \Format dot        dot    "Graphviz Dot"          "" ""	"%%"	"vector"	"text/vnd.graphviz"
 \Format dviluatex  tex    "LaTeX (dviluatex)"     "" "" "%%"	"document,menu=export"	""
+\Format epub       epub    ePub                   "" "" "%%"    "document,menu=export"  "application/epub+zip"
 \Format platex     tex    "LaTeX (pLaTeX)"        "" "" "%%" 	"document,menu=export"	""
 \Format literate   nw      NoWeb                  N  ""	"%%"	"document,menu=export"	""
 \Format sweave     Rnw    "Sweave"                S  "" "%%"	"document,menu=export"	""
@@ -720,15 +792,15 @@ def checkFormatEntries(dtl_tools):
 \Format beamer.info pdf.info   "Info (Beamer)"         "" ""   "%%"    "document,menu=export"	""''' ])
    #Lilypond files have special editors, but fall back to plain text editors
     checkViewerEditor('a lilypond editor',
-        ['frescobaldi', 'xemacs', 'gvim', 'kedit', 'kwrite', 'kate',
-         'nedit', 'gedit', 'geany', 'leafpad', 'mousepad', 'xed', 'notepad'],
+        ['frescobaldi'] + texteditors,
         rc_entry = [r'''\Format lilypond   ly     "LilyPond music"        "" ""	"%%"	"vector"	"text/x-lilypond"''' ])
    #Spreadsheets using ssconvert from gnumeric
     checkViewer('gnumeric spreadsheet software', ['gnumeric'],
       rc_entry = [r'''\Format gnumeric gnumeric "Gnumeric spreadsheet" "" ""    "%%"   "document"	"application/x-gnumeric"
 \Format excel      xls    "Excel spreadsheet"      "" "" "%%"    "document"	"application/vnd.ms-excel"
 \Format excel2     xlsx   "MS Excel Office Open XML" "" "" "%%" "document"	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-\Format html_table html   "HTML Table (for spreadsheets)"      "" "" "%%"    "document"	"text/html"
+\Format xhtml_table xhtml "XHTML Table (for spreadsheets)"     "" "" "%%"    "document"	""
+\Format html_table html   "HTML Table (for spreadsheets)"      "" "" "%%"    "document"	""
 \Format oocalc     ods    "OpenDocument spreadsheet" "" "" "%%"    "document"	"application/vnd.oasis.opendocument.spreadsheet"'''])
  #
     checkViewer('an HTML previewer', ['firefox', 'mozilla file://$$p$$i', 'netscape'],
@@ -736,10 +808,8 @@ def checkFormatEntries(dtl_tools):
  #
     checkEditor('a BibTeX editor', ['jabref', 'JabRef',
         'pybliographic', 'bibdesk', 'gbib', 'kbib',
-        'kbibtex', 'sixpack', 'bibedit', 'tkbibtex'
-        'xemacs', 'gvim', 'kedit', 'kwrite', 'kate',
-        'jedit', 'TeXnicCenter', 'WinEdt', 'WinShell', 'PSPad',
-        'nedit', 'gedit', 'notepad', 'geany', 'leafpad', 'mousepad'],
+        'kbibtex', 'sixpack', 'bibedit', 'tkbibtex', 'TeXnicCenter'] +
+        texteditors,
         rc_entry = [r'''\Format bibtex bib    "BibTeX"         "" ""	"%%"	""	"text/x-bibtex"''' ])
     #
     #checkProg('a Postscript interpreter', ['gs'],
@@ -758,7 +828,7 @@ def checkFormatEntries(dtl_tools):
     checkViewer('a PDF previewer',
                 ['pdfview', 'kpdf', 'okular', 'qpdfview --unique',
                  'evince', 'xreader', 'kghostview', 'xpdf', 'SumatraPDF',
-                 'acrobat', 'acroread', 'mupdf',
+                 'acrobat', 'acroread', 'mupdf', 'Skim.app',
                  'gv', 'ghostview', 'AcroRd32', 'gsview64', 'gsview32'],
         rc_entry = [r'''\Format pdf        pdf    "PDF (ps2pdf)"          P  "%%"	""	"document,vector,menu=export"	""
 \Format pdf2       pdf    "PDF (pdflatex)"        F  "%%"	""	"document,vector,menu=export"	""
@@ -767,7 +837,8 @@ def checkFormatEntries(dtl_tools):
 \Format pdf5       pdf    "PDF (LuaTeX)"          u  "%%"	""	"document,vector,menu=export"	""
 \Format pdf6       pdf    "PDF (graphics)"        "" "%%"	""	"vector"	"application/pdf"
 \Format pdf7       pdf    "PDF (cropped)"         "" "%%"	""	"document,vector"	""
-\Format pdf8       pdf    "PDF (lower resolution)"         "" "%%"	""	"document,vector"	""'''])
+\Format pdf8       pdf    "PDF (lower resolution)"         "" "%%"	""	"document,vector"	""
+\Format pdf9       pdf    "PDF (DocBook)"         "" "%%"	""	"document,vector,menu=export"	""'''])
     #
     checkViewer('a DVI previewer', ['xdvi', 'kdvi', 'okular',
                                     'evince', 'xreader',
@@ -805,7 +876,8 @@ def checkFormatEntries(dtl_tools):
 \Format lyx16x     16.lyx "LyX 1.6.x"             "" ""	""	"document"	""
 \Format lyx20x     20.lyx "LyX 2.0.x"             "" ""	""	"document"	""
 \Format lyx21x     21.lyx "LyX 2.1.x"             "" ""	""	"document"	""
-\Format lyx22x     22.lyx "LyX 2.2.x"             "" ""	""	"document,menu=export"	""
+\Format lyx22x     22.lyx "LyX 2.2.x"             "" ""	""	"document"	""
+\Format lyx23x     23.lyx "LyX 2.3.x"             "" ""	""	"document,menu=export"	""
 \Format clyx       cjklyx "CJK LyX 1.4.x (big5)"  "" ""	""	"document"	""
 \Format jlyx       cjklyx "CJK LyX 1.4.x (euc-jp)" "" ""	""	"document"	""
 \Format klyx       cjklyx "CJK LyX 1.4.x (euc-kr)" "" ""	""	"document"	""
@@ -820,7 +892,7 @@ def checkFormatEntries(dtl_tools):
 
 
 def checkConverterEntries():
-    ''' Check all converters (\converter entries) '''
+    r''' Check all converters (\converter entries) '''
     checkProg('the pdflatex program', ['pdflatex $$i'],
         rc_entry = [ r'\converter pdflatex   pdf2       "%%"	"latex=pdflatex,hyperref-driver=pdftex"' ])
 
@@ -845,7 +917,7 @@ def checkConverterEntries():
 
     path, t2l = checkProg('a LaTeX/Noweb -> LyX converter', [quoteIfSpace(in_binary_subdir), quoteIfSpace(in_binary_subdir + version_suffix), quoteIfSpace(in_binary_dir), quoteIfSpace(in_binary_dir + version_suffix), 'tex2lyx' + version_suffix, 'tex2lyx'],
         rc_entry = [r'''\converter latex      lyx        "%% -f $$i $$o"	""
-\converter latexclipboard lyx        "%% -fixedenc utf8 -f $$i $$o"	""
+\converter latexclipboard lyx        "%% -fixedenc utf8 -c $$c -m $$m -f $$i $$o"	""
 \converter literate   lyx        "%% -n -m noweb -f $$i $$o"	""
 \converter sweave   lyx        "%% -n -m sweave -f $$i $$o"	""
 \converter knitr   lyx        "%% -n -m knitr -f $$i $$o"	""'''], not_found = 'tex2lyx')
@@ -887,7 +959,7 @@ def checkConverterEntries():
     checkProg('an HTML -> LaTeX converter', ['html2latex $$i', 'gnuhtml2latex',
         'htmltolatex -input $$i -output $$o', 'htmltolatex.jar -input $$i -output $$o'],
         rc_entry = [ r'\converter html       latex      "%%"	""',
-                     r'\converter html       latex      "python -tt $$s/scripts/html2latexwrapper.py %% $$i $$o"	""',
+                     r'\converter html       latex      "$${python} $$s/scripts/html2latexwrapper.py %% $$i $$o"	""',
                      r'\converter html       latex      "%%"	""',
                      r'\converter html       latex      "%%"	""', '' ])
     #
@@ -908,8 +980,8 @@ def checkConverterEntries():
         ['elyxer.py --html --nofooter --unicode --directory $$r $$i $$o', 'elyxer --html --nofooter --unicode --directory $$r $$i $$o'],
         rc_entry = [ r'\converter lyx      word      "%%"	""' ])
     if elyxer.find('elyxer') >= 0:
-      addToRC(r'''\copier    html       "python -tt $$s/scripts/ext_copy.py -e html,png,jpg,jpeg,css $$i $$o"''')
-      addToRC(r'''\copier    wordhtml       "python -tt $$s/scripts/ext_copy.py -e html,png,jpg,jpeg,css $$i $$o"''')
+      addToRC(r'''\copier    html       "$${python} $$s/scripts/ext_copy.py -e html,png,jpg,jpeg,css $$i $$o"''')
+      addToRC(r'''\copier    wordhtml       "$${python} $$s/scripts/ext_copy.py -e html,png,jpg,jpeg,css $$i $$o"''')
     else:
       # search for HTML converters other than eLyXer
       # On SuSE the scripts have a .sh suffix, and on debian they are in /usr/share/tex4ht/
@@ -918,17 +990,17 @@ def checkConverterEntries():
           'latex2html -no_subdir -split 0 -show_section_numbers $$i', 'hevea -s $$i'],
           rc_entry = [ r'\converter latex      html       "%%"	"needaux"' ])
       if htmlconv.find('htlatex') >= 0 or htmlconv == 'latex2html':
-        addToRC(r'''\copier    html       "python -tt $$s/scripts/ext_copy.py -e html,png,css $$i $$o"''')
+        addToRC(r'''\copier    html       "$${python} $$s/scripts/ext_copy.py -e html,png,css $$i $$o"''')
       else:
-        addToRC(r'''\copier    html       "python -tt $$s/scripts/ext_copy.py $$i $$o"''')
+        addToRC(r'''\copier    html       "$${python} $$s/scripts/ext_copy.py $$i $$o"''')
       path, htmlconv = checkProg('a LaTeX -> HTML (MS Word) converter', ["htlatex $$i 'html,word' 'symbol/!' '-cvalidate'",
           "htlatex.sh $$i 'html,word' 'symbol/!' '-cvalidate'",
           "/usr/share/tex4ht/htlatex $$i 'html,word' 'symbol/!' '-cvalidate'"],
           rc_entry = [ r'\converter latex      wordhtml   "%%"	"needaux"' ])
       if htmlconv.find('htlatex') >= 0:
-        addToRC(r'''\copier    wordhtml       "python -tt $$s/scripts/ext_copy.py -e html,png,css $$i $$o"''')
+        addToRC(r'''\copier    wordhtml       "$${python} $$s/scripts/ext_copy.py -e html,png,css $$i $$o"''')
       else:
-        addToRC(r'''\copier    wordhtml       "python -tt $$s/scripts/ext_copy.py $$i $$o"''')
+        addToRC(r'''\copier    wordhtml       "$${python} $$s/scripts/ext_copy.py $$i $$o"''')
 
 
     # Check if LyXBlogger is installed
@@ -947,6 +1019,22 @@ def checkConverterEntries():
     checkProg('an Open Document (Pandoc) -> LaTeX converter', ['pandoc -s -f odt -o $$o -t latex $$i'],
         rc_entry = [ r'\converter odt3        latex      "%%"	""' ])
     #
+    checkProg('DocBook converter -> PDF (docbook)',
+              ['pandoc -f docbook -t latex --pdf-engine=lualatex --toc -o $$o $$i',  # Since Pandoc 2.0
+               'pandoc -f docbook -t latex --latex-engine=lualatex --toc -o $$o $$i'],  # Up to Pandoc 1.19
+              rc_entry = [ r'\converter docbook5      pdf9      "%%"	"needcopiesfrom=docbook5"' ])
+    #
+    xpath, xslt_sheet = checkProg('XSLT stylesheets for ePub', ['chunk.xsl'], '', ['/usr/share/xml/docbook/stylesheet/docbook-xsl-ns/epub3'])
+    if xslt_sheet == 'chunk.xsl':
+        xpath = '/usr/share/xml/docbook/stylesheet/docbook-xsl-ns'
+    else:
+        xpath = 'none'
+    global java
+    if xsltproc != '':
+        addToRC(r'\converter docbook5 epub "$${python} $$s/scripts/docbook2epub.py none none \"' + xsltproc + r'\" ' + xpath + ' $$i $$r $$o" "needcopiesfrom=docbook5"')
+    elif java != '':
+        addToRC(r'\converter docbook5 epub "$${python} $$s/scripts/docbook2epub.py \"' + java + r'\" none none ' + xpath + ' $$i $$r $$o" "needcopiesfrom=docbook5"')
+    #
     checkProg('a MS Word Office Open XML converter -> LaTeX', ['pandoc -s -f docx -o $$o -t latex $$i'],
         rc_entry = [ r'\converter word2      latex      "%%"	""' ])
     # Only define a converter to pdf6, otherwise the odt format could be
@@ -960,7 +1048,7 @@ def checkConverterEntries():
     # On SuSE the scripts have a .sh suffix, and on debian they are in /usr/share/tex4ht/
     # Both SuSE and debian have oolatex
     checkProg('a LaTeX -> Open Document (tex4ht) converter', [
-        'oolatex $$i', 'mk4ht oolatex $$i', 'oolatex.sh $$i', '/usr/share/tex4ht/oolatex $$i',
+        'oolatex $$i', 'make4ht -f odt $$i', 'oolatex.sh $$i', '/usr/share/tex4ht/oolatex $$i',
         'htlatex $$i \'xhtml,ooffice\' \'ooffice/! -cmozhtf\' \'-coo\' \'-cvalidate\''],
         rc_entry = [ r'\converter latex      odt        "%%"	"needaux"' ])
     # On windows it is called latex2rt.exe
@@ -976,7 +1064,7 @@ def checkConverterEntries():
     checkProg('a RTF -> HTML converter', ['unrtf --html  $$i > $$o'],
         rc_entry = [ r'\converter rtf      html        "%%"	""' ])
     # Do not define a converter to pdf6, ps is a pure export format
-    checkProg('a PS to PDF converter', ['ps2pdf $$i $$o'],
+    checkProg('a PS to PDF converter', ['ps2pdf -dALLOWPSTRANSPARENCY $$i $$o'],
         rc_entry = [ r'\converter ps         pdf        "%%"	"hyperref-driver=dvips"' ])
     #
     checkProg('a PS to TXT converter', ['pstotext $$i > $$o'],
@@ -999,14 +1087,6 @@ def checkConverterEntries():
     # Only define a converter from pdf6 for graphics
     checkProg('a PDF to EPS converter', ['pdftops -eps -f 1 -l 1 $$i $$o'],
         rc_entry = [ r'\converter pdf6        eps        "%%"	""' ])
-    # Define a converter from pdf6 to png for Macs where pdftops is missing.
-    # The converter utility sips allows to force the dimensions of the resulting
-    # png image. The value of 800 pixel for the width is arbitrary and not
-    # related to the current screen resolution or width.
-    # There is no converter parameter for this information.
-    checkProg('a PDF to PNG converter',
-        ['sips --resampleWidth 800 --setProperty format png $$i --out $$o'],
-        rc_entry = [ r'\converter pdf6        png        "%%" ""' ])
     # Create one converter for a PDF produced using TeX fonts and one for a
     # PDF produced using non-TeX fonts. This does not produce non-unique
     # conversion paths, since a given document either uses TeX fonts or not.
@@ -1017,8 +1097,8 @@ def checkConverterEntries():
     # PDF produced using non-TeX fonts. This does not produce non-unique
     # conversion paths, since a given document either uses TeX fonts or not.
     checkProg('Ghostscript', ["gswin32c", "gswin64c", "gs"],
-        rc_entry = [ r'''\converter pdf2   pdf8       "python -tt $$s/scripts/convert_pdf.py $$i $$o ebook"	""
-\converter pdf4   pdf8       "python -tt $$s/scripts/convert_pdf.py $$i $$o ebook"	""''' ])
+        rc_entry = [ r'''\converter pdf2   pdf8       "$${python} $$s/scripts/convert_pdf.py $$i $$o ebook"	""
+\converter pdf4   pdf8       "$${python} $$s/scripts/convert_pdf.py $$i $$o ebook"	""''' ])
     #
     checkProg('a Beamer info extractor', ['makebeamerinfo -p $$i'],
         rc_entry = [ r'\converter pdf2         beamer.info        "%%"	""' ])
@@ -1044,24 +1124,24 @@ def checkConverterEntries():
 \converter fig        ppm        "fig2dev -L ppm $$i $$o"	""
 \converter fig        svg        "fig2dev -L svg $$i $$o"	""
 \converter fig        png        "fig2dev -L png $$i $$o"	""
-\converter fig        pdftex     "python -tt $$s/scripts/fig2pdftex.py $$i $$o"	""
-\converter fig        pstex      "python -tt $$s/scripts/fig2pstex.py $$i $$o"	""''')
+\converter fig        pdftex     "$${python} $$s/scripts/fig2pdftex.py $$i $$o"	""
+\converter fig        pstex      "$${python} $$s/scripts/fig2pstex.py $$i $$o"	""''')
     #
     if inkscape_stable:
         checkProg('a SVG -> PDFTeX converter', [inkscape_cl],
-            rc_entry = [ r'\converter svg        pdftex     "python -tt $$s/scripts/svg2pdftex.py %% $$p$$i $$p$$o" ""'],
+            rc_entry = [ r'\converter svg        pdftex     "$${python} $$s/scripts/svg2pdftex.py %% $$p$$i $$p$$o" ""'],
             path = [inkscape_path])
         #
         checkProg('a SVG -> PSTeX converter', [inkscape_cl],
-            rc_entry = [ r'\converter svg        pstex     "python -tt $$s/scripts/svg2pstex.py %% $$p$$i $$p$$o" ""'],
+            rc_entry = [ r'\converter svg        pstex     "$${python} $$s/scripts/svg2pstex.py %% $$p$$i $$p$$o" ""'],
             path = [inkscape_path])
     else:
         checkProg('a SVG -> PDFTeX converter', [inkscape_cl],
-            rc_entry = [ r'\converter svg        pdftex     "python -tt $$s/scripts/svg2pdftex.py --unstable %% $$p$$i $$p$$o" ""'],
+            rc_entry = [ r'\converter svg        pdftex     "$${python} $$s/scripts/svg2pdftex.py --unstable %% $$p$$i $$p$$o" ""'],
             path = [inkscape_path])
         #
         checkProg('a SVG -> PSTeX converter', [inkscape_cl],
-            rc_entry = [ r'\converter svg        pstex     "python -tt $$s/scripts/svg2pstex.py --unstable %% $$p$$i $$p$$o" ""'],
+            rc_entry = [ r'\converter svg        pstex     "$${python} $$s/scripts/svg2pstex.py --unstable %% $$p$$i $$p$$o" ""'],
             path = [inkscape_path])
     #
     checkProg('a TIFF -> PS converter', ['tiff2ps $$i > $$o'],
@@ -1102,8 +1182,41 @@ def checkConverterEntries():
     checkProg('an EPS -> PDF converter', ['epstopdf'],
         rc_entry = [ r'\converter eps        pdf6       "epstopdf --outfile=$$o $$i"	""'])
     #
-    checkProg('an EPS -> PNG converter', ['magick $$i $$o', 'convert $$i $$o'],
-        rc_entry = [ r'\converter eps        png        "%%"	""'])
+    #prepare for pdf -> png, 2nd part depends on IM ban below
+    pdftopng = ['sips --resampleWidth 800 --setProperty format png $$i --out $$o' ]
+    #
+    # Due to more restrictive policies, it is possible that (image)magick
+    # does not allow conversions from eps to png.
+    # So before setting the converter test it it on a mock file
+    _, cmd = checkProg('an EPS -> PNG converter', ['magick', 'convert'])
+    if cmd:
+        writeToFile('mock.eps', r'%!PS')
+        try:
+            subprocess.check_call([cmd, "mock.eps", "mock.png"])
+            removeFiles(['mock.eps', 'mock.png'])
+            rc_entry = r'\converter eps        png        "%s $$i[0] $$o"	""'
+            addToRC(rc_entry % cmd)
+        except:
+            removeFiles(['mock.eps'])
+            #needs empty record otherwise default converter will be issued
+            addToRC(r'''\converter eps        png        ""	""
+\converter png        eps        ""	""
+\converter jpg        tiff        "convert $$i $$o"	""
+\converter png        tiff        "convert $$i $$o"	""''')
+            logger.info('ImageMagick seems to ban conversions from EPS. Disabling direct EPS->PNG.')
+            pdftopng.append('pdftoppm -r 72 -png -singlefile $$i >  $$o')
+    #
+    # PDF -> PNG: sips (mac), IM convert (windows, linux), pdftoppm (linux with IM ban)
+    # sips:Define a converter from pdf6 to png for Macs where pdftops is missing.
+    # The converter utility sips allows to force the dimensions of the resulting
+    # png image. The value of 800 pixel for the width is arbitrary and not
+    # related to the current screen resolution or width.
+    # There is no converter parameter for this information.
+    #
+    #pdftoppm: Some systems ban IM eps->png conversion. We will offer eps->pdf->png route instead.
+    checkProg('a PDF to PNG converter', pdftopng,
+        rc_entry = [ r'\converter pdf6        png        "%%" ""' ])
+
     #
     # no agr -> pdf6 converter, since the pdf library used by gracebat is not
     # free software and therefore not compiled in in many installations.
@@ -1175,8 +1288,8 @@ def checkConverterEntries():
             path = ['', inkscape_path])
     #
     checkProg('Gnuplot', ['gnuplot'],
-        rc_entry = [ r'''\Format gnuplot     "gp, gnuplot"    "Gnuplot"     "" "" ""  "vector"	"text/plain"
-\converter gnuplot      pdf6      "python -tt $$s/scripts/gnuplot2pdf.py $$i $$o"    "needauth"''' ])
+        rc_entry = [ r'''\Format gnuplot     "gp, gnuplot, plt"    "Gnuplot"     "" "" ""  "vector"	"text/plain"
+\converter gnuplot      pdf6      "$${python} $$s/scripts/gnuplot2pdf.py $$i $$o"    "needauth"''' ])
     #
     # gnumeric/xls/ods to tex
     checkProg('a spreadsheet -> latex converter', ['ssconvert'],
@@ -1188,25 +1301,29 @@ def checkConverterEntries():
 \converter oocalc html_table "ssconvert --export-type=Gnumeric_html:html40frag $$i $$o" ""
 \converter excel  html_table "ssconvert --export-type=Gnumeric_html:html40frag $$i $$o" ""
 \converter excel2 html_table "ssconvert --export-type=Gnumeric_html:html40frag $$i $$o" ""
+\converter gnumeric xhtml_table "$${python} $$s/scripts/spreadsheet_to_docbook.py $$i $$o" ""
+\converter oocalc xhtml_table "$${python} $$s/scripts/spreadsheet_to_docbook.py $$i $$o" ""
+\converter excel  xhtml_table "$${python} $$s/scripts/spreadsheet_to_docbook.py $$i $$o" ""
+\converter excel2 xhtml_table "$${python} $$s/scripts/spreadsheet_to_docbook.py $$i $$o" ""
 '''])
 
     path, lilypond = checkProg('a LilyPond -> EPS/PDF/PNG converter', ['lilypond'])
     if (lilypond):
         version_string = cmdOutput("lilypond --version")
-        match = re.match('GNU LilyPond (\S+)', version_string)
+        match = re.match(r'GNU LilyPond (\S+)', version_string)
         if match:
             version_number = match.groups()[0]
             version = version_number.split('.')
             if int(version[0]) > 2 or (len(version) > 1 and int(version[0]) == 2 and int(version[1]) >= 11):
-                addToRC(r'''\converter lilypond   eps        "lilypond -dbackend=eps -dsafe --ps $$i"	""
-\converter lilypond   png        "lilypond -dbackend=eps -dsafe --png $$i"	""''')
-                addToRC(r'\converter lilypond   pdf6       "lilypond -dbackend=eps -dsafe --pdf $$i"	""')
+                addToRC(r'''\converter lilypond   eps        "lilypond -dbackend=eps --ps $$i"	"needauth"
+\converter lilypond   png        "lilypond -dbackend=eps --png $$i"	"needauth"''')
+                addToRC(r'\converter lilypond   pdf6       "lilypond -dbackend=eps --pdf $$i"	"needauth"')
                 logger.info('+  found LilyPond version %s.' % version_number)
             elif int(version[0]) > 2 or (len(version) > 1 and int(version[0]) == 2 and int(version[1]) >= 6):
-                addToRC(r'''\converter lilypond   eps        "lilypond -b eps --ps --safe $$i"	""
+                addToRC(r'''\converter lilypond   eps        "lilypond -b eps --ps $$i"	"needauth"
 \converter lilypond   png        "lilypond -b eps --png $$i"	""''')
                 if int(version[0]) > 2 or (len(version) > 1 and int(version[0]) == 2 and int(version[1]) >= 9):
-                    addToRC(r'\converter lilypond   pdf6       "lilypond -b eps --pdf --safe $$i"	""')
+                    addToRC(r'\converter lilypond   pdf6       "lilypond -b eps --pdf $$i"	"needauth"')
                 logger.info('+  found LilyPond version %s.' % version_number)
             else:
                 logger.info('+  found LilyPond, but version %s is too old.' % version_number)
@@ -1214,30 +1331,60 @@ def checkConverterEntries():
             logger.info('+  found LilyPond, but could not extract version number.')
     #
     path, lilypond_book = checkProg('a LilyPond book (LaTeX) -> LaTeX converter', ['lilypond-book'])
-    if (lilypond_book):
-        version_string = cmdOutput("lilypond-book --version")
-        match = re.match('^(\S+)$', version_string)
-        if match:
-            version_number = match.groups()[0]
-            version = version_number.split('.')
-            if int(version[0]) > 2 or (len(version) > 1 and int(version[0]) == 2 and int(version[1]) >= 13):
-                # Note: The --lily-output-dir flag is required because lilypond-book
-                #       does not process input again unless the input has changed,
-                #       even if the output format being requested is different. So
-                #       once a .eps file exists, lilypond-book won't create a .pdf
-                #       even when requested with --pdf. This is a problem if a user
-                #       clicks View PDF after having done a View DVI. To circumvent
-                #       this, use different output folders for eps and pdf outputs.
-                addToRC(r'\converter lilypond-book latex    "lilypond-book --safe --lily-output-dir=ly-eps $$i"                                ""')
-                addToRC(r'\converter lilypond-book pdflatex "lilypond-book --safe --pdf --latex-program=pdflatex --lily-output-dir=ly-pdf $$i" ""')
-                addToRC(r'\converter lilypond-book-ja platex "lilypond-book --safe --pdf --latex-program=platex --lily-output-dir=ly-pdf $$i" ""')
-                addToRC(r'\converter lilypond-book xetex    "lilypond-book --safe --pdf --latex-program=xelatex --lily-output-dir=ly-pdf $$i"  ""')
-                addToRC(r'\converter lilypond-book luatex   "lilypond-book --safe --pdf --latex-program=lualatex --lily-output-dir=ly-pdf $$i" ""')
-                addToRC(r'\converter lilypond-book dviluatex "lilypond-book --safe --latex-program=dvilualatex --lily-output-dir=ly-eps $$i" ""')
-                logger.info('+  found LilyPond-book version %s.' % version_number)
+    if lilypond_book:
+        found_lilypond_book = False
+        # On Windows, the file lilypond-book is not directly callable, it must be passed as argument to python.
+        for cmd in ["lilypond-book", os.path.basename(sys.executable) + ' "' + path + '/lilypond-book"']:
+            version_string = cmdOutput(cmd + " --version")
+            if len(version_string) == 0:
+                continue
+            found_lilypond_book = True
+
+            match = re.match(r'(\S+)$', version_string)
+            if match:
+                version_number = match.groups()[0]
+                version = version_number.split('.')
+                if int(version[0]) > 2 or (len(version) > 1 and int(version[0]) == 2 and int(version[1]) >= 13):
+                    # Note: The --lily-output-dir flag is required because lilypond-book
+                    #       does not process input again unless the input has changed,
+                    #       even if the output format being requested is different. So
+                    #       once a .eps file exists, lilypond-book won't create a .pdf
+                    #       even when requested with --pdf. This is a problem if a user
+                    #       clicks View PDF after having done a View DVI. To circumvent
+                    #       this, use different output folders for eps and pdf outputs.
+                    cmd = cmd.replace('"', r'\"')
+                    addToRC(r'\converter lilypond-book latex     "' + cmd + ' --lily-output-dir=ly-eps $$i"                                "needauth"')
+                    addToRC(r'\converter lilypond-book pdflatex  "' + cmd + ' --pdf --latex-program=pdflatex --lily-output-dir=ly-pdf $$i" "needauth"')
+                    addToRC(r'\converter lilypond-book-ja platex "' + cmd + ' --pdf --latex-program=platex --lily-output-dir=ly-pdf $$i" "needauth"')
+                    addToRC(r'\converter lilypond-book xetex     "' + cmd + ' --pdf --latex-program=xelatex --lily-output-dir=ly-pdf $$i"  "needauth"')
+                    addToRC(r'\converter lilypond-book luatex    "' + cmd + ' --pdf --latex-program=lualatex --lily-output-dir=ly-pdf $$i" "needauth"')
+                    addToRC(r'\converter lilypond-book dviluatex "' + cmd + ' --latex-program=dvilualatex --lily-output-dir=ly-eps $$i" "needauth"')
+
+                    # Also create the entry to apply LilyPond on DocBook files. However,
+                    # command must be passed as argument, and it might already have
+                    # quoted parts. LyX doesn't yet handle double-quoting of commands.
+                    # Hence, pass as argument either cmd (if it's a simple command) or
+                    # the Python file that should be called (typical on Windows).
+                    docbook_lilypond_cmd = cmd
+                    if "python" in docbook_lilypond_cmd:
+                        docbook_lilypond_cmd = '"' + path + '/lilypond-book"'
+                    addToRC(r'\copier docbook5 "$${python} $$s/scripts/docbook_copy.py ' + docbook_lilypond_cmd.replace('"', r'\"') + r' $$i $$o"')
+
+                    logger.info('+  found LilyPond-book version %s.' % version_number)
+
+                    # early exit on first match, avoid 2nd try with python call
+                    # in case of lilypond-book being an executable or shell script the python call is useless
+                    break
+                else:
+                    logger.info('+  found LilyPond-book, but version %s is too old.' % version_number)
             else:
-                logger.info('+  found LilyPond-book, but version %s is too old.' % version_number)
-        else:
+                logger.info('+  found LilyPond book, but version string does not match: %s' % version_string)
+
+            # If not on Windows, skip the check as argument to python.
+            if os.name != 'nt':
+                break
+
+        if not found_lilypond_book:
             logger.info('+  found LilyPond-book, but could not extract version number.')
     #
     checkProg('a Noteedit -> LilyPond converter', ['noteedit --export-lilypond $$i'],
@@ -1246,7 +1393,7 @@ def checkConverterEntries():
     # Currently, lyxpak outputs a gzip compressed tar archive on *nix
     # and a zip archive on Windows.
     # So, we configure the appropriate version according to the platform.
-    cmd = r'\converter lyx %s "python -tt $$s/scripts/lyxpak.py $$r/$$f" ""'
+    cmd = r'\converter lyx %s "$${python} $$s/scripts/lyxpak.py $$r/$$f" ""'
     if os.name == 'nt':
         addToRC(r'\Format lyxzip     zip    "LyX Archive (zip)"     "" "" ""  "document,menu=export"	""')
         addToRC(cmd % "lyxzip")
@@ -1260,45 +1407,25 @@ def checkConverterEntries():
     #
     # Entries that do not need checkProg
     addToRC(r'''
-\converter csv        lyx        "python -tt $$s/scripts/csv2lyx.py $$i $$o"	""
-\converter docbook    docbook-xml "cp $$i $$o"	"xml"
-\converter fen        asciichess "python -tt $$s/scripts/fen2ascii.py $$i $$o"	""
-\converter lyx        lyx13x     "python -tt $$s/lyx2lyx/lyx2lyx -V 1.3 -o $$o $$i"	""
-\converter lyx        lyx14x     "python -tt $$s/lyx2lyx/lyx2lyx -V 1.4 -o $$o $$i"	""
-\converter lyx        lyx15x     "python -tt $$s/lyx2lyx/lyx2lyx -V 1.5 -o $$o $$i"	""
-\converter lyx        lyx16x     "python -tt $$s/lyx2lyx/lyx2lyx -V 1.6 -o $$o $$i"	""
-\converter lyx        lyx20x     "python -tt $$s/lyx2lyx/lyx2lyx -V 2.0 -o $$o $$i"	""
-\converter lyx        lyx21x     "python -tt $$s/lyx2lyx/lyx2lyx -V 2.1 -o $$o $$i"	""
-\converter lyx        lyx22x     "python -tt $$s/lyx2lyx/lyx2lyx -V 2.2 -o $$o $$i"	""
-\converter lyx        clyx       "python -tt $$s/lyx2lyx/lyx2lyx -V 1.4 -o $$o -c big5   $$i"	""
-\converter lyx        jlyx       "python -tt $$s/lyx2lyx/lyx2lyx -V 1.4 -o $$o -c euc_jp $$i"	""
-\converter lyx        klyx       "python -tt $$s/lyx2lyx/lyx2lyx -V 1.4 -o $$o -c euc_kr $$i"	""
-\converter clyx       lyx        "python -tt $$s/lyx2lyx/lyx2lyx -c big5   -o $$o $$i"	""
-\converter jlyx       lyx        "python -tt $$s/lyx2lyx/lyx2lyx -c euc_jp -o $$o $$i"	""
-\converter klyx       lyx        "python -tt $$s/lyx2lyx/lyx2lyx -c euc_kr -o $$o $$i"	""
-\converter lyxpreview png        "python -tt $$s/scripts/lyxpreview2bitmap.py --png"	""
-\converter lyxpreview ppm        "python -tt $$s/scripts/lyxpreview2bitmap.py --ppm"	""
+\converter csv        lyx        "$${python} $$s/scripts/csv2lyx.py $$i $$o"	""
+\converter fen        asciichess "$${python} $$s/scripts/fen2ascii.py $$i $$o"	""
+\converter lyx        lyx13x     "$${python} $$s/lyx2lyx/lyx2lyx -V 1.3 -o $$o $$i"	""
+\converter lyx        lyx14x     "$${python} $$s/lyx2lyx/lyx2lyx -V 1.4 -o $$o $$i"	""
+\converter lyx        lyx15x     "$${python} $$s/lyx2lyx/lyx2lyx -V 1.5 -o $$o $$i"	""
+\converter lyx        lyx16x     "$${python} $$s/lyx2lyx/lyx2lyx -V 1.6 -o $$o $$i"	""
+\converter lyx        lyx20x     "$${python} $$s/lyx2lyx/lyx2lyx -V 2.0 -o $$o $$i"	""
+\converter lyx        lyx21x     "$${python} $$s/lyx2lyx/lyx2lyx -V 2.1 -o $$o $$i"	""
+\converter lyx        lyx22x     "$${python} $$s/lyx2lyx/lyx2lyx -V 2.2 -o $$o $$i"	""
+\converter lyx        lyx23x     "$${python} $$s/lyx2lyx/lyx2lyx -V 2.3 -o $$o $$i"	""
+\converter lyx        clyx       "$${python} $$s/lyx2lyx/lyx2lyx -V 1.4 -o $$o -c big5   $$i"	""
+\converter lyx        jlyx       "$${python} $$s/lyx2lyx/lyx2lyx -V 1.4 -o $$o -c euc_jp $$i"	""
+\converter lyx        klyx       "$${python} $$s/lyx2lyx/lyx2lyx -V 1.4 -o $$o -c euc_kr $$i"	""
+\converter clyx       lyx        "$${python} $$s/lyx2lyx/lyx2lyx -c big5   -o $$o $$i"	""
+\converter jlyx       lyx        "$${python} $$s/lyx2lyx/lyx2lyx -c euc_jp -o $$o $$i"	""
+\converter klyx       lyx        "$${python} $$s/lyx2lyx/lyx2lyx -c euc_kr -o $$o $$i"	""
+\converter lyxpreview png        "$${python} $$s/scripts/lyxpreview2bitmap.py --png"	""
+\converter lyxpreview ppm        "$${python} $$s/scripts/lyxpreview2bitmap.py --ppm"	""
 ''')
-
-
-def checkDocBook():
-    ''' Check docbook '''
-    path, DOCBOOK = checkProg('SGML-tools 2.x (DocBook), db2x scripts or xsltproc', ['sgmltools', 'db2dvi', 'xsltproc'],
-        rc_entry = [
-            r'''\converter docbook    dvi        "sgmltools -b dvi $$i"	""
-\converter docbook    html       "sgmltools -b html $$i"	""
-\converter docbook    ps         "sgmltools -b ps $$i"	""''',
-            r'''\converter docbook    dvi        "db2dvi $$i"	""
-\converter docbook    html       "db2html $$i"	""''',
-            r'''\converter docbook    dvi        ""	""
-\converter docbook    html       "" ""''',
-            r'''\converter docbook    dvi        ""	""
-\converter docbook    html       ""	""'''])
-    #
-    if DOCBOOK:
-        return ('yes', 'true', '\\def\\hasdocbook{yes}')
-    else:
-        return ('no', 'false', '')
 
 
 def checkOtherEntries():
@@ -1314,7 +1441,7 @@ def checkOtherEntries():
         rc_entry = [ r'\jbibtex_command "automatic"' ],
         alt_rc_entry = [ r'\jbibtex_alternatives "%%"' ])
     checkProgAlternatives('available index processors',
-        ['texindy', 'makeindex -c -q', 'xindy'],
+        ['texindy $$x -t $$b.ilg', 'xindex -l $$lcode', 'makeindex -c -q', 'xindy -M texindy $$x -t $$b.ilg'],
         rc_entry = [ r'\index_command "%%"' ],
         alt_rc_entry = [ r'\index_alternatives "%%"' ])
     checkProg('an index processor appropriate to Japanese',
@@ -1331,10 +1458,11 @@ def checkOtherEntries():
     ## FIXME: MAPLE is not used anywhere
     # path, MAPLE = checkProg('Maple', ['maple'])
     # Add the rest of the entries (no checkProg is required)
-    addToRC(r'''\copier    fig        "python -tt $$s/scripts/fig_copy.py $$i $$o"
-\copier    pstex      "python -tt $$s/scripts/tex_copy.py $$i $$o $$l"
-\copier    pdftex     "python -tt $$s/scripts/tex_copy.py $$i $$o $$l"
-\copier    program    "python -tt $$s/scripts/ext_copy.py $$i $$o"
+    addToRC(r'''\citation_search_view "$${python} $$s/scripts/lyxpaperview.py"''')
+    addToRC(r'''\copier    fig        "$${python} $$s/scripts/fig_copy.py $$i $$o"
+\copier    pstex      "$${python} $$s/scripts/tex_copy.py $$i $$o $$l"
+\copier    pdftex     "$${python} $$s/scripts/tex_copy.py $$i $$o $$l"
+\copier    program    "$${python} $$s/scripts/ext_copy.py $$i $$o"
 ''')
 
 def _checkForClassExtension(x):
@@ -1345,8 +1473,8 @@ def _checkForClassExtension(x):
     else:
         return x.strip()
 
-def processLayoutFile(file, bool_docbook):
-    ''' process layout file and get a line of result
+def processLayoutFile(file):
+    r""" process layout file and get a line of result
 
         Declare lines look like this:
 
@@ -1371,43 +1499,40 @@ def processLayoutFile(file, bool_docbook):
         "article" "article" "article" "false" "article.cls" "Articles"
         "scrbook" "scrbook" "book (koma-script)" "false" "scrbook.cls" "Books"
         "svjog" "svjour" "article (Springer - svjour/jog)" "false" "svjour.cls,svjog.clo" ""
-    '''
+    """
     classname = file.split(os.sep)[-1].split('.')[0]
-    # return ('LaTeX', '[a,b]', 'a', ',b,c', 'article') for \DeclareLaTeXClass[a,b,c]{article}
-    p = re.compile('\s*#\s*\\\\Declare(LaTeX|DocBook)Class\s*(\[([^,]*)(,.*)*\])*\s*{(.*)}\s*$')
-    q = re.compile('\s*#\s*\\\\DeclareCategory{(.*)}\s*$')
+    # return ('[a,b]', 'a', ',b,c', 'article') for \DeclareLaTeXClass[a,b,c]{article}
+    p = re.compile('\\s*#\\s*\\\\DeclareLaTeXClass\\s*(\\[([^,]*)(,.*)*])*\\s*{(.*)}\\s*$')
+    q = re.compile('\\s*#\\s*\\\\DeclareCategory{(.*)}\\s*$')
     classdeclaration = ""
     categorydeclaration = '""'
     for line in open(file, 'r', encoding='utf8').readlines():
         res = p.match(line)
         qres = q.match(line)
-        if res != None:
-            (classtype, optAll, opt, opt1, desc) = res.groups()
-            avai = {'LaTeX': 'false', 'DocBook': bool_docbook}[classtype]
-            if opt == None:
+        if res is not None:
+            (optAll, opt, opt1, desc) = res.groups()
+            if opt is None:
                 opt = classname
-                prereq_latex = _checkForClassExtension(classname)
+                prereq = _checkForClassExtension(classname)
             else:
                 prereq_list = optAll[1:-1].split(',')
                 prereq_list = list(map(_checkForClassExtension, prereq_list))
-                prereq_latex = ','.join(prereq_list)
-            prereq_docbook = {'true':'', 'false':'docbook'}[bool_docbook]
-            prereq = {'LaTeX':prereq_latex, 'DocBook':prereq_docbook}[classtype]
+                prereq = ','.join(prereq_list)
             classdeclaration = ('"%s" "%s" "%s" "%s" "%s"'
-                               % (classname, opt, desc, avai, prereq))
+                               % (classname, opt, desc, 'false', prereq))
             if categorydeclaration != '""':
                 return classdeclaration + " " + categorydeclaration
-        if qres != None:
-             categorydeclaration = '"%s"' % (qres.groups()[0])
-             if classdeclaration:
-                 return classdeclaration + " " + categorydeclaration
+        if qres is not None:
+            categorydeclaration = '"%s"' % (qres.groups()[0])
+            if classdeclaration:
+                return classdeclaration + " " + categorydeclaration
     if classdeclaration:
         return classdeclaration + " " + categorydeclaration
-    logger.warning("Layout file " + file + " has no \DeclareXXClass line. ")
+    logger.warning("Layout file " + file + " has no \\DeclareLaTeXClass line. ")
     return ""
 
 
-def checkLatexConfig(check_config, bool_docbook):
+def checkLatexConfig(check_config):
     ''' Explore the LaTeX configuration
         Return None (will be passed to sys.exit()) for success.
     '''
@@ -1445,7 +1570,7 @@ def checkLatexConfig(check_config, bool_docbook):
             # make sure the same class is not considered twice
             if foundClasses.count(cleanclass) == 0: # not found before
                 foundClasses.append(cleanclass)
-                retval = processLayoutFile(file, bool_docbook)
+                retval = processLayoutFile(file)
                 if retval:
                     tx.write(retval + os.linesep)
         tx.close()
@@ -1466,11 +1591,11 @@ def checkLatexConfig(check_config, bool_docbook):
     if not os.path.isfile( 'chkconfig.ltx' ):
         shutil.copyfile( os.path.join(srcdir, 'chkconfig.ltx'), 'chkconfig.ltx' )
         rmcopy = True
-    writeToFile('wrap_chkconfig.ltx', '%s\n\\input{chkconfig.ltx}\n' % docbook_cmd)
+    writeToFile('wrap_chkconfig.ltx', '\\def\\hasdocbook{yes}\n\\input{chkconfig.ltx}\n')
     # Construct the list of classes to test for.
     # build the list of available layout files and convert it to commands
     # for chkconfig.ltx
-    declare = re.compile('\\s*#\\s*\\\\Declare(LaTeX|DocBook)Class\\s*(\[([^,]*)(,.*)*\])*\\s*{(.*)}\\s*$')
+    declare = re.compile('\\s*#\\s*\\\\DeclareLaTeXClass\\s*(\\[([^,]*)(,.*)*\\])*\\s*{(.*)}\\s*$')
     category = re.compile('\\s*#\\s*\\\\DeclareCategory{(.*)}\\s*$')
     empty = re.compile('\\s*$')
     testclasses = list()
@@ -1486,15 +1611,15 @@ def checkLatexConfig(check_config, bool_docbook):
             for line in open(file, 'r', encoding='utf8').readlines():
                 if not empty.match(line) and line[0] != '#'[0]:
                     if decline == "":
-                        logger.warning("Failed to find valid \Declare line "
+                        logger.warning(r"Failed to find valid \Declare line "
                             "for layout file `%s'.\n\t=> Skipping this file!" % file)
                         nodeclaration = True
                     # A class, but no category declaration. Just break.
                     break
-                if declare.match(line) != None:
+                if declare.match(line) is not None:
                     decline = "\\TestDocClass{%s}{%s}" % (classname, line[1:].strip())
                     testclasses.append(decline)
-                elif category.match(line) != None:
+                elif category.match(line) is not None:
                     catline = ("\\DeclareCategory{%s}{%s}"
                                % (classname, category.match(line).groups()[0]))
                     testclasses.append(catline)
@@ -1523,7 +1648,7 @@ def checkLatexConfig(check_config, bool_docbook):
         line = latex_out.readline()
         if not line:
             break;
-        if re.match('^\+', line):
+        if line.startswith('+'):
             logger.info(line.strip())
     # if the command succeeds, None will be returned
     ret = latex_out.close()
@@ -1532,18 +1657,13 @@ def checkLatexConfig(check_config, bool_docbook):
     if rmcopy:
         removeFiles( [ 'chkconfig.ltx' ] )
     #
-    # currently, values in chkconfig are only used to set
-    # \font_encoding
-    values = {}
-    for line in open('chkconfig.vars').readlines():
-        key, val = re.sub('-', '_', line).split('=')
-        val = val.strip()
-        values[key] = val.strip("'")
-    # chk_fontenc may not exist
-    try:
-        addToRC(r'\font_encoding "%s"' % values["chk_fontenc"])
-    except:
-        pass
+    # values in chkconfig were only used to set
+    # \font_encoding, which is obsolete
+#    values = {}
+#    for line in open('chkconfig.vars').readlines():
+#        key, val = re.sub('-', '_', line).split('=')
+#        val = val.strip()
+#        values[key] = val.strip("'")
     # if configure successed, move textclass.lst.tmp to textclass.lst
     # and packages.lst.tmp to packages.lst
     if (os.path.isfile('textclass.lst.tmp')
@@ -1564,7 +1684,7 @@ def checkModulesConfig():
 ## It has been automatically generated by configure
 ## Use "Options/Reconfigure" if you need to update it after a
 ## configuration change.
-## "ModuleName" "filename" "Description" "Packages" "Requires" "Excludes" "Category"
+## "ModuleName" "filename" "Description" "Packages" "Requires" "Excludes" "Category" "Local"
 ''')
 
   # build the list of available modules
@@ -1585,7 +1705,7 @@ def checkModulesConfig():
 
       seen.append(filename)
       try:
-          retval = processModuleFile(file, filename, bool_docbook)
+          retval = processModuleFile(file, filename)
           if retval:
               tx.write(retval)
       except UnicodeDecodeError:
@@ -1599,8 +1719,8 @@ def checkModulesConfig():
   logger.info('\tdone')
 
 
-def processModuleFile(file, filename, bool_docbook):
-    ''' process module file and get a line of result
+def processModuleFile(file, filename):
+    r''' process module file and get a line of result
 
         The top of a module file should look like this:
           #\DeclareLyXModule[LaTeX Packages]{ModuleName}
@@ -1614,12 +1734,12 @@ def processModuleFile(file, filename, bool_docbook):
         We expect output:
           "ModuleName" "filename" "Description" "Packages" "Requires" "Excludes" "Category"
     '''
-    remods = re.compile('\s*#\s*\\\\DeclareLyXModule\s*(?:\[([^]]*?)\])?{(.*)}')
-    rereqs = re.compile('\s*#+\s*Requires: (.*)')
-    reexcs = re.compile('\s*#+\s*Excludes: (.*)')
+    remods = re.compile('\\s*#\\s*\\\\DeclareLyXModule\\s*(?:\\[([^]]*?)\\])?{(.*)}')
+    rereqs = re.compile(r'\s*#+\s*Requires: (.*)')
+    reexcs = re.compile(r'\s*#+\s*Excludes: (.*)')
     recaty = re.compile('\\s*#\\s*\\\\DeclareCategory{(.*)}\\s*$')
-    redbeg = re.compile('\s*#+\s*DescriptionBegin\s*$')
-    redend = re.compile('\s*#+\s*DescriptionEnd\s*$')
+    redbeg = re.compile(r'\s*#+\s*DescriptionBegin\s*$')
+    redend = re.compile(r'\s*#+\s*DescriptionEnd\s*$')
 
     modname = desc = pkgs = req = excl = catgy = ""
     readingDescription = False
@@ -1627,7 +1747,7 @@ def processModuleFile(file, filename, bool_docbook):
 
     for line in open(file, 'r', encoding='utf8').readlines():
       if readingDescription:
-        res = redend.search(line)
+        res = redend.match(line)
         if res != None:
           readingDescription = False
           desc = " ".join(descLines)
@@ -1636,11 +1756,11 @@ def processModuleFile(file, filename, bool_docbook):
           continue
         descLines.append(line[1:].strip())
         continue
-      res = redbeg.search(line)
+      res = redbeg.match(line)
       if res != None:
         readingDescription = True
         continue
-      res = remods.search(line)
+      res = remods.match(line)
       if res != None:
           (pkgs, modname) = res.groups()
           if pkgs == None:
@@ -1649,25 +1769,25 @@ def processModuleFile(file, filename, bool_docbook):
             tmp = [s.strip() for s in pkgs.split(",")]
             pkgs = ",".join(tmp)
           continue
-      res = rereqs.search(line)
+      res = rereqs.match(line)
       if res != None:
         req = res.group(1)
         tmp = [s.strip() for s in req.split("|")]
         req = "|".join(tmp)
         continue
-      res = reexcs.search(line)
+      res = reexcs.match(line)
       if res != None:
         excl = res.group(1)
         tmp = [s.strip() for s in excl.split("|")]
         excl = "|".join(tmp)
         continue
-      res = recaty.search(line)
+      res = recaty.match(line)
       if res != None:
         catgy = res.group(1)
         continue
 
     if modname == "":
-      logger.warning("Module file without \DeclareLyXModule line. ")
+      logger.warning(r"Module file without \DeclareLyXModule line. ")
       return ""
 
     if pkgs:
@@ -1687,8 +1807,11 @@ def processModuleFile(file, filename, bool_docbook):
             cm.write(line + '\n')
         cm.close()
 
-    return ('"%s" "%s" "%s" "%s" "%s" "%s" "%s"\n'
-            % (modname, filename, desc, pkgs, req, excl, catgy))
+    local = "true"
+    if (file.startswith(srcdir)):
+        local = "false"
+    return ('"%s" "%s" "%s" "%s" "%s" "%s" "%s" "%s"\n'
+            % (modname, filename, desc, pkgs, req, excl, catgy, local))
 
 
 def checkCiteEnginesConfig():
@@ -1720,15 +1843,15 @@ def checkCiteEnginesConfig():
           continue
 
       seen.append(filename)
-      retval = processCiteEngineFile(file, filename, bool_docbook)
+      retval = processCiteEngineFile(file, filename)
       if retval:
           tx.write(retval)
   tx.close()
   logger.info('\tdone')
 
 
-def processCiteEngineFile(file, filename, bool_docbook):
-    ''' process cite engines file and get a line of result
+def processCiteEngineFile(file, filename):
+    r''' process cite engines file and get a line of result
 
         The top of a cite engine file should look like this:
           #\DeclareLyXCiteEngine[LaTeX Packages]{CiteEngineName}
@@ -1738,12 +1861,12 @@ def processCiteEngineFile(file, filename, bool_docbook):
         We expect output:
           "CiteEngineName" "filename" "CiteEngineType" "CiteFramework" "DefaultBiblio" "Description" "Packages"
     '''
-    remods = re.compile('\s*#\s*\\\\DeclareLyXCiteEngine\s*(?:\[([^]]*?)\])?{(.*)}')
-    redbeg = re.compile('\s*#+\s*DescriptionBegin\s*$')
-    redend = re.compile('\s*#+\s*DescriptionEnd\s*$')
-    recet = re.compile('\s*CiteEngineType\s*(.*)')
-    redb = re.compile('\s*DefaultBiblio\s*(.*)')
-    resfm = re.compile('\s*CiteFramework\s*(.*)')
+    remods = re.compile('\\s*#\\s*\\\\DeclareLyXCiteEngine\\s*(?:\\[([^]]*?)\\])?{(.*)}')
+    redbeg = re.compile(r'\s*#+\s*DescriptionBegin\s*$')
+    redend = re.compile(r'\s*#+\s*DescriptionEnd\s*$')
+    recet = re.compile(r'\s*CiteEngineType\s*(.*)')
+    redb = re.compile(r'\s*DefaultBiblio\s*(.*)')
+    resfm = re.compile(r'\s*CiteFramework\s*(.*)')
 
     modname = desc = pkgs = cet = db = cfm = ""
     readingDescription = False
@@ -1751,7 +1874,7 @@ def processCiteEngineFile(file, filename, bool_docbook):
 
     for line in open(file, 'r', encoding='utf8').readlines():
       if readingDescription:
-        res = redend.search(line)
+        res = redend.match(line)
         if res != None:
           readingDescription = False
           desc = " ".join(descLines)
@@ -1760,11 +1883,11 @@ def processCiteEngineFile(file, filename, bool_docbook):
           continue
         descLines.append(line[1:].strip())
         continue
-      res = redbeg.search(line)
+      res = redbeg.match(line)
       if res != None:
         readingDescription = True
         continue
-      res = remods.search(line)
+      res = remods.match(line)
       if res != None:
           (pkgs, modname) = res.groups()
           if pkgs == None:
@@ -1773,21 +1896,21 @@ def processCiteEngineFile(file, filename, bool_docbook):
             tmp = [s.strip() for s in pkgs.split(",")]
             pkgs = ",".join(tmp)
           continue
-      res = recet.search(line)
+      res = recet.match(line)
       if res != None:
         cet = res.group(1)
         continue
-      res = redb.search(line)
+      res = redb.match(line)
       if res != None:
         db = res.group(1)
         continue
-      res = resfm.search(line)
+      res = resfm.match(line)
       if res != None:
         cfm = res.group(1)
         continue
 
     if modname == "":
-      logger.warning("Cite Engine File file without \DeclareLyXCiteEngine line. ")
+      logger.warning(r"Cite Engine File file without \DeclareLyXCiteEngine line. ")
       return ""
 
     if pkgs:
@@ -1894,11 +2017,12 @@ if __name__ == '__main__':
     lyx_check_config = True
     lyx_kpsewhich = True
     outfile = 'lyxrc.defaults'
-    lyxrc_fileformat = 24
+    lyxrc_fileformat = 38
     rc_entries = ''
     lyx_keep_temps = False
     version_suffix = ''
     lyx_binary_dir = ''
+    logger.info("+Running LyX configure with Python %s.%s.%s", sys.version_info[0], sys.version_info[1], sys.version_info[2])
     ## Parse the command line
     for op in sys.argv[1:]:   # default shell/for list is $*, the options
         if op in [ '-help', '--help', '-h' ]:
@@ -1936,8 +2060,6 @@ Options:
     setEnviron()
     if sys.platform == 'darwin' and len(version_suffix) > 0:
         checkUpgrade()
-    if os.name == 'nt':
-        checkUpgradeWin()
     createDirectories()
     dtl_tools = checkDTLtools()
     ## Write the first part of outfile
@@ -1955,19 +2077,19 @@ Format %i
     LATEX = checkLatex(dtl_tools)
     # check java and perl before any checkProg that may require them
     java = checkProg('a java interpreter', ['java'])[1]
+    if java == '':
+        java = check_java()
     perl = checkProg('a perl interpreter', ['perl'])[1]
+    xsltproc = checkProg('xsltproc', ['xsltproc'])[1]
     (inkscape_path, inkscape_gui) = os.path.split(checkInkscape())
     # On Windows, we need to call the "inkscape.com" wrapper
     # for command line purposes. Other OSes do not differentiate.
     inkscape_cl = inkscape_gui
     if os.name == 'nt':
         inkscape_cl = inkscape_gui.replace('.exe', '.com')
-    # On MacOSX, Inkscape requires full path file arguments. This
-    # is not needed on Linux and Win and even breaks the latter.
     inkscape_stable = checkInkscapeStable()
     checkFormatEntries(dtl_tools)
     checkConverterEntries()
-    (chk_docbook, bool_docbook, docbook_cmd) = checkDocBook()
     checkTeXAllowSpaces()
     windows_style_tex_paths = checkTeXPaths()
     if windows_style_tex_paths:
@@ -1979,7 +2101,7 @@ Format %i
     checkCiteEnginesConfig()
     checkXTemplates()
     # --without-latex-config can disable lyx_check_config
-    ret = checkLatexConfig(lyx_check_config and LATEX, bool_docbook)
+    ret = checkLatexConfig(lyx_check_config and LATEX)
     removeTempFiles()
     # The return error code can be 256. Because most systems expect an error code
     # in the range 0-127, 256 can be interpretted as 'success'. Because we expect

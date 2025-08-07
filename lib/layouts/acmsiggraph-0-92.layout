@@ -19,7 +19,7 @@
 #	 "TOG data URL", and "TOG code URL". The corresponding 
 #	 LaTeX commands are no longer supported.
 
-Format 66
+Format 104
 
 Columns			1
 Sides			1
@@ -84,7 +84,7 @@ Style "TOG online ID"
 	LabelType		Static
 	LabelString		"Online ID:"
 	LabelFont
-	  Color			Green
+	  Color			textlabel2
 	  Series		Bold
 	EndFont
 End
@@ -168,6 +168,9 @@ Style Title
 	Font
 	  Family		Sans
 	EndFont
+	DocBookTag      title
+	DocBookTagType  paragraph
+	DocBookInInfo   maybe
 End
 
 
@@ -230,7 +233,7 @@ Style Teaser
 	LabelFont
 	  Series		Bold
 	  Size			Normal
-	  Color			Green
+	  Color			textlabel2
 	EndFont
 End
 
@@ -296,7 +299,7 @@ InsetLayout "Flex:CRcat"
 	  Misc			No_Bar
 	EndFont
 	LabelFont
-	  Color			green
+	  Color			textlabel2
 	  Size			Small
 	EndFont
 	Argument 1
@@ -335,7 +338,7 @@ InsetLayout "Flex:Thanks"
 	Decoration		Classic
 	LabelString		"E-mail"
 	LabelFont
-	  Color			blue
+	  Color			textlabel1
 	EndFont
 End
 
@@ -348,5 +351,8 @@ Style Acknowledgments
 	LabelBottomsep	0
 	LabelType		Above
 	LabelString		"Acknowledgments"
+	DocBookTag              para
+	DocBookWrapperTag       acknowledgements
+	DocBookSection          true
 End
 

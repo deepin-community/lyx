@@ -16,12 +16,12 @@
 #include "BufferParams.h"
 #include "BufferView.h"
 #include "support/gettext.h"
-#include "Length.h"
-#include "Text.h"
 #include "TextMetrics.h" // for defaultRowHeight()
 
 #include "support/convert.h"
+#include "support/Length.h"
 #include "support/lstrings.h"
+#include "support/qstring_helpers.h"
 
 #include "support/lassert.h"
 
@@ -78,6 +78,10 @@ VSpace::VSpace(string const & data)
 		kind_ = MEDSKIP;
 	else if (prefixIs(input, "bigskip"))
 		kind_ = BIGSKIP;
+	else if (prefixIs(input, "halfline"))
+		kind_ = HALFLINE;
+	else if (prefixIs(input, "fullline"))
+		kind_ = FULLLINE;
 	else if (prefixIs(input, "vfill"))
 		kind_ = VFILL;
 	else if (isValidGlueLength(input, &len_))
@@ -111,12 +115,30 @@ string const VSpace::asLyXCommand() const
 {
 	string result;
 	switch (kind_) {
-	case DEFSKIP:   result = "defskip";      break;
-	case SMALLSKIP: result = "smallskip";    break;
-	case MEDSKIP:   result = "medskip";      break;
-	case BIGSKIP:   result = "bigskip";      break;
-	case VFILL:     result = "vfill";        break;
-	case LENGTH:    result = len_.asString(); break;
+	case DEFSKIP:
+		result = "defskip";
+		break;
+	case SMALLSKIP:
+		result = "smallskip";
+		break;
+	case MEDSKIP:
+		result = "medskip";
+		break;
+	case BIGSKIP:
+		result = "bigskip";
+		break;
+	case HALFLINE:
+		result = "halfline";
+		break;
+	case FULLLINE:
+		result = "fullline";
+		break;
+	case VFILL:
+		result = "vfill";
+		break;
+	case LENGTH:
+		result = len_.asString();
+		break;
 	}
 	if (keep_)
 		result += '*';
@@ -138,6 +160,12 @@ string const VSpace::asLatexCommand(BufferParams const & params) const
 
 	case BIGSKIP:
 		return keep_ ? "\\vspace*{\\bigskipamount}" : "\\bigskip{}";
+	
+	case HALFLINE:
+		return keep_ ? "\\vspace*{.5\\baselineskip}" : "\\vspace{.5\\baselineskip}";
+
+	case FULLLINE:
+		return keep_ ? "\\vspace*{\\baselineskip}" : "\\vspace{\\baselineskip}";
 
 	case VFILL:
 		return keep_ ? "\\vspace*{\\fill}" : "\\vfill{}";
@@ -170,11 +198,17 @@ docstring const VSpace::asGUIName() const
 	case BIGSKIP:
 		result = _("Big skip");
 		break;
+	case HALFLINE:
+		result = _("Half line height");
+		break;
+	case FULLLINE:
+		result = _("Line height");
+		break;
 	case VFILL:
 		result = _("Vertical fill");
 		break;
 	case LENGTH:
-		result = from_ascii(len_.asString());
+		result = locLengthDocString(from_ascii(len_.asString()));
 		break;
 	}
 	if (keep_)
@@ -187,16 +221,31 @@ string VSpace::asHTMLLength() const
 {
 	string result;
 	switch (kind_) {
-		case DEFSKIP:   result = "2ex"; break;
-		case SMALLSKIP: result = "1ex"; break;
-		case MEDSKIP:   result = "3ex"; break;
-		case BIGSKIP:   result = "5ex"; break;
+		case DEFSKIP:
+			result = "2ex";
+			break;
+		case SMALLSKIP:
+			result = "1ex";
+			break;
+		case MEDSKIP:
+			result = "3ex";
+			break;
+		case BIGSKIP:
+			result = "5ex";
+			break;
+		case HALFLINE:
+			result = "0.6em";
+			break;
+		case FULLLINE:
+			result = "1.2em";
+			break;
 		case LENGTH: {
 			Length tmp = len_.len();
 			if (tmp.value() > 0)
 				result = tmp.asHTMLString();
 		}
-		case VFILL:     break;
+		case VFILL:
+			break;
 	}
 	return result;
 }
@@ -215,10 +264,10 @@ int VSpace::inPixels(BufferView const & bv) const
 	// This is how the skips are normally defined by LaTeX.
 	// But there should be some way to change this per document.
 	case SMALLSKIP:
-		return int(default_height / 4);
+		return default_height / 4;
 
 	case MEDSKIP:
-		return int(default_height / 2);
+		return default_height / 2;
 
 	case BIGSKIP:
 		return default_height;
@@ -226,6 +275,12 @@ int VSpace::inPixels(BufferView const & bv) const
 	case VFILL:
 		// leave space for the vfill symbol
 		return 3 * default_height;
+
+	case HALFLINE:
+		return default_height / 2;
+
+	case FULLLINE:
+		return default_height;
 
 	case LENGTH:
 		return bv.inPixels(len_.len());

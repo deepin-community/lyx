@@ -12,18 +12,19 @@
 #ifndef FORMAT_H
 #define FORMAT_H
 
-#include "support/docstring.h"
+#include "support/strfwd.h"
 #include "support/trivstring.h"
 
-#include "OutputParams.h"
-
 #include <vector>
+#include <string>
 
 namespace lyx {
 
 namespace support { class FileName; }
 
 class Buffer;
+
+enum class Flavor : int;
 
 class Format {
 public:
@@ -152,6 +153,8 @@ public:
 	Format & get(FormatList::size_type i) { return formatlist_[i]; }
 	/// \returns format named \p name if it exists, otherwise 0
 	Format const * getFormat(std::string const & name) const;
+	/// \returns format named \p name if it exists, otherwise 0
+	Format * getFormat(std::string const & name);
 	/*!
 	 * Get the format of \p filename from file contents or, if this
 	 * fails, from file extension.
@@ -217,9 +220,9 @@ private:
 };
 
 ///
-std::string flavor2format(OutputParams::FLAVOR flavor);
+std::string flavor2format(Flavor flavor);
 // Not currently used.
-// OutputParams::FLAVOR format2flavor(std::string fmt);
+// Flavor format2flavor(std::string fmt);
 
 /// The global instance.
 /// Implementation is in LyX.cpp.

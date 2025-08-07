@@ -11,6 +11,7 @@
 #include <config.h>
 
 #include "InsetMathClass.h"
+#include "MathStream.h"
 
 #include "support/docstream.h"
 
@@ -28,6 +29,15 @@ Inset * InsetMathClass::clone() const
 }
 
 
+Limits InsetMathClass::defaultLimits(bool display) const
+{
+	if (allowsLimitsChange() && display)
+		return LIMITS;
+	else
+		return NO_LIMITS;
+}
+
+
 void InsetMathClass::metrics(MetricsInfo & mi, Dimension & dim) const
 {
 	cell(0).metrics(mi, dim);
@@ -37,6 +47,23 @@ void InsetMathClass::metrics(MetricsInfo & mi, Dimension & dim) const
 void InsetMathClass::draw(PainterInfo & pi, int x, int y) const
 {
 	cell(0).draw(pi, x, y);
+}
+
+
+void InsetMathClass::write(TeXMathStream & os) const
+{
+	InsetMathNest::write(os);
+	writeLimits(os);
+}
+
+
+void InsetMathClass::mathmlize(MathMLStream & ms) const
+{
+	// Skip the \mathXXX macro, the MathML processor is supposed to handle
+	// spacing down the line.
+	for (size_t i = 0; i < nargs(); ++i) {
+		ms << cell(i);
+	}
 }
 
 

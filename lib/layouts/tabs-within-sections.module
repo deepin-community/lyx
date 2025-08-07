@@ -1,10 +1,11 @@
 #\DeclareLyXModule{Number Tables by Section}
+#\DeclareCategory{Floats & Captions}
 #DescriptionBegin
 #Resets the table number at section start and prepends
 #the section number to the table number, as in 'Table 2.1'.
 #DescriptionEnd
 
-Format 66
+Format 104
 
 Requires amsmath
 
@@ -13,6 +14,6 @@ AddToPreamble
 EndPreamble
 
 Float
-	Type                  figure
+	Type                  table
 	NumberWithin          section
 End

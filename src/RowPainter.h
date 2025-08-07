@@ -14,25 +14,14 @@
 #ifndef ROWPAINTER_H
 #define ROWPAINTER_H
 
-#include "Changes.h"
 #include "Row.h"
-
-#include "support/types.h"
 
 namespace lyx {
 
-class BufferView;
-class Font;
-class FontInfo;
-class Inset;
-class Language;
 class PainterInfo;
 class Paragraph;
-class ParagraphList;
 class Text;
 class TextMetrics;
-
-namespace frontend { class Painter; }
 
 /**
  * A class used for painting an individual row of text.
@@ -55,9 +44,12 @@ public:
 	void paintText();
 	void paintOnlyInsets();
 	void paintSelection() const;
+	void paintBookmark(int num) const;
 
 private:
+	void paintLanguageMarkings(Row::Element const & e) const;
 	void paintForeignMark(Row::Element const & e) const;
+	void paintNoSpellingMark(Row::Element const & e) const;
 	void paintStringAndSel(Row::Element const & e) const;
 	void paintTextDecoration(Row::Element const & e) const;
 	void paintMisspelledMark(Row::Element const & e) const;
@@ -65,8 +57,8 @@ private:
 	void paintAppendixStart(int y) const;
 	void paintInset(Row::Element const & e) const;
 
-	/// return the label font for this row
-	FontInfo labelFont() const;
+	/// return the label font for this row (end label when \c end is true)
+	FontInfo labelFont(bool end) const;
 
 	///
 	void paintLabel() const;
@@ -80,16 +72,12 @@ private:
 	/// Text for the row
 	Text const & text_;
 	TextMetrics const & tm_;
-	ParagraphList const & pars_;
 
 	/// The row to paint
 	Row const & row_;
 
 	/// Row's paragraph
 	Paragraph const & par_;
-
-	/// row changed? (change tracking)
-	Change const change_;
 
 	// Looks ugly - is
 	double const xo_;

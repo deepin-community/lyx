@@ -14,7 +14,6 @@
 #include "Buffer.h"
 
 #include "Author.h"
-#include "LayoutFile.h"
 #include "BiblioInfo.h"
 #include "BranchList.h"
 #include "buffer_funcs.h"
@@ -22,6 +21,7 @@
 #include "BufferParams.h"
 #include "Bullet.h"
 #include "Chktex.h"
+#include "ColorSet.h"
 #include "Converter.h"
 #include "Counters.h"
 #include "Cursor.h"
@@ -46,18 +46,18 @@
 #include "LyX.h"
 #include "LyXRC.h"
 #include "LyXVC.h"
-#include "output_docbook.h"
 #include "output.h"
 #include "output_latex.h"
-#include "output_xhtml.h"
+#include "output_docbook.h"
 #include "output_plaintext.h"
+#include "output_xhtml.h"
 #include "Paragraph.h"
 #include "ParagraphParameters.h"
 #include "ParIterator.h"
 #include "PDFOptions.h"
 #include "Session.h"
 #include "SpellChecker.h"
-#include "sgml.h"
+#include "xml.h"
 #include "texstream.h"
 #include "TexRow.h"
 #include "Text.h"
@@ -67,12 +67,9 @@
 #include "VCBackend.h"
 #include "version.h"
 #include "WordLangTuple.h"
-#include "WordList.h"
 
-#include "insets/InsetBibtex.h"
 #include "insets/InsetBranch.h"
 #include "insets/InsetInclude.h"
-#include "insets/InsetTabular.h"
 #include "insets/InsetText.h"
 
 #include "mathed/InsetMathHull.h"
@@ -80,9 +77,9 @@
 #include "mathed/InsetMathMacroTemplate.h"
 #include "mathed/MathSupport.h"
 
-#include "graphics/GraphicsCache.h"
 #include "graphics/PreviewLoader.h"
 
+#include "frontends/Application.h"
 #include "frontends/alert.h"
 #include "frontends/Delegates.h"
 #include "frontends/WorkAreaManager.h"
@@ -96,11 +93,9 @@
 #include "support/FileName.h"
 #include "support/FileNameList.h"
 #include "support/filetools.h"
-#include "support/ForkedCalls.h"
 #include "support/gettext.h"
 #include "support/gzstream.h"
 #include "support/lstrings.h"
-#include "support/lyxalgo.h"
 #include "support/mutex.h"
 #include "support/os.h"
 #include "support/Package.h"
@@ -109,8 +104,6 @@
 #include "support/TempFile.h"
 #include "support/textutils.h"
 #include "support/types.h"
-
-#include "support/bind.h"
 
 #include <algorithm>
 #include <fstream>
@@ -152,11 +145,12 @@ typedef vector<LabelInfo> LabelCache;
 
 typedef map<docstring, Buffer::References> RefCache;
 
+// A storehouse for the cloned buffers.
+typedef list<CloneList_ptr> CloneStore;
+CloneStore cloned_buffers;
+
 } // namespace
 
-
-// A storehouse for the cloned buffers.
-list<CloneList *> cloned_buffers;
 
 
 class Buffer::Impl
@@ -187,7 +181,7 @@ public:
 	/** If we have branches that use the file suffix
 	    feature, return the file name with suffix appended.
 	*/
-	support::FileName exportFileName() const;
+	FileName exportFileName() const;
 
 	Buffer * owner_;
 
@@ -199,39 +193,8 @@ public:
 	/// need to regenerate .tex?
 	DepClean dep_clean;
 
-	/// is save needed?
-	mutable bool lyx_clean;
-
-	/// is autosave needed?
-	mutable bool bak_clean;
-
-	/// is this an unnamed file (New...)?
-	bool unnamed;
-
-	/// is this an internal bufffer?
-	bool internal_buffer;
-
-	/// buffer is r/o
-	bool read_only;
-
 	/// name of the file the buffer is associated with.
 	FileName filename;
-
-	/** Set to true only when the file is fully loaded.
-	 *  Used to prevent the premature generation of previews
-	 *  and by the citation inset.
-	 */
-	bool file_fully_loaded;
-
-	/// original format of loaded file
-	int file_format;
-
-	/// if the file was originally loaded from an older format, do
-	/// we need to back it up still?
-	bool need_format_backup;
-
-	/// Ignore the parent (e.g. when exporting a child standalone)?
-	bool ignore_parent;
 
 	///
 	mutable TocBackend toc_backend;
@@ -249,13 +212,11 @@ public:
 	/// map from the macro name to the position map,
 	/// which maps the macro definition position to the scope and the MacroData.
 	NamePositionScopeMacroMap macros;
-	/// This seem to change the way Buffer::getMacro() works
-	mutable bool macro_lock;
 
 	/// positions of child buffers in the buffer
 	typedef map<Buffer const * const, DocIterator> BufferPositionMap;
 	struct ScopeBuffer {
-		ScopeBuffer() : buffer(0) {}
+		ScopeBuffer() : buffer(nullptr) {}
 		ScopeBuffer(DocIterator const & s, Buffer const * b)
 			: scope(s), buffer(b) {}
 		DocIterator scope;
@@ -292,6 +253,11 @@ public:
 	///
 	Undo undo_;
 
+	/// This is increased every time the buffer or one of its relatives is marked dirty
+	int id_ = 0;
+	/// The buffer id at last updateMacros invokation
+	int update_macros_id_ = -1;
+
 	/// A cache for the bibfiles (including bibfiles of loaded child
 	/// documents), needed for appropriate update of natbib labels.
 	mutable docstring_list bibfiles_cache_;
@@ -302,27 +268,13 @@ public:
 	// file, and then to construct the Buffer's bibinfo from that.
 	/// A cache for bibliography info
 	mutable BiblioInfo bibinfo_;
-	/// whether the bibinfo cache is valid
-	mutable bool bibinfo_cache_valid_;
-	/// whether the bibfile cache is valid
-	mutable bool bibfile_cache_valid_;
 	/// Cache of timestamps of .bib files
 	map<FileName, time_t> bibfile_status_;
-	/// Indicates whether the bibinfo has changed since the last time
-	/// we ran updateBuffer(), i.e., whether citation labels may need
-	/// to be updated.
-	mutable bool cite_labels_valid_;
-	/// Do we have a bibliography environment?
-	mutable bool have_bibitems_;
 
 	/// These two hold the file name and format, written to by
 	/// Buffer::preview and read from by LFUN_BUFFER_VIEW_CACHE.
 	FileName preview_file_;
 	string preview_format_;
-	/// If there was an error when previewing, on the next preview we do
-	/// a fresh compile (e.g. in case the user installed a package that
-	/// was missing).
-	bool preview_error_;
 
 	/// Cache the references associated to a label and their positions
 	/// in the buffer.
@@ -336,6 +288,86 @@ public:
 	///
 	PreviewLoader * preview_loader_;
 
+	/// If non zero, this buffer is a clone of existing buffer \p cloned_buffer_
+	/// This one is useful for preview detached in a thread.
+	Buffer const * cloned_buffer_;
+	///
+	CloneList_ptr clone_list_;
+
+	///
+	std::list<Buffer const *> include_list_;
+private:
+	/// So we can force access via the accessors.
+	mutable Buffer const * parent_buffer;
+
+	FileMonitorPtr file_monitor_;
+
+/// ints and bools are all listed last so as to avoid alignment issues
+public:
+	/// original format of loaded file
+	int file_format;
+
+	/// are we in the process of exporting this buffer?
+	mutable bool doing_export;
+
+	/// If there was an error when previewing, on the next preview we do
+	/// a fresh compile (e.g. in case the user installed a package that
+	/// was missing).
+	bool require_fresh_start_;
+
+	/// Indicates whether the bibinfo has changed since the last time
+	/// we ran updateBuffer(), i.e., whether citation labels may need
+	/// to be updated.
+	mutable bool cite_labels_valid_;
+	/// Do we have a bibliography environment?
+	mutable bool have_bibitems_;
+
+	/// is save needed?
+	mutable bool lyx_clean;
+
+	/// is autosave needed?
+	mutable bool bak_clean;
+
+	/// is this an unnamed file (New...)?
+	bool unnamed;
+
+	/// is this an internal bufffer?
+	bool internal_buffer;
+
+	/// buffer is r/o
+	bool read_only;
+
+	/** Set to true only when the file is fully loaded.
+	 *  Used to prevent the premature generation of previews
+	 *  and by the citation inset.
+	 */
+	bool file_fully_loaded;
+
+	/// if the file was originally loaded from an older format, do
+	/// we need to back it up still?
+	bool need_format_backup;
+
+	/// Ignore the parent (e.g. when exporting a child standalone)?
+	bool ignore_parent;
+
+	/// This seem to change the way Buffer::getMacro() works
+	mutable bool macro_lock;
+
+	/// has been externally modified? Can be reset by the user.
+	mutable bool externally_modified_;
+
+	/// whether the bibinfo cache is valid
+	mutable bool bibinfo_cache_valid_;
+
+	///
+	mutable bool need_update;
+
+private:
+	int word_count_;
+	int char_count_;
+	int blank_count_;
+
+public:
 	/// This is here to force the test to be done whenever parent_buffer
 	/// is accessed.
 	Buffer const * parent() const
@@ -343,7 +375,7 @@ public:
 		// ignore_parent temporarily "orphans" a buffer
 		// (e.g. if a child is compiled standalone)
 		if (ignore_parent)
-			return 0;
+			return nullptr;
 		// if parent_buffer is not loaded, then it has been unloaded,
 		// which means that parent_buffer is an invalid pointer. So we
 		// set it to null in that case.
@@ -351,7 +383,7 @@ public:
 		// they will always be regarded as unloaded. in that case, we hope
 		// for the best.
 		if (!cloned_buffer_ && !theBufferList().isLoaded(parent_buffer))
-			parent_buffer = 0;
+			parent_buffer = nullptr;
 		return parent_buffer;
 	}
 
@@ -364,18 +396,9 @@ public:
 		if (!cloned_buffer_ && parent_buffer && pb)
 			LYXERR0("Warning: a buffer should not have two parents!");
 		parent_buffer = pb;
-		if (!cloned_buffer_ && parent_buffer) {
+		if (!cloned_buffer_ && parent_buffer)
 			parent_buffer->invalidateBibinfoCache();
-		}
 	}
-
-	/// If non zero, this buffer is a clone of existing buffer \p cloned_buffer_
-	/// This one is useful for preview detached in a thread.
-	Buffer const * cloned_buffer_;
-	///
-	CloneList * clone_list_;
-	/// are we in the process of exporting this buffer?
-	mutable bool doing_export;
 
 	/// compute statistics
 	/// \p from initial position
@@ -393,28 +416,17 @@ public:
 		+ (with_blanks ? blank_count_ : 0);
 	}
 
-	// does the buffer contain tracked changes? (if so, we automatically
-	// display the review toolbar, for instance)
-	mutable bool tracked_changes_present_;
-
 	// Make sure the file monitor monitors the good file.
 	void refreshFileMonitor();
 
 	/// Notify or clear of external modification
 	void fileExternallyModified(bool exists);
 
-	/// has been externally modified? Can be reset by the user.
-	mutable bool externally_modified_;
-
-private:
-	/// So we can force access via the accessors.
-	mutable Buffer const * parent_buffer;
-
-	int word_count_;
-	int char_count_;
-	int blank_count_;
-
-	FileMonitorPtr file_monitor_;
+	///Binding LaTeX lines with buffer positions.
+	//Common routine for LaTeX and Reference errors listing.
+        void traverseErrors(TeXErrors::Errors::const_iterator err,
+		TeXErrors::Errors::const_iterator end,
+		ErrorList & errorList) const;
 };
 
 
@@ -447,21 +459,26 @@ static FileName createBufferTmpDir()
 
 Buffer::Impl::Impl(Buffer * owner, FileName const & file, bool readonly_,
 	Buffer const * cloned_buffer)
-	: owner_(owner), lyx_clean(true), bak_clean(true), unnamed(false),
-	  internal_buffer(false), read_only(readonly_), filename(file),
-	  file_fully_loaded(false), file_format(LYX_FORMAT), need_format_backup(false),
-	  ignore_parent(false),  toc_backend(owner), macro_lock(false),
-	  checksum_(0), wa_(0),  gui_(0), undo_(*owner), bibinfo_cache_valid_(false),
-	  bibfile_cache_valid_(false), cite_labels_valid_(false), have_bibitems_(false),
-	  preview_error_(false), inset(0), preview_loader_(0), cloned_buffer_(cloned_buffer),
-	  clone_list_(0), doing_export(false),
-	  tracked_changes_present_(0), externally_modified_(false), parent_buffer(0),
-	  word_count_(0), char_count_(0), blank_count_(0)
+	: owner_(owner), filename(file), toc_backend(owner), checksum_(0),
+	  wa_(nullptr),  gui_(nullptr), undo_(*owner), inset(nullptr),
+	  preview_loader_(nullptr), cloned_buffer_(cloned_buffer),
+	  clone_list_(nullptr), parent_buffer(nullptr), file_format(LYX_FORMAT),
+	  doing_export(false), require_fresh_start_(false), cite_labels_valid_(false),
+	  have_bibitems_(false), lyx_clean(true), bak_clean(true), unnamed(false),
+	  internal_buffer(false), read_only(readonly_), file_fully_loaded(false),
+	  need_format_backup(false), ignore_parent(false), macro_lock(false),
+	  externally_modified_(false), bibinfo_cache_valid_(false),
+	  need_update(false), word_count_(0), char_count_(0), blank_count_(0)
 {
 	refreshFileMonitor();
 	if (!cloned_buffer_) {
 		temppath = createBufferTmpDir();
 		lyxvc.setBuffer(owner_);
+		Language const * inplang = theApp() ?
+					languages.getFromCode(theApp()->inputLanguageCode())
+				      : nullptr;
+		if (inplang)
+			params.language = inplang;
 		if (use_gui)
 			wa_ = new frontend::WorkAreaManager;
 		return;
@@ -472,7 +489,6 @@ Buffer::Impl::Impl(Buffer * owner, FileName const & file, bool readonly_,
 	bibfiles_cache_ = cloned_buffer_->d->bibfiles_cache_;
 	bibinfo_ = cloned_buffer_->d->bibinfo_;
 	bibinfo_cache_valid_ = cloned_buffer_->d->bibinfo_cache_valid_;
-	bibfile_cache_valid_ = cloned_buffer_->d->bibfile_cache_valid_;
 	bibfile_status_ = cloned_buffer_->d->bibfile_status_;
 	cite_labels_valid_ = cloned_buffer_->d->cite_labels_valid_;
 	have_bibitems_ = cloned_buffer_->d->have_bibitems_;
@@ -481,8 +497,7 @@ Buffer::Impl::Impl(Buffer * owner, FileName const & file, bool readonly_,
 	layout_position = cloned_buffer_->d->layout_position;
 	preview_file_ = cloned_buffer_->d->preview_file_;
 	preview_format_ = cloned_buffer_->d->preview_format_;
-	preview_error_ = cloned_buffer_->d->preview_error_;
-	tracked_changes_present_ = cloned_buffer_->d->tracked_changes_present_;
+	require_fresh_start_ = cloned_buffer_->d->require_fresh_start_;
 }
 
 
@@ -512,7 +527,7 @@ Buffer::~Buffer()
 	// saved properly, before it goes into the void.
 
 	// GuiView already destroyed
-	d->gui_ = 0;
+	d->gui_ = nullptr;
 
 	if (isInternal()) {
 		// No need to do additional cleanups for internal buffer.
@@ -525,12 +540,10 @@ Buffer::~Buffer()
 		// ourselves as a child.
 		d->clone_list_->erase(this);
 		// loop over children
-		Impl::BufferPositionMap::iterator it = d->children_positions.begin();
-		Impl::BufferPositionMap::iterator end = d->children_positions.end();
-		for (; it != end; ++it) {
-			Buffer * child = const_cast<Buffer *>(it->first);
-				if (d->clone_list_->erase(child))
-					delete child;
+		for (auto const & p : d->children_positions) {
+			Buffer * child = const_cast<Buffer *>(p.first);
+			if (d->clone_list_->erase(child))
+				delete child;
 		}
 		// if we're the master buffer, then we should get rid of the list
 		// of clones
@@ -539,14 +552,15 @@ Buffer::~Buffer()
 			// children still has a reference to this list. But we will try to
 			// continue, rather than shut down.
 			LATTEST(d->clone_list_->empty());
-			list<CloneList *>::iterator it =
+			// The clone list itself is empty, but it's still referenced in our list
+			// of clones. So let's find it and remove it.
+			CloneStore::iterator it =
 				find(cloned_buffers.begin(), cloned_buffers.end(), d->clone_list_);
 			if (it == cloned_buffers.end()) {
 				// We will leak in this case, but it is safe to continue.
 				LATTEST(false);
 			} else
 				cloned_buffers.erase(it);
-			delete d->clone_list_;
 		}
 		// FIXME Do we really need to do this right before we delete d?
 		// clear references to children in macro tables
@@ -554,13 +568,11 @@ Buffer::~Buffer()
 		d->position_to_children.clear();
 	} else {
 		// loop over children
-		Impl::BufferPositionMap::iterator it = d->children_positions.begin();
-		Impl::BufferPositionMap::iterator end = d->children_positions.end();
-		for (; it != end; ++it) {
-			Buffer * child = const_cast<Buffer *>(it->first);
+		for (auto const & p : d->children_positions) {
+			Buffer * child = const_cast<Buffer *>(p.first);
 			if (theBufferList().isLoaded(child)) {
 				if (theBufferList().isOthersChild(this, child))
-					child->setParent(0);
+					child->setParent(nullptr);
 				else
 					theBufferList().release(child);
 			}
@@ -595,21 +607,21 @@ Buffer::~Buffer()
 Buffer * Buffer::cloneWithChildren() const
 {
 	BufferMap bufmap;
-	cloned_buffers.push_back(new CloneList);
-	CloneList * clones = cloned_buffers.back();
+	cloned_buffers.emplace_back(new CloneList);
+	CloneList_ptr clones = cloned_buffers.back();
 
 	cloneWithChildren(bufmap, clones);
 
 	// make sure we got cloned
 	BufferMap::const_iterator bit = bufmap.find(this);
-	LASSERT(bit != bufmap.end(), return 0);
+	LASSERT(bit != bufmap.end(), return nullptr);
 	Buffer * cloned_buffer = bit->second;
 
 	return cloned_buffer;
 }
 
 
-void Buffer::cloneWithChildren(BufferMap & bufmap, CloneList * clones) const
+void Buffer::cloneWithChildren(BufferMap & bufmap, CloneList_ptr clones) const
 {
 	// have we already been cloned?
 	if (bufmap.find(this) != bufmap.end())
@@ -620,10 +632,9 @@ void Buffer::cloneWithChildren(BufferMap & bufmap, CloneList * clones) const
 	// The clone needs its own DocumentClass, since running updateBuffer() will
 	// modify it, and we would otherwise be sharing it with the original Buffer.
 	buffer_clone->params().makeDocumentClass(true);
-	ErrorList el;
 	cap::switchBetweenClasses(
 			params().documentClassPtr(), buffer_clone->params().documentClassPtr(),
-			static_cast<InsetText &>(buffer_clone->inset()), el);
+			static_cast<InsetText &>(buffer_clone->inset()));
 
 	bufmap[this] = buffer_clone;
 	clones->insert(buffer_clone);
@@ -635,12 +646,10 @@ void Buffer::cloneWithChildren(BufferMap & bufmap, CloneList * clones) const
 	// math macro caches need to be rethought and simplified.
 	// I am not sure wether we should handle Buffer cloning here or in BufferList.
 	// Right now BufferList knows nothing about buffer clones.
-	Impl::PositionScopeBufferMap::iterator it = d->position_to_children.begin();
-	Impl::PositionScopeBufferMap::iterator end = d->position_to_children.end();
-	for (; it != end; ++it) {
-		DocIterator dit = it->first.clone(buffer_clone);
+	for (auto const & p : d->position_to_children) {
+		DocIterator dit = p.first.clone(buffer_clone);
 		dit.setBuffer(buffer_clone);
-		Buffer * child = const_cast<Buffer *>(it->second.buffer);
+		Buffer * child = const_cast<Buffer *>(p.second.buffer);
 
 		child->cloneWithChildren(bufmap, clones);
 		BufferMap::iterator const bit = bufmap.find(child);
@@ -656,22 +665,20 @@ void Buffer::cloneWithChildren(BufferMap & bufmap, CloneList * clones) const
 		buffer_clone->setChild(dit, child_clone);
 	}
 	buffer_clone->d->macro_lock = false;
-	return;
 }
 
 
 Buffer * Buffer::cloneBufferOnly() const {
-	cloned_buffers.push_back(new CloneList);
-	CloneList * clones = cloned_buffers.back();
+	cloned_buffers.emplace_back(new CloneList);
+	CloneList_ptr clones = cloned_buffers.back();
 	Buffer * buffer_clone = new Buffer(fileName().absFileName(), false, this);
 
 	// The clone needs its own DocumentClass, since running updateBuffer() will
 	// modify it, and we would otherwise be sharing it with the original Buffer.
 	buffer_clone->params().makeDocumentClass(true);
-	ErrorList el;
 	cap::switchBetweenClasses(
 			params().documentClassPtr(), buffer_clone->params().documentClassPtr(),
-			static_cast<InsetText &>(buffer_clone->inset()), el);
+			static_cast<InsetText &>(buffer_clone->inset()));
 
 	clones->insert(buffer_clone);
 	buffer_clone->d->clone_list_ = clones;
@@ -733,10 +740,8 @@ BufferParams const & Buffer::masterParams() const
 
 	BufferParams & mparams = const_cast<Buffer *>(masterBuffer())->params();
 	// Copy child authors to the params. We need those pointers.
-	AuthorList const & child_authors = params().authors();
-	AuthorList::Authors::const_iterator it = child_authors.begin();
-	for (; it != child_authors.end(); ++it)
-		mparams.authors().record(*it);
+	for (Author const & a : params().authors())
+		mparams.authors().record(a);
 	return mparams;
 }
 
@@ -799,6 +804,25 @@ TocBackend & Buffer::tocBackend() const
 Undo & Buffer::undo()
 {
 	return d->undo_;
+}
+
+
+Undo const & Buffer::undo() const
+{
+	return d->undo_;
+}
+
+
+int Buffer::id() const
+{
+	return d->id_;
+}
+
+
+void Buffer::updateId()
+{
+	for(Buffer * b : allRelatives())
+		++(b->d->id_);
 }
 
 
@@ -921,6 +945,7 @@ int Buffer::readHeader(Lexer & lex)
 	params().options.erase();
 	params().master.erase();
 	params().float_placement.erase();
+	params().float_alignment.erase();
 	params().paperwidth.erase();
 	params().paperheight.erase();
 	params().leftmargin.erase();
@@ -931,19 +956,25 @@ int Buffer::readHeader(Lexer & lex)
 	params().headsep.erase();
 	params().footskip.erase();
 	params().columnsep.erase();
+	params().font_roman_opts.erase();
+	params().font_sans_opts.erase();
+	params().font_typewriter_opts.erase();
 	params().fonts_cjk.erase();
 	params().listings_params.clear();
 	params().clearLayoutModules();
 	params().clearRemovedModules();
 	params().clearIncludedChildren();
 	params().pdfoptions().clear();
+	params().document_metadata.clear();
 	params().indiceslist().clear();
 	params().backgroundcolor = lyx::rgbFromHexName("#ffffff");
 	params().isbackgroundcolor = false;
 	params().fontcolor = RGBColor(0, 0, 0);
 	params().isfontcolor = false;
 	params().notefontcolor = RGBColor(0xCC, 0xCC, 0xCC);
+	params().isnotefontcolor = false;
 	params().boxbgcolor = RGBColor(0xFF, 0, 0);
+	params().isboxbgcolor = false;
 	params().html_latex_start.clear();
 	params().html_latex_end.clear();
 	params().html_math_img_scale = 1.0;
@@ -954,6 +985,8 @@ int Buffer::readHeader(Lexer & lex)
 	params().biblatex_bibstyle.erase();
 	params().biblatex_citestyle.erase();
 	params().multibib.erase();
+	params().lineno_opts.clear();
+	params().spellignore().clear();
 
 	for (int i = 0; i < 4; ++i) {
 		params().user_defined_bullet(i) = ITEMIZE_DEFAULTS[i];
@@ -982,7 +1015,7 @@ int Buffer::readHeader(Lexer & lex)
 				      << token << '\'');
 
 		string const result =
-			params().readToken(lex, token, d->filename.onlyPath());
+			params().readToken(lex, token, d->filename);
 		if (!result.empty()) {
 			if (token == "\\textclass") {
 				d->layout_position = result;
@@ -1003,7 +1036,7 @@ int Buffer::readHeader(Lexer & lex)
 
 	params().shell_escape = theSession().shellescapeFiles().find(absFileName());
 
-	params().makeDocumentClass();
+	params().makeDocumentClass(isClone(), isInternal());
 
 	return unknown_tokens;
 }
@@ -1028,20 +1061,13 @@ bool Buffer::readDocument(Lexer & lex)
 	readHeader(lex);
 
 	if (params().output_changes) {
-		bool dvipost    = LaTeXFeatures::isAvailable("dvipost");
 		bool xcolorulem = LaTeXFeatures::isAvailable("ulem") &&
 				  LaTeXFeatures::isAvailable("xcolor");
 
-		if (!dvipost && !xcolorulem) {
+		if (!xcolorulem) {
 			Alert::warning(_("Changes not shown in LaTeX output"),
 				       _("Changes will not be highlighted in LaTeX output, "
-					 "because neither dvipost nor xcolor/ulem are installed.\n"
-					 "Please install these packages or redefine "
-					 "\\lyxadded and \\lyxdeleted in the LaTeX preamble."));
-		} else if (!xcolorulem) {
-			Alert::warning(_("Changes not shown in LaTeX output"),
-				       _("Changes will not be highlighted in LaTeX output "
-					 "when using pdflatex, because xcolor and ulem are not installed.\n"
+					 "because xcolor and ulem are not installed.\n"
 					 "Please install both packages or redefine "
 					 "\\lyxadded and \\lyxdeleted in the LaTeX preamble."));
 		}
@@ -1089,16 +1115,18 @@ bool Buffer::readDocument(Lexer & lex)
 		d->old_position = params().origin;
 	else
 		d->old_position = filePath();
+
+	if (!parent())
+		clearIncludeList();
+
 	bool const res = text().read(lex, errorList, d->inset);
 	d->old_position.clear();
 
 	// inform parent buffer about local macros
 	if (parent()) {
 		Buffer const * pbuf = parent();
-		UserMacroSet::const_iterator cit = usermacros.begin();
-		UserMacroSet::const_iterator end = usermacros.end();
-		for (; cit != end; ++cit)
-			pbuf->usermacros.insert(*cit);
+		for (auto const & m : usermacros)
+			pbuf->usermacros.insert(m);
 	}
 	usermacros.clear();
 	updateMacros();
@@ -1106,6 +1134,24 @@ bool Buffer::readDocument(Lexer & lex)
 	return res;
 }
 
+
+bool Buffer::isSyncTeXenabled() const
+{
+	bool enabled = params().output_sync;
+
+	if (!enabled)
+		for (auto const & c : theConverters()) {
+			const string dest = c.to().substr(0,3);
+			if (dest == "dvi" || dest == "pdf") {
+				const string cmd = c.command();
+				enabled |= cmd.find("-synctex=") != string::npos
+					&& cmd.find("-synctex=0") == string::npos;
+				if (enabled)
+					break;
+			}
+		}
+	return enabled;
+}
 
 bool Buffer::importString(string const & format, docstring const & contents, ErrorList & errorList)
 {
@@ -1141,7 +1187,9 @@ bool Buffer::importFile(string const & format, FileName const & name, ErrorList 
 		return false;
 
 	FileName const lyx = tempFileName("Buffer_importFileXXXXXX.lyx");
-	if (theConverters().convert(0, name, lyx, name, format, "lyx", errorList)) {
+	Converters::RetVal const retval =
+		theConverters().convert(this, name, lyx, name, format, "lyx", errorList);
+	if (retval == Converters::SUCCESS) {
 		bool const success = readFile(lyx) == ReadSuccess;
 		removeTempFile(lyx);
 		return success;
@@ -1182,9 +1230,8 @@ bool Buffer::readString(string const & s)
 
 Buffer::ReadStatus Buffer::readFile(FileName const & fn)
 {
-	FileName fname(fn);
 	Lexer lex;
-	if (!lex.setFile(fname)) {
+	if (!lex.setFile(fn)) {
 		Alert::error(_("File Not Found"),
 			bformat(_("Unable to open file `%1$s'."),
 			        from_utf8(fn.absFileName())));
@@ -1241,16 +1288,21 @@ void Buffer::setFullyLoaded(bool value)
 }
 
 
-bool Buffer::lastPreviewError() const
+bool Buffer::freshStartRequired() const
 {
-	return d->preview_error_;
+	return d->require_fresh_start_;
+}
+
+void Buffer::requireFreshStart(bool const b) const
+{
+	d->require_fresh_start_ = b;
 }
 
 
 PreviewLoader * Buffer::loader() const
 {
 	if (!isExporting() && lyxrc.preview == LyXRC::PREVIEW_OFF)
-		return 0;
+		return nullptr;
 	if (!d->preview_loader_)
 		d->preview_loader_ = new PreviewLoader(*this);
 	return d->preview_loader_;
@@ -1260,7 +1312,7 @@ PreviewLoader * Buffer::loader() const
 void Buffer::removePreviews() const
 {
 	delete d->preview_loader_;
-	d->preview_loader_ = 0;
+	d->preview_loader_ = nullptr;
 }
 
 
@@ -1270,9 +1322,9 @@ void Buffer::updatePreviews() const
 	if (!ploader)
 		return;
 
-	InsetIterator it = inset_iterator_begin(*d->inset);
-	InsetIterator const end = inset_iterator_end(*d->inset);
-	for (; it != end; ++it)
+	InsetIterator it = begin(*d->inset);
+	InsetIterator const itend = end(*d->inset);
+	for (; it != itend; ++it)
 		it->addPreview(it, *ploader);
 
 	ploader->startLoading();
@@ -1344,7 +1396,7 @@ Buffer::ReadStatus Buffer::convertLyXFormat(FileName const & fn,
 	LYXERR(Debug::INFO, "Running '" << command_str << '\'');
 
 	cmd_ret const ret = runCommand(command_str);
-	if (ret.first != 0) {
+	if (!ret.valid) {
 		if (from_format < LYX_FORMAT) {
 			Alert::error(_("Conversion script failed"),
 				bformat(_("%1$s is from an older version"
@@ -1366,14 +1418,37 @@ Buffer::ReadStatus Buffer::convertLyXFormat(FileName const & fn,
 
 
 FileName Buffer::getBackupName() const {
+	map<int, string> const file_formats = {
+	  {544, "23"},
+	  {508, "22"},
+	  {474, "21"},
+	  {413, "20"},
+	  {345, "16"},
+	  {276, "15"},
+	  {245, "14"},
+	  {221, "13"},
+	  {220, "12"},
+	  {218, "1163"},
+	  {217, "116"},
+	  {216, "115"},
+	  {215, "11"},
+	  {210, "010"},
+	  {200, "006"}
+	};
 	FileName const & fn = fileName();
 	string const fname = fn.onlyFileNameWithoutExt();
 	string const fext  = fn.extension() + "~";
 	string const fpath = lyxrc.backupdir_path.empty() ?
 		fn.onlyPath().absFileName() :
 		lyxrc.backupdir_path;
-	string const fform = convert<string>(d->file_format);
-	string const backname = fname + "-lyxformat-" + fform;
+	string backup_suffix;
+	// If file format is from a stable series use version instead of file format
+	auto const it = file_formats.find(d->file_format);
+	if (it != file_formats.end())
+		backup_suffix = "-lyx" + it->second;
+	else
+		backup_suffix = "-lyxformat-" + convert<string>(d->file_format);
+	string const backname = fname + backup_suffix;
 	FileName backup(addName(fpath, addExtension(backname, fext)));
 
 	// limit recursion, just in case
@@ -1444,7 +1519,7 @@ bool Buffer::save() const
 	// proper location once that has been done successfully. that
 	// way we preserve the original file if something goes wrong.
 	string const justname = fileName().onlyFileNameWithoutExt();
-	auto tempfile = make_unique<TempFile>(fileName().onlyPath(),
+	auto tempfile = lyx::make_unique<TempFile>(fileName().onlyPath(),
 	                                      justname + "-XXXXXX.lyx");
 	bool const symlink = fileName().isSymLink();
 	if (!symlink)
@@ -1513,9 +1588,8 @@ bool Buffer::save() const
 		// time stamp is invalidated by copying/moving
 		saveCheckSum();
 		markClean();
-		if (d->file_format != LYX_FORMAT)
-			// the file associated with this buffer is now in the current format
-			d->file_format = LYX_FORMAT;
+		// the file associated with this buffer is now in the current format
+		d->file_format = LYX_FORMAT;
 		return true;
 	}
 	// else we saved the file, but failed to move it to the right location.
@@ -1582,7 +1656,7 @@ bool Buffer::writeFile(FileName const & fname) const
 }
 
 
-docstring Buffer::emergencyWrite()
+docstring Buffer::emergencyWrite() const
 {
 	// No need to save if the buffer has not changed.
 	if (isClean())
@@ -1652,16 +1726,14 @@ bool Buffer::write(ostream & ofs) const
 	// Important: Keep the version formatting in sync with lyx2lyx and
 	//            tex2lyx (bug 7951)
 	ofs << "#LyX " << lyx_version_major << "." << lyx_version_minor
-	    << " created this file. For more info see http://www.lyx.org/\n"
+	    << " created this file. For more info see https://www.lyx.org/\n"
 	    << "\\lyxformat " << LYX_FORMAT << "\n"
 	    << "\\begin_document\n";
 
 	/// For each author, set 'used' to true if there is a change
 	/// by this author in the document; otherwise set it to 'false'.
-	AuthorList::Authors::const_iterator a_it = params().authors().begin();
-	AuthorList::Authors::const_iterator a_end = params().authors().end();
-	for (; a_it != a_end; ++a_it)
-		a_it->setUsed(false);
+	for (Author const & a : params().authors())
+		a.setUsed(false);
 
 	ParIterator const end = const_cast<Buffer *>(this)->par_iterator_end();
 	ParIterator it = const_cast<Buffer *>(this)->par_iterator_begin();
@@ -1702,38 +1774,33 @@ bool Buffer::write(ostream & ofs) const
 }
 
 
-bool Buffer::makeLaTeXFile(FileName const & fname,
+Buffer::ExportStatus Buffer::makeLaTeXFile(FileName const & fname,
 			   string const & original_path,
 			   OutputParams const & runparams_in,
 			   OutputWhat output) const
 {
 	OutputParams runparams = runparams_in;
 
-	// XeTeX with TeX fonts is only safe with ASCII encoding (see also #9740),
-	// Check here, because the "flavor" is not known in BufferParams::encoding()
-	// (power users can override this safety measure selecting "utf8-plain").
-	if (!params().useNonTeXFonts && (runparams.flavor == OutputParams::XETEX)
-	    && (runparams.encoding->name() != "utf8-plain"))
-		runparams.encoding = encodings.fromLyXName("ascii");
-
 	string const encoding = runparams.encoding->iconvName();
-	LYXERR(Debug::LATEX, "makeLaTeXFile encoding: " << encoding << ", fname=" << fname.realPath());
+	LYXERR(Debug::OUTFILE, "makeLaTeXFile encoding: " << encoding << ", fname=" << fname.realPath());
 
 	ofdocstream ofs;
 	try { ofs.reset(encoding); }
 	catch (iconv_codecvt_facet_exception const & e) {
 		lyxerr << "Caught iconv exception: " << e.what() << endl;
-		Alert::error(_("Iconv software exception Detected"), bformat(_("Please "
-			"verify that the support software for your encoding (%1$s) is "
-			"properly installed"), from_ascii(encoding)));
-		return false;
+		Alert::error(_("Iconv software exception Detected"),
+			bformat(_("Please verify that the `iconv' support software is"
+					  " properly installed and supports the selected encoding"
+					  " (%1$s), or change the encoding in"
+					  " Document>Settings>Language."), from_ascii(encoding)));
+		return ExportError;
 	}
 	if (!openFileWrite(ofs, fname))
-		return false;
+		return ExportError;
 
 	ErrorList & errorList = d->errorLists["Export"];
 	errorList.clear();
-	bool failed_export = false;
+	ExportStatus status = ExportSuccess;
 	otexstream os(ofs);
 
 	// make sure we are ready to export
@@ -1743,43 +1810,56 @@ bool Buffer::makeLaTeXFile(FileName const & fname,
 	updateBuffer();
 	updateMacroInstances(OutputUpdate);
 
+	ExportStatus retval;
 	try {
-		writeLaTeXSource(os, original_path, runparams, output);
+		retval = writeLaTeXSource(os, original_path, runparams, output);
+		if (retval == ExportKilled)
+			return ExportKilled;
 	}
 	catch (EncodingException const & e) {
 		docstring const failed(1, e.failed_char);
 		ostringstream oss;
-		oss << "0x" << hex << e.failed_char << dec;
-		docstring msg = bformat(_("Could not find LaTeX command for character '%1$s'"
-					  " (code point %2$s)"),
-					  failed, from_utf8(oss.str()));
-		errorList.push_back(ErrorItem(msg, _("Some characters of your document are probably not "
-				"representable in the chosen encoding.\n"
-				"Changing the document encoding to utf8 could help."),
-		                              {e.par_id, e.pos}, {e.par_id, e.pos + 1}));
-		failed_export = true;
+		oss << "0x" << hex << static_cast<uint32_t>(e.failed_char) << dec;
+		if (getParFromID(e.par_id).paragraph().layout().pass_thru) {
+			docstring msg = bformat(_("Uncodable character '%1$s'"
+						  " (code point %2$s)"),
+						  failed, from_utf8(oss.str()));
+			errorList.push_back(ErrorItem(msg, _("Some characters of your document are not "
+					"representable in specific verbatim contexts.\n"
+					"Changing the document encoding to utf8 could help."),
+						      {e.par_id, e.pos}, {e.par_id, e.pos + 1}));
+		} else {
+			docstring msg = bformat(_("Could not find LaTeX command for character '%1$s'"
+						  " (code point %2$s)"),
+						  failed, from_utf8(oss.str()));
+			errorList.push_back(ErrorItem(msg, _("Some characters of your document are probably not "
+					"representable in the chosen encoding.\n"
+					"Changing the document encoding to utf8 could help."),
+						      {e.par_id, e.pos}, {e.par_id, e.pos + 1}));
+		}
+		status = ExportError;
 	}
 	catch (iconv_codecvt_facet_exception const & e) {
 		errorList.push_back(ErrorItem(_("iconv conversion failed"),
 		                              _(e.what())));
-		failed_export = true;
+		status = ExportError;
 	}
 	catch (exception const & e) {
 		errorList.push_back(ErrorItem(_("conversion failed"),
 		                              _(e.what())));
 		lyxerr << e.what() << endl;
-		failed_export = true;
+		status = ExportError;
 	}
 	catch (...) {
 		lyxerr << "Caught some really weird exception..." << endl;
 		lyx_exit(1);
 	}
 
-	d->texrow = move(os.texrow());
+	d->texrow = std::move(os.texrow());
 
 	ofs.close();
 	if (ofs.fail()) {
-		failed_export = true;
+		status = ExportError;
 		lyxerr << "File '" << fname << "' was not closed properly." << endl;
 	}
 
@@ -1787,11 +1867,11 @@ bool Buffer::makeLaTeXFile(FileName const & fname,
 		errorList.clear();
 	else
 		errors("Export");
-	return !failed_export;
+	return status;
 }
 
 
-void Buffer::writeLaTeXSource(otexstream & os,
+Buffer::ExportStatus Buffer::writeLaTeXSource(otexstream & os,
 			   string const & original_path,
 			   OutputParams const & runparams_in,
 			   OutputWhat output) const
@@ -1800,15 +1880,8 @@ void Buffer::writeLaTeXSource(otexstream & os,
 
 	OutputParams runparams = runparams_in;
 
-	// XeTeX with TeX fonts is only safe with ASCII encoding,
-	// Check here, because the "flavor" is not known in BufferParams::encoding()
-	// (power users can override this safety measure selecting "utf8-plain").
-	if (!params().useNonTeXFonts && (runparams.flavor == OutputParams::XETEX)
-	    && (runparams.encoding->name() != "utf8-plain"))
-		runparams.encoding = encodings.fromLyXName("ascii");
-	// FIXME: when only the current paragraph is shown, this is ignored
-	//        (or not reached) and characters encodable in the current
-	//        encoding are not converted to ASCII-representation.
+	// Some macros rely on font encoding
+	runparams.main_fontenc = params().main_font_encoding();
 
 	// If we are compiling a file standalone, even if this is the
 	// child of some other buffer, let's cut the link here, so the
@@ -1821,15 +1894,16 @@ void Buffer::writeLaTeXSource(otexstream & os,
 	BufferEncodings::initUnicodeMath(*this);
 
 	// validate the buffer.
-	LYXERR(Debug::LATEX, "  Validating buffer...");
+	LYXERR(Debug::OUTFILE, "  Validating buffer...");
 	LaTeXFeatures features(*this, params(), runparams);
 	validate(features);
 	// This is only set once per document (in master)
 	if (!runparams.is_child) {
 		runparams.use_polyglossia = features.usePolyglossia();
 		runparams.use_hyperref = features.isRequired("hyperref");
+		runparams.use_CJK = features.mustProvide("CJK");
 	}
-	LYXERR(Debug::LATEX, "  Buffer validation done.");
+	LYXERR(Debug::OUTFILE, "  Buffer validation done.");
 
 	bool const output_preamble =
 		output == FullSource || output == OnlyPreamble;
@@ -1840,7 +1914,7 @@ void Buffer::writeLaTeXSource(otexstream & os,
 	// first paragraph of the document. (Asger)
 	if (output_preamble && runparams.nice) {
 		os << "%% LyX " << lyx_version << " created this file.  "
-			"For more info, see http://www.lyx.org/.\n"
+			"For more info, see https://www.lyx.org/.\n"
 			"%% Do not edit unless you really know what "
 			"you are doing.\n";
 	}
@@ -1869,9 +1943,9 @@ void Buffer::writeLaTeXSource(otexstream & os,
 			docstring uncodable_glyphs;
 			Encoding const * const enc = runparams.encoding;
 			if (enc) {
-				for (size_t n = 0; n < inputpath.size(); ++n) {
-					if (!enc->encodable(inputpath[n])) {
-						docstring const glyph(1, inputpath[n]);
+				for (char_type n : inputpath) {
+					if (!enc->encodable(n)) {
+						docstring const glyph(1, n);
 						LYXERR0("Uncodable character '"
 							<< glyph
 							<< "' in input path!");
@@ -1884,7 +1958,7 @@ void Buffer::writeLaTeXSource(otexstream & os,
 			if (!uncodable_glyphs.empty()) {
 				frontend::Alert::warning(
 					_("Uncodable character in file path"),
-					support::bformat(
+					bformat(
 					  _("The path of your document\n"
 					    "(%1$s)\n"
 					    "contains glyphs that are unknown "
@@ -1917,7 +1991,7 @@ void Buffer::writeLaTeXSource(otexstream & os,
 					docdir = subst(docdir, "~", "\\string~");
 				bool const nonascii = !isAscii(from_utf8(docdir));
 				// LaTeX 2019/10/01 handles non-ascii path without detokenize
-				bool const utfpathlatex = features.isAvailable("LaTeX-2019/10/01");
+				bool const utfpathlatex = features.isAvailableAtLeastFrom("LaTeX", 2019, 10);
 				bool const detokenize = !utfpathlatex && nonascii;
 				bool const quote = contains(docdir, ' ');
 				if (utfpathlatex && nonascii)
@@ -1947,12 +2021,19 @@ void Buffer::writeLaTeXSource(otexstream & os,
 		runparams.use_babel = params().writeLaTeX(os, features,
 							  d->filename.onlyPath());
 
+		// Active characters
+		runparams.active_chars = features.getActiveChars();
+
 		// Biblatex bibliographies are loaded here
 		if (params().useBiblatex()) {
-			vector<docstring> const bibfiles =
-			    prepareBibFilePaths(runparams, getBibfiles(), true);
-			for (docstring const & file: bibfiles)
-				os << "\\addbibresource{" << file << "}\n";
+			vector<pair<docstring, string>> const bibfiles =
+				prepareBibFilePaths(runparams, getBibfiles(), true);
+			for (pair<docstring, string> const & file: bibfiles) {
+				os << "\\addbibresource";
+				if (!file.second.empty())
+					os << "[bibencoding=" << file.second << "]";
+				os << "{" << file.first << "}\n";
+			}
 		}
 
 		if (!runparams.dryrun && features.hasPolyglossiaExclusiveLanguages()
@@ -1963,32 +2044,32 @@ void Buffer::writeLaTeXSource(otexstream & os,
 			vector<string> pll = features.getPolyglossiaExclusiveLanguages();
 			if (!bll.empty()) {
 				docstring langs;
-				for (vector<string>::const_iterator it = bll.begin(); it != bll.end(); ++it) {
+				for (string const & sit : bll) {
 					if (!langs.empty())
 						langs += ", ";
-					langs += _(*it);
+					langs += _(sit);
 				}
 				blangs = bll.size() > 1 ?
-					    support::bformat(_("The languages %1$s are only supported by Babel."), langs)
-					  : support::bformat(_("The language %1$s is only supported by Babel."), langs);
+					    bformat(_("The languages %1$s are only supported by Babel."), langs)
+					  : bformat(_("The language %1$s is only supported by Babel."), langs);
 			}
 			if (!pll.empty()) {
 				docstring langs;
-				for (vector<string>::const_iterator it = pll.begin(); it != pll.end(); ++it) {
+				for (string const & pit : pll) {
 					if (!langs.empty())
 						langs += ", ";
-					langs += _(*it);
+					langs += _(pit);
 				}
 				plangs = pll.size() > 1 ?
-					    support::bformat(_("The languages %1$s are only supported by Polyglossia."), langs)
-					  : support::bformat(_("The language %1$s is only supported by Polyglossia."), langs);
+					    bformat(_("The languages %1$s are only supported by Polyglossia."), langs)
+					  : bformat(_("The language %1$s is only supported by Polyglossia."), langs);
 				if (!blangs.empty())
 					plangs += "\n";
 			}
 
 			frontend::Alert::warning(
 				_("Incompatible Languages!"),
-				support::bformat(
+				bformat(
 				  _("You cannot use the following languages "
 				    "together in one LaTeX document because "
 				    "they require conflicting language packages:\n"
@@ -2004,7 +2085,7 @@ void Buffer::writeLaTeXSource(otexstream & os,
 			// Restore the parenthood if needed
 			if (!runparams.is_child)
 				d->ignore_parent = false;
-			return;
+			return ExportSuccess;
 		}
 
 		// make the body.
@@ -2017,10 +2098,8 @@ void Buffer::writeLaTeXSource(otexstream & os,
 		os.lastChar('\n');
 
 		// output the parent macros
-		MacroSet::iterator it = parentMacros.begin();
-		MacroSet::iterator end = parentMacros.end();
-		for (; it != end; ++it) {
-			int num_lines = (*it)->write(os.os(), true);
+		for (auto const & mac : parentMacros) {
+			int num_lines = mac->write(os.os(), true);
 			os.texrow().newlines(num_lines);
 		}
 
@@ -2029,7 +2108,10 @@ void Buffer::writeLaTeXSource(otexstream & os,
 	LYXERR(Debug::INFO, "preamble finished, now the body.");
 
 	// the real stuff
-	latexParagraphs(*this, text(), os, runparams);
+	try {
+		latexParagraphs(*this, text(), os, runparams);
+	}
+	catch (ConversionException const &) { return ExportKilled; }
 
 	// Restore the parenthood if needed
 	if (!runparams.is_child)
@@ -2040,143 +2122,141 @@ void Buffer::writeLaTeXSource(otexstream & os,
 
 	if (output_preamble) {
 		os << "\\end{document}\n";
-		LYXERR(Debug::LATEX, "makeLaTeXFile...done");
+		LYXERR(Debug::OUTFILE, "makeLaTeXFile...done");
 	} else {
-		LYXERR(Debug::LATEX, "LaTeXFile for inclusion made.");
+		LYXERR(Debug::OUTFILE, "LaTeXFile for inclusion made.");
 	}
 	runparams_in.encoding = runparams.encoding;
 
 	LYXERR(Debug::INFO, "Finished making LaTeX file.");
 	LYXERR(Debug::INFO, "Row count was " << os.texrow().rows() - 1 << '.');
+	return ExportSuccess;
 }
 
 
-void Buffer::makeDocBookFile(FileName const & fname,
+Buffer::ExportStatus Buffer::makeDocBookFile(FileName const & fname,
 			      OutputParams const & runparams,
 			      OutputWhat output) const
 {
-	LYXERR(Debug::LATEX, "makeDocBookFile...");
+	LYXERR(Debug::OUTFILE, "makeDocBookFile...");
 
 	ofdocstream ofs;
 	if (!openFileWrite(ofs, fname))
-		return;
+		return ExportError;
 
 	// make sure we are ready to export
 	// this needs to be done before we validate
 	updateBuffer();
 	updateMacroInstances(OutputUpdate);
 
-	writeDocBookSource(ofs, fname.absFileName(), runparams, output);
+	ExportStatus const retval = writeDocBookSource(ofs, runparams, output);
+	if (retval == ExportKilled)
+		return ExportKilled;
 
 	ofs.close();
 	if (ofs.fail())
 		lyxerr << "File '" << fname << "' was not closed properly." << endl;
+	return ExportSuccess;
 }
 
 
-void Buffer::writeDocBookSource(odocstream & os, string const & fname,
+Buffer::ExportStatus Buffer::writeDocBookSource(odocstream & os,
 			     OutputParams const & runparams,
 			     OutputWhat output) const
 {
 	LaTeXFeatures features(*this, params(), runparams);
 	validate(features);
+	d->bibinfo_.makeCitationLabels(*this);
 
 	d->texrow.reset();
 
 	DocumentClass const & tclass = params().documentClass();
-	string const & top_element = tclass.latexname();
 
 	bool const output_preamble =
 		output == FullSource || output == OnlyPreamble;
 	bool const output_body =
-	  output == FullSource || output == OnlyBody;
+		output == FullSource || output == OnlyBody || output == IncludedFile;
 
 	if (output_preamble) {
-		if (runparams.flavor == OutputParams::XML)
-			os << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+		// XML preamble, no doctype needed.
+		// Not using XMLStream for this, as the root tag would be in the tag stack and make troubles with the error
+		// detection mechanisms (these are called before the end tag is output, and thus interact with the canary
+		// parsep in output_docbook.cpp).
+		os << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+		   << "<!-- This DocBook file was created by LyX " << lyx_version
+		   << "\n  See https://www.lyx.org/ for more information -->\n";
 
-		// FIXME UNICODE
-		os << "<!DOCTYPE " << from_ascii(top_element) << ' ';
-
-		// FIXME UNICODE
-		if (! tclass.class_header().empty())
-			os << from_ascii(tclass.class_header());
-		else if (runparams.flavor == OutputParams::XML)
-			os << "PUBLIC \"-//OASIS//DTD DocBook XML V4.2//EN\" "
-			    << "\"https://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd\"";
-		else
-			os << " PUBLIC \"-//OASIS//DTD DocBook V4.2//EN\"";
-
-		docstring preamble = params().preamble;
-		if (runparams.flavor != OutputParams::XML ) {
-			preamble += "<!ENTITY % output.print.png \"IGNORE\">\n";
-			preamble += "<!ENTITY % output.print.pdf \"IGNORE\">\n";
-			preamble += "<!ENTITY % output.print.eps \"IGNORE\">\n";
-			preamble += "<!ENTITY % output.print.bmp \"IGNORE\">\n";
+		// Prepare the name space declaration for MathML depending on document preferences.
+		string mathmlNamespace;
+		if (params().docbook_mathml_prefix != BufferParams::NoPrefix) {
+			string mathmlPrefix;
+			if (params().docbook_mathml_prefix == BufferParams::MPrefix)
+				mathmlPrefix = "m";
+			else if (params().docbook_mathml_prefix == BufferParams::MMLPrefix)
+				mathmlPrefix = "mml";
+			mathmlNamespace = + " xmlns:" + mathmlPrefix + "=\"http://www.w3.org/1998/Math/MathML\"";
 		}
 
-		string const name = runparams.nice
-			? changeExtension(absFileName(), ".sgml") : fname;
-		preamble += features.getIncludedFiles(name);
-		preamble += features.getLyXSGMLEntities();
+		// XML-compatible language code: in lib/languages, language codes are
+		// given as dictionary file names; HTML5 expects to follow BCP47. This
+		// function implements a simple heuristic that does the conversion.
+		std::string htmlCode = params().language->code();
+		std::replace(htmlCode.begin(), htmlCode.end(), '_', '-');
 
-		if (!preamble.empty()) {
-			os << "\n [ " << preamble << " ]";
-		}
-		os << ">\n\n";
+		// Directly output the root tag, based on the current type of document.
+		string attributes = "xml:lang=\"" + htmlCode + '"'
+						    + " xmlns=\"http://docbook.org/ns/docbook\""
+						    + " xmlns:xlink=\"http://www.w3.org/1999/xlink\""
+						    + mathmlNamespace
+						    + " xmlns:xi=\"http://www.w3.org/2001/XInclude\""
+						    + " version=\"5.2\"";
+		// Version 5.2 is required for formalgroup.
+
+		os << "<" << from_ascii(tclass.docbookroot()) << " " << from_ascii(attributes) << ">\n";
 	}
 
 	if (output_body) {
-		string top = top_element;
-		top += " lang=\"";
-		if (runparams.flavor == OutputParams::XML)
-			top += params().language->code();
-		else
-			top += params().language->code().substr(0, 2);
-		top += '"';
-
-		if (!params().options.empty()) {
-			top += ' ';
-			top += params().options;
-		}
-
-		os << "<!-- " << ((runparams.flavor == OutputParams::XML)? "XML" : "SGML")
-				<< " file was created by LyX " << lyx_version
-				<< "\n  See http://www.lyx.org/ for more information -->\n";
-
-		params().documentClass().counters().reset();
-
-		sgml::openTag(os, top);
-		os << '\n';
-		docbookParagraphs(text(), *this, os, runparams);
-		sgml::closeTag(os, top_element);
+		// Start to output the document.
+		XMLStream xs(os);
+		docbookParagraphs(text(), *this, xs, runparams);
 	}
+
+	if (output_preamble) {
+		// Close the root element. No need for a line break, as free text is never allowed
+		// in a root element, it must always be wrapped in some container.
+		os << "</" << from_ascii(tclass.docbookroot()) << ">";
+	}
+
+	return ExportSuccess;
 }
 
 
-void Buffer::makeLyXHTMLFile(FileName const & fname,
+Buffer::ExportStatus Buffer::makeLyXHTMLFile(FileName const & fname,
 			      OutputParams const & runparams) const
 {
-	LYXERR(Debug::LATEX, "makeLyXHTMLFile...");
+	LYXERR(Debug::OUTFILE, "makeLyXHTMLFile...");
 
 	ofdocstream ofs;
 	if (!openFileWrite(ofs, fname))
-		return;
+		return ExportError;
 
 	// make sure we are ready to export
 	// this has to be done before we validate
 	updateBuffer(UpdateMaster, OutputUpdate);
 	updateMacroInstances(OutputUpdate);
 
-	writeLyXHTMLSource(ofs, runparams, FullSource);
+	ExportStatus const retval = writeLyXHTMLSource(ofs, runparams, FullSource);
+	if (retval == ExportKilled)
+		return retval;
 
 	ofs.close();
 	if (ofs.fail())
 		lyxerr << "File '" << fname << "' was not closed properly." << endl;
+	return retval;
 }
 
 
-void Buffer::writeLyXHTMLSource(odocstream & os,
+Buffer::ExportStatus Buffer::writeLyXHTMLSource(odocstream & os,
 			     OutputParams const & runparams,
 			     OutputWhat output) const
 {
@@ -2190,20 +2270,22 @@ void Buffer::writeLyXHTMLSource(odocstream & os,
 	  output == FullSource || output == OnlyBody || output == IncludedFile;
 
 	if (output_preamble) {
-		os << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-		   << "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN\" \"http://www.w3.org/Math/DTD/mathml2/xhtml-math11-f.dtd\">\n"
-		   // FIXME Language should be set properly.
-		   << "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
+		// HTML5-compatible language code: in lib/languages, language codes are
+		// given as dictionary file names; HTML5 expects to follow BCP47. This
+		// function implements a simple heuristic that does the conversion.
+		std::string htmlCode = params().language->code();
+		std::replace(htmlCode.begin(), htmlCode.end(), '_', '-');
+
+		os << "<!DOCTYPE html>\n"
+		   << "<html xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"" << from_ascii(htmlCode) << "\">\n"
 		   << "<head>\n"
-		   << "<meta name=\"GENERATOR\" content=\"" << PACKAGE_STRING << "\" />\n"
-		   // FIXME Presumably need to set this right
-		   << "<meta http-equiv=\"Content-type\" content=\"text/html;charset=UTF-8\" />\n";
+		   << "<meta name=\"generator\" content=\"" << PACKAGE_STRING << "\" />\n";
 
 		docstring const & doctitle = features.htmlTitle();
 		os << "<title>"
 		   << (doctitle.empty() ?
 		         from_ascii("LyX Document") :
-		         html::htmlize(doctitle, XHTMLStream::ESCAPE_ALL))
+		         xml::escapeString(doctitle, XMLStream::ESCAPE_ALL))
 		   << "</title>\n";
 
 		docstring styles = features.getTClassHTMLPreamble();
@@ -2257,7 +2339,7 @@ void Buffer::writeLyXHTMLSource(odocstream & os,
 			// we are here if the CSS is supposed to be written to the header
 			// or if we failed to write it to an external file.
 			if (!written) {
-				os << "<style type='text/css'>\n"
+				os << "<style>\n"
 					 << dstyles
 					 << "\n</style>\n";
 			}
@@ -2269,17 +2351,22 @@ void Buffer::writeLyXHTMLSource(odocstream & os,
 		bool const output_body_tag = (output != IncludedFile);
 		if (output_body_tag)
 			os << "<body dir=\"auto\">\n";
-		XHTMLStream xs(os);
+		XMLStream xs(os);
 		if (output != IncludedFile)
 			// if we're an included file, the counters are in the master.
 			params().documentClass().counters().reset();
-		xhtmlParagraphs(text(), *this, xs, runparams);
+		try {
+			xhtmlParagraphs(text(), *this, xs, runparams);
+		}
+		catch (ConversionException const &) { return ExportKilled; }
 		if (output_body_tag)
 			os << "</body>\n";
 	}
 
 	if (output_preamble)
 		os << "</html>\n";
+
+	return ExportSuccess;
 }
 
 
@@ -2299,10 +2386,15 @@ int Buffer::runChktex()
 
 	// Generate the LaTeX file if neccessary
 	OutputParams runparams(&params().encoding());
-	runparams.flavor = OutputParams::LATEX;
+	runparams.flavor = Flavor::LaTeX;
 	runparams.nice = false;
 	runparams.linelen = lyxrc.plaintext_linelen;
-	makeLaTeXFile(FileName(name), org_path, runparams);
+	ExportStatus const retval =
+		makeLaTeXFile(FileName(name), org_path, runparams);
+	if (retval != ExportSuccess) {
+		// error code on failure
+		return -1;
+	}
 
 	TeXErrors terr;
 	Chktex chktex(lyxrc.chktex_command, onlyFileName(name), filePath());
@@ -2336,16 +2428,19 @@ void Buffer::validate(LaTeXFeatures & features) const
 	if (!features.runparams().is_child)
 		params().validate(features);
 
+	if (!parent())
+		clearIncludeList();
+
 	for (Paragraph const & p : paragraphs())
 		p.validate(features);
 
-	if (lyxerr.debugging(Debug::LATEX)) {
+	if (lyxerr.debugging(Debug::OUTFILE)) {
 		features.showStruct();
 	}
 }
 
 
-void Buffer::getLabelList(vector<docstring> & list) const
+void Buffer::getLabelList(vector<std::tuple<docstring, docstring, docstring>> & list) const
 {
 	// If this is a child document, use the master's list instead.
 	if (parent()) {
@@ -2355,64 +2450,19 @@ void Buffer::getLabelList(vector<docstring> & list) const
 
 	list.clear();
 	shared_ptr<Toc> toc = d->toc_backend.toc("label");
-	Toc::const_iterator toc_it = toc->begin();
-	Toc::const_iterator end = toc->end();
-	for (; toc_it != end; ++toc_it) {
-		if (toc_it->depth() == 0)
-			list.push_back(toc_it->str());
-	}
-}
-
-
-// This is not in master, so it has been removed at 2126d5a3, on
-// 14 December 2018, so as to test whether it's needed. If there
-// aren't any complaints, it can be fully removed.
-#if 0
-void Buffer::updateBibfilesCache(UpdateScope scope) const
-{
-	// FIXME This is probably unnecssary, given where we call this.
-	// If this is a child document, use the parent's cache instead.
-	if (parent() && scope != UpdateChildOnly) {
-		masterBuffer()->updateBibfilesCache();
-		return;
-	}
-
-	docstring_list old_cache = d->bibfiles_cache_;
-	d->bibfiles_cache_.clear();
-	for (InsetIterator it = inset_iterator_begin(inset()); it; ++it) {
-		if (it->lyxCode() == BIBTEX_CODE) {
-			InsetBibtex const & inset = static_cast<InsetBibtex const &>(*it);
-			docstring_list const bibfiles = inset.getBibFiles();
-			d->bibfiles_cache_.insert(d->bibfiles_cache_.end(),
-				bibfiles.begin(),
-				bibfiles.end());
-		} else if (it->lyxCode() == INCLUDE_CODE) {
-			InsetInclude & inset = static_cast<InsetInclude &>(*it);
-			Buffer const * const incbuf = inset.getChildBuffer();
-			if (!incbuf)
-				continue;
-			docstring_list const & bibfiles =
-			        incbuf->getBibfiles(UpdateChildOnly);
-			if (!bibfiles.empty()) {
-				d->bibfiles_cache_.insert(d->bibfiles_cache_.end(),
-					bibfiles.begin(),
-					bibfiles.end());
-			}
+	for (auto const & tocit : *toc) {
+		if (tocit.depth() == 0) {
+			list.push_back(make_tuple(tocit.str(), tocit.asString(), tocit.prettyStr()));
 		}
 	}
-	d->bibfile_cache_valid_ = true;
-	d->cite_labels_valid_ = false;
-	if (d->bibfiles_cache_ != old_cache)
-		d->bibinfo_cache_valid_ = false;
 }
-#endif
 
 
 void Buffer::invalidateBibinfoCache() const
 {
 	d->bibinfo_cache_valid_ = false;
 	d->cite_labels_valid_ = false;
-	removeBiblioTempFiles();
+	scheduleBiblioTempRemoval();
 	// also invalidate the cache for the parent buffer
 	Buffer const * const pbuf = d->parent();
 	if (pbuf)
@@ -2423,10 +2473,16 @@ void Buffer::invalidateBibinfoCache() const
 docstring_list const & Buffer::getBibfiles(UpdateScope scope) const
 {
 	// FIXME This is probably unnecessary, given where we call this.
-	// If this is a child document, use the master's cache instead.
+	// If this is a child document, use the master instead.
 	Buffer const * const pbuf = masterBuffer();
 	if (pbuf != this && scope != UpdateChildOnly)
 		return pbuf->getBibfiles();
+
+	// In 2.3.x, we have:
+	//if (!d->bibfile_cache_valid_)
+	//	this->updateBibfilesCache(scope);
+	// I think that is a leftover, but there have been so many back-
+	// and-forths with this, due to Windows issues, that I am not sure.
 
 	return d->bibfiles_cache_;
 }
@@ -2531,6 +2587,7 @@ void Buffer::checkIfBibInfoCacheIsValid() const
 	// is valid and change this if we find changes in the bibs.
 	d->bibinfo_cache_valid_ = true;
 	d->cite_labels_valid_ = true;
+
 	// compare the cached timestamps with the actual ones.
 	docstring_list const & bibfiles_cache = getBibfiles();
 	for (auto const & bf : bibfiles_cache) {
@@ -2552,23 +2609,26 @@ void Buffer::clearBibFileCache() const
 }
 
 
-void Buffer::reloadBibInfoCache() const
+void Buffer::reloadBibInfoCache(bool const force) const
 {
+	// we should not need to do this for internal buffers
 	if (isInternal())
 		return;
 
 	// use the master's cache
 	Buffer const * const tmp = masterBuffer();
 	if (tmp != this) {
-		tmp->reloadBibInfoCache();
+		tmp->reloadBibInfoCache(force);
 		return;
 	}
 
-	checkIfBibInfoCacheIsValid();
-	if (d->bibinfo_cache_valid_)
-		return;
-	LYXERR(Debug::FILES, "Bibinfo cache was invalid.");
+	if (!force) {
+		checkIfBibInfoCacheIsValid();
+		if (d->bibinfo_cache_valid_)
+			return;
+	}
 
+	LYXERR(Debug::FILES, "Bibinfo cache was invalid.");
 	// re-read file locations when this info changes
 	// FIXME Is this sufficient? Or should we also force that
 	// in some other cases? If so, then it is easy enough to
@@ -2584,10 +2644,13 @@ void Buffer::reloadBibInfoCache() const
 
 void Buffer::collectBibKeys(FileNameList & checkedFiles) const
 {
-	for (InsetIterator it = inset_iterator_begin(inset()); it; ++it) {
+	if (!parent())
+		clearIncludeList();
+
+	for (InsetIterator it = begin(inset()); it; ++it) {
 		it->collectBibKeys(it, checkedFiles);
 		if (it->lyxCode() == BIBITEM_CODE) {
-			if (parent() != 0)
+			if (parent() != nullptr)
 				parent()->d->have_bibitems_ = true;
 			else
 				d->have_bibitems_ = true;
@@ -2596,18 +2659,16 @@ void Buffer::collectBibKeys(FileNameList & checkedFiles) const
 }
 
 
-void Buffer::addBiblioInfo(BiblioInfo const & bin) const
+void Buffer::addBiblioInfo(BiblioInfo const & bi_in) const
 {
-	// We add the biblio info to the master buffer,
-	// if there is one, but also to every single buffer,
-	// in case a child is compiled alone.
-	BiblioInfo & bi = d->bibinfo_;
-	bi.mergeBiblioInfo(bin);
+	// We add the biblio info to the parent buffer,
+	// if there is one, but also to this buffer, in case
+	// it is compiled alone.
+	BiblioInfo & our_bi = d->bibinfo_;
+	our_bi.mergeBiblioInfo(bi_in);
 
-	if (parent() != 0) {
-		BiblioInfo & masterbi = parent()->d->bibinfo_;
-		masterbi.mergeBiblioInfo(bin);
-	}
+	if (parent())
+		parent()->addBiblioInfo(bi_in);
 }
 
 
@@ -2619,8 +2680,8 @@ void Buffer::addBibTeXInfo(docstring const & key, BibTeXInfo const & bin) const
 	BiblioInfo & bi = d->bibinfo_;
 	bi[key] = bin;
 
-	if (parent() != 0) {
-		BiblioInfo & masterbi = parent()->d->bibinfo_;
+	if (parent() != nullptr) {
+		BiblioInfo & masterbi = masterBuffer()->d->bibinfo_;
 		masterbi[key] = bin;
 	}
 }
@@ -2659,6 +2720,7 @@ void Buffer::removeBiblioTempFiles() const
 	Buffer const * const pbuf = parent();
 	if (pbuf)
 		pbuf->removeBiblioTempFiles();
+	removeBiblioTemps = false;
 }
 
 
@@ -2677,7 +2739,25 @@ void Buffer::markDepClean(string const & name)
 }
 
 
-bool Buffer::getStatus(FuncRequest const & cmd, FuncStatus & flag)
+bool Buffer::branchActivationEnabled(FuncCode act, docstring const & branch) const
+{
+	bool const master = act == LFUN_BRANCH_MASTER_ACTIVATE
+	                    || act == LFUN_BRANCH_MASTER_DEACTIVATE;
+	bool const activate = act == LFUN_BRANCH_ACTIVATE
+	                    || act == LFUN_BRANCH_MASTER_ACTIVATE;
+	Buffer const * buf = master ? masterBuffer() : this;
+	Branch const * our_branch = buf->params().branchlist().find(branch);
+	// Can be disabled if
+	// - this is  a _MASTER_ command and there is no master
+	// - the relevant buffer does not know the branch
+	// - the branch is already in the desired state
+	return ((!master || parent() != nullptr)
+	        && !branch.empty() && our_branch
+	        && our_branch->isSelected() != activate);
+}
+
+
+bool Buffer::getStatus(FuncRequest const & cmd, FuncStatus & flag) const
 {
 	if (isInternal()) {
 		// FIXME? if there is an Buffer LFUN that can be dispatched even
@@ -2704,7 +2784,7 @@ bool Buffer::getStatus(FuncRequest const & cmd, FuncStatus & flag)
 		break;
 
 	case LFUN_BUFFER_EXPORT: {
-		docstring const arg = cmd.argument();
+		docstring const & arg = cmd.argument();
 		if (arg == "custom") {
 			enable = true;
 			break;
@@ -2728,15 +2808,12 @@ bool Buffer::getStatus(FuncRequest const & cmd, FuncStatus & flag)
 	case LFUN_BRANCH_ACTIVATE:
 	case LFUN_BRANCH_DEACTIVATE:
 	case LFUN_BRANCH_MASTER_ACTIVATE:
-	case LFUN_BRANCH_MASTER_DEACTIVATE: {
-		bool const master = (cmd.action() == LFUN_BRANCH_MASTER_ACTIVATE
-				     || cmd.action() == LFUN_BRANCH_MASTER_DEACTIVATE);
-		BranchList const & branchList = master ? masterBuffer()->params().branchlist()
-			: params().branchlist();
-		docstring const branchName = cmd.argument();
-		flag.setEnabled(!branchName.empty() && branchList.find(branchName));
+	case LFUN_BRANCH_MASTER_DEACTIVATE:
+		// Let a branch inset handle that
+		if (cmd.argument().empty())
+			return false;
+		flag.setEnabled(branchActivationEnabled(cmd.action(), cmd.argument()));
 		break;
-	}
 
 	case LFUN_BRANCH_ADD:
 	case LFUN_BRANCHES_RENAME:
@@ -2781,6 +2858,53 @@ bool Buffer::getStatus(FuncRequest const & cmd, FuncStatus & flag)
 }
 
 
+bool Buffer::branchActivationDispatch(FuncCode act, docstring const & branch)
+{
+	bool const master = (act == LFUN_BRANCH_MASTER_ACTIVATE
+			     || act == LFUN_BRANCH_MASTER_DEACTIVATE);
+	bool const activate = (act == LFUN_BRANCH_ACTIVATE
+			       || act == LFUN_BRANCH_MASTER_ACTIVATE);
+	Buffer * buf = master ? const_cast<Buffer *>(masterBuffer()) : this;
+	Branch * our_branch = buf->params().branchlist().find(branch);
+
+	// See comment in branchActivationStatus
+	if ((master && parent() == nullptr)
+	     || !our_branch
+	     || our_branch->isSelected() == activate)
+		return false;
+
+	if (master && !buf->hasGuiDelegate()
+	    && (!theApp() || !theApp()->unhide(buf)))
+		// at least issue a warning for now (ugly, but better than dataloss).
+		frontend::Alert::warning(_("Branch state changes in master document"),
+		    lyx::support::bformat(_("The state of the branch '%1$s' "
+			"was changed in the master file. "
+			"Please make sure to save the master."), branch), true);
+
+	UndoGroupHelper ugh(buf);
+	buf->undo().recordUndoBufferParams(CursorData());
+	our_branch->setSelected(activate);
+	// cur.forceBufferUpdate() is not enough)
+	buf->updateBuffer();
+
+	// if branch exists in a descendant, update previews.
+	// TODO: only needed if "Show preview" is enabled in the included inset.
+	bool exists_in_desc = false;
+	for (auto const & it : buf->getDescendants()) {
+		if (it->params().branchlist().find(branch))
+			exists_in_desc = true;
+	}
+	if (exists_in_desc) {
+		// TODO: ideally we would only update the previews of the
+		// specific children that have this branch directly or
+		// in one of their descendants
+		buf->removePreviews();
+		buf->updatePreviews();
+	}
+	return true;
+}
+
+
 void Buffer::dispatch(string const & command, DispatchResult & result)
 {
 	return dispatch(lyxaction.lookupFunc(command), result);
@@ -2792,6 +2916,7 @@ void Buffer::dispatch(string const & command, DispatchResult & result)
 // whether we have a GUI or not. The boolean use_gui holds this information.
 void Buffer::dispatch(FuncRequest const & func, DispatchResult & dr)
 {
+	LYXERR(Debug::ACTION, "Buffer::dispatch: cmd: " << func);
 	if (isInternal()) {
 		// FIXME? if there is an Buffer LFUN that can be dispatched even
 		// if internal, put a switch '(cmd.action())' here.
@@ -2890,51 +3015,29 @@ void Buffer::dispatch(FuncRequest const & func, DispatchResult & dr)
 	case LFUN_BRANCH_DEACTIVATE:
 	case LFUN_BRANCH_MASTER_ACTIVATE:
 	case LFUN_BRANCH_MASTER_DEACTIVATE: {
-		bool const master = (func.action() == LFUN_BRANCH_MASTER_ACTIVATE
-				     || func.action() == LFUN_BRANCH_MASTER_DEACTIVATE);
-		Buffer * buf = master ? const_cast<Buffer *>(masterBuffer())
-				      : this;
-
-		docstring const branch_name = func.argument();
-		// the case without a branch name is handled elsewhere
-		if (branch_name.empty()) {
-			dispatched = false;
-			break;
+		// Let a branch inset handle that
+		if (func.argument().empty()) {
+			dr.dispatched(false);
+			return;
 		}
-		Branch * branch = buf->params().branchlist().find(branch_name);
-		if (!branch) {
-			LYXERR0("Branch " << branch_name << " does not exist.");
-			dr.setError(true);
-			docstring const msg =
-				bformat(_("Branch \"%1$s\" does not exist."), branch_name);
-			dr.setMessage(msg);
-			break;
-		}
-		bool const activate = (func.action() == LFUN_BRANCH_ACTIVATE
-				       || func.action() == LFUN_BRANCH_MASTER_ACTIVATE);
-		if (branch->isSelected() != activate) {
-			buf->undo().recordUndoBufferParams(CursorData());
-			branch->setSelected(activate);
-			dr.setError(false);
+		bool const res = branchActivationDispatch(func.action(), func.argument());
+		dr.setError(!res);
+		if (res)
 			dr.screenUpdate(Update::Force);
-			dr.forceBufferUpdate();
-		}
 		break;
 	}
 
 	case LFUN_BRANCH_ADD: {
-		docstring branch_name = func.argument();
-		if (branch_name.empty()) {
+		docstring const & branchnames = func.argument();
+		if (branchnames.empty()) {
 			dispatched = false;
 			break;
 		}
 		BranchList & branch_list = params().branchlist();
 		vector<docstring> const branches =
-			getVectorFromString(branch_name, branch_list.separator());
+			getVectorFromString(branchnames, branch_list.separator());
 		docstring msg;
-		for (vector<docstring>::const_iterator it = branches.begin();
-		     it != branches.end(); ++it) {
-			branch_name = *it;
+		for (docstring const & branch_name : branches) {
 			Branch * branch = branch_list.find(branch_name);
 			if (branch) {
 				LYXERR0("Branch " << branch_name << " already exists.");
@@ -2946,9 +3049,9 @@ void Buffer::dispatch(FuncRequest const & func, DispatchResult & dr)
 				undo().recordUndoBufferParams(CursorData());
 				branch_list.add(branch_name);
 				branch = branch_list.find(branch_name);
-				string const x11hexname = X11hexname(branch->color());
-				docstring const str = branch_name + ' ' + from_ascii(x11hexname);
-				lyx::dispatch(FuncRequest(LFUN_SET_COLOR, str));
+				if (branch)
+					// needed to update the color table for dark mode
+					branch->setColors("background", "background");
 				dr.setError(false);
 				dr.screenUpdate(Update::Force);
 			}
@@ -2964,10 +3067,10 @@ void Buffer::dispatch(FuncRequest const & func, DispatchResult & dr)
 
 		docstring const oldname = from_utf8(func.getArg(0));
 		docstring const newname = from_utf8(func.getArg(1));
-		InsetIterator it  = inset_iterator_begin(inset());
-		InsetIterator const end = inset_iterator_end(inset());
+		InsetIterator it  = begin(inset());
+		InsetIterator const itend = end(inset());
 		bool success = false;
-		for (; it != end; ++it) {
+		for (; it != itend; ++it) {
 			if (it->lyxCode() == BRANCH_CODE) {
 				InsetBranch & ins = static_cast<InsetBranch &>(*it);
 				if (ins.branch() == oldname) {
@@ -2981,7 +3084,7 @@ void Buffer::dispatch(FuncRequest const & func, DispatchResult & dr)
 				// get buffer of external file
 				InsetInclude const & ins =
 					static_cast<InsetInclude const &>(*it);
-				Buffer * child = ins.getChildBuffer();
+				Buffer * child = ins.loadIfNeeded();
 				if (!child)
 					continue;
 				child->dispatch(func, dr);
@@ -3005,8 +3108,6 @@ void Buffer::dispatch(FuncRequest const & func, DispatchResult & dr)
 		if (params().save_transient_properties)
 			undo().recordUndoBufferParams(CursorData());
 		params().track_changes = !params().track_changes;
-		if (!params().track_changes)
-			dr.forceChangesUpdate();
 		break;
 
 	case LFUN_CHANGES_OUTPUT:
@@ -3014,20 +3115,13 @@ void Buffer::dispatch(FuncRequest const & func, DispatchResult & dr)
 			undo().recordUndoBufferParams(CursorData());
 		params().output_changes = !params().output_changes;
 		if (params().output_changes) {
-			bool dvipost    = LaTeXFeatures::isAvailable("dvipost");
 			bool xcolorulem = LaTeXFeatures::isAvailable("ulem") &&
 					  LaTeXFeatures::isAvailable("xcolor");
 
-			if (!dvipost && !xcolorulem) {
+			if (!xcolorulem) {
 				Alert::warning(_("Changes not shown in LaTeX output"),
 					       _("Changes will not be highlighted in LaTeX output, "
-						 "because neither dvipost nor xcolor/ulem are installed.\n"
-						 "Please install these packages or redefine "
-						 "\\lyxadded and \\lyxdeleted in the LaTeX preamble."));
-			} else if (!xcolorulem) {
-				Alert::warning(_("Changes not shown in LaTeX output"),
-					       _("Changes will not be highlighted in LaTeX output "
-						 "when using pdflatex, because xcolor and ulem are not installed.\n"
+						 "because xcolor and ulem are not installed.\n"
 						 "Please install both packages or redefine "
 						 "\\lyxadded and \\lyxdeleted in the LaTeX preamble."));
 			}
@@ -3068,9 +3162,10 @@ void Buffer::changeLanguage(Language const * from, Language const * to)
 	LASSERT(from, return);
 	LASSERT(to, return);
 
-	for_each(par_iterator_begin(),
-		 par_iterator_end(),
-		 bind(&Paragraph::changeLanguage, _1, params(), from, to));
+	ParIterator it = par_iterator_begin();
+	ParIterator eit = par_iterator_end();
+	for (; it != eit; ++it)
+		it->changeLanguage(params(), from, to);
 }
 
 
@@ -3087,26 +3182,24 @@ bool Buffer::isMultiLingual() const
 
 std::set<Language const *> Buffer::getLanguages() const
 {
-	std::set<Language const *> languages;
-	getLanguages(languages);
-	return languages;
+	std::set<Language const *> langs;
+	getLanguages(langs);
+	return langs;
 }
 
 
-void Buffer::getLanguages(std::set<Language const *> & languages) const
+void Buffer::getLanguages(std::set<Language const *> & langs) const
 {
 	ParConstIterator end = par_iterator_end();
 	// add the buffer language, even if it's not actively used
-	languages.insert(language());
+	langs.insert(language());
 	// iterate over the paragraphs
 	for (ParConstIterator it = par_iterator_begin(); it != end; ++it)
-		it->getLanguages(languages);
+		it->getLanguages(langs);
 	// also children
-	ListOfBuffers clist = getDescendents();
-	ListOfBuffers::const_iterator cit = clist.begin();
-	ListOfBuffers::const_iterator const cen = clist.end();
-	for (; cit != cen; ++cit)
-		(*cit)->getLanguages(languages);
+	ListOfBuffers clist = getDescendants();
+	for (auto const & cit : clist)
+		cit->getLanguages(langs);
 }
 
 
@@ -3154,6 +3247,11 @@ ParConstIterator Buffer::par_iterator_end() const
 	return ParConstIterator(doc_iterator_end(this));
 }
 
+bool Buffer::empty() const
+{
+	return paragraphs().size() == 1 && paragraphs().front().empty();
+}
+
 
 Language const * Buffer::language() const
 {
@@ -3161,7 +3259,7 @@ Language const * Buffer::language() const
 }
 
 
-docstring const Buffer::B_(string const & l10n) const
+docstring Buffer::B_(string const & l10n) const
 {
 	return params().B_(l10n);
 }
@@ -3240,11 +3338,11 @@ void Buffer::markDirty()
 	}
 	d->bak_clean = false;
 
-	DepClean::iterator it = d->dep_clean.begin();
-	DepClean::const_iterator const end = d->dep_clean.end();
+	for (auto & depit : d->dep_clean)
+		depit.second = false;
 
-	for (; it != end; ++it)
-		it->second = false;
+	// Update the buffer and its relatives' ids.
+	updateId();
 }
 
 
@@ -3304,7 +3402,7 @@ string const Buffer::prepareFileNameForLaTeX(string const & name,
 }
 
 
-vector<docstring> const Buffer::prepareBibFilePaths(OutputParams const & runparams,
+vector<pair<docstring, string>> const Buffer::prepareBibFilePaths(OutputParams const & runparams,
 						docstring_list const & bibfilelist,
 						bool const add_extension) const
 {
@@ -3318,7 +3416,7 @@ vector<docstring> const Buffer::prepareBibFilePaths(OutputParams const & runpara
 	// Otherwise, store the (maybe absolute) path to the original,
 	// unmangled database name.
 
-	vector<docstring> res;
+	vector<pair<docstring, string>> res;
 
 	// determine the export format
 	string const tex_format = flavor2format(runparams.flavor);
@@ -3345,10 +3443,11 @@ vector<docstring> const Buffer::prepareBibFilePaths(OutputParams const & runpara
 				if (not_from_texmf)
 					// If this exists, make path relative to the master
 					// FIXME Unicode
-					database = removeExtension(
-							prepareFileNameForLaTeX(to_utf8(makeRelPath(from_utf8(try_in_file.absFileName()),
-												    from_utf8(filePath()))),
-										".bib", runparams.nice));
+					database =
+						removeExtension(prepareFileNameForLaTeX(
+											to_utf8(makeRelPath(from_utf8(try_in_file.absFileName()),
+																from_utf8(filePath()))),
+											".bib", runparams.nice));
 			}
 		}
 
@@ -3389,9 +3488,20 @@ vector<docstring> const Buffer::prepareBibFilePaths(OutputParams const & runpara
 
 		if (contains(path, ' '))
 			found_space = true;
+		string enc;
+		if (params().useBiblatex() && !params().bibFileEncoding(utf8input).empty())
+			enc = params().bibFileEncoding(utf8input);
 
-		if (find(res.begin(), res.end(), path) == res.end())
-			res.push_back(path);
+		bool recorded = false;
+		for (auto const & pe : res) {
+			if (pe.first == path) {
+				recorded = true;
+				break;
+			}
+
+		}
+		if (!recorded)
+			res.push_back(make_pair(path, enc));
 	}
 
 	// Check if there are spaces in the path and warn BibTeX users, if so.
@@ -3450,8 +3560,37 @@ bool Buffer::isReadonly() const
 
 void Buffer::setParent(Buffer const * buffer)
 {
-	// Avoids recursive include.
-	d->setParent(buffer == this ? 0 : buffer);
+	// We need to do some work here to avoid recursive parent structures.
+	// This is the easy case.
+	if (buffer == this) {
+		LYXERR0("Ignoring attempt to set self as parent in\n" << fileName());
+		return;
+	}
+	// Now we check parents going upward, to make sure that IF we set the
+	// parent as requested, we would not generate a recursive include.
+	set<Buffer const *> sb;
+	Buffer const * b = buffer;
+	bool found_recursion = false;
+	while (b) {
+		if (sb.find(b) != sb.end()) {
+			found_recursion = true;
+			break;
+		}
+		sb.insert(b);
+		b = b->parent();
+	}
+
+	if (found_recursion) {
+		LYXERR0("Ignoring attempt to set parent of\n" <<
+			fileName() <<
+			"\nto " <<
+			buffer->fileName() <<
+			"\nbecause that would create a recursive inclusion.");
+		return;
+	}
+
+	// We should be safe now.
+	d->setParent(buffer);
 	updateMacros();
 }
 
@@ -3464,7 +3603,7 @@ Buffer const * Buffer::parent() const
 
 ListOfBuffers Buffer::allRelatives() const
 {
-	ListOfBuffers lb = masterBuffer()->getDescendents();
+	ListOfBuffers lb = masterBuffer()->getDescendants();
 	lb.push_front(const_cast<Buffer *>(masterBuffer()));
 	return lb;
 }
@@ -3472,8 +3611,6 @@ ListOfBuffers Buffer::allRelatives() const
 
 Buffer const * Buffer::masterBuffer() const
 {
-	// FIXME Should be make sure we are not in some kind
-	// of recursive include? A -> B -> A will crash this.
 	Buffer const * const pbuf = d->parent();
 	if (!pbuf)
 		return this;
@@ -3504,21 +3641,19 @@ bool Buffer::hasChildren() const
 }
 
 
-void Buffer::collectChildren(ListOfBuffers & clist, bool grand_children) const
+void Buffer::collectChildren(ListOfBuffers & children, bool grand_children) const
 {
 	// loop over children
-	Impl::BufferPositionMap::iterator it = d->children_positions.begin();
-	Impl::BufferPositionMap::iterator end = d->children_positions.end();
-	for (; it != end; ++it) {
-		Buffer * child = const_cast<Buffer *>(it->first);
+	for (auto const & p : d->children_positions) {
+		Buffer * child = const_cast<Buffer *>(p.first);
 		// No duplicates
-		ListOfBuffers::const_iterator bit = find(clist.begin(), clist.end(), child);
-		if (bit != clist.end())
+		ListOfBuffers::const_iterator bit = find(children.begin(), children.end(), child);
+		if (bit != children.end())
 			continue;
-		clist.push_back(child);
+		children.push_back(child);
 		if (grand_children)
 			// there might be grandchildren
-			child->collectChildren(clist, true);
+			child->collectChildren(children, true);
 	}
 }
 
@@ -3537,7 +3672,7 @@ ListOfBuffers Buffer::getChildren() const
 }
 
 
-ListOfBuffers Buffer::getDescendents() const
+ListOfBuffers Buffer::getDescendants() const
 {
 	ListOfBuffers v;
 	collectChildren(v, true);
@@ -3561,7 +3696,7 @@ typename M::const_iterator greatest_below(M & m, typename M::key_type const & x)
 	if (it == m.begin())
 		return m.end();
 
-	it--;
+	--it;
 	return it;
 }
 
@@ -3573,11 +3708,11 @@ MacroData const * Buffer::Impl::getBufferMacro(docstring const & name,
 
 	// if paragraphs have no macro context set, pos will be empty
 	if (pos.empty())
-		return 0;
+		return nullptr;
 
 	// we haven't found anything yet
 	DocIterator bestPos = owner_->par_iterator_begin();
-	MacroData const * bestData = 0;
+	MacroData const * bestData = nullptr;
 
 	// find macro definitions for name
 	NamePositionScopeMacroMap::const_iterator nameIt = macros.find(name);
@@ -3648,11 +3783,11 @@ MacroData const * Buffer::getMacro(docstring const & name,
 	DocIterator const & pos, bool global) const
 {
 	if (d->macro_lock)
-		return 0;
+		return nullptr;
 
 	// query buffer macros
 	MacroData const * data = d->getBufferMacro(name, pos);
-	if (data != 0)
+	if (data != nullptr)
 		return data;
 
 	// If there is a master buffer, query that
@@ -3668,11 +3803,11 @@ MacroData const * Buffer::getMacro(docstring const & name,
 
 	if (global) {
 		data = MacroTable::globalMacros().get(name);
-		if (data != 0)
+		if (data != nullptr)
 			return data;
 	}
 
-	return 0;
+	return nullptr;
 }
 
 
@@ -3692,7 +3827,7 @@ MacroData const * Buffer::getMacro(docstring const & name,
 	// look where the child buffer is included first
 	Impl::BufferPositionMap::iterator it = d->children_positions.find(&child);
 	if (it == d->children_positions.end())
-		return 0;
+		return nullptr;
 
 	// check for macros at the inclusion position
 	return getMacro(name, it->second, global);
@@ -3708,16 +3843,13 @@ void Buffer::Impl::updateMacros(DocIterator & it, DocIterator & scope)
 		Paragraph & par = it.paragraph();
 
 		// iterate over the insets of the current paragraph
-		InsetList const & insets = par.insetList();
-		InsetList::const_iterator iit = insets.begin();
-		InsetList::const_iterator end = insets.end();
-		for (; iit != end; ++iit) {
-			it.pos() = iit->pos;
+		for (auto const & insit : par.insetList()) {
+			it.pos() = insit.pos;
 
 			// is it a nested text inset?
-			if (iit->inset->asInsetText()) {
+			if (insit.inset->asInsetText()) {
 				// Inset needs its own scope?
-				InsetText const * itext = iit->inset->asInsetText();
+				InsetText const * itext = insit.inset->asInsetText();
 				bool newScope = itext->isMacroScope();
 
 				// scope which ends just behind the inset
@@ -3725,14 +3857,14 @@ void Buffer::Impl::updateMacros(DocIterator & it, DocIterator & scope)
 				++insetScope.pos();
 
 				// collect macros in inset
-				it.push_back(CursorSlice(*iit->inset));
+				it.push_back(CursorSlice(*insit.inset));
 				updateMacros(it, newScope ? insetScope : scope);
 				it.pop_back();
 				continue;
 			}
 
-			if (iit->inset->asInsetTabular()) {
-				CursorSlice slice(*iit->inset);
+			if (insit.inset->asInsetTabular()) {
+				CursorSlice slice(*insit.inset);
 				size_t const numcells = slice.nargs();
 				for (; slice.idx() < numcells; slice.forwardIdx()) {
 					it.push_back(slice);
@@ -3743,40 +3875,38 @@ void Buffer::Impl::updateMacros(DocIterator & it, DocIterator & scope)
 			}
 
 			// is it an external file?
-			if (iit->inset->lyxCode() == INCLUDE_CODE) {
+			if (insit.inset->lyxCode() == INCLUDE_CODE) {
 				// get buffer of external file
-				InsetInclude const & inset =
-					static_cast<InsetInclude const &>(*iit->inset);
+				InsetInclude const & incinset =
+					static_cast<InsetInclude const &>(*insit.inset);
 				macro_lock = true;
-				Buffer * child = inset.getChildBuffer();
+				Buffer * child = incinset.loadIfNeeded();
 				macro_lock = false;
 				if (!child)
 					continue;
 
 				// register its position, but only when it is
 				// included first in the buffer
-				if (children_positions.find(child) ==
-					children_positions.end())
-						children_positions[child] = it;
+				children_positions.insert({child, it});
 
 				// register child with its scope
 				position_to_children[it] = Impl::ScopeBuffer(scope, child);
 				continue;
 			}
 
-			InsetMath * im = iit->inset->asInsetMath();
+			InsetMath * im = insit.inset->asInsetMath();
 			if (doing_export && im)  {
 				InsetMathHull * hull = im->asHullInset();
 				if (hull)
 					hull->recordLocation(it);
 			}
 
-			if (iit->inset->lyxCode() != MATHMACRO_CODE)
+			if (insit.inset->lyxCode() != MATHMACRO_CODE)
 				continue;
 
 			// get macro data
 			InsetMathMacroTemplate & macroTemplate =
-				*iit->inset->asInsetMath()->asMacroTemplate();
+				*insit.inset->asInsetMath()->asMacroTemplate();
 			MacroContext mc(owner_, it);
 			macroTemplate.updateToContext(mc);
 
@@ -3792,7 +3922,7 @@ void Buffer::Impl::updateMacros(DocIterator & it, DocIterator & scope)
 			// FIXME (Abdel), I don't understand why we pass 'it' here
 			// instead of 'macroTemplate' defined above... is this correct?
 			macros[macroTemplate.name()][it] =
-				Impl::ScopeMacro(scope, MacroData(const_cast<Buffer *>(owner_), it));
+				Impl::ScopeMacro(scope, MacroData(owner_, it));
 		}
 
 		// next paragraph
@@ -3806,6 +3936,11 @@ void Buffer::updateMacros() const
 {
 	if (d->macro_lock)
 		return;
+
+	// early exit if the buffer has not changed since last time
+	if (d->gui_ && d->update_macros_id_ == d->id_)
+		return;
+	d->update_macros_id_ = d->id_;
 
 	LYXERR(Debug::MACROS, "updateMacro of " << d->filename.onlyFileName());
 
@@ -3827,11 +3962,9 @@ void Buffer::updateMacros() const
 
 void Buffer::getUsedBranches(std::list<docstring> & result, bool const from_master) const
 {
-	InsetIterator it  = inset_iterator_begin(inset());
-	InsetIterator const end = inset_iterator_end(inset());
-	for (; it != end; ++it) {
-		if (it->lyxCode() == BRANCH_CODE) {
-			InsetBranch & br = static_cast<InsetBranch &>(*it);
+	for (Inset const & it : inset()) {
+		if (it.lyxCode() == BRANCH_CODE) {
+			InsetBranch const & br = static_cast<InsetBranch const &>(it);
 			docstring const name = br.branch();
 			if (!from_master && !params().branchlist().find(name))
 				result.push_back(name);
@@ -3839,11 +3972,11 @@ void Buffer::getUsedBranches(std::list<docstring> & result, bool const from_mast
 				result.push_back(name);
 			continue;
 		}
-		if (it->lyxCode() == INCLUDE_CODE) {
+		if (it.lyxCode() == INCLUDE_CODE) {
 			// get buffer of external file
 			InsetInclude const & ins =
-				static_cast<InsetInclude const &>(*it);
-			Buffer * child = ins.getChildBuffer();
+				static_cast<InsetInclude const &>(it);
+			Buffer * child = ins.loadIfNeeded();
 			if (!child)
 				continue;
 			child->getUsedBranches(result, true);
@@ -3868,11 +4001,11 @@ void Buffer::updateMacroInstances(UpdateType utype) const
 			continue;
 
 		// update macro in all cells of the InsetMathNest
-		DocIterator::idx_type n = minset->nargs();
+		idx_type n = minset->nargs();
 		MacroContext mc = MacroContext(this, it);
-		for (DocIterator::idx_type i = 0; i < n; ++i) {
+		for (idx_type i = 0; i < n; ++i) {
 			MathData & data = minset->cell(i);
-			data.updateMacros(0, mc, utype, 0);
+			data.updateMacros(nullptr, mc, utype, 0);
 		}
 	}
 }
@@ -3886,16 +4019,12 @@ void Buffer::listMacroNames(MacroNameSet & macros) const
 	d->macro_lock = true;
 
 	// loop over macro names
-	Impl::NamePositionScopeMacroMap::iterator nameIt = d->macros.begin();
-	Impl::NamePositionScopeMacroMap::iterator nameEnd = d->macros.end();
-	for (; nameIt != nameEnd; ++nameIt)
-		macros.insert(nameIt->first);
+	for (auto const & nameit : d->macros)
+		macros.insert(nameit.first);
 
 	// loop over children
-	Impl::BufferPositionMap::iterator it = d->children_positions.begin();
-	Impl::BufferPositionMap::iterator end = d->children_positions.end();
-	for (; it != end; ++it) {
-		Buffer * child = const_cast<Buffer *>(it->first);
+	for (auto const & p : d->children_positions) {
+		Buffer * child = const_cast<Buffer *>(p.first);
 		// The buffer might have been closed (see #10766).
 		if (theBufferList().isLoaded(child))
 			child->listMacroNames(macros);
@@ -3920,12 +4049,9 @@ void Buffer::listParentMacros(MacroSet & macros, LaTeXFeatures & features) const
 	pbuf->listMacroNames(names);
 
 	// resolve macros
-	MacroNameSet::iterator it = names.begin();
-	MacroNameSet::iterator end = names.end();
-	for (; it != end; ++it) {
+	for (auto const & mit : names) {
 		// defined?
-		MacroData const * data =
-		pbuf->getMacro(*it, *this, false);
+		MacroData const * data = pbuf->getMacro(mit, *this, false);
 		if (data) {
 			macros.insert(data);
 
@@ -3982,7 +4108,7 @@ void Buffer::setInsetLabel(docstring const & label, InsetLabel const * il,
 InsetLabel const * Buffer::insetLabel(docstring const & label,
 				      bool const active) const
 {
-	for (auto & rc : masterBuffer()->d->label_cache_) {
+	for (auto const & rc : masterBuffer()->d->label_cache_) {
 		if (rc.label == label && (rc.active || !active))
 			return rc.inset;
 	}
@@ -3992,10 +4118,7 @@ InsetLabel const * Buffer::insetLabel(docstring const & label,
 
 bool Buffer::activeLabel(docstring const & label) const
 {
-	if (!insetLabel(label, true))
-		return false;
-
-	return true;
+	return insetLabel(label, true) != nullptr;
 }
 
 
@@ -4014,26 +4137,25 @@ void Buffer::changeRefsIfUnique(docstring const & from, docstring const & to)
 	reloadBibInfoCache();
 
 	// Check if the label 'from' appears more than once
-	BiblioInfo const & keys = masterBibInfo();
-	BiblioInfo::const_iterator bit  = keys.begin();
-	BiblioInfo::const_iterator bend = keys.end();
 	vector<docstring> labels;
-
-	for (; bit != bend; ++bit)
-		// FIXME UNICODE
-		labels.push_back(bit->first);
+	for (auto const & bibit : masterBibInfo())
+		labels.push_back(bibit.first);
 
 	if (count(labels.begin(), labels.end(), from) > 1)
 		return;
 
 	string const paramName = "key";
-	for (InsetIterator it = inset_iterator_begin(inset()); it; ++it) {
+	UndoGroupHelper ugh(this);
+	InsetIterator it = begin(inset());
+	for (; it; ++it) {
 		if (it->lyxCode() != CITE_CODE)
 			continue;
 		InsetCommand * inset = it->asInsetCommand();
 		docstring const oldValue = inset->getParam(paramName);
-		if (oldValue == from)
+		if (oldValue == from) {
+			undo().recordUndo(CursorData(it));
 			inset->setParam(paramName, to);
+		}
 	}
 }
 
@@ -4050,39 +4172,54 @@ unique_ptr<TexRow> Buffer::getSourceCode(odocstream & os, string const & format,
 	// No side effect of file copying and image conversion
 	runparams.dryrun = true;
 
+	// Some macros rely on font encoding
+	runparams.main_fontenc = params().main_font_encoding();
+
+	// Use the right wrapping for the comment at the beginning of the generated
+	// snippet, so that it is either valid LaTeX or valid XML (including HTML and DocBook).
+	docstring comment_start = from_ascii("% ");
+	docstring comment_end = from_ascii("");
+	if (runparams.flavor == Flavor::Html || runparams.flavor == Flavor::DocBook5) {
+		comment_start = from_ascii("<!-- ");
+		comment_end = from_ascii(" -->");
+	}
+
 	if (output == CurrentParagraph) {
 		runparams.par_begin = par_begin;
 		runparams.par_end = par_end;
 		if (par_begin + 1 == par_end) {
-			os << "% "
+			os << comment_start
 			   << bformat(_("Preview source code for paragraph %1$d"), par_begin)
+			   << comment_end
 			   << "\n\n";
 		} else {
-			os << "% "
+			os << comment_start
 			   << bformat(_("Preview source code from paragraph %1$s to %2$s"),
 					convert<docstring>(par_begin),
 					convert<docstring>(par_end - 1))
+			   << comment_end
 			   << "\n\n";
 		}
 		// output paragraphs
-		if (runparams.flavor == OutputParams::LYX) {
+		if (runparams.flavor == Flavor::LyX) {
 			Paragraph const & par = text().paragraphs()[par_begin];
 			ostringstream ods;
 			depth_type dt = par.getDepth();
 			par.write(ods, params(), dt);
 			os << from_utf8(ods.str());
-		} else if (runparams.flavor == OutputParams::HTML) {
-			XHTMLStream xs(os);
+		} else if (runparams.flavor == Flavor::Html) {
+			XMLStream xs(os);
 			setMathFlavor(runparams);
 			xhtmlParagraphs(text(), *this, xs, runparams);
-		} else if (runparams.flavor == OutputParams::TEXT) {
+		} else if (runparams.flavor == Flavor::Text) {
 			bool dummy = false;
 			// FIXME Handles only one paragraph, unlike the others.
 			// Probably should have some routine with a signature like them.
 			writePlaintextParagraph(*this,
 				text().paragraphs()[par_begin], os, runparams, dummy);
-		} else if (params().isDocBook()) {
-			docbookParagraphs(text(), *this, os, runparams);
+		} else if (runparams.flavor == Flavor::DocBook5) {
+			XMLStream xs{os};
+			docbookParagraphs(text(), *this, xs, runparams);
 		} else {
 			// If we are previewing a paragraph, even if this is the
 			// child of some other buffer, let's cut the link here,
@@ -4096,6 +4233,7 @@ unique_ptr<TexRow> Buffer::getSourceCode(odocstream & os, string const & format,
 			LaTeXFeatures features(*this, params(), runparams);
 			validate(features);
 			runparams.use_polyglossia = features.usePolyglossia();
+			runparams.use_babel = features.useBabel();
 			runparams.use_hyperref = features.isRequired("hyperref");
 			// latex or literate
 			otexstream ots(os);
@@ -4110,15 +4248,16 @@ unique_ptr<TexRow> Buffer::getSourceCode(odocstream & os, string const & format,
 				d->ignore_parent = false;
 		}
 	} else {
-		os << "% ";
+		os << comment_start;
 		if (output == FullSource)
 			os << _("Preview source code");
 		else if (output == OnlyPreamble)
 			os << _("Preview preamble");
 		else if (output == OnlyBody)
 			os << _("Preview body");
+		os << comment_end;
 		os << "\n\n";
-		if (runparams.flavor == OutputParams::LYX) {
+		if (runparams.flavor == Flavor::LyX) {
 			ostringstream ods;
 			if (output == FullSource)
 				write(ods);
@@ -4127,15 +4266,15 @@ unique_ptr<TexRow> Buffer::getSourceCode(odocstream & os, string const & format,
 			else if (output == OnlyBody)
 				text().write(ods);
 			os << from_utf8(ods.str());
-		} else if (runparams.flavor == OutputParams::HTML) {
+		} else if (runparams.flavor == Flavor::Html) {
 			writeLyXHTMLSource(os, runparams, output);
-		} else if (runparams.flavor == OutputParams::TEXT) {
-			if (output == OnlyPreamble) {
+		} else if (runparams.flavor == Flavor::Text) {
+			if (output == OnlyPreamble)
 				os << "% "<< _("Plain text does not have a preamble.");
-			} else
+			else
 				writePlaintextFile(*this, os, runparams);
-		} else if (params().isDocBook()) {
-				writeDocBookSource(os, absFileName(), runparams, output);
+		} else if (runparams.flavor == Flavor::DocBook5) {
+			writeDocBookSource(os, runparams, output);
 		} else {
 			// latex or literate
 			otexstream ots(os);
@@ -4201,6 +4340,13 @@ void Buffer::updateTitles() const
 }
 
 
+void Buffer::scheduleRedrawWorkAreas() const
+{
+	if (d->wa_)
+		d->wa_->scheduleRedraw();
+}
+
+
 void Buffer::resetAutosaveTimers() const
 {
 	if (d->gui_)
@@ -4218,91 +4364,6 @@ void Buffer::setGuiDelegate(frontend::GuiBufferDelegate * gui)
 {
 	d->gui_ = gui;
 }
-
-
-
-namespace {
-
-class AutoSaveBuffer : public ForkedProcess {
-public:
-	///
-	AutoSaveBuffer(Buffer const & buffer, FileName const & fname)
-		: buffer_(buffer), fname_(fname) {}
-	///
-	virtual shared_ptr<ForkedProcess> clone() const
-	{
-		return make_shared<AutoSaveBuffer>(*this);
-	}
-	///
-	int start()
-	{
-		command_ = to_utf8(bformat(_("Auto-saving %1$s"),
-						 from_utf8(fname_.absFileName())));
-		return run(DontWait);
-	}
-private:
-	///
-	virtual int generateChild();
-	///
-	Buffer const & buffer_;
-	FileName fname_;
-};
-
-
-int AutoSaveBuffer::generateChild()
-{
-#if defined(__APPLE__)
-	/* FIXME fork() is not usable for autosave on Mac OS X 10.6 (snow leopard)
-	 *   We should use something else like threads.
-	 *
-	 * Since I do not know how to determine at run time what is the OS X
-	 * version, I just disable forking altogether for now (JMarc)
-	 */
-	pid_t const pid = -1;
-#else
-	// tmp_ret will be located (usually) in /tmp
-	// will that be a problem?
-	// Note that this calls ForkedCalls::fork(), so it's
-	// ok cross-platform.
-	pid_t const pid = fork();
-	// If you want to debug the autosave
-	// you should set pid to -1, and comment out the fork.
-	if (pid != 0 && pid != -1)
-		return pid;
-#endif
-
-	// pid = -1 signifies that lyx was unable
-	// to fork. But we will do the save
-	// anyway.
-	bool failed = false;
-	TempFile tempfile("lyxautoXXXXXX.lyx");
-	tempfile.setAutoRemove(false);
-	FileName const tmp_ret = tempfile.name();
-	if (!tmp_ret.empty()) {
-		if (!buffer_.writeFile(tmp_ret))
-			failed = true;
-		else if (!tmp_ret.moveTo(fname_))
-			failed = true;
-	} else
-		failed = true;
-
-	if (failed) {
-		// failed to write/rename tmp_ret so try writing direct
-		if (!buffer_.writeFile(fname_)) {
-			// It is dangerous to do this in the child,
-			// but safe in the parent, so...
-			if (pid == -1) // emit message signal.
-				buffer_.message(_("Autosave failed!"));
-		}
-	}
-
-	if (pid == 0) // we are the child so...
-		_exit(0);
-
-	return pid;
-}
-
-} // namespace
 
 
 FileName Buffer::getEmergencyFileName() const
@@ -4337,7 +4398,7 @@ void Buffer::removeAutosaveFile() const
 }
 
 
-void Buffer::moveAutosaveFile(support::FileName const & oldauto) const
+void Buffer::moveAutosaveFile(FileName const & oldauto) const
 {
 	FileName const newauto = getAutosaveFileName();
 	oldauto.refresh();
@@ -4378,11 +4439,9 @@ bool Buffer::autoSave() const
 void Buffer::setExportStatus(bool e) const
 {
 	d->doing_export = e;
-	ListOfBuffers clist = getDescendents();
-	ListOfBuffers::const_iterator cit = clist.begin();
-	ListOfBuffers::const_iterator const cen = clist.end();
-	for (; cit != cen; ++cit)
-		(*cit)->d->doing_export = e;
+	ListOfBuffers clist = getDescendants();
+	for (auto const & bit : clist)
+		bit->d->doing_export = e;
 }
 
 
@@ -4403,7 +4462,7 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 	string & result_file) const
 {
 	bool const update_unincluded =
-			params().maintain_unincluded_children
+			params().maintain_unincluded_children != BufferParams::CM_None
 			&& !params().getIncludedChildren().empty();
 
 	// (1) export with all included children (omit \includeonly)
@@ -4420,6 +4479,9 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 
 void Buffer::setMathFlavor(OutputParams & op) const
 {
+	// Passes the way to generate formulae to the XHTML output code.
+	// In particular, this function has no impact on the DocBook code, as it
+	// uses another mechanism to handle math flavours.
 	switch (params().html_math_output) {
 	case BufferParams::MathML:
 		op.math_flavor = OutputParams::MathAsMathML;
@@ -4440,6 +4502,8 @@ void Buffer::setMathFlavor(OutputParams & op) const
 Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir,
 	bool includeall, string & result_file) const
 {
+	if (removeBiblioTemps)
+		removeBiblioTempFiles();
 	LYXERR(Debug::FILES, "target=" << target);
 	OutputParams runparams(&params().encoding());
 	string format = target;
@@ -4456,21 +4520,20 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 	}
 	MarkAsExporting exporting(this);
 	string backend_format;
-	runparams.flavor = OutputParams::LATEX;
+	runparams.flavor = Flavor::LaTeX;
 	runparams.linelen = lyxrc.plaintext_linelen;
 	runparams.includeall = includeall;
 	vector<string> backs = params().backends();
 	Converters converters = theConverters();
 	bool need_nice_file = false;
 	if (find(backs.begin(), backs.end(), format) == backs.end()) {
-		// Get shortest path to format
+		// Get the shortest path to format
 		converters.buildGraph();
 		Graph::EdgePath path;
-		for (vector<string>::const_iterator it = backs.begin();
-		     it != backs.end(); ++it) {
-			Graph::EdgePath p = converters.getPath(*it, format);
+		for (string const & sit : backs) {
+			Graph::EdgePath p = converters.getPath(sit, format);
 			if (!p.empty() && (path.empty() || p.size() < path.size())) {
-				backend_format = *it;
+				backend_format = sit;
 				path = p;
 			}
 		}
@@ -4478,18 +4541,20 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 			if (!put_in_tempdir) {
 				// Only show this alert if this is an export to a non-temporary
 				// file (not for previewing).
-				Alert::error(_("Couldn't export file"), bformat(
-					_("No information for exporting the format %1$s."),
-					translateIfPossible(theFormats().prettyName(format))));
+				docstring s = bformat(_("No information for exporting the format %1$s."),
+						      translateIfPossible(theFormats().prettyName(format)));
+				if (format == "pdf4")
+					s += "\n"
+					  + bformat(_("Hint: use non-TeX fonts or set input encoding"
+						  " to '%1$s'"), from_utf8(encodings.fromLyXName("ascii")->guiName()));
+				Alert::error(_("Couldn't export file"), s);
 			}
 			return ExportNoPathToFormat;
 		}
 		runparams.flavor = converters.getFlavor(path, this);
 		runparams.hyperref_driver = converters.getHyperrefDriver(path);
-		Graph::EdgePath::const_iterator it = path.begin();
-		Graph::EdgePath::const_iterator en = path.end();
-		for (; it != en; ++it)
-			if (theConverters().get(*it).nice()) {
+		for (auto const & edge : path)
+			if (theConverters().get(edge).nice()) {
 				need_nice_file = true;
 				break;
 			}
@@ -4499,13 +4564,13 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 		LYXERR(Debug::FILES, "backend_format=" << backend_format);
 		// FIXME: Don't hardcode format names here, but use a flag
 		if (backend_format == "pdflatex")
-			runparams.flavor = OutputParams::PDFLATEX;
+			runparams.flavor = Flavor::PdfLaTeX;
 		else if (backend_format == "luatex")
-			runparams.flavor = OutputParams::LUATEX;
+			runparams.flavor = Flavor::LuaTeX;
 		else if (backend_format == "dviluatex")
-			runparams.flavor = OutputParams::DVILUATEX;
+			runparams.flavor = Flavor::DviLuaTeX;
 		else if (backend_format == "xetex")
-			runparams.flavor = OutputParams::XETEX;
+			runparams.flavor = Flavor::XeTeX;
 	}
 
 	string filename = latexName(false);
@@ -4516,29 +4581,38 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 
 	// Plain text backend
 	if (backend_format == "text") {
-		runparams.flavor = OutputParams::TEXT;
-		writePlaintextFile(*this, FileName(filename), runparams);
+		runparams.flavor = Flavor::Text;
+		try {
+			writePlaintextFile(*this, FileName(filename), runparams);
+		}
+		catch (ConversionException const &) { return ExportCancel; }
 	}
 	// HTML backend
 	else if (backend_format == "xhtml") {
-		runparams.flavor = OutputParams::HTML;
+		runparams.flavor = Flavor::Html;
 		setMathFlavor(runparams);
-		makeLyXHTMLFile(FileName(filename), runparams);
+		if (makeLyXHTMLFile(FileName(filename), runparams) == ExportKilled)
+			return ExportKilled;
 	} else if (backend_format == "lyx")
 		writeFile(FileName(filename));
-	// Docbook backend
-	else if (params().isDocBook()) {
-		runparams.nice = !put_in_tempdir;
-		makeDocBookFile(FileName(filename), runparams);
+	// DocBook backend
+	else if (backend_format == "docbook5") {
+		runparams.flavor = Flavor::DocBook5;
+		runparams.nice = false;
+		if (makeDocBookFile(FileName(filename), runparams) == ExportKilled)
+			return ExportKilled;
 	}
 	// LaTeX backend
 	else if (backend_format == format || need_nice_file) {
 		runparams.nice = true;
-		bool const success = makeLaTeXFile(FileName(filename), string(), runparams);
+		ExportStatus const retval =
+			makeLaTeXFile(FileName(filename), string(), runparams);
+		if (retval == ExportKilled)
+			return ExportKilled;
 		if (d->cloned_buffer_)
 			d->cloned_buffer_->d->errorLists["Export"] = d->errorLists["Export"];
-		if (!success)
-			return ExportError;
+		if (retval != ExportSuccess)
+			return retval;
 	} else if (!lyxrc.tex_allows_spaces
 		   && contains(filePath(), ' ')) {
 		Alert::error(_("File name error"),
@@ -4549,11 +4623,13 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 		return ExportTexPathHasSpaces;
 	} else {
 		runparams.nice = false;
-		bool const success = makeLaTeXFile(
-			FileName(filename), filePath(), runparams);
+		ExportStatus const retval =
+			makeLaTeXFile(FileName(filename), filePath(), runparams);
+		if (retval == ExportKilled)
+			return ExportKilled;
 		if (d->cloned_buffer_)
 			d->cloned_buffer_->d->errorLists["Export"] = d->errorLists["Export"];
-		if (!success)
+		if (retval != ExportSuccess)
 			return ExportError;
 	}
 
@@ -4562,9 +4638,14 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 	ErrorList & error_list = d->errorLists[error_type];
 	string const ext = theFormats().extension(format);
 	FileName const tmp_result_file(changeExtension(filename, ext));
-	bool const success = converters.convert(this, FileName(filename),
-		tmp_result_file, FileName(absFileName()), backend_format, format,
-		error_list);
+	Converters::RetVal const retval = 
+		converters.convert(this, FileName(filename), tmp_result_file,
+				   FileName(absFileName()), backend_format, format,
+				   error_list, Converters::none, includeall,
+				   runparams.exportdata);
+	if (retval == Converters::KILLED)
+		return ExportCancel;
+	bool success = (retval == Converters::SUCCESS);
 
 	// Emit the signal to show the error list or copy it back to the
 	// cloned Buffer so that it can be emitted afterwards.
@@ -4577,21 +4658,19 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 		else
 			errors(error_type);
 		// also to the children, in case of master-buffer-view
-		ListOfBuffers clist = getDescendents();
-		ListOfBuffers::const_iterator cit = clist.begin();
-		ListOfBuffers::const_iterator const cen = clist.end();
-		for (; cit != cen; ++cit) {
+		ListOfBuffers clist = getDescendants();
+		for (auto const & bit : clist) {
 			if (runparams.silent)
-				(*cit)->d->errorLists[error_type].clear();
+				bit->d->errorLists[error_type].clear();
 			else if (d->cloned_buffer_) {
 				// Enable reverse search by copying back the
 				// texrow object to the cloned buffer.
 				// FIXME: this is not thread safe.
-				(*cit)->d->cloned_buffer_->d->texrow = (*cit)->d->texrow;
-				(*cit)->d->cloned_buffer_->d->errorLists[error_type] =
-					(*cit)->d->errorLists[error_type];
+				bit->d->cloned_buffer_->d->texrow = bit->d->texrow;
+				bit->d->cloned_buffer_->d->errorLists[error_type] =
+					bit->d->errorLists[error_type];
 			} else
-				(*cit)->errors(error_type, true);
+				bit->errors(error_type, true);
 		}
 	}
 
@@ -4601,8 +4680,8 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 		// FIXME: There is a possibility of concurrent access to texrow
 		// here from the main GUI thread that should be securized.
 		d->cloned_buffer_->d->texrow = d->texrow;
-		string const error_type = params().bufferFormat();
-		d->cloned_buffer_->d->errorLists[error_type] = d->errorLists[error_type];
+		string const err_type = params().bufferFormat();
+		d->cloned_buffer_->d->errorLists[error_type] = d->errorLists[err_type];
 	}
 
 
@@ -4615,9 +4694,9 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 		result_file = changeExtension(d->exportFileName().absFileName(), ext);
 	else
 		result_file = dest_filename;
-	// We need to copy referenced files (e. g. included graphics
+	// We need to copy referenced files (e.g. included graphics
 	// if format == "dvi") to the result dir.
-	vector<ExportedFile> const files =
+	vector<ExportedFile> const extfiles =
 		runparams.exportdata->externalFiles(format);
 	string const dest = runparams.export_folder.empty() ?
 		onlyPath(result_file) : runparams.export_folder;
@@ -4625,11 +4704,13 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 				 : force_overwrite == ALL_FILES;
 	CopyStatus status = use_force ? FORCE : SUCCESS;
 
-	vector<ExportedFile>::const_iterator it = files.begin();
-	vector<ExportedFile>::const_iterator const en = files.end();
-	for (; it != en && status != CANCEL; ++it) {
-		string const fmt = theFormats().getFormatFromFile(it->sourceName);
-		string fixedName = it->exportName;
+	for (ExportedFile const & exp : extfiles) {
+		if (status == CANCEL) {
+			message(_("Document export cancelled."));
+			return ExportCancel;
+		}
+		string const fmt = theFormats().getFormatFromFile(exp.sourceName);
+		string fixedName = exp.exportName;
 		if (!runparams.export_folder.empty()) {
 			// Relative pathnames starting with ../ will be sanitized
 			// if exporting to a different folder
@@ -4638,16 +4719,12 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 		}
 		FileName fixedFileName = makeAbsPath(fixedName, dest);
 		fixedFileName.onlyPath().createPath();
-		status = copyFile(fmt, it->sourceName,
+		status = copyFile(fmt, exp.sourceName,
 			fixedFileName,
-			it->exportName, status == FORCE,
+			exp.exportName, status == FORCE,
 			runparams.export_folder.empty());
 	}
 
-	if (status == CANCEL) {
-		message(_("Document export cancelled."));
-		return ExportCancel;
-	}
 
 	if (tmp_result_file.exists()) {
 		// Finally copy the main file
@@ -4680,7 +4757,7 @@ Buffer::ExportStatus Buffer::doExport(string const & target, bool put_in_tempdir
 Buffer::ExportStatus Buffer::preview(string const & format) const
 {
 	bool const update_unincluded =
-			params().maintain_unincluded_children
+			params().maintain_unincluded_children != BufferParams::CM_None
 			&& !params().getIncludedChildren().empty();
 	return preview(format, update_unincluded);
 }
@@ -4703,7 +4780,7 @@ Buffer::ExportStatus Buffer::preview(string const & format, bool includeall) con
 	Impl * theimpl = isClone() ? d->cloned_buffer_->d : d;
 	theimpl->preview_file_ = previewFile;
 	theimpl->preview_format_ = format;
-	theimpl->preview_error_ = (status != ExportSuccess);
+	theimpl->require_fresh_start_ = (status != ExportSuccess);
 
 	if (status != ExportSuccess)
 		return status;
@@ -4742,7 +4819,7 @@ Buffer::ReadStatus Buffer::loadEmergency()
 		"%1$s exists.\n\nRecover emergency save?"), file);
 
 	int const load_emerg = Alert::prompt(_("Load emergency save?"), text,
-		0, 2, _("&Recover"), _("&Load Original"), _("&Cancel"));
+		0, 3, _("&Recover"), _("&Load Original"), _("&Only show difference"), _("&Cancel"));
 
 	switch (load_emerg)
 	{
@@ -4805,14 +4882,34 @@ Buffer::ReadStatus Buffer::loadEmergency()
 			if (noname) {
 				Alert::warning(_("Can't rename emergency file!"),
 					_("LyX was unable to rename the emergency file. "
-					  "You should do so manually. Otherwise, you will be"
-					  "asked about it again the next time you try to load"
+					  "You should do so manually. Otherwise, you will be "
+					  "asked about it again the next time you try to load "
 					  "this file, and may over-write your own work."));
+			} else {
+				Alert::warning(_("Emergency File Renamed"),
+					bformat(_("Emergency file renamed as:\n %1$s"),
+					from_utf8(newname.onlyFileName())));
 			}
 		}
 		return ReadOriginal;
 	}
 
+	case 2: {
+		string const f1 = d->filename.absFileName();
+		string const f2 = emergencyFile.absFileName();
+		if (loadThisLyXFile(d->filename) != ReadSuccess)
+			return ReadCancel;
+		string const par = "compare run-blocking " + quoteName(f1) + " " + quoteName(f2);
+		LYXERR(Debug::FILES, par << "\n");
+		lyx::dispatch(FuncRequest(LFUN_DIALOG_SHOW, par));
+
+		//release the emergency buffer loaded by compare
+		Buffer * emerBuffer = theBufferList().getBuffer(emergencyFile);
+		if (emerBuffer)
+			theBufferList().release(emerBuffer);
+
+		return ReadCancel; //Release the buffer of Original immediatelly
+	}
 	default:
 		break;
 	}
@@ -4891,26 +4988,26 @@ Buffer::ReadStatus Buffer::loadThisLyXFile(FileName const & fn)
 }
 
 
-void Buffer::bufferErrors(TeXErrors const & terr, ErrorList & errorList) const
+void Buffer::Impl::traverseErrors(TeXErrors::Errors::const_iterator err, TeXErrors::Errors::const_iterator end, ErrorList & errorList) const
 {
-	for (auto const & err : terr) {
+	for (; err != end; ++err) {
 		TexRow::TextEntry start = TexRow::text_none, end = TexRow::text_none;
-		int errorRow = err.error_in_line;
-		Buffer const * buf = 0;
-		Impl const * p = d;
-		if (err.child_name.empty())
+		int errorRow = err->error_in_line;
+		Buffer const * buf = nullptr;
+		Impl const * p = this;
+		if (err->child_name.empty())
 			tie(start, end) = p->texrow.getEntriesFromRow(errorRow);
 		else {
 			// The error occurred in a child
-			for (Buffer const * child : getDescendents()) {
+			for (Buffer const * child : owner_->getDescendants()) {
 				string const child_name =
 					DocFileName(changeExtension(child->absFileName(), "tex")).
 					mangledFileName();
-				if (err.child_name != child_name)
+				if (err->child_name != child_name)
 					continue;
 				tie(start, end) = child->d->texrow.getEntriesFromRow(errorRow);
 				if (!TexRow::isNone(start)) {
-					buf = d->cloned_buffer_
+					buf = this->cloned_buffer_
 						? child->d->cloned_buffer_->d->owner_
 						: child->d->owner_;
 					p = child->d;
@@ -4918,21 +5015,44 @@ void Buffer::bufferErrors(TeXErrors const & terr, ErrorList & errorList) const
 				}
 			}
 		}
-		errorList.push_back(ErrorItem(err.error_desc, err.error_text,
+		errorList.push_back(ErrorItem(err->error_desc, err->error_text,
 		                              start, end, buf));
 	}
 }
 
 
-void Buffer::setBuffersForInsets() const
+void Buffer::bufferErrors(TeXErrors const & terr, ErrorList & errorList) const
 {
-	inset().setBuffer(const_cast<Buffer &>(*this));
+	TeXErrors::Errors::const_iterator err = terr.begin();
+	TeXErrors::Errors::const_iterator end = terr.end();
+
+	d->traverseErrors(err, end, errorList);
+}
+
+
+void Buffer::bufferRefs(TeXErrors const & terr, ErrorList & errorList) const
+{
+	TeXErrors::Errors::const_iterator err = terr.begin_ref();
+	TeXErrors::Errors::const_iterator end = terr.end_ref();
+
+	d->traverseErrors(err, end, errorList);
+}
+
+
+void Buffer::updateBuffer() const
+{
+	updateBuffer(UpdateMaster, InternalUpdate);
+	d->need_update = false;
 }
 
 
 void Buffer::updateBuffer(UpdateScope scope, UpdateType utype) const
 {
 	LBUFERR(!text().paragraphs().empty());
+
+	// This can be called when loading a file, so that there be no
+	// open undo group.
+	UndoGroupHelper ugh(const_cast<Buffer *>(this));
 
 	// Use the master text class also for child documents
 	Buffer const * const master = masterBuffer();
@@ -4986,19 +5106,24 @@ void Buffer::updateBuffer(UpdateScope scope, UpdateType utype) const
 	// update all caches
 	clearReferenceCache();
 	updateMacros();
-	setChangesPresent(false);
 
 	Buffer & cbuf = const_cast<Buffer &>(*this);
+	// if we are reloading, then we could have a dangling TOC,
+	// in effect. so we need to go ahead and reset, even though
+	// we will do so again when we rebuild the TOC later.
+	cbuf.tocBackend().reset();
 
 	// do the real work
 	ParIterator parit = cbuf.par_iterator_begin();
+	if (scope == UpdateMaster)
+		clearIncludeList();
 	updateBuffer(parit, utype);
 
+	// If this document has siblings, then update the TocBackend later. The
+	// reason is to ensure that later siblings are up to date when e.g. the
+	// broken or not status of references is computed. The update is called
+	// in InsetInclude::addToToc.
 	if (master != this)
-		// If this document has siblings, then update the TocBackend later. The
-		// reason is to ensure that later siblings are up to date when e.g. the
-		// broken or not status of references is computed. The update is called
-		// in InsetInclude::addToToc.
 		return;
 
 	// if the bibfiles changed, the cache of bibinfo is invalid
@@ -5023,7 +5148,6 @@ void Buffer::updateBuffer(UpdateScope scope, UpdateType utype) const
 		clearReferenceCache();
 		// we should not need to do this again?
 		// updateMacros();
-		setChangesPresent(false);
 		updateBuffer(parit, utype);
 		// this will already have been done by reloadBibInfoCache();
 		// d->bibinfo_cache_valid_ = true;
@@ -5035,9 +5159,12 @@ void Buffer::updateBuffer(UpdateScope scope, UpdateType utype) const
 	}
 	d->cite_labels_valid_ = true;
 	/// FIXME: Perf
+	clearIncludeList();
 	cbuf.tocBackend().update(true, utype);
 	if (scope == UpdateMaster)
 		cbuf.structureChanged();
+
+	d->need_update = false;
 }
 
 
@@ -5138,8 +5265,7 @@ void Buffer::Impl::setLabel(ParIterator & it, UpdateType utype) const
 	par.itemdepth = getItemDepth(it);
 
 	if (layout.margintype == MARGIN_MANUAL) {
-		if (par.params().labelWidthString().empty())
-			par.params().labelWidthString(par.expandLabel(layout, bp));
+		// nothing to do: empty label width string is fine.
 	} else if (layout.latextype == LATEX_BIB_ENVIRONMENT) {
 		// we do not need to do anything here, since the empty case is
 		// handled during export.
@@ -5149,27 +5275,11 @@ void Buffer::Impl::setLabel(ParIterator & it, UpdateType utype) const
 
 	switch(layout.labeltype) {
 	case LABEL_ITEMIZE: {
-		// At some point of time we should do something more
-		// clever here, like:
-		//   par.params().labelString(
-		//    bp.user_defined_bullet(par.itemdepth).getText());
-		// for now, use a simple hardcoded label
-		docstring itemlabel;
-		switch (par.itemdepth) {
-		case 0:
-			itemlabel = char_type(0x2022);
-			break;
-		case 1:
-			itemlabel = char_type(0x2013);
-			break;
-		case 2:
-			itemlabel = char_type(0x2217);
-			break;
-		case 3:
-			itemlabel = char_type(0x2219); // or 0x00b7
-			break;
-		}
-		par.params().labelString(itemlabel);
+		par.params().labelString(
+			(par.itemdepth < 4)
+					? bp.user_defined_bullet(par.itemdepth).getLabel()
+					  // Display fallback for too deeply nested items
+					: bformat(from_ascii("[?%1$d]"), int(par.itemdepth + 1)));
 		break;
 	}
 
@@ -5194,13 +5304,14 @@ void Buffer::Impl::setLabel(ParIterator & it, UpdateType utype) const
 			break;
 		}
 
-		// Increase the master counter?
-		if (layout.stepmastercounter && needEnumCounterReset(it))
-			counters.stepMaster(enumcounter, utype);
-
-		// Maybe we have to reset the enumeration counter.
-		if (!layout.resumecounter && needEnumCounterReset(it))
-			counters.reset(enumcounter);
+		if (needEnumCounterReset(it)) {
+			// Increase the parent counter?
+			if (layout.stepparentcounter)
+				counters.stepParent(enumcounter, utype);
+			// Maybe we have to reset the enumeration counter.
+			if (!layout.resumecounter)
+				counters.reset(enumcounter);
+		}
 		counters.step(enumcounter, utype);
 
 		string const & lang = par.getParLanguage(bp)->code();
@@ -5258,8 +5369,13 @@ void Buffer::Impl::setLabel(ParIterator & it, UpdateType utype) const
 }
 
 
-void Buffer::updateBuffer(ParIterator & parit, UpdateType utype) const
+void Buffer::updateBuffer(ParIterator & parit, UpdateType utype, bool const deleted) const
 {
+	// if fomatted references are shown in workarea update buffer accordingly
+	if (params().use_formatted_ref)
+		utype = OutputUpdate;
+
+	pushIncludedBuffer(this);
 	// LASSERT: Is it safe to continue here, or should we just return?
 	LASSERT(parit.pit() == 0, /**/);
 
@@ -5269,6 +5385,7 @@ void Buffer::updateBuffer(ParIterator & parit, UpdateType utype) const
 
 	depth_type maxdepth = 0;
 	pit_type const lastpit = parit.lastpit();
+	bool changed = false;
 	for ( ; parit.pit() <= lastpit ; ++parit.pit()) {
 		// reduce depth if necessary
 		if (parit->params().depth() > maxdepth) {
@@ -5279,7 +5396,7 @@ void Buffer::updateBuffer(ParIterator & parit, UpdateType utype) const
 			 * non-const. This would however be costly in
 			 * terms of code duplication.
 			 */
-			const_cast<Buffer *>(this)->undo().recordUndo(CursorData(parit));
+			CursorData(parit).recordUndo();
 			parit->params().depth(maxdepth);
 		}
 		maxdepth = parit->getMaxDepthAfter();
@@ -5295,17 +5412,33 @@ void Buffer::updateBuffer(ParIterator & parit, UpdateType utype) const
 		// set the counter for this paragraph
 		d->setLabel(parit, utype);
 
-		// update change-tracking flag
-		parit->addChangesToBuffer(*this);
-
 		// now the insets
-		InsetList::const_iterator iit = parit->insetList().begin();
-		InsetList::const_iterator end = parit->insetList().end();
-		for (; iit != end; ++iit) {
-			parit.pos() = iit->pos;
-			iit->inset->updateBuffer(parit, utype);
+		for (auto const & insit : parit->insetList()) {
+			parit.pos() = insit.pos;
+			insit.inset->updateBuffer(parit, utype, deleted || parit->isDeleted(insit.pos));
+			changed |= insit.inset->isChanged();
 		}
+
+		// are there changes in this paragraph?
+		changed |= parit->isChanged();
 	}
+
+	// set change indicator for the inset (or the cell that the iterator
+	// points to, if applicable).
+	parit.text()->inset().isChanged(changed);
+	popIncludedBuffer();
+}
+
+
+void Buffer::forceUpdate() const
+{
+	d->need_update = true;
+}
+
+
+bool Buffer::needUpdate() const
+{
+	return d->need_update;
 }
 
 
@@ -5347,6 +5480,15 @@ int Buffer::spellCheck(DocIterator & from, DocIterator & to,
 }
 
 
+void Buffer::requestSpellcheck()
+{
+	ParagraphList::iterator pit = paragraphs().begin();
+	ParagraphList::iterator pend = paragraphs().end();
+	for (; pit != pend; ++pit)
+		pit->requestSpellCheck();
+}
+
+
 void Buffer::Impl::updateStatistics(DocIterator & from, DocIterator & to, bool skipNoOutput)
 {
 	bool inword = false;
@@ -5354,7 +5496,7 @@ void Buffer::Impl::updateStatistics(DocIterator & from, DocIterator & to, bool s
 	char_count_ = 0;
 	blank_count_ = 0;
 
-	for (DocIterator dit = from ; dit != to && !dit.atEnd(); ) {
+	for (DocIterator dit = from; dit != to && !dit.atEnd(); ) {
 		if (!dit.inTexted()) {
 			dit.forwardPos();
 			continue;
@@ -5382,10 +5524,19 @@ void Buffer::Impl::updateStatistics(DocIterator & from, DocIterator & to, bool s
 					++word_count_;
 					inword = true;
 				}
-				if (ins && ins->isLetter())
-					++char_count_;
+				if (ins && ins->isLetter()) {
+					odocstringstream os;
+					ins->toString(os);
+					char_count_ += os.str().length();
+				}
 				else if (ins && ins->isSpace())
 					++blank_count_;
+				else if (ins) {
+					pair<int, int> words = ins->isWords();
+					char_count_ += words.first;
+					word_count_ += words.second;
+					inword = false;
+				}
 				else {
 					char_type const c = par.getChar(pos);
 					if (isPrintableNonspace(c))
@@ -5418,6 +5569,12 @@ int Buffer::charCount(bool with_blanks) const
 }
 
 
+bool Buffer::areChangesPresent() const
+{
+	return inset().isChanged();
+}
+
+
 Buffer::ReadStatus Buffer::reload()
 {
 	setBusy(true);
@@ -5428,12 +5585,22 @@ Buffer::ReadStatus Buffer::reload()
 	docstring const disp_fn = makeDisplayPath(d->filename.absFileName());
 
 	// clear parent. this will get reset if need be.
-	d->setParent(0);
+	Buffer const * oldparent = d->parent();
+	d->setParent(nullptr);
 	ReadStatus const status = loadLyXFile();
+	// The inset members in cursors held by buffer views are now wrong.
+	workAreaManager().sanitizeCursors();
+	setBusy(false);
 	if (status == ReadSuccess) {
 		updateBuffer();
 		changed(true);
 		updateTitles();
+		// reset parent if this hasn't been done yet
+		// but only if this is still its child (e.g.,
+		// not after the former child has been saved as...) 
+		if (!d->parent() && oldparent && oldparent->isFullyLoaded()
+		    && oldparent->isChild(this))
+			d->setParent(oldparent);
 		markClean();
 		message(bformat(_("Document %1$s reloaded."), disp_fn));
 		d->undo_.clear();
@@ -5444,6 +5611,7 @@ Buffer::ReadStatus Buffer::reload()
 	removePreviews();
 	updatePreviews();
 	errors("Parse");
+	changed(true);
 	return status;
 }
 
@@ -5487,11 +5655,9 @@ bool Buffer::saveAs(FileName const & fn)
 
 void Buffer::checkChildBuffers()
 {
-	Impl::BufferPositionMap::iterator it = d->children_positions.begin();
-	Impl::BufferPositionMap::iterator const en = d->children_positions.end();
-	for (; it != en; ++it) {
-		DocIterator dit = it->second;
-		Buffer * cbuf = const_cast<Buffer *>(it->first);
+	for (auto const & bit : d->children_positions) {
+		DocIterator dit = bit.second;
+		Buffer * cbuf = const_cast<Buffer *>(bit.first);
 		if (!cbuf || !theBufferList().isLoaded(cbuf))
 			continue;
 		Inset * inset = dit.nextInset();
@@ -5504,8 +5670,8 @@ void Buffer::checkChildBuffers()
 		if (oldloc == newloc)
 			continue;
 		// the location of the child file is incorrect.
-		cbuf->setParent(0);
-		inset_inc->setChildBuffer(0);
+		cbuf->setParent(nullptr);
+		inset_inc->setChildBuffer(nullptr);
 	}
 	// invalidate cache of children
 	d->children_positions.clear();
@@ -5530,7 +5696,7 @@ void Buffer::checkMasterBuffer()
 	if (master->isChild(this))
 		setParent(master);
 	else
-		setParent(0);
+		setParent(nullptr);
 }
 
 
@@ -5560,29 +5726,6 @@ string Buffer::includedFilePath(string const & name, string const & ext) const
 
 	return to_utf8(makeRelPath(from_utf8(FileName(absname).realPath()),
 	                           from_utf8(filePath())));
-}
-
-
-void Buffer::setChangesPresent(bool b) const
-{
-	d->tracked_changes_present_ = b;
-}
-
-
-bool Buffer::areChangesPresent() const
-{
-	return d->tracked_changes_present_;
-}
-
-
-void Buffer::updateChangesPresent() const
-{
-	LYXERR(Debug::CHANGES, "Buffer::updateChangesPresent");
-	setChangesPresent(false);
-	ParConstIterator it = par_iterator_begin();
-	ParConstIterator const end = par_iterator_end();
-	for (; !areChangesPresent() && it != end; ++it)
-		it->addChangesToBuffer(*this);
 }
 
 
@@ -5616,11 +5759,20 @@ void Buffer::Impl::fileExternallyModified(bool const exists)
 	// pointless to prompt for reloading. If later a file is moved into this
 	// location, then the externally modified warning will appear then.
 	if (exists)
-			externally_modified_ = true;
+		externally_modified_ = true;
 	// Update external modification notification.
 	// Dirty buffers must be visible at all times.
-	if (wa_ && wa_->unhide(owner_))
+	if (wa_ && wa_->unhide(owner_)) {
 		wa_->updateTitles();
+		if (!exists) {
+			lyx_clean = false;
+			frontend::Alert::warning(
+				_("File deleted from disk"),
+				bformat(_("The file\n  %1$s\n"
+					   "has been deleted from disk!"),
+					from_utf8(filename.absFileName())));
+		}
+	}
 	else
 		// Unable to unhide the buffer (e.g. no GUI or not current View)
 		lyx_clean = true;
@@ -5640,5 +5792,56 @@ void Buffer::clearExternalModification() const
 		d->wa_->updateTitles();
 }
 
+
+void Buffer::pushIncludedBuffer(Buffer const * buf) const
+{
+	masterBuffer()->d->include_list_.push_back(buf);
+	if (lyxerr.debugging(Debug::FILES)) {
+		LYXERR0("Pushed. Stack now:");
+		if (masterBuffer()->d->include_list_.empty())
+			LYXERR0("EMPTY!");
+		else
+			for (auto const & b : masterBuffer()->d->include_list_)
+				LYXERR0(b->fileName());
+	}
+}
+
+
+void Buffer::popIncludedBuffer() const
+{
+	masterBuffer()->d->include_list_.pop_back();
+	if (lyxerr.debugging(Debug::FILES)) {
+		LYXERR0("Popped. Stack now:");
+		if (masterBuffer()->d->include_list_.empty())
+			LYXERR0("EMPTY!");
+		else
+			for (auto const & b : masterBuffer()->d->include_list_)
+				LYXERR0(b->fileName());
+	}
+}
+
+
+bool Buffer::isBufferIncluded(Buffer const * buf) const
+{
+	if (!buf)
+		return false;
+	if (lyxerr.debugging(Debug::FILES)) {
+		LYXERR0("Checking for " << buf->fileName() << ". Stack now:");
+		if (masterBuffer()->d->include_list_.empty())
+			LYXERR0("EMPTY!");
+		else
+			for (auto const & b : masterBuffer()->d->include_list_)
+				LYXERR0(b->fileName());
+	}
+	list<Buffer const *> const & blist = masterBuffer()->d->include_list_;
+	return find(blist.begin(), blist.end(), buf) != blist.end();
+}
+
+
+void Buffer::clearIncludeList() const
+{
+	LYXERR(Debug::FILES, "Clearing include list for " << fileName());
+	d->include_list_.clear();
+}
 
 } // namespace lyx

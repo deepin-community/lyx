@@ -1,5 +1,5 @@
 #% Do not delete the line below; configure depends on this
-#  \DeclareLaTeXClass[acmart]{Association for Computing Machinery (ACM) article}
+#  \DeclareLaTeXClass[acmart]{Association for Computing Machinery (ACM)}
 #  \DeclareCategory{Articles}
 #
 # Layout for typesetting publications of the Association for Computing Machinery.
@@ -9,7 +9,7 @@
 # Reviewed following tickets #10722 & #10723
 #          by Jean-Pierre Chrétien <jpc@lyx.org>
 
-Format 66
+Format 104
 
 Provides amscls 1
 Provides amsmath 1
@@ -92,7 +92,7 @@ Style Thanks
     Family Roman
   EndFont
   LabelFont
-    Color Blue
+    Color textlabel1
     Shape Italic
     Family Roman
   EndFont
@@ -111,7 +111,7 @@ Style ACM_Journal
   LabelString "Journal's Short Name: "
   LabelType Static
   LabelFont
-    Color Blue
+    Color textlabel1
     Shape Italic
   EndFont
   LatexName acmJournal
@@ -146,11 +146,15 @@ Style Title
   Argument 1
     LabelString "Short title"
     Mandatory 0
+	# TODO: In DocBook, output it in a titleabbrev outside this title.
   EndArgument
   Font
     Size Largest
   EndFont
   DependsOn Abstract
+  DocBookTag      title
+  DocBookTagType  paragraph
+  DocBookInInfo   maybe
 End
 
 Style Subtitle
@@ -164,6 +168,8 @@ Style Subtitle
     Size Larger
     Family Roman
   EndFont
+  DocBookTag            subtitle
+  DocBookInInfo         maybe
 End
 
 Style Email
@@ -178,7 +184,7 @@ Style Email
   LabelString "Email address: "
   LabelType Static
   LabelFont
-    Color Blue
+    Color textlabel1
     Shape Italic
     Family Roman
   EndFont
@@ -194,7 +200,7 @@ Style ORCID
     Family Roman
   EndFont
   LabelFont
-    Color Blue
+    Color textlabel1
     Shape Italic
   EndFont
   LatexName orcid
@@ -206,7 +212,7 @@ Style Affiliation
     Family Roman
   EndFont
   LabelFont
-    Color Blue
+    Color textlabel1
     Shape Italic
   EndFont
   LabelString "Affiliation: "
@@ -241,6 +247,10 @@ InsetLayout Flex:Department
   LatexName department
   LatexType command
   Spellcheck 0
+  AllowedInLayouts
+    Affiliation
+  EndAllowedInLayouts
+  AllowedOccurrences   1
 End
 
 InsetLayout Flex:Street_Address
@@ -249,6 +259,10 @@ InsetLayout Flex:Street_Address
   LatexName streetaddress
   LatexType command
   Spellcheck 0
+  AllowedInLayouts
+    Affiliation
+  EndAllowedInLayouts
+  AllowedOccurrences   1
 End
 
 InsetLayout Flex:City
@@ -257,6 +271,10 @@ InsetLayout Flex:City
   LatexName city
   LatexType command
   Spellcheck 0
+  AllowedInLayouts
+    Affiliation
+  EndAllowedInLayouts
+  AllowedOccurrences   1
 End
 
 InsetLayout Flex:Country
@@ -265,6 +283,10 @@ InsetLayout Flex:Country
   LatexName country
   LatexType command
   Spellcheck 0
+  AllowedInLayouts
+    Affiliation
+  EndAllowedInLayouts
+  AllowedOccurrences   1
 End
 
 InsetLayout Flex:State
@@ -273,6 +295,10 @@ InsetLayout Flex:State
   LatexName state
   LatexType command
   Spellcheck 0
+  AllowedInLayouts
+    Affiliation
+  EndAllowedInLayouts
+  AllowedOccurrences   1
 End
 
 InsetLayout Flex:Postal_Code
@@ -281,6 +307,10 @@ InsetLayout Flex:Postal_Code
   LatexName postcode
   LatexType command
   Spellcheck 0
+  AllowedInLayouts
+    Affiliation
+  EndAllowedInLayouts
+  AllowedOccurrences   1
 End
 
 Style TitleNote
@@ -290,7 +320,7 @@ Style TitleNote
   EndFont
   LabelFont
     Family Roman
-    Color Blue
+    Color textlabel1
     Shape Italic
   EndFont
   LabelString "Title Note: "
@@ -407,7 +437,7 @@ Style CCSXML
   LatexType Environment
   Font
     Family Typewriter
-    Color blue
+    Color textlabel1
     Shape Italic
   EndFont
   FreeSpacing 1
@@ -432,7 +462,7 @@ Style CCS_Description
   LatexName ccsdesc
   Font
     Family Typewriter
-    Color Blue
+    Color textlabel1
     Shape Italic
   EndFont
   LabelFont
@@ -488,7 +518,7 @@ Style ShortAuthors
   Margin Dynamic
   LabelFont
     Family Roman
-    Color blue
+    Color textlabel1
     Shape Italic
   EndFont
   Preamble
@@ -539,7 +569,15 @@ End
 OutlinerName thm "Definitions & Theorems"
 
 Counter theorem
+	GuiName Theorem
 	Within                section
+	RefFormat thm "Theorem \arabic{theorem}"
+	RefFormat cor "Corollary \arabic{theorem}"
+	RefFormat lem "Lemma \arabic{theorem}"
+	RefFormat prop "Proposition \arabic{theorem}"
+	RefFormat conj "Conjecture \arabic{theorem}"
+	RefFormat def "Definition \arabic{theorem}"
+	RefFormat exa "Example \arabic{theorem}"
 End
 
 Style Theorem
@@ -660,6 +698,9 @@ Style Acknowledgments
     Series Bold
     Size Large
   EndFont
+  DocBookTag            para
+  DocBookWrapperTag     acknowledgements
+  DocBookSection        true
 End
 
 InsetLayout Flex:Grant_Sponsor

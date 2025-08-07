@@ -3,15 +3,11 @@ include $(top_srcdir)/config/common.am
 EXTRA_DIST = $(TEST_FILES)
 
 TEST_FILES = \
-	export/IncludeMissingEndTagDiv.lyx \
-	export/latex/ja_wrong_auto_encoding.lyx \
-	export/latex/languagenesting1.lyx \
-	export/latex/languagenesting2.lyx \
-	export/latex/LongestLabelWithUnderscore.lyx \
+	export/xhtml/IncludeMissingEndTagDiv.lyx \
+	export/xhtml/MissingEndTagDiv.lyx \
+	export/latex/languages/ja-listings-uncodable-error.lyx \
 	export/MissingEndLayoutBetweenTables.lyx \
-	export/MissingEndTagDiv.lyx \
-	export/latex/TableErrorIfSlovakTextInserted.lyx \
-	export/latex/utf8-plain-with-tex-fonts.lyx \
+	export/latex/inputenc-utf8-plain.lyx \
 	export/WrongDfnTagHandling.lyx \
 	mathmacros/architecture.lyx \
 	mathmacros/architecture.lyx \

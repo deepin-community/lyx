@@ -10,11 +10,11 @@
 GETTEXT_MACRO_VERSION = 0.19
 
 PACKAGE = lyx
-VERSION = 2.3.6
+VERSION = 2.4.3
 PACKAGE_BUGREPORT = lyx-devel@lists.lyx.org
 
 # ADDED FOR LYX
-PYTHON = /usr/bin/python
+PYTHON = /usr/bin/python3
 
 SED = /usr/bin/sed
 SHELL = /bin/sh
@@ -198,7 +198,7 @@ $(DOMAIN).pot-update: $(POTFILES) $(srcdir)/POTFILES.in remove-potcdate.sed
 	      --files-from=$(srcdir)/POTFILES.in \
 	      --copyright-holder='$(COPYRIGHT_HOLDER)' \
 	      --package-name="$${package_prefix}lyx" \
-	      --package-version='2.3.6' \
+	      --package-version='2.4.3' \
 	      --msgid-bugs-address="$$msgid_bugs_address" \
 	    ;; \
 	esac

@@ -4,7 +4,8 @@
 # from TeXMacs (they give vdhoeven@texmacs.org as contact)
 #
 # We do it a bit differently and allow corrections only to combine a symbol
-# and a char to a new symbol.
+# and a char to a new symbol. In other words the combination of the first column
+# followed by the second column produces third column in the mathed.
 #
 #
 
@@ -119,7 +120,25 @@
 \leftarrow        -    \longleftarrow
 \longleftarrow    >    \longleftrightarrow
 =                 >    \Rightarrow
+=                 <    \Leftarrow
+\Rightarrow       =    \Longrightarrow
+\Leftarrow        >    \Leftrightarrow
+\Leftarrow        =    \Longleftarrow
+\Longleftarrow    >    \Longleftrightarrow
 
+\leftarrow        *    \longleftarrow
+\longleftarrow    *    \longleftrightarrow
+\longleftrightarrow *  \leftrightarrow
+\leftrightarrow   *    \leftarrow
+\rightarrow       *    \longrightarrow
+\longrightarrow   *    \longleftrightarrow
+
+\Leftarrow        *    \Longleftarrow
+\Longleftarrow    *    \Longleftrightarrow
+\Longleftrightarrow *  \Leftrightarrow
+\Leftrightarrow   *    \Leftarrow
+\Rightarrow       *    \Longrightarrow
+\Longrightarrow   *    \Longleftrightarrow
 
 @                 *    \circ
 \circ             /    \varnothing
@@ -332,6 +351,8 @@ EE                w    \wedge
 \curlywedgedownarrow * \wedge
 EE                v    \vee
 EE                x    \times
+EE                V    \forall
+EE                E    \exists
 
 # <***/    \nsqsubset
 # <***=    \sqsubseteq

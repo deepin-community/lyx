@@ -4,7 +4,7 @@
 # Springer's cl2emult textclass definition file.
 # Author : André Poenitz
 
-Format 66
+Format 104
 Columns                   1
 Sides                     1
 SecNumDepth               2
@@ -54,6 +54,9 @@ Style Title
 	  Series              Bold
 	EndFont
 	HTMLTitle             true
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -67,6 +70,11 @@ Style Author
 	BottomSep             0.7
 	ParSep                0.7
 	Align                 Left
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 
@@ -127,6 +135,16 @@ Style Bibliography
 	EndFont
 	TocLevel              1
 	IsTocCaption          0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
 End
 
 
@@ -140,4 +158,5 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End

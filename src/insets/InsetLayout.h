@@ -5,7 +5,7 @@
  * Licence details can be found in the file COPYING.
  *
  * \author Martin Vermeer
- * \author Richard Heck
+ * \author Richard Kimberly Heck
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -27,34 +27,35 @@ namespace lyx {
 class Lexer;
 class TextClass;
 
+
+enum class InsetDecoration : int {
+	CLASSIC,
+	MINIMALISTIC,
+	CONGLOMERATE,
+	DEFAULT
+};
+
+enum class InsetLyXType : int {
+	NOLYXTYPE,
+	CHARSTYLE,
+	CUSTOM,
+	END,
+	STANDARD
+};
+
+enum class InsetLaTeXType : int {
+	NOLATEXTYPE,
+	COMMAND,
+	ENVIRONMENT,
+	ILT_ERROR
+};
+
+
 ///
 class InsetLayout {
 public:
 	///
-	InsetLayout();
-	///
-	enum InsetDecoration {
-		CLASSIC,
-		MINIMALISTIC,
-		CONGLOMERATE,
-		DEFAULT
-	};
-	///
-	enum InsetLyXType {
-		NOLYXTYPE,
-		CHARSTYLE,
-		CUSTOM,
-		ELEMENT,
-		END,
-		STANDARD
-	};
-	///
-	enum InsetLaTeXType {
-		NOLATEXTYPE,
-		COMMAND,
-		ENVIRONMENT,
-		ILT_ERROR
-	};
+	InsetLayout() { labelfont_.setColor(Color_insetlabel); }
 	///
 	bool read(Lexer & lexrc, TextClass const & tclass,
 			bool validating = false);
@@ -66,6 +67,8 @@ public:
 	InsetLyXType lyxtype() const { return lyxtype_; }
 	///
 	docstring labelstring() const { return labelstring_; }
+	///
+	docstring menustring() const { return menustring_; }
 	///
 	bool contentaslabel() const { return contentaslabel_; }
 	///
@@ -80,6 +83,8 @@ public:
 	docstring leftdelim() const { return leftdelim_; }
 	///
 	docstring rightdelim() const { return rightdelim_; }
+	///
+	bool inheritFont() const { return inheritfont_; }
 	///
 	FontInfo font() const { return font_; }
 	///
@@ -98,9 +103,9 @@ public:
 	/// Those are iterators for different containers.
 	Layout::LaTeXArgMap args() const;
 	///
-	unsigned int optArgs() const;
+	int optArgs() const;
 	///
-	unsigned int requiredArgs() const;
+	int requiredArgs() const;
 	///
 	docstring preamble() const { return preamble_; }
 	/// Get language dependent macro definitions needed for this inset
@@ -118,7 +123,11 @@ public:
 	std::string const & htmltag() const;
 	/// Additional attributes for inclusion with the start tag. Default (if
 	/// a tag is provided) is: class="name".
-	std::string const & htmlattr() const;
+	std::string const & htmlattr() const { return htmlattr_; }
+	///
+	std::string const & htmlclass() const;
+	///
+	std::string const & htmlGetAttrString() const;
 	/// Tag for individual paragraphs in the inset. Default is none.
 	std::string const & htmlinnertag() const { return htmlinnertag_; }
 	/// Attributes for that tag. Default (if a tag is provided) is:
@@ -147,7 +156,51 @@ public:
 	/// Defaults to true.
 	bool htmlisblock() const { return htmlisblock_; }
 	///
-	std::set<std::string> requires() const { return requires_; }
+	std::string docbooktag() const { return docbooktag_; }
+	///
+	std::string docbooktagtype() const;
+	///
+	std::string docbookattr() const { return docbookattr_; }
+	///
+	std::string docbookinnertag() const { return docbookinnertag_; }
+	///
+	std::string docbookinnertagtype() const;
+	///
+	std::string docbookinnerattr() const { return docbookinnerattr_; }
+	///
+	std::string const & docbookininfo() const;
+	///
+	bool docbooksection() const { return docbooksection_; }
+	///
+	bool docbooknotinpara() const { return docbooknotinpara_; }
+	///
+	bool docbookargumentbeforemaintag() const { return docbookargumentbeforemaintag_; }
+	///
+	bool docbookargumentaftermaintag() const { return docbookargumentaftermaintag_; }
+	///
+	std::string docbookwrappertag() const { return docbookwrappertag_; }
+	///
+	std::string docbookwrappertagtype() const;
+	///
+	std::string docbookwrapperattr() const { return docbookwrapperattr_; }
+	///
+	std::string docbookitemwrappertag() const { return docbookitemwrappertag_; }
+	///
+	std::string docbookitemwrappertagtype() const;
+	///
+	std::string docbookitemwrapperattr() const { return docbookitemwrapperattr_; }
+	///
+	std::string docbookitemtag() const { return docbookitemtag_; }
+	///
+	std::string docbookitemtagtype() const;
+	///
+	std::string docbookitemattr() const { return docbookitemattr_; }
+	///
+	bool docbooknofontinside() const { return docbooknofontinside_; }
+	///
+	bool docbookrenderasimage() const { return docbookrenderasimage_; }
+	///
+	std::set<std::string> const & required() const { return required_; }
 	///
 	bool isMultiPar() const { return multipar_; }
 	///
@@ -159,9 +212,20 @@ public:
 	///
 	docstring passThruChars() const { return passthru_chars_; }
 	///
+	std::string newlineCmd() const { return newline_cmd_; }
+	///
 	bool parbreakIsNewline() const { return parbreakisnewline_; }
 	///
+	bool parbreakIgnored() const { return parbreakignored_; }
+	///
 	bool isNeedProtect() const { return needprotect_; }
+	///
+	bool needsCProtect() const { return needcprotect_; }
+	///
+	bool noCProtect() const { return nocprotect_; }
+	/// Protection of some elements such as \ref and \cite
+	/// in \mbox (needed by commands building on soul or ulem)
+	bool isNeedMBoxProtect() const { return needmboxprotect_; }
 	///
 	bool isFreeSpacing() const { return freespacing_; }
 	///
@@ -179,7 +243,7 @@ public:
 	///
 	bool isDisplay() const { return display_; }
 	///
-	bool forcelocalfontswitch() const { return forcelocalfontswitch_; }
+	bool forceLocalFontSwitch() const { return forcelocalfontswitch_; }
 	///
 	docstring const & obsoleted_by() const { return obsoleted_by_; }
 	///
@@ -188,6 +252,16 @@ public:
 	std::string tocType() const { return toc_type_; }
 	///
 	bool isTocCaption() const { return is_toc_caption_; }
+	///
+	bool editExternally () const { return edit_external_; }
+	///
+	std::set<docstring> const & allowedInInsets() const { return allowed_in_insets_; }
+	///
+	std::set<docstring> const & allowedInLayouts() const { return allowed_in_layouts_; }
+	///
+	int allowedOccurrences() const { return allowed_occurrences_; }
+	///
+	bool allowedOccurrencesPerItem() const { return allowed_occurrences_per_item_; }
 private:
 	///
 	void makeDefaultCSS() const;
@@ -196,21 +270,23 @@ private:
 	///
 	void readArgument(Lexer &);
 	///
-	docstring name_;
+	docstring name_ = from_ascii("undefined");
 	/**
 		* This is only used (at present) to decide where to put them on the menus.
 		* Values are 'charstyle', 'custom' (things that by default look like a
-		* footnote), 'element' (docbook), 'standard'.
+		* footnote), 'standard'.
 		*/
-	InsetLyXType lyxtype_;
+	InsetLyXType lyxtype_ = InsetLyXType::STANDARD;
 	///
-	docstring labelstring_;
+	docstring labelstring_ = from_ascii("UNDEFINED");
 	///
-	bool contentaslabel_;
+	docstring menustring_;
 	///
-	InsetDecoration decoration_;
+	bool contentaslabel_ = false;
 	///
-	InsetLaTeXType latextype_;
+	InsetDecoration decoration_ = InsetDecoration::DEFAULT;
+	///
+	InsetLaTeXType latextype_ = InsetLaTeXType::NOLATEXTYPE;
 	///
 	std::string latexname_;
 	///
@@ -220,11 +296,13 @@ private:
 	///
 	docstring rightdelim_;
 	///
-	FontInfo font_;
+	FontInfo font_ = inherit_font;
 	///
-	FontInfo labelfont_;
+	FontInfo labelfont_ = sane_font;
 	///
-	ColorCode bgcolor_;
+	bool inheritfont_ = true;
+	///
+	ColorCode bgcolor_ = Color_error;
 	///
 	docstring counter_;
 	///
@@ -234,13 +312,17 @@ private:
 	/// Language and babel dependent macro definitions needed for this inset
 	docstring babelpreamble_;
 	///
-	bool fixedwidthpreambleencoding_;
+	bool fixedwidthpreambleencoding_ = false;
 	///
 	docstring refprefix_;
 	///
 	mutable std::string htmltag_;
 	///
 	mutable std::string htmlattr_;
+	///
+	mutable std::string htmlclass_;
+	/// cache
+	mutable std::string htmlfullattrs_;
 	///
 	std::string htmlinnertag_;
 	///
@@ -255,45 +337,99 @@ private:
 	mutable std::string defaultcssclass_;
 	/// Whether to force generation of default CSS even if some is given.
 	/// False by default.
-	bool htmlforcecss_;
+	bool htmlforcecss_ = false;
 	///
 	docstring htmlpreamble_;
 	///
-	bool htmlisblock_;
+	bool htmlisblock_ = true;
 	///
-	std::set<std::string> requires_;
+	std::string docbooktag_;
 	///
-	bool multipar_;
+	mutable std::string docbooktagtype_;
 	///
-	bool custompars_;
+	std::string docbookattr_;
 	///
-	bool forceplain_;
+	std::string docbookinnertag_;
 	///
-	bool passthru_;
+	mutable std::string docbookinnertagtype_;
+	///
+	std::string docbookinnerattr_;
+	///
+	mutable std::string docbookininfo_;
+	///
+	bool docbooknotinpara_ = false;
+	///
+	bool docbookargumentbeforemaintag_ = false;
+	///
+	bool docbookargumentaftermaintag_ = false;
+	///
+	bool docbooksection_ = false;
+	///
+	std::string docbookwrappertag_;
+	///
+	mutable std::string docbookwrappertagtype_;
+	///
+	std::string docbookwrapperattr_;
+	///
+	std::string docbookitemtag_;
+	///
+	mutable std::string docbookitemtagtype_;
+	///
+	std::string docbookitemattr_;
+	///
+	std::string docbookitemwrappertag_;
+	///
+	mutable std::string docbookitemwrappertagtype_;
+	///
+	std::string docbookitemwrapperattr_;
+	///
+	bool docbooknofontinside_ = false;
+	///
+	bool docbookrenderasimage_ = false;
+	///
+	std::set<std::string> required_;
+	///
+	bool multipar_ = true;
+	///
+	bool custompars_ = true;
+	///
+	bool forceplain_ = false;
+	///
+	bool passthru_ = false;
 	///
 	docstring passthru_chars_;
 	///
-	bool parbreakisnewline_;
+	std::string newline_cmd_;
 	///
-	bool freespacing_;
+	bool parbreakisnewline_ = false;
 	///
-	bool keepempty_;
+	bool parbreakignored_ = false;
 	///
-	bool forceltr_;
+	bool freespacing_ = false;
 	///
-	bool forceownlines_;
+	bool keepempty_ = false;
 	///
-	bool needprotect_;
+	bool forceltr_ = false;
+	///
+	bool forceownlines_ = false;
+	///
+	bool needprotect_ = false;
+	///
+	bool needcprotect_ = false;
+	///
+	bool nocprotect_ = false;
+	///
+	bool needmboxprotect_ = false;
 	/// should the contents be written to TOC strings?
-	bool intoc_;
+	bool intoc_ = false;
 	/// check spelling of this inset?
-	bool spellcheck_;
+	bool spellcheck_ = true;
 	///
-	bool resetsfont_;
+	bool resetsfont_ = false;
 	///
-	bool display_;
+	bool display_ = true;
 	///
-	bool forcelocalfontswitch_;
+	bool forcelocalfontswitch_ = false;
 	/** Name of an insetlayout that has replaced this insetlayout.
 	    This is used to rename an insetlayout, while keeping backward
 	    compatibility
@@ -304,16 +440,26 @@ private:
 	///
 	Layout::LaTeXArgMap postcommandargs_;
 	///
-	bool add_to_toc_;
+	bool add_to_toc_ = false;
 	///
 	std::string toc_type_;
 	///
-	bool is_toc_caption_;
+	bool is_toc_caption_ = false;
+	///
+	bool edit_external_ = false;
+	/// Insets that can hold insets with this InsetLayout
+	std::set<docstring> allowed_in_insets_;
+	/// Layouts that can hold insets with this InsetLayout
+	std::set<docstring> allowed_in_layouts_;
+	///
+	int allowed_occurrences_ = -1;
+	///
+	bool allowed_occurrences_per_item_ = false;
 };
 
 ///
-InsetLayout::InsetLyXType translateLyXType(std::string const & str);
-InsetLayout::InsetDecoration translateDecoration(std::string const & str);
+InsetLyXType translateLyXType(std::string const & str);
+InsetDecoration translateDecoration(std::string const & str);
 
 } // namespace lyx
 

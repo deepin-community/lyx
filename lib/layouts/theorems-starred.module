@@ -1,14 +1,14 @@
-#\DeclareLyXModule{Theorems (Unnumbered)}
+#\DeclareLyXModule{Standard Theorems (Unnumbered)}
+#\DeclareCategory{Maths}
 #DescriptionBegin
 #Defines only unnumbered theorem environments, and the proof environment, using 
 #the extended AMS machinery. 
 #DescriptionEnd
 #Excludes: theorems-std | theorems-ams
-#Category: theorems
 
-# Author: Richard Heck <rgheck@comcast.net>
+# Author: Richard Kimberly Heck <rikiheck@lyx.org>
 
-Format 66
+Format 104
 
 Input theorems-order.inc
 Input theorems-starred.inc

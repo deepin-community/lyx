@@ -8,7 +8,8 @@
 # a document, like abstract, bibliography and such.
 
 
-Format 66
+Format 104
+
 Style Abstract
 	Margin                Static
 	LatexType             Environment
@@ -26,13 +27,12 @@ Style Abstract
 	Align                 Block
 	LabelType             Centered
 	LabelString           "Abstract"
-	LabelBottomSep        0.5
+	LabelBottomSep        0.2
 	Font
 	  Size                Small
 	EndFont
 	LabelFont
 	  Series              Bold
-	  Size                Large
 	EndFont
 	HTMLLabelFirst        1
 	HTMLForceCSS          1
@@ -48,6 +48,11 @@ Style Abstract
 			font-weight: bold;
 		}
 	EndHTMLStyle
+	DocBookAbstract       true
+	DocBookInInfo         always
+	DocBookWrapperTag     abstract
+	DocBookWrapperMergeWithPrevious    true
+	DocBookTag            para
 End
 
 
@@ -83,4 +88,15 @@ Style Bibliography
 	EndHTMLStyle
 	TocLevel              1
 	ISTocCaption          0
+	Argument listpreamble:1
+	  LabelString    "Bib preamble"
+	  MenuString     "Bibliography Preamble"
+	  Tooltip        "LaTeX code to be inserted before the first bibliography item"
+	  PassThru       1
+	  Font
+	    Family typewriter
+	    Color latex
+	  EndFont
+	EndArgument
+	DocBookTag            bibliography
 End

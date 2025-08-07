@@ -6,7 +6,7 @@
 # Author : Herbert Voss <voss@perce.de> 2001/08/13
 
 
-Format 66
+Format 104
 Columns                 2
 Sides                   2
 #SecNumDepth                            # no counting
@@ -39,6 +39,7 @@ Style Standard
 	Align                 Block
 	AlignPossible         Block, Left, Right, Center
 	LabelType             No_Label
+	DocBookTag            para
 End
 
 
@@ -62,6 +63,7 @@ Style Section
 	  Size                Normal
 	EndFont
 	TocLevel 1
+    HTMLTag               h2
 End
 
 
@@ -83,6 +85,7 @@ Style Subsection
 	  Size                Normal
 	EndFont
 	TocLevel 2
+    HTMLTag               h3
 End
 
 
@@ -154,6 +157,9 @@ Style Title
 	  Series              Bold
 	  Size                Normal
 	EndFont
+	DocBookTag            title
+	DocBookTagType        paragraph
+	DocBookInInfo         maybe
 End
 
 
@@ -171,6 +177,11 @@ Style Author
 	LeftMargin            MM
 	Align                 Left
 	LabelType             No_Label
+	DocBookTag            personname
+	DocBookTagType        paragraph
+	DocBookWrapperTag     author
+	DocBookWrapperTagType inline
+	DocBookInInfo         always
 End
 
 

@@ -1,12 +1,13 @@
-#\DeclareLyXModule[rsphrase.sty]{Risk and Safety Statements}
+#\DeclareLyXModule[rsphrase.sty]{Chemistry: Risk and Safety Statements (Obsolete)}
+#\DeclareCategory{Academic Field Specifics}
 #DescriptionBegin
 #Provides two insets and one environment to typeset numbers and phrases of 
-#chemical risk and safety statements. For a description see the file 
-#R-S-statements.lyx in LyX's examples folder.
+#chemical risk and safety statements.
+#Now obsoleted and officially replaced by GHS Hazard-Precautionary statement system in the EU.
 #DescriptionEnd
 #Author: Uwe Stöhr <uwestoehr@web.de>
 
-Format 66
+Format 104
 
 InsetLayout "Flex:R-S number"
 	LyxType		custom
@@ -25,7 +26,7 @@ InsetLayout "Flex:R-S number"
 	  Misc		No_Bar
 	EndFont
 	LabelFont
-	  Color		green
+	  Color		textlabel2
 	  Size		Small
 	EndFont
 End
@@ -59,7 +60,7 @@ Style "Safety phrase"
 	LabelType	Static
 	LabelString	"S phrase:"
 	LabelFont
-	  Color		Green
+	  Color		textlabel2
 	EndFont
 End
 

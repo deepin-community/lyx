@@ -5,7 +5,19 @@
 # Please note that the package source code is licensed under its own license.
 
 project ( libiconv C )
-cmake_minimum_required ( VERSION 2.8 )
+cmake_minimum_required(VERSION 3.5.0)
+
+set(LYX_IPO_SUPPORTED FALSE)
+if (POLICY CMP0069)
+  cmake_policy(SET CMP0069 NEW)
+  if (LYX_USE_IPO MATCHES "ON")
+    set(LYX_IPO_SUPPORTED YES)
+  endif()
+endif()
+if (POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
 set(CMAKE_MODULE_PATH .)
 include ( configure.cmake )
 
@@ -54,4 +66,6 @@ set(ICONV_INCLUDE_DIR ${BINDIR}/include CACHE STRING "libiconv include  dir" FOR
 set(ICONV_LIBRARY iconv CACHE STRING "libiconv library" FORCE)
 set(ICONV_FOUND iconv CACHE STRING "libiconv found" FORCE)
 
-set_target_properties(iconv PROPERTIES FOLDER "3rd_party")
+set_target_properties(iconv PROPERTIES
+	FOLDER "3rd_party"
+	INTERPROCEDURAL_OPTIMIZATION ${LYX_IPO_SUPPORTED})

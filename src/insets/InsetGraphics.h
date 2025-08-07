@@ -34,7 +34,7 @@ class InsetGraphics : public Inset
 {
 public:
 	///
-	InsetGraphics(Buffer * buf);
+	explicit InsetGraphics(Buffer * buf);
 	///
 	~InsetGraphics();
 
@@ -53,64 +53,75 @@ public:
 
 	InsetGraphicsParams getParams() const { return params_;}
 	///
-	bool clickable(BufferView const &, int, int) const { return true; }
+	bool clickable(BufferView const &, int, int) const override { return true; }
 	///
-	bool canPaintChange(BufferView const &) const { return true; };
+	bool canPaintChange(BufferView const &) const override { return true; }
+	///
+	InsetGraphics * asInsetGraphics() override { return this; }
+	/// 
+	InsetGraphics const * asInsetGraphics() const override { return this; }
 
-private:
 	///
-	InsetGraphics(InsetGraphics const &);
-
+	bool isLabeled() const override { return true; }
 	///
-	bool isLabeled() const { return true; }
-	void metrics(MetricsInfo &, Dimension &) const;
+	bool hasSettings() const override { return true; }
 	///
-	bool hasSettings() const { return true; }
+	void write(std::ostream &) const override;
 	///
-	void write(std::ostream &) const;
-	///
-	void read(Lexer & lex);
+	void read(Lexer & lex) override;
 	/** returns the number of rows (\n's) of generated tex code.
 	 #fragile == true# means, that the inset should take care about
 	 fragile commands by adding a #\protect# before.
 	 */
-	void latex(otexstream &, OutputParams const &) const;
+	void latex(otexstream &, OutputParams const &) const override;
 	///
 	int plaintext(odocstringstream & ods, OutputParams const & op,
-	              size_t max_length = INT_MAX) const;
+	              size_t max_length = INT_MAX) const override;
 	///
-	int docbook(odocstream &, OutputParams const &) const;
+	void docbook(XMLStream &, OutputParams const &) const override;
 	///
-	docstring xhtml(XHTMLStream & os, OutputParams const &) const;
+	docstring xhtml(XMLStream & os, OutputParams const &) const override;
 	/** Tell LyX what the latex features you need i.e. what latex packages
 	    you need to be included.
 	 */
-	void validate(LaTeXFeatures & features) const;
+	void validate(LaTeXFeatures & features) const override;
 	/// returns LyX code associated with the inset. Used for TOC, ...)
-	InsetCode lyxCode() const { return GRAPHICS_CODE; }
+	InsetCode lyxCode() const override { return GRAPHICS_CODE; }
 	///
-	docstring layoutName() const { return from_ascii("Graphics"); }
+	docstring layoutName() const override { return from_ascii("Graphics"); }
 	/// Get the inset parameters, used by the GUIndependent dialog.
 	InsetGraphicsParams const & params() const;
+
 	///
-	void draw(PainterInfo & pi, int x, int y) const;
+	int topOffset(BufferView const *) const override { return 0; }
 	///
-	bool showInsetDialog(BufferView * bv) const;
+	int bottomOffset(BufferView const *) const override { return 0; }
+	///
+	int leftOffset(BufferView const *) const override { return 3; }
+	///
+	int rightOffset(BufferView const *) const override { return 2; }
+
+	///
+	void metrics(MetricsInfo &, Dimension &) const override;
+	///
+	void draw(PainterInfo & pi, int x, int y) const override;
+	///
+	bool showInsetDialog(BufferView * bv) const override;
 	///
 	void editGraphics(InsetGraphicsParams const &) const;
 	///
-	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const;
+	bool getStatus(Cursor &, FuncRequest const &, FuncStatus &) const override;
 	///
 	void addToToc(DocIterator const & di, bool output_active,
-				  UpdateType utype, TocBackend & backend) const;
+				  UpdateType utype, TocBackend & backend) const override;
 	///
-	std::string contextMenuName() const;
-	/// Force inset into LTR environment if surroundings are RTL
-	bool forceLTR(OutputParams const &) const { return true; }
+	std::string contextMenuName() const override;
+	/// Force inset into LTR environment if surroundings are RTL (only needed in pdfTeX)
+	bool forceLTR(OutputParams const & runparams) const override { return !runparams.isFullUnicode(); }
 	///
-	void doDispatch(Cursor & cur, FuncRequest & cmd);
+	void doDispatch(Cursor & cur, FuncRequest & cmd) override;
 	///
-	Inset * clone() const;
+	Inset * clone() const override;
 	/// Get the status message, depends on the image loading status.
 	std::string statusMessage() const;
 	/// Get the output bounding box accounting for raster formats.
@@ -119,7 +130,7 @@ private:
 	std::string createLatexOptions(bool const ps) const;
 	/// Create length values for docbook export.
 	docstring toDocbookLength(Length const & len) const;
-	/// Create the atributes for docbook export.
+	/// Create the attributes for docbook export.
 	docstring createDocBookAttributes() const;
 	/// Convert the file if needed, and return the location of the file.
 	/// This version is for use with LaTeX-style output.
@@ -129,13 +140,19 @@ private:
 	/// \return the new filename, relative to the location of the HTML file,
 	/// or an empty string on error.
 	std::string prepareHTMLFile(OutputParams const & runparams) const;
+	///
+	CtObject getCtObject(OutputParams const &) const override;
+
+private:
+	///
+	InsetGraphics(InsetGraphics const &);
 
 	///
 	InsetGraphicsParams params_;
 	/// holds the entity name that defines the graphics location (SGML).
 	docstring const graphic_label;
 	///
-	docstring toolTip(BufferView const & bv, int x, int y) const;
+	docstring toolTip(BufferView const & bv, int x, int y) const override;
 	/// The thing that actually draws the image on LyX's screen.
 	RenderGraphic * graphic_;
 };

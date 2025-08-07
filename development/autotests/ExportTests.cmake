@@ -28,6 +28,13 @@
 
 find_package(Perl)
 find_program(XMLLINT_EXECUTABLE xmllint)
+find_program(JAVA_EXECUTABLE java)
+set(jingjava)
+if (JAVA_EXECUTABLE)
+  if (EXISTS "${TOP_SRC_DIR}/development/tools/jing.jar")
+    set(jingjava ${JAVA_EXECUTABLE})
+  endif()
+endif()
 
 if(PERL_FOUND)
   set(DVI_FORMATS "dvi" "dvi3")
@@ -52,22 +59,26 @@ macro(getoutputformats filepath varname format_set)
   file(STRINGS "${filepath}" lines)
   # What should we test, if default_output_format is not defined?
   # For now we test everything ...
-  set(out_formats "xhtml" ${DVI_FORMATS} ${PDF_FORMATS})
+  set(out_formats "xhtml" "docbook5" "epub" ${DVI_FORMATS} ${PDF_FORMATS})
   foreach(_l IN LISTS lines)
     if(_l MATCHES "^\\\\default_output_format +\([^ ]+\)")
       set(_format ${CMAKE_MATCH_1})
       if(_format STREQUAL "default")
-        set(out_formats "xhtml" ${DVI_FORMATS} ${PDF_FORMATS})
+        set(out_formats "xhtml" "docbook5" "epub" ${DVI_FORMATS} ${PDF_FORMATS})
       else()
         set(${format_set} ${_format})
         if(_format STREQUAL "pdf2" AND "${filepath}" MATCHES "/doc/")
-          set(out_formats "xhtml" ${DVI_FORMATS} ${PDF_FORMATS})
+          set(out_formats "xhtml" "docbook5" "epub" ${DVI_FORMATS} ${PDF_FORMATS})
         elseif(_format MATCHES "pdf$")
-          set(out_formats "xhtml" ${PDF_FORMATS})
+          set(out_formats "xhtml" "docbook5" "epub" ${PDF_FORMATS})
         elseif(_format MATCHES "dvi$")
-          set(out_formats "xhtml" ${DVI_FORMATS})
+          set(out_formats "xhtml" "docbook5" "epub" ${DVI_FORMATS})
+        elseif(_format MATCHES "docbook5")
+          set(out_formats "docbook5")
         elseif(_format MATCHES "xhtml")
           set(out_formats "xhtml")
+        elseif(_format MATCHES "epub")
+          set(out_formats "epub")
         else()
           # Respect all other output formats
           # like "eps3"
@@ -150,21 +161,21 @@ macro(maketestname testname inverted listinverted listignored listunreliable lis
   endif()
   set(sublabel "${${listlabels}}")
   findexpr(mfound ${testname} ${listignoredx} sublabel)
-  if (NOT mfound)
+  if (mfound)
+    MATH(EXPR lyx_ignored_count "${lyx_ignored_count}+1")
+    # No testname because ignored
+    set(${testname} "")
+  else()
     set(sublabel2 "")
     findexpr(foundunreliable ${testname} ${listunreliablex} sublabel2)
     if (foundunreliable)
       set(sublabel "unreliable" ${sublabel} ${sublabel2})
-      list(REMOVE_ITEM sublabel "export" "inverted" "templates" "mathmacros" "manuals" "autotests")
+      list(REMOVE_ITEM sublabel "export" "inverted" "templates" "tabletemplates" "mathmacros" "manuals" "autotests")
     endif()
     string(REGEX MATCH "(^check_load|_(systemF|texF|pdf3|pdf2|pdf|dvi|lyx[0-9][0-9]|xhtml)$)" _v ${${testname}})
     # check if test _may_ be in listinverted
     set(sublabel2 "")
-    if (_v)
-      findexpr(mfound ${testname} ${listinvertedx} sublabel2)
-    else()
-      set(mfound OFF)
-    endif()
+    findexpr(mfound ${testname} ${listinvertedx} sublabel2)
     if (mfound)
       set(sublabel3 "")
       findexpr(foundsuspended ${testname} ${listsuspendedx} sublabel3)
@@ -189,9 +200,6 @@ macro(maketestname testname inverted listinverted listignored listunreliable lis
       set(${testname} "${tmpprefix}${${testname}}")
       set(${listlabels} ${sublabel})
     endif()
-  else()
-    # No testname because ignored
-    set(${testname} "")
   endif()
 endmacro()
 
@@ -287,7 +295,7 @@ endmacro()
 assignLabelDepth(0 "export" "key" "layout" "load" "lyx2lyx" "module" "roundtrip" "url")
 assignLabelDepth(1 "unreliable" "inverted")
 assignLabelDepth(2 "suspended")
-assignLabelDepth(-1 "examples" "manuals" "mathmacros" "templates" "autotests")
+assignLabelDepth(-1 "examples" "manuals" "mathmacros" "templates" "tabletemplates" "autotests")
 
 loadTestList(invertedTests invertedTests 7 ON)
 loadTestList(ignoredTests ignoredTests 0 ON)
@@ -295,7 +303,7 @@ loadTestList(suspendedTests suspendedTests 6 ON)
 loadTestList(unreliableTests unreliableTests 5 ON)
 loadTestList(ignoreLatexErrorsTests ignoreLatexErrorsTests 8 OFF)
 
-foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autotests/mathmacros)
+foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates lib/tabletemplates autotests/mathmacros)
   set(testlabel "export")
   if (libsubfolderx MATCHES "lib/doc")
     list(APPEND testlabel "manuals")
@@ -303,6 +311,8 @@ foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autote
     list(APPEND testlabel "examples")
   elseif (libsubfolderx MATCHES "lib/templates")
     list(APPEND testlabel "templates")
+  elseif (libsubfolderx MATCHES "lib/tabletemplates")
+    list(APPEND testlabel "tabletemplates")
   elseif (libsubfolderx MATCHES "autotests/mathmacros")
     list(APPEND testlabel "mathmacros")
   elseif (libsubfolderx MATCHES "autotests/.+")
@@ -318,18 +328,23 @@ foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autote
   set(lang_lyx_files)
   set(nolang_lyx_files)
   foreach(f ${lyx_files})
-    string(REGEX MATCHALL "^[a-z][a-z](_[A-Z][A-Z])?\\/" _v ${f})
-    if(_v)
-      list(APPEND lang_lyx_files ${f})
+    if (${f} MATCHES "#")
+      # Do nothing, probably wrong temporary file
     else()
-      list(APPEND nolang_lyx_files ${f})
+      string(REGEX MATCHALL "^[a-z][a-z](_[A-Z][A-Z])?\\/" _v ${f})
+      if(_v)
+        list(APPEND lang_lyx_files ${f})
+      else()
+        list(APPEND nolang_lyx_files ${f})
+      endif()
     endif()
   endforeach()
   foreach(f ${nolang_lyx_files} ${lang_lyx_files})
     # Strip extension
     string(REGEX REPLACE "\\.lyx$" "" f ${f})
-    foreach(_lyx_format_num 16 21 22)
-      set(TestName "export/${libsubfolder}/${f}_lyx${_lyx_format_num}")
+    foreach(_lyx_format_num 16 20 21 22 23)
+      set(TestName1 "export/${libsubfolder}/${f}_lyx${_lyx_format_num}")
+      string(REGEX REPLACE "[\\(\\)]" "_" TestName "${TestName1}")
       set(mytestlabel ${testlabel} "lyx2lyx" "load")
       maketestname(TestName inverted invertedTests ignoredTests unreliableTests mytestlabel)
       if(TestName)
@@ -347,6 +362,7 @@ foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autote
           -Dinverted=${inverted}
           -DTOP_SRC_DIR=${TOP_SRC_DIR}
           -DPERL_EXECUTABLE=${PERL_EXECUTABLE}
+          -DLYX_PYTHON_EXECUTABLE=${LYX_PYTHON_EXECUTABLE}
           -P "${TOP_SRC_DIR}/development/autotests/export.cmake")
         setmarkedtestlabel(${TestName} ${mytestlabel})
       endif()
@@ -355,7 +371,8 @@ foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autote
       set(lyx2lyxtestlabel "lyx2lyx")
       # For use of lyx2lyx we need the python executable
       set(mytestlabel ${lyx2lyxtestlabel})
-      set(TestName "lyx2lyx/${libsubfolder}/${f}")
+      set(TestName1 "lyx2lyx/${libsubfolder}/${f}")
+      string(REGEX REPLACE "[\\(\\)]" "_" TestName "${TestName1}")
       maketestname(TestName inverted invertedTests ignoredTests unreliableTests mytestlabel)
       if(TestName)
         add_test(NAME ${TestName}
@@ -371,7 +388,8 @@ foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autote
     endif()
     set(loadtestlabel "load")
     set(mytestlabel ${loadtestlabel})
-    set(TestName "check_load/${libsubfolder}/${f}")
+    set(TestName1 "check_load/${libsubfolder}/${f}")
+    string(REGEX REPLACE "[\\(\\)]" "_" TestName "${TestName1}")
     maketestname(TestName inverted invertedTests ignoredTests unreliableTests mytestlabel)
     if(TestName)
       add_test(NAME ${TestName}
@@ -425,9 +443,9 @@ foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autote
             set(_enc "_${_enc2}")
           endif()
           if(fonttype MATCHES "defaultF")
-            set(TestName "export/${libsubfolder}/${f}${_enc}_${format}")
+            set(TestName1 "export/${libsubfolder}/${f}${_enc}_${format}")
           else()
-            set(TestName "export/${libsubfolder}/${f}${_enc}_${format}_${fonttype}")
+            set(TestName1 "export/${libsubfolder}/${f}${_enc}_${format}_${fonttype}")
           endif()
           if (format MATCHES "^${default_output_format}$")
             set(extraLabels "defaultoutput")
@@ -435,13 +453,19 @@ foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autote
             set(extraLabels )
           endif()
           set(missingLabels )
-          findexpr(mfound TestName ignoreLatexErrorsTests missingLabels)
+          findexpr(mfound TestName1 ignoreLatexErrorsTests missingLabels)
           if (mfound)
             set(mytestlabel ${testlabel} "ignoring" ${missingLabels} ${extraLabels})
           else()
             set(mytestlabel ${testlabel} ${extraLabels})
           endif()
+          string(REGEX REPLACE "[\\(\\)]" "_" TestName "${TestName1}")
           maketestname(TestName inverted invertedTests ignoredTests unreliableTests mytestlabel)
+          if (format MATCHES "docbook5")
+            set(f_extension "xml")
+          else()
+            set(f_extension ${format})
+          endif()
           if(TestName)
             add_test(NAME ${TestName}
               WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${LYX_HOME}"
@@ -451,14 +475,16 @@ foreach(libsubfolderx autotests/export lib/doc lib/examples lib/templates autote
               -DWORKDIR=${CMAKE_CURRENT_BINARY_DIR}/${LYX_HOME}
               -Dformat=${format}
               -Dfonttype=${fonttype}
-              -Dextension=${format}
+              -Dextension=${f_extension}
               -Dfile=${f}
               -Dinverted=${inverted}
               -DTOP_SRC_DIR=${TOP_SRC_DIR}
               "-DIgnoreErrorMessage=${missingLabels}"
               -DPERL_EXECUTABLE=${PERL_EXECUTABLE}
               -DXMLLINT_EXECUTABLE=${XMLLINT_EXECUTABLE}
+              -DJAVA_EXECUTABLE=${jingjava}
               -DENCODING=${_enc2}
+              -DLYX_PYTHON_EXECUTABLE=${LYX_PYTHON_EXECUTABLE}
               -P "${TOP_SRC_DIR}/development/autotests/export.cmake")
             setmarkedtestlabel(${TestName} ${mytestlabel}) # check for suspended pdf/dvi exports
           endif()

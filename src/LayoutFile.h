@@ -5,7 +5,7 @@
  * Licence details can be found in the file COPYING.
  *
  * \author Lars Gullik Bjønnes
- * \author Richard Heck (typedefs and such)
+ * \author Richard Kimberly Heck (typedefs and such)
  *
  * Full author contact details are available in file CREDITS.
  */
@@ -13,7 +13,6 @@
 #ifndef BASECLASSLIST_H
 #define BASECLASSLIST_H
 
-#include "LayoutModuleList.h"
 #include "TextClass.h"
 
 #include "support/strfwd.h"
@@ -24,7 +23,7 @@
 
 namespace lyx {
 
-class Layout;
+class LayoutModuleList;
 
 /// Index into LayoutFileList. Basically a 'strong typedef'.
 class LayoutFileIndex {
@@ -108,7 +107,7 @@ public:
 	/// Read textclass list. Returns false if this fails.
 	bool read();
 	/// Clears the textclass so as to force it to be reloaded
-	void reset(LayoutFileIndex const & tc);
+	void reset(LayoutFileIndex const & classname);
 
 	/// Add a default textclass with all standard layouts.
 	/// Note that this will over-write any information we may have

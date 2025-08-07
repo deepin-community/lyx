@@ -18,6 +18,7 @@
 #include "Changes.h"
 #include "Dimension.h"
 #include "Font.h"
+#include "RowFlags.h"
 
 #include "support/docstring.h"
 #include "support/types.h"
@@ -49,7 +50,18 @@ public:
 		// An inset
 		INSET,
 		// Some spacing described by its width, not a string
-		SPACE
+		SPACE,
+		// Spacing until the left margin, with a minimal value given
+		// by the initial width
+		MARGINSPACE
+	};
+	enum SplitType {
+		// split string to fit requested width, fail if string remains too long
+		FIT,
+		// if the requested width is too small, accept the first possible break
+		BEST_EFFORT,
+		// cut string at any place, even for languages that wrap at word delimiters
+		FORCE
 	};
 
 /**
@@ -57,12 +69,10 @@ public:
  * by other methods that need to parse the Row contents.
  */
 	struct Element {
+		//
 		Element(Type const t, pos_type p, Font const & f, Change const & ch)
-			: type(t), pos(p), endpos(p + 1), inset(0),
-			  extra(0), font(f), change(ch), final(false) {}
+			: type(t), pos(p), endpos(p + 1), font(f), change(ch) {}
 
-		// Return the number of separator in the element (only STRING type)
-		int countSeparators() const;
 
 		// Return total width of element, including separator overhead
 		// FIXME: Cache this value or the number of expanders?
@@ -86,24 +96,30 @@ public:
 		 *  adjusted to the actual pixel position.
 		*/
 		pos_type x2pos(int &x) const;
-		/** Break the element if possible, so that its width is less
-		 * than \param w. Returns true on success. When \param force
-		 * is true, the string is cut at any place, other wise it
-		 * respects the row breaking rules of characters.
+		/** Break the element in two if possible, so that its width is less
+		 * than the required values.
+		 * \return true if something has been done ; false if this is
+		 * not needed or not possible.
+		 * \param width: maximum width of the row.
+		 * \param next_width: available width on next rows.
+		 * \param split_type: indicate how the string should be split.
+		 * \param tail: a vector of elements where the remainder of
+		 *   the text will be appended (empty if nothing happened).
 		 */
-		bool breakAt(int w, bool force);
-
-		// Returns the position on left side of the element.
-		pos_type left_pos() const;
-		// Returns the position on right side of the element.
-		pos_type right_pos() const;
+		// FIXME: ideally last parameter should be Elements&, but it is not possible.
+		bool splitAt(int width, int next_width, SplitType split_type, std::vector<Element> & tail);
+		// remove trailing spaces (useful for end of row)
+		void rtrim();
 
 		//
 		bool isRTL() const { return font.isVisibleRightToLeft(); }
 		// This is true for virtual elements.
-		// Note that we do not use the type here. The two definitions
-		// should be equivalent
-		bool isVirtual() const { return pos == endpos; }
+		bool isVirtual() const { return type == VIRTUAL; }
+
+		// Returns the position on left side of the element.
+		pos_type left_pos() const { return isRTL() ? endpos : pos; };
+		// Returns the position on right side of the element.
+		pos_type right_pos() const { return isRTL() ? pos : endpos; };
 
 		// The kind of row element
 		Type type;
@@ -111,15 +127,17 @@ public:
 		pos_type pos;
 		// first position after the element in the paragraph
 		pos_type endpos;
-		// The dimension of the chunk (does not contains the
+		// The dimension of the chunk (does not contain the
 		// separator correction)
 		Dimension dim;
+		// The width of the element without trailing spaces
+		int nspc_wid = 0;
 
 		// Non-zero only if element is an inset
-		Inset const * inset;
+		Inset const * inset = nullptr;
 
 		// Only non-null for justified rows
-		double extra;
+		double extra = 0;
 
 		// Non-empty if element is a string or is virtual
 		docstring str;
@@ -128,14 +146,19 @@ public:
 		//
 		Change change;
 		// is it possible to add contents to this element?
-		bool final;
+		bool final = false;
+		// properties with respect to row breaking (made of RowFlag enumerators)
+		int row_flags = Inline;
 
 		friend std::ostream & operator<<(std::ostream & os, Element const & row);
 	};
 
+	///
+	typedef Element value_type;
 
 	///
-	Row();
+	Row() {}
+
 	/**
 	 * Helper function: set variable \c var to value \c val, and mark
 	 * row as changed is the values were different. This is intended
@@ -163,18 +186,18 @@ public:
 	bool changed() const { return changed_; }
 	///
 	void changed(bool c) const { changed_ = c; }
-	/// Set the selection begin and end.
-	/**
-	  * This is const because we update the selection status only at draw()
-	  * time.
-	  */
-	void setSelection(pos_type sel_beg, pos_type sel_end) const;
 	///
 	bool selection() const;
-	/// Set the selection begin and end and whether the left and/or right
-	/// margins are selected.
+	/**
+	 * Set the selection begin and end and whether the left and/or
+	 * right margins are selected.
+	 * This is const because we update the selection status only at
+	 * draw() time.
+	 */
 	void setSelectionAndMargins(DocIterator const & beg,
 		DocIterator const & end) const;
+	/// no selection on this row.
+	void clearSelectionAndMargins() const;
 
 	///
 	void pit(pit_type p) { pit_ = p; }
@@ -189,18 +212,18 @@ public:
 	///
 	pos_type endpos() const { return end_; }
 	///
-	void right_boundary(bool b) { right_boundary_ = b; }
+	void end_boundary(bool b) { end_boundary_ = b; }
 	///
-	bool right_boundary() const { return right_boundary_; }
+	bool end_boundary() const { return end_boundary_; }
 	///
 	void flushed(bool b) { flushed_ = b; }
 	///
 	bool flushed() const { return flushed_; }
 
 	///
-	Dimension const & dimension() const { return dim_; }
+	Dimension const & dim() const { return dim_; }
 	///
-	Dimension & dimension() { return dim_; }
+	Dimension & dim() { return dim_; }
 	///
 	int height() const { return dim_.height(); }
 	/// The width of the row, including the left margin, but not the right one.
@@ -210,13 +233,16 @@ public:
 	///
 	int descent() const { return dim_.des; }
 
+	///
+	Dimension const & contents_dim() const { return contents_dim_; }
+	///
+	Dimension & contents_dim() { return contents_dim_; }
+
 	/// The offset of the left-most cursor position on the row
 	int left_x() const;
 	/// The offset of the right-most cursor position on the row
 	int right_x() const;
 
-	// Return the number of separators in the row
-	int countSeparators() const;
 	// Set the extra spacing for every expanding character in STRING-type
 	// elements.  \param w is the total amount of extra width for the row to be
 	// distributed among expanders.  \return false if the justification fails.
@@ -227,12 +253,14 @@ public:
 		 Font const & f, Change const & ch);
 	///
 	void add(pos_type pos, char_type const c,
-		 Font const & f, Change const & ch);
+	         Font const & f, Change const & ch);
 	///
 	void addVirtual(pos_type pos, docstring const & s,
 			Font const & f, Change const & ch);
 	///
 	void addSpace(pos_type pos, int width, Font const & f, Change const & ch);
+	///
+	void addMarginSpace(pos_type pos, int width, Font const & f, Change const & ch);
 
 	///
 	typedef std::vector<Element> Elements;
@@ -259,20 +287,19 @@ public:
 	Element & back() { return elements_.back(); }
 	///
 	Element const & back() const { return elements_.back(); }
-	/// remove last element
+	/// add element at the end and update width
+	void push_back(Element const &);
+	/// remove last element and update width
 	void pop_back();
-	/// remove all row elements
-	void clear() { elements_.clear(); }
 	/**
 	 * if row width is too large, remove all elements after last
 	 * separator and update endpos if necessary. If all that
-	 * remains is a large word, cut it to \param width.
-	 * \param body_pos minimum amount of text to keep.
-	 * \param width maximum width of the row.
-	 * \param available width on next row.
-	 * \return true if the row has been shortened.
+	 * remains is a large word, cut it to \c max_width.
+	 * \param max_width maximum width of the row.
+	 * \param next_width available width on next row.
+	 * \return list of elements remaining after breaking.
 	 */
-	bool shortenIfNeeded(pos_type const body_pos, int const width, int const next_width);
+	Elements shortenIfNeeded(int const max_width, int const next_width);
 
 	/**
 	 * If last element of the row is a string, compute its width
@@ -284,9 +311,11 @@ public:
 	 * Find sequences of right-to-left elements and reverse them.
 	 * This should be called once the row is completely built.
 	 */
-	void reverseRTL(bool rtl_par);
+	void reverseRTL();
 	///
 	bool isRTL() const { return rtl_; }
+	///
+	void setRTL(bool rtl) { rtl_ = rtl; }
 	///
 	bool needsChangeBar() const { return changebar_; }
 	///
@@ -298,21 +327,21 @@ public:
 	friend std::ostream & operator<<(std::ostream & os, Row const & row);
 
 	/// additional width for separators in justified rows (i.e. space)
-	double separator;
+	double separator = 0;
 	/// width of hfills in the label
-	double label_hfill;
+	double label_hfill = 0;
 	/// the left margin position of the row
-	int left_margin;
+	int left_margin = 0;
 	/// the right margin of the row
-	int right_margin;
+	int right_margin = 0;
 	///
-	mutable pos_type sel_beg;
+	mutable pos_type sel_beg = -1;
 	///
-	mutable pos_type sel_end;
+	mutable pos_type sel_end = -1;
 	///
-	mutable bool begin_margin_sel;
+	mutable bool begin_margin_sel = false;
 	///
-	mutable bool end_margin_sel;
+	mutable bool end_margin_sel = false;
 
 private:
 	/// Decides whether the margin is selected.
@@ -321,8 +350,10 @@ private:
 	  * \param beg
 	  * \param end
 	  */
-	bool isMarginSelected(bool left_margin, DocIterator const & beg,
+	bool isMarginSelected(bool left, DocIterator const & beg,
 		DocIterator const & end) const;
+	/// Set the selection begin and end.
+	void setSelection(pos_type sel_beg, pos_type sel_end) const;
 
 	/**
 	 * Returns true if a char or string with font \c f and change
@@ -335,25 +366,36 @@ private:
 	Elements elements_;
 
 	/// has the Row appearance changed since last drawing?
-	mutable bool changed_;
+	mutable bool changed_ = true;
 	/// Index of the paragraph that contains this row
-	pit_type pit_;
+	pit_type pit_ = 0;
 	/// first pos covered by this row
-	pos_type pos_;
+	pos_type pos_ = 0;
 	/// one behind last pos covered by this row
-	pos_type end_;
+	pos_type end_ = 0;
 	// Is there a boundary at the end of the row (display inset...)
-	bool right_boundary_;
+	bool end_boundary_ = false;
 	// Shall the row be flushed when it is supposed to be justified?
-	bool flushed_;
+	bool flushed_ = false;
 	/// Row dimension.
 	Dimension dim_;
+	/// Row contents dimension. Does not contain the space above/below row.
+	Dimension contents_dim_;
 	/// true when this row lives in a right-to-left paragraph
-	bool rtl_;
+	bool rtl_ = false;
 	/// true when a changebar should be drawn in the margin
-	bool changebar_;
+	bool changebar_ = false;
 };
 
+std::ostream & operator<<(std::ostream & os, Row::Elements const & elts);
+
+
+/**
+ * Each paragraph is broken up into a number of rows on the screen.
+ * This is a list of such on-screen rows, ordered from the top row
+ * downwards.
+ */
+typedef std::vector<Row> RowList;
 
 } // namespace lyx
 

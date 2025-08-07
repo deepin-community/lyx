@@ -43,6 +43,7 @@
 # include "support/qstring_helpers.h"
 # include <QDir>
 # include <QDesktopServices>
+# include <QStandardPaths>
 #endif
 
 using namespace std;
@@ -158,9 +159,9 @@ Package::Package(string const & command_line_arg0,
 
 int Package::reconfigureUserLyXDir(string const & option) const
 {
-	if (configure_command_.empty()) {
+	if (configure_command_.empty() || !os::hasPython()) {
 		FileName const configure_script(addName(system_support().absFileName(), "configure.py"));
-		configure_command_ = os::python() + ' ' +
+		configure_command_ = os::python(true) + ' ' +
 			quoteName(configure_script.toFilesystemEncoding()) +
 			with_version_suffix() + " --binary-dir=" +
 			quoteName(FileName(binary_dir().absFileName()).toFilesystemEncoding());
@@ -325,12 +326,12 @@ bool inBuildDir(FileName const & abs_binary,
 
 	// Note that the name of the lyx binary may be a symbolic link.
 	// If that is the case, then we follow the links too.
-    FileName binary = abs_binary;
+	FileName binary = abs_binary;
 	while (true) {
 		// Try and find "lyxrc.defaults".
-		if( isBuildDir(binary, "../", build_support_dir) ||
-            isBuildDir(binary, "../../", build_support_dir))
-        {
+		if ( isBuildDir(binary, "../", build_support_dir)
+		    || isBuildDir(binary, "../../", build_support_dir))
+		{
 			// Try and find "chkconfig.ltx".
 			system_support_dir =
 				FileName(addPath(Package::top_srcdir().absFileName(), "lib"));
@@ -359,17 +360,14 @@ bool inBuildDir(FileName const & abs_binary,
 	system_support_dir = FileName();
 	build_support_dir = FileName();
 
-    return false;
+	return false;
 }
 
 
 bool doesFileExist(FileName & result, string const & search_dir, string const & name)
 {
     result = fileSearch(search_dir, name);
-    if (!result.empty()) {
-        return true;
-    }
-    return false;
+    return !result.empty();
 }
 
 
@@ -382,7 +380,7 @@ bool lyxBinaryPath(FileName & lyx_binary, string const & search_dir, string cons
     } else if (doesFileExist(lyx_binary, search_dir, "lyx" + string(PROGRAM_SUFFIX) + ext)) {
     } else if (doesFileExist(lyx_binary, search_dir, "LyX" + string(PROGRAM_SUFFIX) + ext)){
     }
-    return !lyx_binary.empty() ? true : false;
+    return !lyx_binary.empty();
 }
 
 
@@ -422,12 +420,9 @@ FileName const get_document_dir(FileName const & home_dir)
 	(void)home_dir; // Silence warning about unused variable.
 	os::GetFolderPath win32_folder_path;
 	return FileName(win32_folder_path(os::GetFolderPath::PERSONAL));
-#elif defined (USE_MACOSX_PACKAGING) && (QT_VERSION >= 0x050000)
-	(void)home_dir; // Silence warning about unused variable.
-	return FileName(fromqstr(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)));
 #elif defined (USE_MACOSX_PACKAGING)
 	(void)home_dir; // Silence warning about unused variable.
-	return FileName(fromqstr(QDesktopServices::storageLocation(QDesktopServices::DocumentsLocation)));
+	return FileName(fromqstr(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)));
 #else // Posix-like.
 	return home_dir;
 #endif
@@ -508,9 +503,9 @@ FileName const get_binary_path(string const & exe)
 		// This will do nothing if *it is already absolute.
 		string const exe_dir = makeAbsPath(*it).absFileName();
 
-		FileName const exe_path(addName(exe_dir, exe_name));
-		if (exe_path.exists())
-			return exe_path;
+		FileName const exe_path2(addName(exe_dir, exe_name));
+		if (exe_path2.exists())
+			return exe_path2;
 	}
 
 	// Didn't find anything.
@@ -688,13 +683,9 @@ FileName const get_default_user_support_dir(FileName const & home_dir)
 	os::GetFolderPath win32_folder_path;
 	return FileName(addPath(win32_folder_path(os::GetFolderPath::APPDATA), PACKAGE));
 
-#elif defined (USE_MACOSX_PACKAGING) && (QT_VERSION >= 0x050000)
-	(void)home_dir; // Silence warning about unused variable.
-	return FileName(addPath(fromqstr(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)), PACKAGE));
-
 #elif defined (USE_MACOSX_PACKAGING)
 	(void)home_dir; // Silence warning about unused variable.
-	return FileName(addPath(fromqstr(QDesktopServices::storageLocation(QDesktopServices::DataLocation)), PACKAGE));
+	return FileName(addPath(fromqstr(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)), PACKAGE));
 
 #elif defined (USE_HAIKU_PACKAGING)
 	return FileName(addPath(home_dir.absFileName(), string("/config/settings/") + PACKAGE));
